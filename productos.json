@@ -1,29 +1,864 @@
 {
   "categorias": [
-    { "id": "cuidado_personal", "nombre": "Cuidado Personal", "subcategorias": ["Jabones", "Higiene Femenina"] },
-    { "id": "calzado", "nombre": "Calzado", "subcategorias": ["Havaianas", "Ipanema"] }
+    {
+      "id": "cuidado_personal",
+      "nombre": "Cuidado Personal",
+      "subcategorias": [
+        "Jabones",
+        "Desodorantes",
+        "Higiene Femenina",
+        "Pañales Adultos"
+      ]
+    },
+    {
+      "id": "bebe",
+      "nombre": "Cuidado Bebé",
+      "subcategorias": [
+        "Jabones Bebé",
+        "Shampoo y Baño",
+        "Pañales",
+        "Accesorios"
+      ]
+    },
+    {
+      "id": "calzado",
+      "nombre": "Calzado",
+      "subcategorias": [
+        "Havaianas",
+        "Ipanema"
+      ]
+    }
   ],
   "productos": [
-    { "id": "P001", "nombre": "Jabón Plusbelle", "categoria": "cuidado_personal", "subcategoria": "Jabones", "presentaciones": [{"tamano": "125g", "precio_base": 0}, {"tamano": "90g", "precio_base": 0}] },
-    { "id": "P002", "nombre": "Jabón LUX", "categoria": "cuidado_personal", "subcategoria": "Jabones", "presentaciones": [{"tamano": "125g", "precio_base": 0}, {"tamano": "90g", "precio_base": 0}] },
-    { "id": "P003", "nombre": "Jabón Rexona", "categoria": "cuidado_personal", "subcategoria": "Jabones", "presentaciones": [{"tamano": "90g", "precio_base": 0}] },
-    { "id": "P004", "nombre": "Jabón Palmolive", "categoria": "cuidado_personal", "subcategoria": "Jabones", "presentaciones": [{"tamano": "150g", "precio_base": 0}, {"tamano": "85g", "precio_base": 0}] },
-    { "id": "P005", "nombre": "Jabón Mar", "categoria": "cuidado_personal", "subcategoria": "Jabones", "presentaciones": [{"tamano": "150g", "precio_base": 0}, {"tamano": "90g", "precio_base": 0}] },
-    { "id": "P006", "nombre": "Jabón Protex", "categoria": "cuidado_personal", "subcategoria": "Jabones", "presentaciones": [{"tamano": "110g", "precio_base": 0}] },
-    { "id": "P007", "nombre": "Jabón Dove", "categoria": "cuidado_personal", "subcategoria": "Jabones", "presentaciones": [{"tamano": "135g", "precio_base": 0}, {"tamano": "90g", "precio_base": 0}] },
-    { "id": "P008", "nombre": "Jabón C2", "categoria": "cuidado_personal", "subcategoria": "Jabones", "presentaciones": [{"tamano": "150g", "precio_base": 0}, {"tamano": "85g", "precio_base": 0}] },
-    { "id": "P009", "nombre": "Jabón Heno de Pravia", "categoria": "cuidado_personal", "subcategoria": "Jabones", "presentaciones": [{"tamano": "150g", "precio_base": 0}, {"tamano": "100g", "precio_base": 0}] },
-    { "id": "P010", "nombre": "Jabón Tocador Hotel", "categoria": "cuidado_personal", "subcategoria": "Jabones", "presentaciones": [{"tamano": "unidad", "precio_base": 0}] },
-    { "id": "P011", "nombre": "Jabón Lucero (Coco y Glicerina)", "categoria": "cuidado_personal", "subcategoria": "Jabones", "presentaciones": [{"tamano": "125g", "precio_base": 0}, {"tamano": "70g", "precio_base": 0}] },
-    { "id": "P012", "nombre": "Havaianas Tradicional", "categoria": "calzado", "subcategoria": "Havaianas", "presentaciones": [{"tamano": "23/24", "precio_base": 0}, {"tamano": "25/26", "precio_base": 0}, {"tamano": "27/28", "precio_base": 0}, {"tamano": "29/30", "precio_base": 0}, {"tamano": "31/32", "precio_base": 0}, {"tamano": "33/34", "precio_base": 0}, {"tamano": "35/36", "precio_base": 0}, {"tamano": "37/38", "precio_base": 0}, {"tamano": "39/40", "precio_base": 0}, {"tamano": "41/42", "precio_base": 0}, {"tamano": "43/44", "precio_base": 0}, {"tamano": "45/46", "precio_base": 0}] },
-    { "id": "P013", "nombre": "Ipanema Clásica", "categoria": "calzado", "subcategoria": "Ipanema", "presentaciones": [{"tamano": "23/24", "precio_base": 0}, {"tamano": "25/26", "precio_base": 0}, {"tamano": "27/28", "precio_base": 0}, {"tamano": "29/30", "precio_base": 0}, {"tamano": "31/32", "precio_base": 0}, {"tamano": "33/34", "precio_base": 0}, {"tamano": "35/36", "precio_base": 0}, {"tamano": "37/38", "precio_base": 0}, {"tamano": "39/40", "precio_base": 0}, {"tamano": "41/42", "precio_base": 0}, {"tamano": "43/44", "precio_base": 0}, {"tamano": "45/46", "precio_base": 0}] },
-    { "id": "P014", "nombre": "Siempre Libre", "categoria": "cuidado_personal", "subcategoria": "Higiene Femenina", "presentaciones": [{"tamano": "paquete", "precio_base": 0}] },
-    { "id": "P015", "nombre": "Calipso", "categoria": "cuidado_personal", "subcategoria": "Higiene Femenina", "presentaciones": [{"tamano": "paquete", "precio_base": 0}] },
-    { "id": "P016", "nombre": "Milena", "categoria": "cuidado_personal", "subcategoria": "Higiene Femenina", "presentaciones": [{"tamano": "paquete", "precio_base": 0}] },
-    { "id": "P017", "nombre": "Naturalmente", "categoria": "cuidado_personal", "subcategoria": "Higiene Femenina", "presentaciones": [{"tamano": "paquete", "precio_base": 0}] }
+    {
+      "id": "P001",
+      "nombre": "Jabón Plusbelle",
+      "categoria": "cuidado_personal",
+      "subcategoria": "Jabones",
+      "presentaciones": [
+        {
+          "tamano": "125g",
+          "precio_base": 1000
+        },
+        {
+          "tamano": "90g",
+          "precio_base": 1000
+        }
+      ]
+    },
+    {
+      "id": "P002",
+      "nombre": "Jabón LUX",
+      "categoria": "cuidado_personal",
+      "subcategoria": "Jabones",
+      "presentaciones": [
+        {
+          "tamano": "125g",
+          "precio_base": 1000
+        },
+        {
+          "tamano": "90g",
+          "precio_base": 1000
+        }
+      ]
+    },
+    {
+      "id": "P003",
+      "nombre": "Jabón Rexona",
+      "categoria": "cuidado_personal",
+      "subcategoria": "Jabones",
+      "presentaciones": [
+        {
+          "tamano": "90g",
+          "precio_base": 1000
+        }
+      ]
+    },
+    {
+      "id": "P004",
+      "nombre": "Jabón Palmolive",
+      "categoria": "cuidado_personal",
+      "subcategoria": "Jabones",
+      "presentaciones": [
+        {
+          "tamano": "150g",
+          "precio_base": 1000
+        },
+        {
+          "tamano": "85g",
+          "precio_base": 1000
+        }
+      ]
+    },
+    {
+      "id": "P005",
+      "nombre": "Jabón Mar",
+      "categoria": "cuidado_personal",
+      "subcategoria": "Jabones",
+      "presentaciones": [
+        {
+          "tamano": "150g",
+          "precio_base": 1000
+        },
+        {
+          "tamano": "90g",
+          "precio_base": 1000
+        }
+      ]
+    },
+    {
+      "id": "P006",
+      "nombre": "Jabón Protex",
+      "categoria": "cuidado_personal",
+      "subcategoria": "Jabones",
+      "presentaciones": [
+        {
+          "tamano": "110g",
+          "precio_base": 1000
+        }
+      ]
+    },
+    {
+      "id": "P007",
+      "nombre": "Jabón Dove",
+      "categoria": "cuidado_personal",
+      "subcategoria": "Jabones",
+      "presentaciones": [
+        {
+          "tamano": "135g",
+          "precio_base": 1000
+        },
+        {
+          "tamano": "90g",
+          "precio_base": 1000
+        }
+      ]
+    },
+    {
+      "id": "P008",
+      "nombre": "Jabón C2",
+      "categoria": "cuidado_personal",
+      "subcategoria": "Jabones",
+      "presentaciones": [
+        {
+          "tamano": "130g",
+          "precio_base": 1000
+        },
+        {
+          "tamano": "85g",
+          "precio_base": 1000
+        }
+      ]
+    },
+    {
+      "id": "P009",
+      "nombre": "Jabón Heno de Pravia",
+      "categoria": "cuidado_personal",
+      "subcategoria": "Jabones",
+      "presentaciones": [
+        {
+          "tamano": "150g",
+          "precio_base": 1000
+        },
+        {
+          "tamano": "100g",
+          "precio_base": 1000
+        }
+      ]
+    },
+    {
+      "id": "P010",
+      "nombre": "Jabón Tocador Hotel",
+      "categoria": "cuidado_personal",
+      "subcategoria": "Jabones",
+      "presentaciones": [
+        {
+          "tamano": "unidad",
+          "precio_base": 1000
+        }
+      ]
+    },
+    {
+      "id": "P011",
+      "nombre": "Jabón Lucero Coco y Glicerina",
+      "categoria": "cuidado_personal",
+      "subcategoria": "Jabones",
+      "presentaciones": [
+        {
+          "tamano": "125g",
+          "precio_base": 1000
+        },
+        {
+          "tamano": "70g",
+          "precio_base": 1000
+        }
+      ]
+    },
+    {
+      "id": "P012",
+      "nombre": "Jabón Johnson's Baby",
+      "categoria": "cuidado_personal",
+      "subcategoria": "Jabones",
+      "presentaciones": [
+        {
+          "tamano": "110g",
+          "precio_base": 1000
+        },
+        {
+          "tamano": "75g",
+          "precio_base": 1000
+        }
+      ]
+    },
+    {
+      "id": "P013",
+      "nombre": "Jabón Tocador Cavallaro",
+      "categoria": "cuidado_personal",
+      "subcategoria": "Jabones",
+      "presentaciones": [
+        {
+          "tamano": "10g",
+          "precio_base": 1000
+        }
+      ]
+    },
+    {
+      "id": "P014",
+      "nombre": "Jabón Susi",
+      "categoria": "cuidado_personal",
+      "subcategoria": "Jabones",
+      "presentaciones": [
+        {
+          "tamano": "80g",
+          "precio_base": 1000
+        }
+      ]
+    },
+    {
+      "id": "P015",
+      "nombre": "Aerosol Rexona MEN",
+      "categoria": "cuidado_personal",
+      "subcategoria": "Desodorantes",
+      "presentaciones": [
+        {
+          "tamano": "150ml",
+          "precio_base": 5000
+        }
+      ]
+    },
+    {
+      "id": "P016",
+      "nombre": "Aerosol Rexona WOMEN",
+      "categoria": "cuidado_personal",
+      "subcategoria": "Desodorantes",
+      "presentaciones": [
+        {
+          "tamano": "150ml",
+          "precio_base": 5000
+        }
+      ]
+    },
+    {
+      "id": "P017",
+      "nombre": "Bolilla Rexona WOMEN",
+      "categoria": "cuidado_personal",
+      "subcategoria": "Desodorantes",
+      "presentaciones": [
+        {
+          "tamano": "50ml",
+          "precio_base": 5000
+        }
+      ]
+    },
+    {
+      "id": "P018",
+      "nombre": "Bolilla Rexona MEN",
+      "categoria": "cuidado_personal",
+      "subcategoria": "Desodorantes",
+      "presentaciones": [
+        {
+          "tamano": "50ml",
+          "precio_base": 5000
+        }
+      ]
+    },
+    {
+      "id": "P019",
+      "nombre": "Siempre Libre",
+      "categoria": "cuidado_personal",
+      "subcategoria": "Higiene Femenina",
+      "presentaciones": [
+        {
+          "tamano": "paquete",
+          "precio_base": 6000
+        }
+      ]
+    },
+    {
+      "id": "P020",
+      "nombre": "Calipso",
+      "categoria": "cuidado_personal",
+      "subcategoria": "Higiene Femenina",
+      "presentaciones": [
+        {
+          "tamano": "paquete",
+          "precio_base": 6000
+        }
+      ]
+    },
+    {
+      "id": "P021",
+      "nombre": "Milena",
+      "categoria": "cuidado_personal",
+      "subcategoria": "Higiene Femenina",
+      "presentaciones": [
+        {
+          "tamano": "paquete",
+          "precio_base": 6000
+        }
+      ]
+    },
+    {
+      "id": "P022",
+      "nombre": "Naturalmente",
+      "categoria": "cuidado_personal",
+      "subcategoria": "Higiene Femenina",
+      "presentaciones": [
+        {
+          "tamano": "paquete",
+          "precio_base": 6000
+        }
+      ]
+    },
+    {
+      "id": "P023",
+      "nombre": "Nosotras Protector Diario",
+      "categoria": "cuidado_personal",
+      "subcategoria": "Higiene Femenina",
+      "presentaciones": [
+        {
+          "tamano": "8 unidades",
+          "precio_base": 6000
+        },
+        {
+          "tamano": "16 unidades",
+          "precio_base": 6000
+        }
+      ]
+    },
+    {
+      "id": "P024",
+      "nombre": "Always",
+      "categoria": "cuidado_personal",
+      "subcategoria": "Higiene Femenina",
+      "presentaciones": [
+        {
+          "tamano": "8 unidades",
+          "precio_base": 6000
+        }
+      ]
+    },
+    {
+      "id": "P025",
+      "nombre": "Carefree",
+      "categoria": "cuidado_personal",
+      "subcategoria": "Higiene Femenina",
+      "presentaciones": [
+        {
+          "tamano": "20 unidades",
+          "precio_base": 6000
+        }
+      ]
+    },
+    {
+      "id": "P026",
+      "nombre": "Pañal Adultos Comodin",
+      "categoria": "cuidado_personal",
+      "subcategoria": "Pañales Adultos",
+      "presentaciones": [
+        {
+          "tamano": "G x20",
+          "precio_base": 7000
+        }
+      ]
+    },
+    {
+      "id": "P027",
+      "nombre": "Pañal Adultos Plenitud Protect Plus",
+      "categoria": "cuidado_personal",
+      "subcategoria": "Pañales Adultos",
+      "presentaciones": [
+        {
+          "tamano": "G/XG x8",
+          "precio_base": 7000
+        }
+      ]
+    },
+    {
+      "id": "P028",
+      "nombre": "Shampoo Johnson's Baby",
+      "categoria": "bebe",
+      "subcategoria": "Shampoo y Baño",
+      "presentaciones": [
+        {
+          "tamano": "200ml",
+          "precio_base": 3000
+        }
+      ]
+    },
+    {
+      "id": "P029",
+      "nombre": "Talco Johnson's Baby",
+      "categoria": "bebe",
+      "subcategoria": "Shampoo y Baño",
+      "presentaciones": [
+        {
+          "tamano": "200g",
+          "precio_base": 3000
+        }
+      ]
+    },
+    {
+      "id": "P030",
+      "nombre": "Baño Liquido Johnson's Baby",
+      "categoria": "bebe",
+      "subcategoria": "Shampoo y Baño",
+      "presentaciones": [
+        {
+          "tamano": "200ml",
+          "precio_base": 3000
+        }
+      ]
+    },
+    {
+      "id": "P031",
+      "nombre": "Aceite de Bebe Johnson's",
+      "categoria": "bebe",
+      "subcategoria": "Shampoo y Baño",
+      "presentaciones": [
+        {
+          "tamano": "200ml",
+          "precio_base": 3000
+        }
+      ]
+    },
+    {
+      "id": "P032",
+      "nombre": "Cotonetes Johnson's",
+      "categoria": "bebe",
+      "subcategoria": "Accesorios",
+      "presentaciones": [
+        {
+          "tamano": "75 unidades",
+          "precio_base": 3000
+        },
+        {
+          "tamano": "150 unidades",
+          "precio_base": 3000
+        }
+      ]
+    },
+    {
+      "id": "P033",
+      "nombre": "Biberones Kuka",
+      "categoria": "bebe",
+      "subcategoria": "Accesorios",
+      "presentaciones": [
+        {
+          "tamano": "unidad",
+          "precio_base": 3000
+        }
+      ]
+    },
+    {
+      "id": "P034",
+      "nombre": "Biberones Genericos",
+      "categoria": "bebe",
+      "subcategoria": "Accesorios",
+      "presentaciones": [
+        {
+          "tamano": "unidad",
+          "precio_base": 3000
+        }
+      ]
+    },
+    {
+      "id": "P035",
+      "nombre": "Chupeta Bobelito",
+      "categoria": "bebe",
+      "subcategoria": "Accesorios",
+      "presentaciones": [
+        {
+          "tamano": "talle 0",
+          "precio_base": 3000
+        },
+        {
+          "tamano": "talle 1",
+          "precio_base": 3000
+        },
+        {
+          "tamano": "talle 2",
+          "precio_base": 3000
+        }
+      ]
+    },
+    {
+      "id": "P036",
+      "nombre": "Tetina Kuka Silicona",
+      "categoria": "bebe",
+      "subcategoria": "Accesorios",
+      "presentaciones": [
+        {
+          "tamano": "talle 2 x2",
+          "precio_base": 3000
+        }
+      ]
+    },
+    {
+      "id": "P037",
+      "nombre": "Pañal Natural Baby Premium",
+      "categoria": "bebe",
+      "subcategoria": "Pañales",
+      "presentaciones": [
+        {
+          "tamano": "P x96",
+          "precio_base": 7000
+        },
+        {
+          "tamano": "M x90",
+          "precio_base": 7000
+        },
+        {
+          "tamano": "G x80",
+          "precio_base": 7000
+        },
+        {
+          "tamano": "XG x70",
+          "precio_base": 7000
+        },
+        {
+          "tamano": "SXG x60",
+          "precio_base": 7000
+        }
+      ]
+    },
+    {
+      "id": "P038",
+      "nombre": "Toallitas Natural Baby",
+      "categoria": "bebe",
+      "subcategoria": "Pañales",
+      "presentaciones": [
+        {
+          "tamano": "50 unidades",
+          "precio_base": 7000
+        }
+      ]
+    },
+    {
+      "id": "P039",
+      "nombre": "Pañal Huggies Flexi Comfort",
+      "categoria": "bebe",
+      "subcategoria": "Pañales",
+      "presentaciones": [
+        {
+          "tamano": "P x50",
+          "precio_base": 7000
+        },
+        {
+          "tamano": "M x68",
+          "precio_base": 7000
+        },
+        {
+          "tamano": "G x60",
+          "precio_base": 7000
+        },
+        {
+          "tamano": "XXG x50",
+          "precio_base": 7000
+        }
+      ]
+    },
+    {
+      "id": "P040",
+      "nombre": "Pañal Huggies Protect Plus",
+      "categoria": "bebe",
+      "subcategoria": "Pañales",
+      "presentaciones": [
+        {
+          "tamano": "G",
+          "precio_base": 7000
+        }
+      ]
+    },
+    {
+      "id": "P041",
+      "nombre": "Havaianas Tradicional",
+      "categoria": "calzado",
+      "subcategoria": "Havaianas",
+      "presentaciones": [
+        {
+          "tamano": "23/24",
+          "precio_base": 2000
+        },
+        {
+          "tamano": "25/26",
+          "precio_base": 2000
+        },
+        {
+          "tamano": "27/28",
+          "precio_base": 2000
+        },
+        {
+          "tamano": "29/30",
+          "precio_base": 2000
+        },
+        {
+          "tamano": "31/32",
+          "precio_base": 2000
+        },
+        {
+          "tamano": "33/34",
+          "precio_base": 2000
+        },
+        {
+          "tamano": "35/36",
+          "precio_base": 2000
+        },
+        {
+          "tamano": "37/38",
+          "precio_base": 2000
+        },
+        {
+          "tamano": "39/40",
+          "precio_base": 2000
+        },
+        {
+          "tamano": "41/42",
+          "precio_base": 2000
+        },
+        {
+          "tamano": "43/44",
+          "precio_base": 2000
+        },
+        {
+          "tamano": "45/46",
+          "precio_base": 2000
+        }
+      ]
+    },
+    {
+      "id": "P042",
+      "nombre": "Ipanema Clasica",
+      "categoria": "calzado",
+      "subcategoria": "Ipanema",
+      "presentaciones": [
+        {
+          "tamano": "23/24",
+          "precio_base": 2000
+        },
+        {
+          "tamano": "25/26",
+          "precio_base": 2000
+        },
+        {
+          "tamano": "27/28",
+          "precio_base": 2000
+        },
+        {
+          "tamano": "29/30",
+          "precio_base": 2000
+        },
+        {
+          "tamano": "31/32",
+          "precio_base": 2000
+        },
+        {
+          "tamano": "33/34",
+          "precio_base": 2000
+        },
+        {
+          "tamano": "35/36",
+          "precio_base": 2000
+        },
+        {
+          "tamano": "37/38",
+          "precio_base": 2000
+        },
+        {
+          "tamano": "39/40",
+          "precio_base": 2000
+        },
+        {
+          "tamano": "41/42",
+          "precio_base": 2000
+        },
+        {
+          "tamano": "43/44",
+          "precio_base": 2000
+        },
+        {
+          "tamano": "45/46",
+          "precio_base": 2000
+        }
+      ]
+    }
   ],
   "clientes": [
-    { "id": "C001", "nombre": "Cliente Ejemplo 1", "tipo": "mayorista_estandar", "precios_personalizados": {} },
-    { "id": "C002", "nombre": "Cliente Ejemplo 2 (Precio Especial)", "tipo": "precio_especial", "precios_personalizados": {} }
+    {
+      "id": "C001",
+      "nombre": "Transagro SA",
+      "zona": "Pozo Colorado",
+      "precios_personalizados": {}
+    },
+    {
+      "id": "C002",
+      "nombre": "Hilagro SA",
+      "zona": "Pozo Colorado",
+      "precios_personalizados": {}
+    },
+    {
+      "id": "C003",
+      "nombre": "Ferretería Rapai",
+      "zona": "Pozo Colorado",
+      "precios_personalizados": {}
+    },
+    {
+      "id": "C004",
+      "nombre": "Chaco Poty S.A.C.I",
+      "zona": "Villa Boquerón",
+      "precios_personalizados": {}
+    },
+    {
+      "id": "C005",
+      "nombre": "Comercial La Fortuna",
+      "zona": "Villa Boquerón",
+      "precios_personalizados": {}
+    },
+    {
+      "id": "C006",
+      "nombre": "Hilagro SA",
+      "zona": "Villa Boquerón",
+      "precios_personalizados": {}
+    },
+    {
+      "id": "C007",
+      "nombre": "Comercial La Familia",
+      "zona": "Villa Boquerón",
+      "precios_personalizados": {}
+    },
+    {
+      "id": "C008",
+      "nombre": "Supermercado Jasy",
+      "zona": "Buena Vista",
+      "precios_personalizados": {}
+    },
+    {
+      "id": "C009",
+      "nombre": "Supermercado Leon",
+      "zona": "Campo Leon",
+      "precios_personalizados": {}
+    },
+    {
+      "id": "C010",
+      "nombre": "Despensa I",
+      "zona": "Campo Leon",
+      "precios_personalizados": {}
+    },
+    {
+      "id": "C011",
+      "nombre": "Mi Market",
+      "zona": "Campo Leon",
+      "precios_personalizados": {}
+    },
+    {
+      "id": "C012",
+      "nombre": "Comercial Al Paso",
+      "zona": "Loma Plata",
+      "precios_personalizados": {}
+    },
+    {
+      "id": "C013",
+      "nombre": "Comercial Tata",
+      "zona": "Loma Plata",
+      "precios_personalizados": {}
+    },
+    {
+      "id": "C014",
+      "nombre": "Comercial L Y L",
+      "zona": "Loma Plata",
+      "precios_personalizados": {}
+    },
+    {
+      "id": "C015",
+      "nombre": "Monica Fernandez",
+      "zona": "Loma Plata",
+      "precios_personalizados": {}
+    },
+    {
+      "id": "C016",
+      "nombre": "Despensa 2 Hermanos",
+      "zona": "Loma Plata",
+      "precios_personalizados": {}
+    },
+    {
+      "id": "C017",
+      "nombre": "Despensa Julio Cesar",
+      "zona": "Loma Plata",
+      "precios_personalizados": {}
+    },
+    {
+      "id": "C018",
+      "nombre": "Comercial JR",
+      "zona": "Loma Plata",
+      "precios_personalizados": {}
+    },
+    {
+      "id": "C019",
+      "nombre": "Comercial Algarrobo",
+      "zona": "Loma Plata",
+      "precios_personalizados": {}
+    },
+    {
+      "id": "C020",
+      "nombre": "Panadería Gerbrand",
+      "zona": "Loma Plata",
+      "precios_personalizados": {}
+    },
+    {
+      "id": "C021",
+      "nombre": "Parada 66",
+      "zona": "Loma Plata",
+      "precios_personalizados": {}
+    },
+    {
+      "id": "C022",
+      "nombre": "Despensa Heini",
+      "zona": "Loma Plata",
+      "precios_personalizados": {}
+    },
+    {
+      "id": "C023",
+      "nombre": "Alania SRL",
+      "zona": "Loma Plata",
+      "precios_personalizados": {}
+    },
+    {
+      "id": "C024",
+      "nombre": "La Hacienda Chaqueña SRL",
+      "zona": "Loma Plata",
+      "precios_personalizados": {}
+    },
+    {
+      "id": "C025",
+      "nombre": "Cooperativa Pesempo O",
+      "zona": "Loma Plata",
+      "precios_personalizados": {}
+    },
+    {
+      "id": "C026",
+      "nombre": "Distribuidora Occidental",
+      "zona": "Loma Plata",
+      "precios_personalizados": {}
+    }
   ]
 }

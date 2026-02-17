@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#2563eb">
+    <title>HDV Distribuciones - Pedidos</title>
+    <link rel="manifest" href="manifest.json">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f3f4f6; padding-bottom: 80px; }
+        .header { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); color: white; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); position: sticky; top: 0; z-index: 100; }
+        .header h1 { font-size: 20px; margin-bottom: 5px; }
+        .header .subtitle { font-size: 14px; opacity: 0.9; }
+        .status-badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 12px; margin-top: 8px; background: rgba(255,255,255,0.2); }
+        .status-badge.online { background: rgba(34, 197, 94, 0.3); }
+        .status-badge.offline { background: rgba(239, 68, 68, 0.3); }
+        .container { max-width: 800px; margin: 0 auto; padding: 20px; }
+        .cliente-selector { background: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .cliente-selector label { display: block; font-weight: 600; margin-bottom: 10px; color: #374151; }
+        .cliente-selector select { width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 16px; background: white; }
+        .search-container { background: white; padding: 15px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .search-input { width: 100%; padding: 12px 15px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 16px; }
+        .search-input:focus { outline: none; border-color: #2563eb; }
+        .category-filters { display: flex; gap: 10px; overflow-x: auto; padding: 10px 0; margin-bottom: 20px; -webkit-overflow-scrolling: touch; }
+        .category-btn { padding: 8px 16px; border: 2px solid #e5e7eb; background: white; border-radius: 20px; font-size: 14px; white-space: nowrap; cursor: pointer; transition: all 0.3s; }
+        .category-btn.active { background: #2563eb; color: white; border-color: #2563eb; }
+        .products-grid { display: grid; gap: 15px; }
+        .product-card { background: white; border-radius: 12px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .product-name { font-weight: 600; color: #111827; margin-bottom: 8px; }
+        .product-cat { font-size: 12px; color: #6b7280; margin-bottom: 10px; }
+        .product-variants { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+        .variant-btn { padding: 8px 12px; border: 2px solid #e5e7eb; background: white; border-radius: 8px; font-size: 13px; cursor: pointer; transition: all 0.2s; }
+        .variant-btn:hover { border-color: #2563eb; color: #2563eb; }
+        .variant-selected { display: none; margin-top: 10px; padding-top: 10px; border-top: 1px solid #e5e7eb; }
+        .variant-selected.show { display: flex; align-items: center; justify-content: space-between; }
+        .quantity-controls { display: flex; align-items: center; gap: 10px; }
+        .quantity-btn { width: 36px; height: 36px; border: 2px solid #2563eb; background: white; color: #2563eb; border-radius: 8px; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .quantity-btn:active { background: #2563eb; color: white; }
+        .quantity-display { font-size: 18px; font-weight: 600; min-width: 40px; text-align: center; }
+        .cart-summary { position: fixed; bottom: 0; left: 0; right: 0; background: white; padding: 15px 20px; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; }
+        .cart-info { flex: 1; }
+        .cart-items { font-size: 14px; color: #6b7280; }
+        .cart-total { font-size: 20px; font-weight: 700; color: #111827; }
+        .cart-btn { padding: 12px 24px; background: #2563eb; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; }
+        .cart-btn:disabled { background: #9ca3af; cursor: not-allowed; }
+        .empty-state { text-align: center; padding: 60px 20px; color: #6b7280; }
+        .empty-state-icon { font-size: 48px; margin-bottom: 15px; }
+        .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
+        .modal.show { display: flex; }
+        .modal-content { background: white; border-radius: 16px; padding: 24px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; }
+        .modal-header { font-size: 20px; font-weight: 700; margin-bottom: 20px; }
+        .cart-item { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #e5e7eb; }
+        .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+        .modal-btn { flex: 1; padding: 12px; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; }
+        .btn-cancel { background: #f3f4f6; color: #374151; }
+        .btn-confirm { background: #2563eb; color: white; }
+        .loading { text-align: center; padding: 40px; color: #6b7280; }
+        .spinner { border: 3px solid #f3f4f6; border-top: 3px solid #2563eb; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 15px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .success-message { background: #10b981; color: white; padding: 15px 20px; border-radius: 8px; margin: 20px; text-align: center; font-weight: 600; display: none; }
+        .success-message.show { display: block; animation: slideDown 0.3s ease; }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>HDV Distribuciones</h1>
+        <div class="subtitle">Sistema de Pedidos</div>
+        <span class="status-badge offline" id="statusBadge">Sin conexión</span>
+    </div>
+    <div class="success-message" id="successMessage">✓ Pedido guardado exitosamente</div>
+    <div class="container">
+        <div class="cliente-selector">
+            <label for="clienteSelect">Seleccionar Cliente:</label>
+            <select id="clienteSelect">
+                <option value="">-- Seleccione un cliente --</option>
+            </select>
+        </div>
+        <div class="search-container">
+            <input type="text" class="search-input" id="searchInput" placeholder="🔍 Buscar producto por nombre..." disabled>
+        </div>
+        <div class="category-filters" id="categoryFilters"></div>
+        <div id="productsContainer">
+            <div class="loading"><div class="spinner"></div>Cargando productos...</div>
+        </div>
+    </div>
+    <div class="cart-summary">
+        <div class="cart-info">
+            <div class="cart-items" id="cartItems">0 productos</div>
+            <div class="cart-total" id="cartTotal">Gs. 0</div>
+        </div>
+        <button class="cart-btn" id="viewCartBtn" disabled>Ver Pedido</button>
+    </div>
+    <div class="modal" id="cartModal">
+        <div class="modal-content">
+            <div class="modal-header">Resumen del Pedido</div>
+            <div id="cartItemsList"></div>
+            <div class="modal-actions">
+                <button class="modal-btn btn-cancel" onclick="closeCartModal()">Cancelar</button>
+                <button class="modal-btn btn-confirm" onclick="confirmarPedido()">Confirmar Pedido</button>
+            </div>
+        </div>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>

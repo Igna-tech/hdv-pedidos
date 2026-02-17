@@ -1,0 +1,29 @@
+{
+  "categorias": [
+    { "id": "cuidado_personal", "nombre": "Cuidado Personal", "subcategorias": ["Jabones", "Higiene Femenina"] },
+    { "id": "calzado", "nombre": "Calzado", "subcategorias": ["Havaianas", "Ipanema"] }
+  ],
+  "productos": [
+    { "id": "P001", "nombre": "Jabón Plusbelle", "categoria": "cuidado_personal", "subcategoria": "Jabones", "presentaciones": [{"tamano": "125g", "precio_base": 0}, {"tamano": "90g", "precio_base": 0}] },
+    { "id": "P002", "nombre": "Jabón LUX", "categoria": "cuidado_personal", "subcategoria": "Jabones", "presentaciones": [{"tamano": "125g", "precio_base": 0}, {"tamano": "90g", "precio_base": 0}] },
+    { "id": "P003", "nombre": "Jabón Rexona", "categoria": "cuidado_personal", "subcategoria": "Jabones", "presentaciones": [{"tamano": "90g", "precio_base": 0}] },
+    { "id": "P004", "nombre": "Jabón Palmolive", "categoria": "cuidado_personal", "subcategoria": "Jabones", "presentaciones": [{"tamano": "150g", "precio_base": 0}, {"tamano": "85g", "precio_base": 0}] },
+    { "id": "P005", "nombre": "Jabón Mar", "categoria": "cuidado_personal", "subcategoria": "Jabones", "presentaciones": [{"tamano": "150g", "precio_base": 0}, {"tamano": "90g", "precio_base": 0}] },
+    { "id": "P006", "nombre": "Jabón Protex", "categoria": "cuidado_personal", "subcategoria": "Jabones", "presentaciones": [{"tamano": "110g", "precio_base": 0}] },
+    { "id": "P007", "nombre": "Jabón Dove", "categoria": "cuidado_personal", "subcategoria": "Jabones", "presentaciones": [{"tamano": "135g", "precio_base": 0}, {"tamano": "90g", "precio_base": 0}] },
+    { "id": "P008", "nombre": "Jabón C2", "categoria": "cuidado_personal", "subcategoria": "Jabones", "presentaciones": [{"tamano": "150g", "precio_base": 0}, {"tamano": "85g", "precio_base": 0}] },
+    { "id": "P009", "nombre": "Jabón Heno de Pravia", "categoria": "cuidado_personal", "subcategoria": "Jabones", "presentaciones": [{"tamano": "150g", "precio_base": 0}, {"tamano": "100g", "precio_base": 0}] },
+    { "id": "P010", "nombre": "Jabón Tocador Hotel", "categoria": "cuidado_personal", "subcategoria": "Jabones", "presentaciones": [{"tamano": "unidad", "precio_base": 0}] },
+    { "id": "P011", "nombre": "Jabón Lucero (Coco y Glicerina)", "categoria": "cuidado_personal", "subcategoria": "Jabones", "presentaciones": [{"tamano": "125g", "precio_base": 0}, {"tamano": "70g", "precio_base": 0}] },
+    { "id": "P012", "nombre": "Havaianas Tradicional", "categoria": "calzado", "subcategoria": "Havaianas", "presentaciones": [{"tamano": "23/24", "precio_base": 0}, {"tamano": "25/26", "precio_base": 0}, {"tamano": "27/28", "precio_base": 0}, {"tamano": "29/30", "precio_base": 0}, {"tamano": "31/32", "precio_base": 0}, {"tamano": "33/34", "precio_base": 0}, {"tamano": "35/36", "precio_base": 0}, {"tamano": "37/38", "precio_base": 0}, {"tamano": "39/40", "precio_base": 0}, {"tamano": "41/42", "precio_base": 0}, {"tamano": "43/44", "precio_base": 0}, {"tamano": "45/46", "precio_base": 0}] },
+    { "id": "P013", "nombre": "Ipanema Clásica", "categoria": "calzado", "subcategoria": "Ipanema", "presentaciones": [{"tamano": "23/24", "precio_base": 0}, {"tamano": "25/26", "precio_base": 0}, {"tamano": "27/28", "precio_base": 0}, {"tamano": "29/30", "precio_base": 0}, {"tamano": "31/32", "precio_base": 0}, {"tamano": "33/34", "precio_base": 0}, {"tamano": "35/36", "precio_base": 0}, {"tamano": "37/38", "precio_base": 0}, {"tamano": "39/40", "precio_base": 0}, {"tamano": "41/42", "precio_base": 0}, {"tamano": "43/44", "precio_base": 0}, {"tamano": "45/46", "precio_base": 0}] },
+    { "id": "P014", "nombre": "Siempre Libre", "categoria": "cuidado_personal", "subcategoria": "Higiene Femenina", "presentaciones": [{"tamano": "paquete", "precio_base": 0}] },
+    { "id": "P015", "nombre": "Calipso", "categoria": "cuidado_personal", "subcategoria": "Higiene Femenina", "presentaciones": [{"tamano": "paquete", "precio_base": 0}] },
+    { "id": "P016", "nombre": "Milena", "categoria": "cuidado_personal", "subcategoria": "Higiene Femenina", "presentaciones": [{"tamano": "paquete", "precio_base": 0}] },
+    { "id": "P017", "nombre": "Naturalmente", "categoria": "cuidado_personal", "subcategoria": "Higiene Femenina", "presentaciones": [{"tamano": "paquete", "precio_base": 0}] }
+  ],
+  "clientes": [
+    { "id": "C001", "nombre": "Cliente Ejemplo 1", "tipo": "mayorista_estandar", "precios_personalizados": {} },
+    { "id": "C002", "nombre": "Cliente Ejemplo 2 (Precio Especial)", "tipo": "precio_especial", "precios_personalizados": {} }
+  ]
+}

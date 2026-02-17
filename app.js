@@ -27,7 +27,7 @@ function cargarClientes() {
     clientes.forEach(c => {
         const option = document.createElement('option');
         option.value = c.id;
-        option.textContent = c.nombre;
+        option.textContent = c.nombre + ' — ' + (c.zona || '');
         select.appendChild(option);
     });
 }

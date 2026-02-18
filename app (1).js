@@ -168,7 +168,7 @@ function crearTarjetaProducto(producto) {
             </div>
             <div class="quantity-controls">
                 <button class="quantity-btn" onclick="cambiarCantidad('${producto.id}', -1)">−</button>
-                <div class="quantity-display" id="qty-${producto.id}">1</div>
+                <input type="number" class="quantity-display" id="qty-${producto.id}" value="1" min="1" style="border:2px solid #e5e7eb;border-radius:6px;text-align:center;" onchange="actualizarCantidadDirecta('${producto.id}', this.value)">
                 <button class="quantity-btn" onclick="cambiarCantidad('${producto.id}', 1)">+</button>
             </div>
         </div>
@@ -211,7 +211,24 @@ function cambiarCantidad(productoId, cambio) {
             carrito.splice(idx, 1);
             document.getElementById(`selected-${productoId}`).classList.remove('show');
         } else {
-            document.getElementById(`qty-${productoId}`).textContent = carrito[idx].cantidad;
+            const input = document.getElementById(`qty-${productoId}`);
+            if (input) input.value = carrito[idx].cantidad;
+        }
+        actualizarCarrito();
+    }
+}
+
+function actualizarCantidadDirecta(productoId, nuevaCantidad) {
+    const cantidad = parseInt(nuevaCantidad) || 1;
+    const idx = carrito.findIndex(i => i.productoId === productoId);
+    if (idx >= 0) {
+        if (cantidad <= 0) {
+            carrito.splice(idx, 1);
+            document.getElementById(`selected-${productoId}`).classList.remove('show');
+        } else {
+            carrito[idx].cantidad = cantidad;
+            const input = document.getElementById(`qty-${productoId}`);
+            if (input) input.value = cantidad;
         }
         actualizarCarrito();
     }
@@ -238,18 +255,24 @@ function mostrarModalCarrito() {
     if (carrito.length === 0) {
         lista.innerHTML = '<div class="empty-state">El carrito está vacío</div>';
     } else {
-        carrito.forEach(item => {
+        carrito.forEach((item, index) => {
             const div = document.createElement('div');
             div.className = 'cart-item';
             div.innerHTML = `
-                <div>
+                <div style="flex:1">
                     <strong>${item.nombre}</strong><br>
-                    <span style="color:#6b7280;font-size:14px">${item.presentacion} × ${item.cantidad}</span>
+                    <span style="color:#6b7280;font-size:14px">${item.presentacion}</span>
                 </div>
-                <div style="text-align:right">
+                <div style="display:flex;align-items:center;gap:10px">
+                    <button onclick="editarCantidadCarrito(${index}, -1)" style="width:32px;height:32px;border:2px solid #2563eb;background:white;color:#2563eb;border-radius:6px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center">−</button>
+                    <input type="number" id="cart-qty-${index}" value="${item.cantidad}" min="1" onchange="cambiarCantidadCarrito(${index}, this.value)" style="width:60px;padding:6px;border:2px solid #e5e7eb;border-radius:6px;text-align:center;font-size:14px;font-weight:600">
+                    <button onclick="editarCantidadCarrito(${index}, 1)" style="width:32px;height:32px;border:2px solid #2563eb;background:white;color:#2563eb;border-radius:6px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center">+</button>
+                </div>
+                <div style="text-align:right;min-width:120px">
                     <strong>Gs. ${(item.precio * item.cantidad).toLocaleString()}</strong><br>
                     <span style="color:#6b7280;font-size:13px">@Gs. ${item.precio.toLocaleString()}</span>
                 </div>
+                <button onclick="eliminarDelCarrito(${index})" style="width:32px;height:32px;border:2px solid #ef4444;background:white;color:#ef4444;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center">🗑️</button>
             `;
             lista.appendChild(div);
         });
@@ -260,6 +283,38 @@ function mostrarModalCarrito() {
         lista.appendChild(totalDiv);
     }
     document.getElementById('cartModal').classList.add('show');
+}
+
+function editarCantidadCarrito(index, cambio) {
+    if (carrito[index]) {
+        carrito[index].cantidad += cambio;
+        if (carrito[index].cantidad <= 0) {
+            carrito.splice(index, 1);
+        }
+        actualizarCarrito();
+        mostrarModalCarrito();
+    }
+}
+
+function cambiarCantidadCarrito(index, nuevaCantidad) {
+    const cantidad = parseInt(nuevaCantidad) || 1;
+    if (carrito[index]) {
+        if (cantidad <= 0) {
+            carrito.splice(index, 1);
+        } else {
+            carrito[index].cantidad = cantidad;
+        }
+        actualizarCarrito();
+        mostrarModalCarrito();
+    }
+}
+
+function eliminarDelCarrito(index) {
+    if (confirm('¿Eliminar este producto del pedido?')) {
+        carrito.splice(index, 1);
+        actualizarCarrito();
+        mostrarModalCarrito();
+    }
 }
 
 function closeCartModal() {

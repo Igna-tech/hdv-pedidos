@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Productos - HDV</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f3f4f6; }
+        .header { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); color: white; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .header h1 { font-size: 24px; margin-bottom: 5px; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+        .card { background: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .card h2 { font-size: 18px; margin-bottom: 15px; color: #111827; }
+        .toolbar { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        .btn { padding: 12px 24px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; }
+        .btn-primary { background: #2563eb; color: white; }
+        .btn-success { background: #10b981; color: white; }
+        .btn-danger { background: #ef4444; color: white; }
+        .btn-secondary { background: #e5e7eb; color: #374151; }
+        .search-box { flex: 1; min-width: 250px; }
+        .search-box input { width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; }
+        .tabla { width: 100%; border-collapse: collapse; }
+        .tabla th { background: #f3f4f6; padding: 12px; text-align: left; font-size: 14px; font-weight: 600; color: #374151; position: sticky; top: 0; }
+        .tabla td { padding: 12px; border-bottom: 1px solid #e5e7eb; font-size: 14px; }
+        .tabla tr:hover { background: #f9fafb; }
+        .tabla input { width: 100%; padding: 8px; border: 2px solid #e5e7eb; border-radius: 6px; font-size: 14px; }
+        .tabla input:focus { outline: none; border-color: #2563eb; }
+        .tabla select { width: 100%; padding: 8px; border: 2px solid #e5e7eb; border-radius: 6px; font-size: 14px; }
+        .success { background: #d1fae5; color: #065f46; padding: 12px; border-radius: 8px; margin-bottom: 20px; text-align: center; display: none; }
+        .btn-icon { width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+        .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
+        .modal.show { display: flex; }
+        .modal-content { background: white; border-radius: 16px; padding: 24px; max-width: 500px; width: 90%; }
+        .modal-header { font-size: 20px; font-weight: 700; margin-bottom: 20px; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 5px; }
+        .form-group input, .form-group select { width: 100%; padding: 10px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; }
+        .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📦 Gestión de Productos y Precios</h1>
+        <div class="subtitle">HDV Distribuciones</div>
+    </div>
+
+    <div class="container">
+        <div class="success" id="successMsg">✓ Cambios guardados correctamente</div>
+        
+        <div class="card">
+            <div class="toolbar">
+                <button class="btn btn-primary" onclick="mostrarModalNuevoProducto()">+ Nuevo Producto</button>
+                <button class="btn btn-success" onclick="guardarCambios()">💾 Guardar Cambios</button>
+                <button class="btn btn-secondary" onclick="location.reload()">🔄 Recargar</button>
+                <button class="btn btn-secondary" onclick="location.href='index.html'">← Volver</button>
+                <div class="search-box">
+                    <input type="text" id="searchInput" placeholder="🔍 Buscar productos..." oninput="filtrarProductos()">
+                </div>
+            </div>
+            
+            <div style="overflow-x: auto;">
+                <table class="tabla">
+                    <thead>
+                        <tr>
+                            <th style="width: 60px;">ID</th>
+                            <th>Producto</th>
+                            <th>Categoría</th>
+                            <th>Subcategoría</th>
+                            <th>Presentaciones</th>
+                            <th style="width: 80px;">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="productosBody">
+                        <!-- Se llenará dinámicamente -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Nuevo Producto -->
+    <div class="modal" id="modalNuevo">
+        <div class="modal-content">
+            <div class="modal-header">Nuevo Producto</div>
+            <div class="form-group">
+                <label>Nombre del Producto:</label>
+                <input type="text" id="nuevoNombre" placeholder="Ej: Jabón Dove">
+            </div>
+            <div class="form-group">
+                <label>Categoría:</label>
+                <select id="nuevoCategoria"></select>
+            </div>
+            <div class="form-group">
+                <label>Subcategoría:</label>
+                <input type="text" id="nuevoSubcategoria" placeholder="Ej: Jabones">
+            </div>
+            <div class="form-group">
+                <label>Presentaciones (separadas por coma):</label>
+                <input type="text" id="nuevoPresentaciones" placeholder="Ej: 125g, 90g">
+            </div>
+            <div class="form-group">
+                <label>Precio Base:</label>
+                <input type="number" id="nuevoPrecio" placeholder="Ej: 1000">
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="cerrarModal()">Cancelar</button>
+                <button class="btn btn-primary" onclick="agregarProducto()">Agregar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let productosData = { productos: [], categorias: [], clientes: [] };
+        let productosFiltrados = [];
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            await cargarDatos();
+            mostrarProductos();
+        });
+
+        async function cargarDatos() {
+            try {
+                const response = await fetch('productos.json');
+                productosData = await response.json();
+                productosFiltrados = [...productosData.productos];
+                
+                // Llenar selector de categorías
+                const select = document.getElementById('nuevoCategoria');
+                productosData.categorias.forEach(c => {
+                    const option = document.createElement('option');
+                    option.value = c.id;
+                    option.textContent = c.nombre;
+                    select.appendChild(option);
+                });
+            } catch (error) {
+                alert('Error al cargar datos');
+            }
+        }
+
+        function filtrarProductos() {
+            const termino = document.getElementById('searchInput').value.toLowerCase();
+            productosFiltrados = productosData.productos.filter(p => 
+                p.nombre.toLowerCase().includes(termino) ||
+                p.id.toLowerCase().includes(termino)
+            );
+            mostrarProductos();
+        }
+
+        function mostrarProductos() {
+            const tbody = document.getElementById('productosBody');
+            tbody.innerHTML = '';
+
+            productosFiltrados.forEach(producto => {
+                const tr = document.createElement('tr');
+                
+                const catNombre = productosData.categorias.find(c => c.id === producto.categoria)?.nombre || '';
+                
+                const presentacionesHTML = producto.presentaciones.map((pres, idx) => `
+                    <div style="display:flex;gap:10px;margin-bottom:8px;align-items:center">
+                        <input type="text" value="${pres.tamano}" 
+                               onchange="actualizarPresentacion('${producto.id}', ${idx}, 'tamano', this.value)"
+                               style="width:100px" placeholder="Tamaño">
+                        <input type="number" value="${pres.precio_base}" 
+                               onchange="actualizarPresentacion('${producto.id}', ${idx}, 'precio', this.value)"
+                               style="width:120px" placeholder="Precio">
+                        <button onclick="eliminarPresentacion('${producto.id}', ${idx})" class="btn btn-danger btn-icon">×</button>
+                    </div>
+                `).join('');
+
+                tr.innerHTML = `
+                    <td><strong>${producto.id}</strong></td>
+                    <td><input type="text" value="${producto.nombre}" onchange="actualizarProducto('${producto.id}', 'nombre', this.value)"></td>
+                    <td>
+                        <select onchange="actualizarProducto('${producto.id}', 'categoria', this.value)">
+                            ${productosData.categorias.map(c => 
+                                `<option value="${c.id}" ${c.id === producto.categoria ? 'selected' : ''}>${c.nombre}</option>`
+                            ).join('')}
+                        </select>
+                    </td>
+                    <td><input type="text" value="${producto.subcategoria}" onchange="actualizarProducto('${producto.id}', 'subcategoria', this.value)"></td>
+                    <td>
+                        ${presentacionesHTML}
+                        <button onclick="agregarPresentacion('${producto.id}')" class="btn btn-primary" style="padding:6px 12px;font-size:12px">+ Presentación</button>
+                    </td>
+                    <td>
+                        <button onclick="eliminarProducto('${producto.id}')" class="btn btn-danger btn-icon" title="Eliminar">🗑️</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function actualizarProducto(id, campo, valor) {
+            const producto = productosData.productos.find(p => p.id === id);
+            if (producto) {
+                producto[campo] = valor;
+            }
+        }
+
+        function actualizarPresentacion(id, idx, campo, valor) {
+            const producto = productosData.productos.find(p => p.id === id);
+            if (producto && producto.presentaciones[idx]) {
+                if (campo === 'precio') {
+                    producto.presentaciones[idx].precio_base = parseInt(valor) || 0;
+                } else {
+                    producto.presentaciones[idx].tamano = valor;
+                }
+            }
+        }
+
+        function eliminarPresentacion(id, idx) {
+            const producto = productosData.productos.find(p => p.id === id);
+            if (producto && producto.presentaciones.length > 1) {
+                producto.presentaciones.splice(idx, 1);
+                mostrarProductos();
+            } else {
+                alert('Debe tener al menos una presentación');
+            }
+        }
+
+        function agregarPresentacion(id) {
+            const producto = productosData.productos.find(p => p.id === id);
+            if (producto) {
+                producto.presentaciones.push({ tamano: '', precio_base: 0 });
+                mostrarProductos();
+            }
+        }
+
+        function eliminarProducto(id) {
+            if (confirm('¿Eliminar este producto permanentemente?')) {
+                productosData.productos = productosData.productos.filter(p => p.id !== id);
+                productosFiltrados = productosFiltrados.filter(p => p.id !== id);
+                mostrarProductos();
+            }
+        }
+
+        function mostrarModalNuevoProducto() {
+            document.getElementById('modalNuevo').classList.add('show');
+        }
+
+        function cerrarModal() {
+            document.getElementById('modalNuevo').classList.remove('show');
+        }
+
+        function agregarProducto() {
+            const nombre = document.getElementById('nuevoNombre').value;
+            const categoria = document.getElementById('nuevoCategoria').value;
+            const subcategoria = document.getElementById('nuevoSubcategoria').value;
+            const presentacionesStr = document.getElementById('nuevoPresentaciones').value;
+            const precio = parseInt(document.getElementById('nuevoPrecio').value) || 0;
+
+            if (!nombre || !categoria || !subcategoria || !presentacionesStr) {
+                alert('Completa todos los campos');
+                return;
+            }
+
+            const ultimoId = productosData.productos.length > 0 
+                ? parseInt(productosData.productos[productosData.productos.length - 1].id.replace('P', ''))
+                : 0;
+            const nuevoId = `P${String(ultimoId + 1).padStart(3, '0')}`;
+
+            const presentaciones = presentacionesStr.split(',').map(p => ({
+                tamano: p.trim(),
+                precio_base: precio
+            }));
+
+            const nuevoProducto = {
+                id: nuevoId,
+                nombre: nombre,
+                categoria: categoria,
+                subcategoria: subcategoria,
+                presentaciones: presentaciones
+            };
+
+            productosData.productos.push(nuevoProducto);
+            productosFiltrados = [...productosData.productos];
+            mostrarProductos();
+            cerrarModal();
+
+            // Limpiar formulario
+            document.getElementById('nuevoNombre').value = '';
+            document.getElementById('nuevoSubcategoria').value = '';
+            document.getElementById('nuevoPresentaciones').value = '';
+            document.getElementById('nuevoPrecio').value = '';
+        }
+
+        function guardarCambios() {
+            const blob = new Blob([JSON.stringify(productosData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'productos.json';
+            a.click();
+
+            const msg = document.getElementById('successMsg');
+            msg.textContent = '✓ Archivo descargado. Súbelo a GitHub para actualizar la app.';
+            msg.style.display = 'block';
+            setTimeout(() => msg.style.display = 'none', 5000);
+        }
+    </script>
+</body>
+</html>

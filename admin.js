@@ -1,0 +1,571 @@
+// Variables globales
+let todosLosPedidos = [];
+let productosData = { productos: [], categorias: [], clientes: [] };
+let productosFiltrados = [];
+let clienteActualPrecios = null;
+let tipoReporte = 'zona';
+
+// ============================================
+// INICIALIZACIÓN
+// ============================================
+document.addEventListener('DOMContentLoaded', async () => {
+    await cargarDatosIniciales();
+    cargarPedidos();
+    setInterval(cargarPedidos, 30000);
+    document.getElementById('filterFecha').valueAsDate = new Date();
+    
+    const hoy = new Date();
+    const hace30 = new Date(hoy.getTime() - 30 * 24 * 60 * 60 * 1000);
+    document.getElementById('reporteFechaHasta').valueAsDate = hoy;
+    document.getElementById('reporteFechaDesde').valueAsDate = hace30;
+});
+
+async function cargarDatosIniciales() {
+    try {
+        const response = await fetch('productos.json');
+        productosData = await response.json();
+        productosFiltrados = [...productosData.productos];
+        
+        const filterCliente = document.getElementById('filterCliente');
+        const filterZona = document.getElementById('filterZona');
+        const preciosCliente = document.getElementById('preciosCliente');
+        const nuevoCategoria = document.getElementById('nuevoCategoria');
+        
+        productosData.clientes.forEach(c => {
+            const opt1 = document.createElement('option');
+            opt1.value = c.id;
+            opt1.textContent = `${c.nombre} — ${c.zona}`;
+            filterCliente.appendChild(opt1.cloneNode(true));
+            preciosCliente.appendChild(opt1);
+        });
+        
+        const zonas = [...new Set(productosData.clientes.map(c => c.zona))];
+        zonas.forEach(z => {
+            const opt = document.createElement('option');
+            opt.value = z;
+            opt.textContent = z;
+            filterZona.appendChild(opt);
+        });
+        
+        productosData.categorias.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c.id;
+            opt.textContent = c.nombre;
+            nuevoCategoria.appendChild(opt);
+        });
+    } catch (error) {
+        console.error('Error:', error);
+    }
+}
+
+function cambiarSeccion(seccion) {
+    document.querySelectorAll('.main-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    
+    event.target.classList.add('active');
+    document.getElementById(`seccion-${seccion}`).classList.add('active');
+    
+    if (seccion === 'productos' && productosFiltrados.length > 0) {
+        mostrarProductosGestion();
+    }
+}
+
+// ============================================
+// SECCIÓN PEDIDOS
+// ============================================
+function cargarPedidos() {
+    todosLosPedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    aplicarFiltrosPedidos();
+}
+
+function aplicarFiltrosPedidos() {
+    const fecha = document.getElementById('filterFecha').value;
+    const cliente = document.getElementById('filterCliente').value;
+    const zona = document.getElementById('filterZona').value;
+    const estado = document.getElementById('filterEstado').value;
+    
+    let filtrados = todosLosPedidos;
+    
+    if (fecha) {
+        filtrados = filtrados.filter(p => {
+            const pFecha = new Date(p.fecha).toISOString().split('T')[0];
+            return pFecha === fecha;
+        });
+    }
+    if (cliente) filtrados = filtrados.filter(p => p.cliente.id === cliente);
+    if (zona) {
+        const clientesZona = productosData.clientes.filter(c => c.zona === zona).map(c => c.id);
+        filtrados = filtrados.filter(p => clientesZona.includes(p.cliente.id));
+    }
+    if (estado) filtrados = filtrados.filter(p => (p.estado || 'pendiente') === estado);
+    
+    mostrarPedidos(filtrados);
+    actualizarEstadisticasPedidos(filtrados);
+}
+
+function limpiarFiltrosPedidos() {
+    document.getElementById('filterFecha').valueAsDate = new Date();
+    document.getElementById('filterCliente').value = '';
+    document.getElementById('filterZona').value = '';
+    document.getElementById('filterEstado').value = '';
+    aplicarFiltrosPedidos();
+}
+
+function mostrarPedidos(pedidos) {
+    const container = document.getElementById('pedidosList');
+    if (pedidos.length === 0) {
+        container.innerHTML = '<div class="empty-state"><div style="font-size:48px;margin-bottom:15px;">📦</div>No hay pedidos</div>';
+        return;
+    }
+    
+    container.innerHTML = '';
+    pedidos.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+    
+    pedidos.forEach(p => {
+        const estado = p.estado || 'pendiente';
+        const clienteInfo = productosData.clientes.find(c => c.id === p.cliente.id);
+        const zona = clienteInfo?.zona || '';
+        
+        const div = document.createElement('div');
+        div.className = 'pedido-card';
+        div.innerHTML = `
+            <div class="pedido-header">
+                <div>
+                    <h3 style="margin-bottom:5px;">${p.cliente.nombre}</h3>
+                    <div style="font-size:14px;color:#6b7280;">📍 ${zona} • 🕐 ${new Date(p.fecha).toLocaleString('es-PY')}</div>
+                </div>
+                <span class="pedido-status status-${estado}">${estado.toUpperCase()}</span>
+            </div>
+            <div style="margin-bottom:15px;">
+                ${p.items.map(i => `<div style="display:flex;justify-content:space-between;padding:8px 0;font-size:14px;">
+                    <span>${i.nombre} <span style="color:#6b7280;">(${i.presentacion} × ${i.cantidad})</span></span>
+                    <strong>Gs. ${i.subtotal.toLocaleString()}</strong>
+                </div>`).join('')}
+            </div>
+            <div style="display:flex;justify-content:space-between;padding-top:15px;border-top:2px solid #e5e7eb;font-size:18px;font-weight:700;">
+                <span>TOTAL</span><span>Gs. ${p.total.toLocaleString()}</span>
+            </div>
+            <div style="display:flex;gap:10px;margin-top:15px;">
+                ${estado === 'pendiente' ? 
+                    `<button class="btn btn-primary" onclick="marcarEntregado('${p.id}')">✓ Marcar Entregado</button>` :
+                    `<button class="btn btn-secondary" onclick="marcarPendiente('${p.id}')">↩ Marcar Pendiente</button>`
+                }
+                <button class="btn btn-danger" onclick="eliminarPedido('${p.id}')">🗑️ Eliminar</button>
+            </div>
+        `;
+        container.appendChild(div);
+    });
+}
+
+function actualizarEstadisticasPedidos(pedidos) {
+    const total = pedidos.length;
+    const pendientes = pedidos.filter(p => (p.estado || 'pendiente') === 'pendiente').length;
+    const entregados = pedidos.filter(p => p.estado === 'entregado').length;
+    const totalGs = pedidos.reduce((s, p) => s + p.total, 0);
+    
+    document.getElementById('totalPedidos').textContent = total;
+    document.getElementById('pedidosPendientes').textContent = pendientes;
+    document.getElementById('pedidosEntregados').textContent = entregados;
+    document.getElementById('totalGuaranies').textContent = totalGs.toLocaleString();
+}
+
+function marcarEntregado(id) {
+    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    const p = pedidos.find(x => x.id === id);
+    if (p) {
+        p.estado = 'entregado';
+        localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
+        cargarPedidos();
+    }
+}
+
+function marcarPendiente(id) {
+    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    const p = pedidos.find(x => x.id === id);
+    if (p) {
+        p.estado = 'pendiente';
+        localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
+        cargarPedidos();
+    }
+}
+
+function eliminarPedido(id) {
+    if (!confirm('¿Eliminar este pedido?')) return;
+    let pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    pedidos = pedidos.filter(p => p.id !== id);
+    localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
+    cargarPedidos();
+}
+
+function exportarPedidosExcel() {
+    const fecha = document.getElementById('filterFecha').value;
+    let csv = 'Fecha,Cliente,Zona,Producto,Presentacion,Cantidad,Precio Unit,Subtotal,Total,Estado\n';
+    
+    todosLosPedidos.forEach(p => {
+        const c = productosData.clientes.find(x => x.id === p.cliente.id);
+        const zona = c?.zona || '';
+        const estado = p.estado || 'pendiente';
+        p.items.forEach((i, idx) => {
+            csv += `"${p.fecha}","${p.cliente.nombre}","${zona}","${i.nombre}","${i.presentacion}",${i.cantidad},${i.precio_unitario},${i.subtotal},${idx === 0 ? p.total : ''},${estado}\n`;
+        });
+    });
+    
+    descargarCSV(csv, `pedidos_${fecha || 'todos'}.csv`);
+}
+
+// ============================================
+// SECCIÓN REPORTES
+// ============================================
+function generarReporte() {
+    const desde = new Date(document.getElementById('reporteFechaDesde').value);
+    const hasta = new Date(document.getElementById('reporteFechaHasta').value);
+    hasta.setHours(23, 59, 59);
+    
+    const pedidos = todosLosPedidos.filter(p => {
+        const f = new Date(p.fecha);
+        return f >= desde && f <= hasta;
+    });
+    
+    if (pedidos.length === 0) {
+        alert('No hay pedidos en ese rango');
+        return;
+    }
+    
+    mostrarEstadisticasReporte(pedidos);
+    
+    if (tipoReporte === 'zona') reportePorZona(pedidos);
+    else if (tipoReporte === 'vendedor') reportePorVendedor(pedidos);
+    else if (tipoReporte === 'producto') reportePorProducto(pedidos);
+    else if (tipoReporte === 'cliente') reportePorCliente(pedidos);
+}
+
+function mostrarEstadisticasReporte(pedidos) {
+    const total = pedidos.reduce((s, p) => s + p.total, 0);
+    const cant = pedidos.length;
+    const promedio = total / cant;
+    
+    document.getElementById('rTotalVentas').textContent = `Gs. ${total.toLocaleString()}`;
+    document.getElementById('rTotalPedidos').textContent = cant;
+    document.getElementById('rTicketPromedio').textContent = `Gs. ${Math.round(promedio).toLocaleString()}`;
+    document.getElementById('statsReporte').style.display = 'block';
+}
+
+function reportePorZona(pedidos) {
+    const zonas = {};
+    pedidos.forEach(p => {
+        const c = productosData.clientes.find(x => x.id === p.cliente.id);
+        const zona = c?.zona || 'Sin zona';
+        if (!zonas[zona]) zonas[zona] = { pedidos: 0, total: 0 };
+        zonas[zona].pedidos++;
+        zonas[zona].total += p.total;
+    });
+    
+    const data = Object.entries(zonas).map(([zona, d]) => ({
+        zona, ...d, promedio: Math.round(d.total / d.pedidos)
+    })).sort((a, b) => b.total - a.total);
+    
+    mostrarTablaReporte(
+        ['Zona', 'Pedidos', 'Total Ventas', 'Ticket Promedio'],
+        data.map(d => [d.zona, d.pedidos, `Gs. ${d.total.toLocaleString()}`, `Gs. ${d.promedio.toLocaleString()}`]),
+        'Ventas por Zona'
+    );
+}
+
+function reportePorVendedor(pedidos) {
+    const vendedores = {};
+    pedidos.forEach(p => {
+        const v = p.vendedor || 'Sin especificar';
+        if (!vendedores[v]) vendedores[v] = { pedidos: 0, total: 0 };
+        vendedores[v].pedidos++;
+        vendedores[v].total += p.total;
+    });
+    
+    const data = Object.entries(vendedores).map(([v, d]) => ({
+        vendedor: v, ...d, promedio: Math.round(d.total / d.pedidos)
+    })).sort((a, b) => b.total - a.total);
+    
+    mostrarTablaReporte(
+        ['Vendedor', 'Pedidos', 'Total Ventas', 'Ticket Promedio'],
+        data.map(d => [d.vendedor, d.pedidos, `Gs. ${d.total.toLocaleString()}`, `Gs. ${d.promedio.toLocaleString()}`]),
+        'Ventas por Vendedor'
+    );
+}
+
+function reportePorProducto(pedidos) {
+    const prods = {};
+    pedidos.forEach(p => {
+        p.items.forEach(i => {
+            const key = `${i.nombre} (${i.presentacion})`;
+            if (!prods[key]) prods[key] = { cantidad: 0, total: 0 };
+            prods[key].cantidad += i.cantidad;
+            prods[key].total += i.subtotal;
+        });
+    });
+    
+    const data = Object.entries(prods).map(([prod, d]) => ({
+        producto: prod, ...d
+    })).sort((a, b) => b.total - a.total);
+    
+    mostrarTablaReporte(
+        ['Producto', 'Unidades', 'Total Ventas'],
+        data.map(d => [d.producto, d.cantidad, `Gs. ${d.total.toLocaleString()}`]),
+        'Ventas por Producto'
+    );
+}
+
+function reportePorCliente(pedidos) {
+    const clientes = {};
+    pedidos.forEach(p => {
+        const nombre = p.cliente.nombre;
+        const c = productosData.clientes.find(x => x.id === p.cliente.id);
+        const zona = c?.zona || '';
+        if (!clientes[nombre]) clientes[nombre] = { pedidos: 0, total: 0, zona };
+        clientes[nombre].pedidos++;
+        clientes[nombre].total += p.total;
+    });
+    
+    const data = Object.entries(clientes).map(([nombre, d]) => ({
+        cliente: nombre, ...d, promedio: Math.round(d.total / d.pedidos)
+    })).sort((a, b) => b.total - a.total);
+    
+    mostrarTablaReporte(
+        ['Cliente', 'Zona', 'Pedidos', 'Total Ventas', 'Ticket Promedio'],
+        data.map(d => [d.cliente, d.zona, d.pedidos, `Gs. ${d.total.toLocaleString()}`, `Gs. ${d.promedio.toLocaleString()}`]),
+        'Ventas por Cliente'
+    );
+}
+
+function mostrarTablaReporte(headers, rows, titulo) {
+    document.getElementById('tituloReporte').textContent = titulo;
+    document.getElementById('reporteHeader').innerHTML = '<tr>' + headers.map(h => `<th>${h}</th>`).join('') + '</tr>';
+    document.getElementById('reporteBody').innerHTML = rows.map(r => '<tr>' + r.map(c => `<td>${c}</td>`).join('') + '</tr>').join('');
+    document.getElementById('resultadosReporte').style.display = 'block';
+}
+
+function exportarReporteExcel() {
+    const tabla = document.getElementById('tablaReporte');
+    let csv = '';
+    Array.from(tabla.querySelectorAll('thead th')).forEach(th => csv += th.textContent + ',');
+    csv += '\n';
+    Array.from(tabla.querySelectorAll('tbody tr')).forEach(tr => {
+        Array.from(tr.querySelectorAll('td')).forEach(td => csv += `"${td.textContent}",`);
+        csv += '\n';
+    });
+    descargarCSV(csv, `reporte_${tipoReporte}_${new Date().toISOString().split('T')[0]}.csv`);
+}
+
+// ============================================
+// SECCIÓN PRECIOS POR CLIENTE
+// ============================================
+function cargarPreciosCliente() {
+    const clienteId = document.getElementById('preciosCliente').value;
+    if (!clienteId) {
+        document.getElementById('preciosCard').style.display = 'none';
+        return;
+    }
+    
+    clienteActualPrecios = productosData.clientes.find(c => c.id === clienteId);
+    const tbody = document.getElementById('preciosBody');
+    tbody.innerHTML = '';
+    
+    productosData.productos.forEach(prod => {
+        prod.presentaciones.forEach((pres, idx) => {
+            const personalizado = clienteActualPrecios.precios_personalizados?.[prod.id]?.find(p => p.tamano === pres.tamano)?.precio || '';
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><strong>${prod.nombre}</strong></td>
+                <td>${pres.tamano}</td>
+                <td>Gs. ${pres.precio_base.toLocaleString()}</td>
+                <td><input type="number" id="precio_${prod.id}_${idx}" value="${personalizado}" placeholder="Vacío = precio base" data-producto="${prod.id}" data-tamano="${pres.tamano}"></td>
+            `;
+            tbody.appendChild(tr);
+        });
+    });
+    
+    document.getElementById('preciosCard').style.display = 'block';
+    
+    document.getElementById('buscarProductoPrecio').oninput = (e) => {
+        const filtro = e.target.value.toLowerCase();
+        Array.from(tbody.querySelectorAll('tr')).forEach(tr => {
+            const nombre = tr.querySelector('td').textContent.toLowerCase();
+            tr.style.display = nombre.includes(filtro) ? '' : 'none';
+        });
+    };
+}
+
+function guardarPreciosPersonalizados() {
+    if (!clienteActualPrecios) return;
+    
+    const inputs = document.querySelectorAll('[data-producto]');
+    const nuevosPrecios = {};
+    
+    inputs.forEach(input => {
+        const prodId = input.dataset.producto;
+        const tamano = input.dataset.tamano;
+        const precio = parseInt(input.value) || 0;
+        if (precio > 0) {
+            if (!nuevosPrecios[prodId]) nuevosPrecios[prodId] = [];
+            nuevosPrecios[prodId].push({ tamano, precio });
+        }
+    });
+    
+    const cliente = productosData.clientes.find(c => c.id === clienteActualPrecios.id);
+    cliente.precios_personalizados = nuevosPrecios;
+    
+    descargarJSON(productosData, 'productos.json');
+    document.getElementById('successPrecios').style.display = 'block';
+    setTimeout(() => document.getElementById('successPrecios').style.display = 'none', 3000);
+}
+
+// ============================================
+// SECCIÓN GESTIONAR PRODUCTOS
+// ============================================
+function filtrarProductos() {
+    const filtro = document.getElementById('buscarProducto').value.toLowerCase();
+    productosFiltrados = productosData.productos.filter(p => 
+        p.nombre.toLowerCase().includes(filtro) || p.id.toLowerCase().includes(filtro)
+    );
+    mostrarProductosGestion();
+}
+
+function mostrarProductosGestion() {
+    const tbody = document.getElementById('productosBody');
+    tbody.innerHTML = '';
+    
+    productosFiltrados.forEach(prod => {
+        const catNombre = productosData.categorias.find(c => c.id === prod.categoria)?.nombre || '';
+        const presHTML = prod.presentaciones.map((p, i) => `
+            <div style="display:flex;gap:8px;margin-bottom:6px;align-items:center;">
+                <input type="text" value="${p.tamano}" onchange="actualizarPresentacion('${prod.id}', ${i}, 'tamano', this.value)" style="width:90px;padding:6px;border:2px solid #e5e7eb;border-radius:6px;font-size:13px;" placeholder="Tamaño">
+                <input type="number" value="${p.precio_base}" onchange="actualizarPresentacion('${prod.id}', ${i}, 'precio', this.value)" style="width:110px;padding:6px;border:2px solid #e5e7eb;border-radius:6px;font-size:13px;" placeholder="Precio">
+                <button onclick="eliminarPresentacion('${prod.id}', ${i})" style="width:28px;height:28px;border:2px solid #ef4444;background:white;color:#ef4444;border-radius:6px;cursor:pointer;font-size:16px;">×</button>
+            </div>
+        `).join('');
+        
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><strong>${prod.id}</strong></td>
+            <td><input type="text" value="${prod.nombre}" onchange="actualizarProducto('${prod.id}', 'nombre', this.value)"></td>
+            <td><select onchange="actualizarProducto('${prod.id}', 'categoria', this.value)">
+                ${productosData.categorias.map(c => `<option value="${c.id}" ${c.id === prod.categoria ? 'selected' : ''}>${c.nombre}</option>`).join('')}
+            </select></td>
+            <td><input type="text" value="${prod.subcategoria}" onchange="actualizarProducto('${prod.id}', 'subcategoria', this.value)"></td>
+            <td>
+                ${presHTML}
+                <button onclick="agregarPresentacion('${prod.id}')" class="btn btn-primary" style="padding:5px 10px;font-size:12px;margin-top:5px;">+ Presentación</button>
+            </td>
+            <td><button onclick="eliminarProducto('${prod.id}')" style="width:32px;height:32px;border:2px solid #ef4444;background:white;color:#ef4444;border-radius:6px;cursor:pointer;">🗑️</button></td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+function actualizarProducto(id, campo, valor) {
+    const p = productosData.productos.find(x => x.id === id);
+    if (p) p[campo] = valor;
+}
+
+function actualizarPresentacion(id, idx, campo, valor) {
+    const p = productosData.productos.find(x => x.id === id);
+    if (p && p.presentaciones[idx]) {
+        if (campo === 'precio') p.presentaciones[idx].precio_base = parseInt(valor) || 0;
+        else p.presentaciones[idx].tamano = valor;
+    }
+}
+
+function eliminarPresentacion(id, idx) {
+    const p = productosData.productos.find(x => x.id === id);
+    if (p && p.presentaciones.length > 1) {
+        p.presentaciones.splice(idx, 1);
+        mostrarProductosGestion();
+    } else {
+        alert('Debe tener al menos una presentación');
+    }
+}
+
+function agregarPresentacion(id) {
+    const p = productosData.productos.find(x => x.id === id);
+    if (p) {
+        p.presentaciones.push({ tamano: '', precio_base: 0 });
+        mostrarProductosGestion();
+    }
+}
+
+function eliminarProducto(id) {
+    if (!confirm('¿Eliminar este producto?')) return;
+    productosData.productos = productosData.productos.filter(p => p.id !== id);
+    productosFiltrados = productosFiltrados.filter(p => p.id !== id);
+    mostrarProductosGestion();
+}
+
+function mostrarModalNuevoProducto() {
+    document.getElementById('modalNuevoProducto').classList.add('show');
+}
+
+function cerrarModal() {
+    document.getElementById('modalNuevoProducto').classList.remove('show');
+}
+
+function agregarNuevoProducto() {
+    const nombre = document.getElementById('nuevoNombre').value;
+    const categoria = document.getElementById('nuevoCategoria').value;
+    const subcategoria = document.getElementById('nuevoSubcategoria').value;
+    const presentacionesStr = document.getElementById('nuevoPresentaciones').value;
+    const precio = parseInt(document.getElementById('nuevoPrecio').value) || 0;
+    
+    if (!nombre || !categoria || !subcategoria || !presentacionesStr) {
+        alert('Completa todos los campos');
+        return;
+    }
+    
+    const ultimoId = productosData.productos.length > 0 ? 
+        parseInt(productosData.productos[productosData.productos.length - 1].id.replace('P', '')) : 0;
+    const nuevoId = `P${String(ultimoId + 1).padStart(3, '0')}`;
+    
+    const presentaciones = presentacionesStr.split(',').map(p => ({
+        tamano: p.trim(),
+        precio_base: precio
+    }));
+    
+    productosData.productos.push({
+        id: nuevoId,
+        nombre: nombre,
+        categoria: categoria,
+        subcategoria: subcategoria,
+        presentaciones: presentaciones
+    });
+    
+    productosFiltrados = [...productosData.productos];
+    mostrarProductosGestion();
+    cerrarModal();
+    
+    document.getElementById('nuevoNombre').value = '';
+    document.getElementById('nuevoSubcategoria').value = '';
+    document.getElementById('nuevoPresentaciones').value = '';
+    document.getElementById('nuevoPrecio').value = '';
+}
+
+function guardarProductos() {
+    descargarJSON(productosData, 'productos.json');
+    document.getElementById('successProductos').style.display = 'block';
+    setTimeout(() => document.getElementById('successProductos').style.display = 'none', 3000);
+}
+
+// ============================================
+// UTILIDADES
+// ============================================
+function descargarCSV(contenido, nombreArchivo) {
+    const blob = new Blob([contenido], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = nombreArchivo;
+    link.click();
+}
+
+function descargarJSON(data, nombreArchivo) {
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = nombreArchivo;
+    link.click();
+}

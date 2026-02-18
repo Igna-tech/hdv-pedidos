@@ -3,51 +3,71 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel Admin - HDV Distribuciones</title>
+    <title>Panel Admin - HDV</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f3f4f6; }
-        .header { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); color: white; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .header { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); color: white; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); position: sticky; top: 0; z-index: 100; }
         .header h1 { font-size: 24px; margin-bottom: 5px; }
-        .header .subtitle { font-size: 14px; opacity: 0.9; }
+        
+        /* Tabs principales */
+        .main-tabs { background: white; border-bottom: 2px solid #e5e7eb; padding: 0 20px; display: flex; gap: 5px; overflow-x: auto; }
+        .main-tab { padding: 15px 24px; background: none; border: none; font-size: 15px; font-weight: 600; color: #6b7280; cursor: pointer; border-bottom: 3px solid transparent; white-space: nowrap; }
+        .main-tab.active { color: #2563eb; border-bottom-color: #2563eb; }
+        .main-tab:hover { color: #2563eb; background: #f9fafb; }
+        
         .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        
+        .card { background: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .card h2 { font-size: 18px; margin-bottom: 15px; color: #111827; }
+        
         .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 30px; }
         .stat-card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
         .stat-label { font-size: 14px; color: #6b7280; margin-bottom: 5px; }
         .stat-value { font-size: 32px; font-weight: 700; color: #111827; }
         .stat-value.money { color: #2563eb; }
-        .filters { background: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        .filter-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px; }
+        
+        .btn { padding: 12px 24px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .btn-primary { background: #2563eb; color: white; }
+        .btn-primary:hover { background: #1d4ed8; }
+        .btn-success { background: #10b981; color: white; }
+        .btn-danger { background: #ef4444; color: white; }
+        .btn-secondary { background: #e5e7eb; color: #374151; }
+        
+        .filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
         .filter-group label { display: block; font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 5px; }
         .filter-group select, .filter-group input { width: 100%; padding: 10px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; }
-        .btn { padding: 10px 20px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; }
-        .btn-primary { background: #2563eb; color: white; }
-        .btn-secondary { background: #e5e7eb; color: #374151; }
-        .pedidos-list { background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); overflow: hidden; }
-        .pedido-card { border-bottom: 1px solid #e5e7eb; padding: 20px; transition: background 0.2s; }
+        
+        .tabla { width: 100%; border-collapse: collapse; }
+        .tabla th { background: #f3f4f6; padding: 12px; text-align: left; font-size: 14px; font-weight: 600; color: #374151; position: sticky; top: 0; }
+        .tabla td { padding: 12px; border-bottom: 1px solid #e5e7eb; font-size: 14px; }
+        .tabla tr:hover { background: #f9fafb; }
+        .tabla input, .tabla select { width: 100%; padding: 8px; border: 2px solid #e5e7eb; border-radius: 6px; font-size: 14px; }
+        
+        .pedido-card { border-bottom: 1px solid #e5e7eb; padding: 20px; }
         .pedido-card:hover { background: #f9fafb; }
-        .pedido-card:last-child { border-bottom: none; }
-        .pedido-header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px; }
-        .pedido-info h3 { font-size: 18px; color: #111827; margin-bottom: 5px; }
-        .pedido-meta { font-size: 14px; color: #6b7280; }
+        .pedido-header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px; flex-wrap: wrap; gap: 10px; }
         .pedido-status { padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
         .status-pendiente { background: #fef3c7; color: #92400e; }
         .status-entregado { background: #d1fae5; color: #065f46; }
-        .pedido-items { margin-bottom: 15px; }
-        .item { display: flex; justify-content: space-between; padding: 8px 0; font-size: 14px; }
-        .item-name { color: #374151; }
-        .item-qty { color: #6b7280; margin-right: 10px; }
-        .item-price { color: #111827; font-weight: 600; }
-        .pedido-total { display: flex; justify-content: space-between; padding-top: 15px; border-top: 2px solid #e5e7eb; font-size: 18px; font-weight: 700; }
-        .pedido-actions { display: flex; gap: 10px; margin-top: 15px; }
+        
+        .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
+        .modal.show { display: flex; }
+        .modal-content { background: white; border-radius: 16px; padding: 24px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; }
+        .modal-header { font-size: 20px; font-weight: 700; margin-bottom: 20px; }
+        .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+        
+        .success { background: #d1fae5; color: #065f46; padding: 12px; border-radius: 8px; margin-bottom: 20px; text-align: center; display: none; }
         .empty-state { text-align: center; padding: 60px 20px; color: #6b7280; }
-        .empty-icon { font-size: 48px; margin-bottom: 15px; }
         .loading { text-align: center; padding: 40px; }
         .spinner { border: 3px solid #f3f4f6; border-top: 3px solid #2563eb; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
         @media (max-width: 768px) {
-            .pedido-header { flex-direction: column; gap: 10px; }
-            .filter-row { grid-template-columns: 1fr; }
+            .pedido-header { flex-direction: column; }
+            .filters { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -57,305 +77,224 @@
         <div class="subtitle">HDV Distribuciones</div>
     </div>
 
+    <!-- Tabs Principales -->
+    <div class="main-tabs">
+        <button class="main-tab active" onclick="cambiarSeccion('pedidos')">📦 Pedidos</button>
+        <button class="main-tab" onclick="cambiarSeccion('reportes')">📊 Reportes</button>
+        <button class="main-tab" onclick="cambiarSeccion('precios')">💰 Precios por Cliente</button>
+        <button class="main-tab" onclick="cambiarSeccion('productos')">🏷️ Gestionar Productos</button>
+    </div>
+
     <div class="container">
-        <!-- Estadísticas -->
-        <div class="stats">
-            <div class="stat-card">
-                <div class="stat-label">Total Pedidos Hoy</div>
-                <div class="stat-value" id="totalPedidos">0</div>
+        <!-- SECCIÓN: PEDIDOS -->
+        <div id="seccion-pedidos" class="tab-content active">
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-label">Total Pedidos Hoy</div>
+                    <div class="stat-value" id="totalPedidos">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Pendientes</div>
+                    <div class="stat-value" id="pedidosPendientes">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Entregados</div>
+                    <div class="stat-value" id="pedidosEntregados">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Total Gs.</div>
+                    <div class="stat-value money" id="totalGuaranies">0</div>
+                </div>
             </div>
-            <div class="stat-card">
-                <div class="stat-label">Pedidos Pendientes</div>
-                <div class="stat-value" id="pedidosPendientes">0</div>
+
+            <div class="card">
+                <div class="filters">
+                    <div class="filter-group">
+                        <label>Fecha</label>
+                        <input type="date" id="filterFecha" />
+                    </div>
+                    <div class="filter-group">
+                        <label>Cliente</label>
+                        <select id="filterCliente"><option value="">Todos</option></select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Zona</label>
+                        <select id="filterZona"><option value="">Todas</option></select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Estado</label>
+                        <select id="filterEstado">
+                            <option value="">Todos</option>
+                            <option value="pendiente">Pendiente</option>
+                            <option value="entregado">Entregado</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button class="btn btn-primary" onclick="aplicarFiltrosPedidos()">Aplicar Filtros</button>
+                    <button class="btn btn-secondary" onclick="limpiarFiltrosPedidos()">Limpiar</button>
+                    <button class="btn btn-secondary" onclick="exportarPedidosExcel()" style="margin-left: auto;">📊 Exportar Excel</button>
+                </div>
             </div>
-            <div class="stat-card">
-                <div class="stat-label">Pedidos Entregados</div>
-                <div class="stat-value" id="pedidosEntregados">0</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Total en Gs.</div>
-                <div class="stat-value money" id="totalGuaranies">0</div>
+
+            <div class="card" id="pedidosList">
+                <div class="loading"><div class="spinner"></div><p style="margin-top: 15px;">Cargando pedidos...</p></div>
             </div>
         </div>
 
-        <!-- Filtros -->
-        <div class="filters">
-            <div class="filter-row">
-                <div class="filter-group">
-                    <label>Fecha</label>
-                    <input type="date" id="filterFecha" />
+        <!-- SECCIÓN: REPORTES -->
+        <div id="seccion-reportes" class="tab-content">
+            <div class="card">
+                <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+                    <button class="btn btn-primary" onclick="tipoReporte='zona';generarReporte()">Por Zona</button>
+                    <button class="btn btn-primary" onclick="tipoReporte='vendedor';generarReporte()">Por Vendedor</button>
+                    <button class="btn btn-primary" onclick="tipoReporte='producto';generarReporte()">Por Producto</button>
+                    <button class="btn btn-primary" onclick="tipoReporte='cliente';generarReporte()">Por Cliente</button>
                 </div>
-                <div class="filter-group">
-                    <label>Cliente</label>
-                    <select id="filterCliente">
-                        <option value="">Todos los clientes</option>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <label>Zona</label>
-                    <select id="filterZona">
-                        <option value="">Todas las zonas</option>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <label>Estado</label>
-                    <select id="filterEstado">
-                        <option value="">Todos</option>
-                        <option value="pendiente">Pendiente</option>
-                        <option value="entregado">Entregado</option>
-                    </select>
+                <div class="filters">
+                    <div class="filter-group">
+                        <label>Desde:</label>
+                        <input type="date" id="reporteFechaDesde">
+                    </div>
+                    <div class="filter-group">
+                        <label>Hasta:</label>
+                        <input type="date" id="reporteFechaHasta">
+                    </div>
                 </div>
             </div>
-            <div style="display: flex; gap: 10px;">
-                <button class="btn btn-primary" onclick="aplicarFiltros()">Aplicar Filtros</button>
-                <button class="btn btn-secondary" onclick="limpiarFiltros()">Limpiar</button>
-                <button class="btn btn-secondary" onclick="exportarExcel()" style="margin-left: auto;">📊 Exportar a Excel</button>
+
+            <div class="card" id="statsReporte" style="display:none;">
+                <h2>Resumen General</h2>
+                <div class="stats">
+                    <div class="stat-card">
+                        <div class="stat-label">Total Ventas</div>
+                        <div class="stat-value money" id="rTotalVentas">Gs. 0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Total Pedidos</div>
+                        <div class="stat-value" id="rTotalPedidos">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Ticket Promedio</div>
+                        <div class="stat-value money" id="rTicketPromedio">Gs. 0</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card" id="resultadosReporte" style="display:none;">
+                <div style="display:flex;justify-content:space-between;margin-bottom:15px;flex-wrap:wrap;gap:10px;">
+                    <h2 id="tituloReporte">Reporte</h2>
+                    <button class="btn btn-primary" onclick="exportarReporteExcel()">📥 Exportar</button>
+                </div>
+                <div style="overflow-x:auto;">
+                    <table class="tabla" id="tablaReporte">
+                        <thead id="reporteHeader"></thead>
+                        <tbody id="reporteBody"></tbody>
+                    </table>
+                </div>
             </div>
         </div>
 
-        <!-- Lista de Pedidos -->
-        <div class="pedidos-list" id="pedidosList">
-            <div class="loading">
-                <div class="spinner"></div>
-                <p style="margin-top: 15px;">Cargando pedidos...</p>
+        <!-- SECCIÓN: PRECIOS POR CLIENTE -->
+        <div id="seccion-precios" class="tab-content">
+            <div class="success" id="successPrecios">✓ Precios guardados</div>
+            <div class="card">
+                <h2>Configurar Precios Personalizados</h2>
+                <div class="filter-group" style="max-width: 400px;">
+                    <label>Seleccionar Cliente:</label>
+                    <select id="preciosCliente" onchange="cargarPreciosCliente()">
+                        <option value="">-- Seleccione --</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="card" id="preciosCard" style="display:none;">
+                <div style="margin-bottom: 15px;">
+                    <input type="text" id="buscarProductoPrecio" placeholder="🔍 Buscar producto..." style="width: 100%; padding: 10px; border: 2px solid #e5e7eb; border-radius: 8px;">
+                </div>
+                <div style="overflow-x:auto;">
+                    <table class="tabla">
+                        <thead>
+                            <tr>
+                                <th>Producto</th>
+                                <th>Presentación</th>
+                                <th>Precio Base</th>
+                                <th>Precio Personalizado</th>
+                            </tr>
+                        </thead>
+                        <tbody id="preciosBody"></tbody>
+                    </table>
+                </div>
+                <div style="margin-top: 20px;">
+                    <button class="btn btn-success" onclick="guardarPreciosPersonalizados()">💾 Guardar y Descargar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- SECCIÓN: GESTIONAR PRODUCTOS -->
+        <div id="seccion-productos" class="tab-content">
+            <div class="success" id="successProductos">✓ Productos guardados</div>
+            <div class="card">
+                <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
+                    <button class="btn btn-primary" onclick="mostrarModalNuevoProducto()">+ Nuevo Producto</button>
+                    <button class="btn btn-success" onclick="guardarProductos()">💾 Guardar y Descargar</button>
+                    <div style="flex:1;min-width:250px;">
+                        <input type="text" id="buscarProducto" placeholder="🔍 Buscar productos..." oninput="filtrarProductos()" style="width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px;">
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div style="overflow-x:auto;">
+                    <table class="tabla">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Producto</th>
+                                <th>Categoría</th>
+                                <th>Subcategoría</th>
+                                <th>Presentaciones</th>
+                                <th style="width:80px;">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="productosBody"></tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
 
-    <script>
-        let todosLosPedidos = [];
-        let clientes = [];
+    <!-- Modal Nuevo Producto -->
+    <div class="modal" id="modalNuevoProducto">
+        <div class="modal-content">
+            <div class="modal-header">Nuevo Producto</div>
+            <div class="filter-group">
+                <label>Nombre:</label>
+                <input type="text" id="nuevoNombre" placeholder="Ej: Jabón Dove">
+            </div>
+            <div class="filter-group">
+                <label>Categoría:</label>
+                <select id="nuevoCategoria"></select>
+            </div>
+            <div class="filter-group">
+                <label>Subcategoría:</label>
+                <input type="text" id="nuevoSubcategoria" placeholder="Ej: Jabones">
+            </div>
+            <div class="filter-group">
+                <label>Presentaciones (separadas por coma):</label>
+                <input type="text" id="nuevoPresentaciones" placeholder="Ej: 125g, 90g">
+            </div>
+            <div class="filter-group">
+                <label>Precio Base:</label>
+                <input type="number" id="nuevoPrecio" placeholder="1000">
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="cerrarModal()">Cancelar</button>
+                <button class="btn btn-primary" onclick="agregarNuevoProducto()">Agregar</button>
+            </div>
+        </div>
+    </div>
 
-        // Cargar datos al iniciar
-        document.addEventListener('DOMContentLoaded', async () => {
-            await cargarClientes();
-            cargarPedidos();
-            setInterval(cargarPedidos, 30000); // Actualizar cada 30 segundos
-            
-            // Establecer fecha de hoy por defecto
-            document.getElementById('filterFecha').valueAsDate = new Date();
-        });
-
-        async function cargarClientes() {
-            try {
-                const response = await fetch('productos.json');
-                const data = await response.json();
-                clientes = data.clientes;
-                
-                // Llenar filtro de clientes
-                const filterCliente = document.getElementById('filterCliente');
-                clientes.forEach(c => {
-                    const option = document.createElement('option');
-                    option.value = c.id;
-                    option.textContent = `${c.nombre} — ${c.zona}`;
-                    filterCliente.appendChild(option);
-                });
-
-                // Llenar filtro de zonas (únicas)
-                const zonas = [...new Set(clientes.map(c => c.zona))];
-                const filterZona = document.getElementById('filterZona');
-                zonas.forEach(z => {
-                    const option = document.createElement('option');
-                    option.value = z;
-                    option.textContent = z;
-                    filterZona.appendChild(option);
-                });
-            } catch (error) {
-                console.error('Error cargando clientes:', error);
-            }
-        }
-
-        function cargarPedidos() {
-            const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
-            todosLosPedidos = pedidos;
-            aplicarFiltros();
-        }
-
-        function aplicarFiltros() {
-            const fecha = document.getElementById('filterFecha').value;
-            const cliente = document.getElementById('filterCliente').value;
-            const zona = document.getElementById('filterZona').value;
-            const estado = document.getElementById('filterEstado').value;
-
-            let filtrados = todosLosPedidos;
-
-            // Filtrar por fecha
-            if (fecha) {
-                filtrados = filtrados.filter(p => {
-                    const pedidoFecha = new Date(p.fecha).toISOString().split('T')[0];
-                    return pedidoFecha === fecha;
-                });
-            }
-
-            // Filtrar por cliente
-            if (cliente) {
-                filtrados = filtrados.filter(p => p.cliente.id === cliente);
-            }
-
-            // Filtrar por zona
-            if (zona) {
-                const clientesZona = clientes.filter(c => c.zona === zona).map(c => c.id);
-                filtrados = filtrados.filter(p => clientesZona.includes(p.cliente.id));
-            }
-
-            // Filtrar por estado
-            if (estado) {
-                filtrados = filtrados.filter(p => (p.estado || 'pendiente') === estado);
-            }
-
-            mostrarPedidos(filtrados);
-            actualizarEstadisticas(filtrados);
-        }
-
-        function limpiarFiltros() {
-            document.getElementById('filterFecha').valueAsDate = new Date();
-            document.getElementById('filterCliente').value = '';
-            document.getElementById('filterZona').value = '';
-            document.getElementById('filterEstado').value = '';
-            aplicarFiltros();
-        }
-
-        function mostrarPedidos(pedidos) {
-            const container = document.getElementById('pedidosList');
-            
-            if (pedidos.length === 0) {
-                container.innerHTML = `
-                    <div class="empty-state">
-                        <div class="empty-icon">📦</div>
-                        <p>No hay pedidos que mostrar</p>
-                    </div>
-                `;
-                return;
-            }
-
-            container.innerHTML = '';
-            
-            // Ordenar por fecha (más recientes primero)
-            pedidos.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
-
-            pedidos.forEach(pedido => {
-                const card = crearTarjetaPedido(pedido);
-                container.appendChild(card);
-            });
-        }
-
-        function crearTarjetaPedido(pedido) {
-            const div = document.createElement('div');
-            div.className = 'pedido-card';
-            
-            const estado = pedido.estado || 'pendiente';
-            const clienteInfo = clientes.find(c => c.id === pedido.cliente.id);
-            const zona = clienteInfo?.zona || '';
-
-            div.innerHTML = `
-                <div class="pedido-header">
-                    <div class="pedido-info">
-                        <h3>${pedido.cliente.nombre}</h3>
-                        <div class="pedido-meta">
-                            📍 ${zona} • 🕐 ${new Date(pedido.fecha).toLocaleString('es-PY')}
-                        </div>
-                    </div>
-                    <span class="pedido-status status-${estado}">${estado.toUpperCase()}</span>
-                </div>
-                
-                <div class="pedido-items">
-                    ${pedido.items.map(item => `
-                        <div class="item">
-                            <span class="item-name">${item.nombre} <span class="item-qty">(${item.presentacion} × ${item.cantidad})</span></span>
-                            <span class="item-price">Gs. ${item.subtotal.toLocaleString()}</span>
-                        </div>
-                    `).join('')}
-                </div>
-                
-                <div class="pedido-total">
-                    <span>TOTAL</span>
-                    <span>Gs. ${pedido.total.toLocaleString()}</span>
-                </div>
-
-                <div class="pedido-actions">
-                    ${estado === 'pendiente' ? 
-                        `<button class="btn btn-primary" onclick="marcarEntregado('${pedido.id}')">✓ Marcar Entregado</button>` :
-                        `<button class="btn btn-secondary" onclick="marcarPendiente('${pedido.id}')">↩ Marcar Pendiente</button>`
-                    }
-                    <button class="btn btn-secondary" onclick="eliminarPedido('${pedido.id}')">🗑️ Eliminar</button>
-                </div>
-            `;
-
-            return div;
-        }
-
-        function actualizarEstadisticas(pedidos) {
-            const total = pedidos.length;
-            const pendientes = pedidos.filter(p => (p.estado || 'pendiente') === 'pendiente').length;
-            const entregados = pedidos.filter(p => p.estado === 'entregado').length;
-            const totalGs = pedidos.reduce((sum, p) => sum + p.total, 0);
-
-            document.getElementById('totalPedidos').textContent = total;
-            document.getElementById('pedidosPendientes').textContent = pendientes;
-            document.getElementById('pedidosEntregados').textContent = entregados;
-            document.getElementById('totalGuaranies').textContent = totalGs.toLocaleString();
-        }
-
-        function marcarEntregado(pedidoId) {
-            const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
-            const pedido = pedidos.find(p => p.id === pedidoId);
-            if (pedido) {
-                pedido.estado = 'entregado';
-                localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
-                cargarPedidos();
-            }
-        }
-
-        function marcarPendiente(pedidoId) {
-            const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
-            const pedido = pedidos.find(p => p.id === pedidoId);
-            if (pedido) {
-                pedido.estado = 'pendiente';
-                localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
-                cargarPedidos();
-            }
-        }
-
-        function eliminarPedido(pedidoId) {
-            if (!confirm('¿Estás seguro de eliminar este pedido?')) return;
-            
-            let pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
-            pedidos = pedidos.filter(p => p.id !== pedidoId);
-            localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
-            cargarPedidos();
-        }
-
-        function exportarExcel() {
-            const fecha = document.getElementById('filterFecha').value;
-            const filtrados = todosLosPedidos.filter(p => {
-                if (!fecha) return true;
-                const pedidoFecha = new Date(p.fecha).toISOString().split('T')[0];
-                return pedidoFecha === fecha;
-            });
-
-            if (filtrados.length === 0) {
-                alert('No hay pedidos para exportar');
-                return;
-            }
-
-            let csv = 'Fecha,Cliente,Zona,Producto,Presentacion,Cantidad,Precio Unitario,Subtotal,Total Pedido,Estado\n';
-            
-            filtrados.forEach(p => {
-                const clienteInfo = clientes.find(c => c.id === p.cliente.id);
-                const zona = clienteInfo?.zona || '';
-                const estado = p.estado || 'pendiente';
-                
-                p.items.forEach((item, i) => {
-                    csv += `"${p.fecha}","${p.cliente.nombre}","${zona}","${item.nombre}","${item.presentacion}",${item.cantidad},${item.precio_unitario},${item.subtotal},${i === 0 ? p.total : ''},${estado}\n`;
-                });
-            });
-
-            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = `pedidos_${fecha || 'todos'}.csv`;
-            link.click();
-        }
-    </script>
+    <script src="admin.js"></script>
 </body>
 </html>

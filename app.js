@@ -1,11 +1,24 @@
 let productos = [], clientes = [], categorias = [], clienteActual = null, carrito = [], filtroCategoria = 'todas';
 
 document.addEventListener('DOMContentLoaded', async () => {
+    verificarVendedor();
     await cargarDatos();
     inicializarEventListeners();
     actualizarEstadoConexion();
     registrarServiceWorker();
 });
+
+function verificarVendedor() {
+    const vendedor = localStorage.getItem('vendedor_nombre');
+    if (!vendedor) {
+        const nombre = prompt('Por favor, ingresa tu nombre (vendedor):');
+        if (nombre && nombre.trim()) {
+            localStorage.setItem('vendedor_nombre', nombre.trim());
+        } else {
+            verificarVendedor(); // Volver a preguntar si no ingresa nada
+        }
+    }
+}
 
 async function cargarDatos() {
     try {
@@ -213,22 +226,66 @@ function closeCartModal() {
 
 async function confirmarPedido() {
     if (!clienteActual || carrito.length === 0) return;
+    
     const pedido = {
         id: Date.now().toString(),
-        fecha: new Date().toLocaleString('es-PY'),
+        fecha: new Date().toISOString(),
         cliente: { id: clienteActual.id, nombre: clienteActual.nombre },
-        items: carrito.map(i => ({ ...i, subtotal: i.precio * i.cantidad })),
+        zona: clienteActual.zona || '',
+        vendedor: localStorage.getItem('vendedor_nombre') || 'Vendedor',
+        items: carrito.map(i => ({ 
+            nombre: i.nombre,
+            presentacion: i.presentacion,
+            cantidad: i.cantidad,
+            precio_unitario: i.precio,
+            subtotal: i.precio * i.cantidad 
+        })),
         total: carrito.reduce((s, i) => s + i.precio * i.cantidad, 0),
+        estado: 'pendiente',
         sincronizado: false
     };
+    
+    // Guardar localmente
     const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
     pedidos.push(pedido);
     localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
+    
+    // Enviar a Google Sheets
+    await enviarAGoogleSheets(pedido);
+    
     mostrarExito(`Pedido de ${clienteActual.nombre} guardado`);
     carrito = [];
     actualizarCarrito();
     closeCartModal();
     mostrarProductos();
+}
+
+async function enviarAGoogleSheets(pedido) {
+    const SHEET_URL = 'https://script.google.com/macros/s/AKfycbxowigrfPMtoVhSDklxpeSoIfaYxV56oHKB7oZYTGoGrShubG4BiLsOYW9FF4-eLij3/exec';
+    
+    try {
+        const response = await fetch(SHEET_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(pedido)
+        });
+        
+        // Marcar como sincronizado
+        const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+        const pedidoLocal = pedidos.find(p => p.id === pedido.id);
+        if (pedidoLocal) {
+            pedidoLocal.sincronizado = true;
+            localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
+        }
+        
+        console.log('Pedido enviado a Google Sheets');
+    } catch (error) {
+        console.error('Error al enviar a Google Sheets:', error);
+        // El pedido queda guardado localmente de todos modos
+    }
 }
 
 function actualizarEstadoConexion() {

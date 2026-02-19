@@ -61,6 +61,21 @@
         .success-message { background: #10b981; color: white; padding: 15px 20px; border-radius: 8px; margin: 20px; text-align: center; font-weight: 600; display: none; }
         .success-message.show { display: block; animation: slideDown 0.3s ease; }
         @keyframes slideDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* Tabs */
+        .tabs { display: flex; gap: 5px; background: white; border-bottom: 2px solid #e5e7eb; padding: 0 20px; margin: 0 -20px 20px -20px; overflow-x: auto; }
+        .tab { padding: 15px 20px; background: none; border: none; font-size: 15px; font-weight: 600; color: #6b7280; cursor: pointer; border-bottom: 3px solid transparent; white-space: nowrap; }
+        .tab.active { color: #2563eb; border-bottom-color: #2563eb; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        
+        /* Lista de precios */
+        .precio-lista-item { background: white; padding: 15px; border-radius: 12px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .precio-lista-item h3 { font-size: 16px; color: #111827; margin-bottom: 10px; }
+        .precio-lista-presentacion { display: flex; justify-content: space-between; padding: 8px 0; font-size: 14px; border-bottom: 1px solid #f3f4f6; }
+        .precio-lista-presentacion:last-child { border-bottom: none; }
+        .precio-lista-tamano { color: #6b7280; }
+        .precio-lista-precio { font-weight: 600; color: #2563eb; }
     </style>
 </head>
 <body>
@@ -70,7 +85,16 @@
         <span class="status-badge offline" id="statusBadge">Sin conexión</span>
     </div>
     <div class="success-message" id="successMessage">✓ Pedido guardado exitosamente</div>
+    
     <div class="container">
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab active" onclick="cambiarTab('pedidos')">📦 Hacer Pedido</button>
+            <button class="tab" onclick="cambiarTab('precios')">💰 Lista de Precios</button>
+        </div>
+        
+        <!-- TAB: HACER PEDIDO -->
+        <div id="tab-pedidos" class="tab-content active">
         <div class="cliente-selector">
             <label for="clienteSelect">Seleccionar Cliente:</label>
             <select id="clienteSelect">
@@ -83,6 +107,20 @@
         <div class="category-filters" id="categoryFilters"></div>
         <div id="productsContainer">
             <div class="loading"><div class="spinner"></div>Cargando productos...</div>
+        </div>
+        </div>
+        
+        <!-- TAB: LISTA DE PRECIOS -->
+        <div id="tab-precios" class="tab-content">
+            <div class="search-container">
+                <input type="text" class="search-input" id="searchPrecios" placeholder="🔍 Buscar en lista de precios...">
+            </div>
+            
+            <div class="category-filters" id="categoryFiltersPrecio"></div>
+            
+            <div id="preciosContainer">
+                <div class="loading"><div class="spinner"></div>Cargando lista de precios...</div>
+            </div>
         </div>
     </div>
     <div class="cart-summary">

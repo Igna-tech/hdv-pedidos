@@ -2,6 +2,7 @@
 let todosLosPedidos = [];
 let productosData = { productos: [], categorias: [], clientes: [] };
 let productosFiltrados = [];
+let clientesFiltrados = [];
 let clienteActualPrecios = null;
 let tipoReporte = 'zona';
 
@@ -67,6 +68,10 @@ function cambiarSeccion(seccion) {
     
     if (seccion === 'productos' && productosFiltrados.length > 0) {
         mostrarProductosGestion();
+    }
+    if (seccion === 'clientes') {
+        clientesFiltrados = [...productosData.clientes];
+        mostrarClientesGestion();
     }
 }
 
@@ -549,6 +554,93 @@ function guardarProductos() {
     descargarJSON(productosData, 'productos.json');
     document.getElementById('successProductos').style.display = 'block';
     setTimeout(() => document.getElementById('successProductos').style.display = 'none', 3000);
+}
+
+// ============================================
+
+function filtrarClientes() {
+    const filtro = document.getElementById('buscarCliente').value.toLowerCase();
+    clientesFiltrados = productosData.clientes.filter(c => 
+        c.nombre.toLowerCase().includes(filtro) || 
+        c.zona.toLowerCase().includes(filtro) ||
+        c.id.toLowerCase().includes(filtro)
+    );
+    mostrarClientesGestion();
+}
+
+function mostrarClientesGestion() {
+    const tbody = document.getElementById('clientesBody');
+    tbody.innerHTML = '';
+    
+    clientesFiltrados.forEach(cliente => {
+        const cantidadPrecios = cliente.precios_personalizados ? Object.keys(cliente.precios_personalizados).length : 0;
+        
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><strong>${cliente.id}</strong></td>
+            <td><input type="text" value="${cliente.nombre}" onchange="actualizarCliente('${cliente.id}', 'nombre', this.value)" style="min-width:200px;"></td>
+            <td><input type="text" value="${cliente.zona || ''}" onchange="actualizarCliente('${cliente.id}', 'zona', this.value)" style="min-width:150px;"></td>
+            <td>${cantidadPrecios > 0 ? `${cantidadPrecios} productos` : 'Sin precios personalizados'}</td>
+            <td><button onclick="eliminarCliente('${cliente.id}')" style="width:32px;height:32px;border:2px solid #ef4444;background:white;color:#ef4444;border-radius:6px;cursor:pointer;">🗑️</button></td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+function actualizarCliente(id, campo, valor) {
+    const c = productosData.clientes.find(x => x.id === id);
+    if (c) c[campo] = valor;
+}
+
+function eliminarCliente(id) {
+    if (!confirm('¿Eliminar este cliente? Se perderán sus precios personalizados.')) return;
+    productosData.clientes = productosData.clientes.filter(c => c.id !== id);
+    clientesFiltrados = clientesFiltrados.filter(c => c.id !== id);
+    mostrarClientesGestion();
+}
+
+function mostrarModalNuevoCliente() {
+    document.getElementById('modalNuevoCliente').classList.add('show');
+}
+
+function cerrarModalCliente() {
+    document.getElementById('modalNuevoCliente').classList.remove('show');
+}
+
+function agregarNuevoCliente() {
+    const nombre = document.getElementById('nuevoClienteNombre').value;
+    const zona = document.getElementById('nuevoClienteZona').value;
+    
+    if (!nombre || !zona) {
+        alert('Completa todos los campos');
+        return;
+    }
+    
+    const ultimoId = productosData.clientes.length > 0 ? 
+        parseInt(productosData.clientes[productosData.clientes.length - 1].id.replace('C', '')) : 0;
+    const nuevoId = `C${String(ultimoId + 1).padStart(3, '0')}`;
+    
+    productosData.clientes.push({
+        id: nuevoId,
+        nombre: nombre,
+        zona: zona,
+        tipo: 'mayorista_estandar',
+        precios_personalizados: {}
+    });
+    
+    clientesFiltrados = [...productosData.clientes];
+    mostrarClientesGestion();
+    cerrarModalCliente();
+    
+    // Limpiar formulario
+    document.getElementById('nuevoClienteNombre').value = '';
+    document.getElementById('nuevoClienteZona').value = '';
+}
+
+function guardarClientes() {
+    descargarJSON(productosData, 'productos.json');
+    document.getElementById('successClientes').style.display = 'block';
+    setTimeout(() => document.getElementById('successClientes').style.display = 'none', 3000);
 }
 
 // ============================================

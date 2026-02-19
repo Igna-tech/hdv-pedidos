@@ -83,6 +83,7 @@
         <button class="main-tab" onclick="cambiarSeccion('reportes')">📊 Reportes</button>
         <button class="main-tab" onclick="cambiarSeccion('precios')">💰 Precios por Cliente</button>
         <button class="main-tab" onclick="cambiarSeccion('productos')">🏷️ Gestionar Productos</button>
+        <button class="main-tab" onclick="cambiarSeccion('clientes')">👥 Gestionar Clientes</button>
     </div>
 
     <div class="container">
@@ -262,6 +263,37 @@
                 </div>
             </div>
         </div>
+
+        <!-- SECCIÓN: GESTIONAR CLIENTES -->
+        <div id="seccion-clientes" class="tab-content">
+            <div class="success" id="successClientes">✓ Clientes guardados</div>
+            <div class="card">
+                <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
+                    <button class="btn btn-primary" onclick="mostrarModalNuevoCliente()">+ Nuevo Cliente</button>
+                    <button class="btn btn-success" onclick="guardarClientes()">💾 Guardar y Descargar</button>
+                    <div style="flex:1;min-width:250px;">
+                        <input type="text" id="buscarCliente" placeholder="🔍 Buscar clientes..." oninput="filtrarClientes()" style="width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px;">
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div style="overflow-x:auto;">
+                    <table class="tabla">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Nombre</th>
+                                <th>Zona</th>
+                                <th>Precios Personalizados</th>
+                                <th style="width:80px;">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="clientesBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Modal Nuevo Producto -->
@@ -291,6 +323,25 @@
             <div class="modal-actions">
                 <button class="btn btn-secondary" onclick="cerrarModal()">Cancelar</button>
                 <button class="btn btn-primary" onclick="agregarNuevoProducto()">Agregar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Nuevo Cliente -->
+    <div class="modal" id="modalNuevoCliente">
+        <div class="modal-content">
+            <div class="modal-header">Nuevo Cliente</div>
+            <div class="filter-group">
+                <label>Nombre del Cliente:</label>
+                <input type="text" id="nuevoClienteNombre" placeholder="Ej: Supermercado Central">
+            </div>
+            <div class="filter-group">
+                <label>Zona:</label>
+                <input type="text" id="nuevoClienteZona" placeholder="Ej: Loma Plata">
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="cerrarModalCliente()">Cancelar</button>
+                <button class="btn btn-primary" onclick="agregarNuevoCliente()">Agregar</button>
             </div>
         </div>
     </div>

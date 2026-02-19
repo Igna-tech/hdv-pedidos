@@ -62,6 +62,7 @@ async function cargarDatos() {
         categorias = data.categorias;
         cargarClientes();
         cargarCategorias();
+        mostrarProductos(); // Mostrar productos desde el inicio
     } catch (error) {
         document.getElementById('productsContainer').innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚠️</div>Error al cargar los datos</div>';
     }
@@ -168,7 +169,6 @@ function filtrarPorCategoria(categoriaId, btn) {
 }
 
 function mostrarProductos(termino = '') {
-    if (!clienteActual) return;
     const container = document.getElementById('productsContainer');
     let filtrados = productos;
     if (filtroCategoria !== 'todas') filtrados = filtrados.filter(p => p.categoria === filtroCategoria);
@@ -197,12 +197,10 @@ function crearTarjetaProductoCuadricula(producto) {
     card.onclick = () => mostrarDetalleProducto(producto);
     
     const emoji = obtenerEmojiProducto(producto);
-    const precioMin = Math.min(...producto.presentaciones.map(p => obtenerPrecio(producto.id, p)));
     
     card.innerHTML = `
         <div class="product-image">${emoji}</div>
         <div class="product-name">${producto.nombre}</div>
-        <div class="product-price">Desde Gs. ${precioMin.toLocaleString()}</div>
     `;
     
     return card;
@@ -222,6 +220,11 @@ function obtenerEmojiProducto(producto) {
 }
 
 function mostrarDetalleProducto(producto) {
+    if (!clienteActual) {
+        alert('Por favor, selecciona un cliente primero');
+        return;
+    }
+    
     const modal = document.getElementById('productDetailModal');
     const emoji = obtenerEmojiProducto(producto);
     const catNombre = categorias.find(c => c.id === producto.categoria)?.nombre || '';
@@ -230,13 +233,21 @@ function mostrarDetalleProducto(producto) {
     document.getElementById('detailTitle').textContent = producto.nombre;
     document.getElementById('detailCategory').textContent = `${catNombre} › ${producto.subcategoria}`;
     
-    // Info de presentaciones
-    const infoHTML = producto.presentaciones.map(pres => {
+    // Info de presentaciones con opción de agregar
+    const infoHTML = producto.presentaciones.map((pres, idx) => {
         const precio = obtenerPrecio(producto.id, pres);
         return `
-            <div class="product-detail-info-row">
-                <span><strong>${pres.tamano}</strong></span>
-                <span style="color:#2563eb;font-weight:700;">Gs. ${precio.toLocaleString()}</span>
+            <div class="product-detail-info-row" style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;">
+                <div style="flex:1;">
+                    <div style="font-weight:600;margin-bottom:4px;">${pres.tamano}</div>
+                    <div style="color:#2563eb;font-weight:700;">Gs. ${precio.toLocaleString()}</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <button onclick="ajustarCantidadDetalle('${producto.id}', ${idx}, -1)" style="width:32px;height:32px;border:2px solid #2563eb;background:white;color:#2563eb;border-radius:6px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;">−</button>
+                    <input type="number" id="detail-qty-${producto.id}-${idx}" value="1" min="1" style="width:50px;padding:6px;border:2px solid #e5e7eb;border-radius:6px;text-align:center;font-weight:600;">
+                    <button onclick="ajustarCantidadDetalle('${producto.id}', ${idx}, 1)" style="width:32px;height:32px;border:2px solid #2563eb;background:white;color:#2563eb;border-radius:6px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;">+</button>
+                    <button onclick="agregarDesdeDetalle('${producto.id}', ${idx})" style="padding:8px 16px;background:#2563eb;color:white;border:none;border-radius:6px;font-weight:600;cursor:pointer;white-space:nowrap;">+ Agregar</button>
+                </div>
             </div>
         `;
     }).join('');
@@ -247,6 +258,52 @@ function mostrarDetalleProducto(producto) {
     mostrarProductosSugeridos(producto);
     
     modal.classList.add('show');
+}
+
+function ajustarCantidadDetalle(productoId, presIdx, cambio) {
+    const input = document.getElementById(`detail-qty-${productoId}-${presIdx}`);
+    if (input) {
+        let valor = parseInt(input.value) || 1;
+        valor += cambio;
+        if (valor < 1) valor = 1;
+        input.value = valor;
+    }
+}
+
+function agregarDesdeDetalle(productoId, presIdx) {
+    const producto = productos.find(p => p.id === productoId);
+    if (!producto) return;
+    
+    const pres = producto.presentaciones[presIdx];
+    const input = document.getElementById(`detail-qty-${productoId}-${presIdx}`);
+    const cantidad = parseInt(input.value) || 1;
+    const precio = obtenerPrecio(productoId, pres);
+    
+    // Confirmación
+    if (!confirm(`¿Agregar ${cantidad}x ${producto.nombre} (${pres.tamano}) al pedido?`)) {
+        return;
+    }
+    
+    // Verificar si ya existe en el carrito
+    const existe = carrito.find(i => i.productoId === productoId && i.presentacion === pres.tamano);
+    
+    if (existe) {
+        existe.cantidad += cantidad;
+    } else {
+        carrito.push({
+            productoId: productoId,
+            nombre: producto.nombre,
+            presentacion: pres.tamano,
+            precio: precio,
+            cantidad: cantidad
+        });
+    }
+    
+    actualizarCarrito();
+    mostrarExito(`${cantidad}x ${producto.nombre} agregado al pedido`);
+    
+    // Resetear cantidad a 1
+    input.value = 1;
 }
 
 function cerrarDetalleProducto() {
@@ -334,19 +391,35 @@ function crearTarjetaProducto(producto) {
 }
 
 function seleccionarVariante(producto, index) {
+    if (!clienteActual) {
+        alert('Por favor, selecciona un cliente primero');
+        return;
+    }
+    
     const pres = producto.presentaciones[index];
     const precio = obtenerPrecio(producto.id, pres);
     const sel = document.getElementById(`selected-${producto.id}`);
+    
+    const idx = carrito.findIndex(i => i.productoId === producto.id && i.presentacion === pres.tamano);
+    
+    // Si no está en el carrito, pedir confirmación
+    if (idx < 0) {
+        if (!confirm(`¿Agregar ${producto.nombre} (${pres.tamano}) al pedido?`)) {
+            return;
+        }
+        carrito.push({ productoId: producto.id, nombre: producto.nombre, presentacion: pres.tamano, precio, cantidad: 1 });
+        document.getElementById(`qty-${producto.id}`).value = 1;
+        mostrarExito(`${producto.nombre} agregado al pedido`);
+    }
+    
     sel.classList.add('show');
     document.getElementById(`sel-variant-${producto.id}`).textContent = pres.tamano;
     document.getElementById(`sel-price-${producto.id}`).textContent = precio > 0 ? `Gs. ${precio.toLocaleString()}` : 'Sin precio cargado';
-    const idx = carrito.findIndex(i => i.productoId === producto.id && i.presentacion === pres.tamano);
+    
     if (idx >= 0) {
-        document.getElementById(`qty-${producto.id}`).textContent = carrito[idx].cantidad;
-    } else {
-        carrito.push({ productoId: producto.id, nombre: producto.nombre, presentacion: pres.tamano, precio, cantidad: 1 });
-        document.getElementById(`qty-${producto.id}`).textContent = 1;
+        document.getElementById(`qty-${producto.id}`).value = carrito[idx].cantidad;
     }
+    
     actualizarCarrito();
 }
 

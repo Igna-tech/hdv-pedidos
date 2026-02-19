@@ -888,7 +888,275 @@ function exportarStockExcel() {
 }
 
 // ============================================
-// GRÁFICOS EN REPORTES
+// COMPARACIÓN DE PERÍODOS Y MÁRGENES
+// ============================================
+function generarReporte() {
+    const desde = new Date(document.getElementById('reporteFechaDesde').value);
+    const hasta = new Date(document.getElementById('reporteFechaHasta').value);
+    hasta.setHours(23, 59, 59);
+    
+    const pedidos = todosLosPedidos.filter(p => {
+        const f = new Date(p.fecha);
+        return f >= desde && f <= hasta;
+    });
+    
+    if (pedidos.length === 0) {
+        alert('No hay pedidos en ese rango');
+        return;
+    }
+    
+    // Comparación de períodos
+    const comparacion = document.getElementById('comparacionPeriodo').value;
+    if (comparacion !== 'ninguno') {
+        compararPeriodos(desde, hasta, comparacion);
+    } else {
+        document.getElementById('comparacionCard').style.display = 'none';
+    }
+    
+    mostrarEstadisticasReporte(pedidos);
+    
+    if (tipoReporte === 'margen') {
+        reporteMargenGanancia(pedidos);
+    } else if (tipoReporte === 'zona') {
+        reportePorZona(pedidos);
+    } else if (tipoReporte === 'vendedor') {
+        reportePorVendedor(pedidos);
+    } else if (tipoReporte === 'producto') {
+        reportePorProducto(pedidos);
+    } else if (tipoReporte === 'cliente') {
+        reportePorCliente(pedidos);
+    }
+}
+
+function compararPeriodos(desdeActual, hastaActual, tipoCom paracion) {
+    const diasDiferencia = Math.ceil((hastaActual - desdeActual) / (1000 * 60 * 60 * 24));
+    let desdeAnterior, hastaAnterior;
+    
+    if (tipoComparacion === 'anterior') {
+        hastaAnterior = new Date(desdeActual.getTime() - 1);
+        desdeAnterior = new Date(hastaAnterior.getTime() - diasDiferencia * 24 * 60 * 60 * 1000);
+    } else if (tipoComparacion === 'mesanterior') {
+        desdeAnterior = new Date(desdeActual);
+        desdeAnterior.setMonth(desdeAnterior.getMonth() - 1);
+        hastaAnterior = new Date(hastaActual);
+        hastaAnterior.setMonth(hastaAnterior.getMonth() - 1);
+    }
+    
+    const pedidosActual = todosLosPedidos.filter(p => {
+        const f = new Date(p.fecha);
+        return f >= desdeActual && f <= hastaActual;
+    });
+    
+    const pedidosAnterior = todosLosPedidos.filter(p => {
+        const f = new Date(p.fecha);
+        return f >= desdeAnterior && f <= hastaAnterior;
+    });
+    
+    const ventasActual = pedidosActual.reduce((s, p) => s + p.total, 0);
+    const ventasAnterior = pedidosAnterior.reduce((s, p) => s + p.total, 0);
+    const cambioVentas = ventasAnterior > 0 ? ((ventasActual - ventasAnterior) / ventasAnterior * 100).toFixed(1) : 0;
+    
+    const cambioPedidos = pedidosAnterior.length > 0 ? 
+        ((pedidosActual.length - pedidosAnterior.length) / pedidosAnterior.length * 100).toFixed(1) : 0;
+    
+    document.getElementById('statsComparacion').innerHTML = `
+        <div class="stat-card" style="background:linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);">
+            <div class="stat-label">Ventas Período Actual</div>
+            <div class="stat-value">Gs. ${ventasActual.toLocaleString()}</div>
+            <div style="color:${cambioVentas >= 0 ? '#10b981' : '#ef4444'};font-weight:600;margin-top:5px;">
+                ${cambioVentas >= 0 ? '↑' : '↓'} ${Math.abs(cambioVentas)}% vs anterior
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Ventas Período Anterior</div>
+            <div class="stat-value">Gs. ${ventasAnterior.toLocaleString()}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Pedidos Actual</div>
+            <div class="stat-value">${pedidosActual.length}</div>
+            <div style="color:${cambioPedidos >= 0 ? '#10b981' : '#ef4444'};font-weight:600;margin-top:5px;">
+                ${cambioPedidos >= 0 ? '↑' : '↓'} ${Math.abs(cambioPedidos)}%
+            </div>
+        </div>
+    `;
+    document.getElementById('comparacionCard').style.display = 'block';
+}
+
+function reporteMargenGanancia(pedidos) {
+    const productos = {};
+    
+    pedidos.forEach(p => {
+        p.items.forEach(item => {
+            const key = item.nombre;
+            if (!productos[key]) {
+                productos[key] = { 
+                    cantidad: 0, 
+                    ingresos: 0,
+                    costo: 0 // Aquí podrías agregar el costo real desde productos.json
+                };
+            }
+            productos[key].cantidad += item.cantidad;
+            productos[key].ingresos += item.subtotal;
+            // Asumimos un margen del 30% por defecto si no hay costo definido
+            productos[key].costo += item.subtotal * 0.7;
+        });
+    });
+    
+    const data = Object.entries(productos).map(([nombre, d]) => ({
+        producto: nombre,
+        ...d,
+        ganancia: d.ingresos - d.costo,
+        margen: ((d.ingresos - d.costo) / d.ingresos * 100).toFixed(1)
+    })).sort((a, b) => b.ganancia - a.ganancia);
+    
+    mostrarGrafico(
+        data.slice(0, 10).map(d => d.producto),
+        data.slice(0, 10).map(d => d.ganancia),
+        'Top 10 Productos por Ganancia (Gs.)'
+    );
+    
+    mostrarTablaReporte(
+        ['Producto', 'Unidades', 'Ingresos', 'Costo Est.', 'Ganancia', 'Margen %'],
+        data.map(d => [
+            d.producto,
+            d.cantidad,
+            `Gs. ${d.ingresos.toLocaleString()}`,
+            `Gs. ${Math.round(d.costo).toLocaleString()}`,
+            `Gs. ${Math.round(d.ganancia).toLocaleString()}`,
+            `${d.margen}%`
+        ]),
+        'Análisis de Margen de Ganancia'
+    );
+}
+
+// ============================================
+// HERRAMIENTAS: BACKUP Y RESTAURAR
+// ============================================
+function crearBackup() {
+    const backup = {
+        fecha: new Date().toISOString(),
+        version: '1.0',
+        datos: {
+            productos: productosData,
+            pedidos: todosLosPedidos
+        }
+    };
+    
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `hdv_backup_${new Date().toISOString().split('T')[0]}.json`;
+    link.click();
+    
+    mostrarMensajeHerramientas('Backup descargado correctamente');
+}
+
+function restaurarBackup(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    if (!confirm('¿Estás seguro? Esto reemplazará todos los datos actuales.')) {
+        event.target.value = '';
+        return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const backup = JSON.parse(e.target.result);
+            
+            if (backup.datos) {
+                productosData = backup.datos.productos;
+                localStorage.setItem('hdv_pedidos', JSON.stringify(backup.datos.pedidos));
+                
+                mostrarMensajeHerramientas('Backup restaurado. Recarga la página.');
+                setTimeout(() => location.reload(), 2000);
+            }
+        } catch (error) {
+            alert('Error al restaurar backup: archivo inválido');
+        }
+        event.target.value = '';
+    };
+    reader.readAsText(file);
+}
+
+function descargarPlantillaExcel() {
+    let csv = 'Nombre,Categoria,Subcategoria,Presentacion,Precio\n';
+    csv += 'Producto Ejemplo,cuidado_personal,Jabones,125g,5000\n';
+    csv += 'Otro Producto,bebe,Pañales,M,7000\n';
+    descargarCSV(csv, 'plantilla_productos.csv');
+}
+
+function importarProductosExcel(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const texto = e.target.result;
+            const lineas = texto.split('\n').filter(l => l.trim());
+            lineas.shift(); // Remover encabezados
+            
+            let agregados = 0;
+            lineas.forEach(linea => {
+                const [nombre, categoria, subcategoria, presentacion, precio] = linea.split(',').map(s => s.trim());
+                if (!nombre || !categoria) return;
+                
+                const ultimoId = productosData.productos.length > 0 ? 
+                    parseInt(productosData.productos[productosData.productos.length - 1].id.replace('P', '')) : 0;
+                const nuevoId = `P${String(ultimoId + agregados + 1).padStart(3, '0')}`;
+                
+                productosData.productos.push({
+                    id: nuevoId,
+                    nombre: nombre,
+                    categoria: categoria,
+                    subcategoria: subcategoria || 'General',
+                    presentaciones: [{
+                        tamano: presentacion || 'Unidad',
+                        precio_base: parseInt(precio) || 0
+                    }]
+                });
+                agregados++;
+            });
+            
+            if (agregados > 0) {
+                descargarJSON(productosData, 'productos.json');
+                mostrarMensajeHerramientas(`${agregados} productos importados. Descarga el archivo y súbelo a GitHub.`);
+            }
+        } catch (error) {
+            alert('Error al importar: ' + error.message);
+        }
+        event.target.value = '';
+    };
+    reader.readAsText(file);
+}
+
+function limpiarPedidos() {
+    if (!confirm('¿ELIMINAR TODOS LOS PEDIDOS? Esta acción no se puede deshacer.')) return;
+    if (!confirm('¿Estás completamente seguro? Todos los pedidos se perderán.')) return;
+    
+    localStorage.removeItem('hdv_pedidos');
+    todosLosPedidos = [];
+    mostrarMensajeHerramientas('Todos los pedidos han sido eliminados');
+    setTimeout(() => location.reload(), 1500);
+}
+
+function limpiarStockLocal() {
+    if (!confirm('¿Resetear el stock guardado localmente?')) return;
+    localStorage.removeItem('stock_local');
+    mostrarMensajeHerramientas('Stock local reseteado');
+}
+
+function mostrarMensajeHerramientas(mensaje) {
+    const el = document.getElementById('successHerramientas');
+    el.textContent = '✓ ' + mensaje;
+    el.style.display = 'block';
+    setTimeout(() => el.style.display = 'none', 4000);
+}
+
+// ============================================
+// UTILIDADES
 // ============================================
 let chartInstance = null;
 

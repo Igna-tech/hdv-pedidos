@@ -1,4 +1,6 @@
 let productos = [], clientes = [], categorias = [], clienteActual = null, carrito = [], filtroCategoria = 'todas';
+let vistaActual = 'lista'; // lista o cuadricula
+let historialCompras = {}; // para productos sugeridos
 
 document.addEventListener('DOMContentLoaded', async () => {
     verificarVendedor();
@@ -6,7 +8,38 @@ document.addEventListener('DOMContentLoaded', async () => {
     inicializarEventListeners();
     actualizarEstadoConexion();
     registrarServiceWorker();
+    cargarModoOscuro();
+    construirHistorialCompras();
 });
+
+function cargarModoOscuro() {
+    const darkMode = localStorage.getItem('dark_mode') === 'true';
+    if (darkMode) {
+        document.body.classList.add('dark-mode');
+        document.querySelector('.dark-mode-toggle').textContent = '☀️';
+    }
+}
+
+function construirHistorialCompras() {
+    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    historialCompras = {};
+    
+    pedidos.forEach(pedido => {
+        if (!pedido.cliente) return;
+        const clienteId = pedido.cliente.id;
+        if (!historialCompras[clienteId]) {
+            historialCompras[clienteId] = {};
+        }
+        
+        pedido.items.forEach(item => {
+            const productoId = item.nombre; // usamos nombre como key
+            if (!historialCompras[clienteId][productoId]) {
+                historialCompras[clienteId][productoId] = 0;
+            }
+            historialCompras[clienteId][productoId] += item.cantidad;
+        });
+    });
+}
 
 function verificarVendedor() {
     const vendedor = localStorage.getItem('vendedor_nombre');
@@ -145,10 +178,124 @@ function mostrarProductos(termino = '') {
         return;
     }
     const grid = document.createElement('div');
-    grid.className = 'products-grid';
-    filtrados.forEach(p => grid.appendChild(crearTarjetaProducto(p)));
+    grid.className = `products-grid ${vistaActual === 'cuadricula' ? 'grid-view' : ''}`;
+    filtrados.forEach(p => grid.appendChild(vistaActual === 'cuadricula' ? crearTarjetaProductoCuadricula(p) : crearTarjetaProducto(p)));
     container.innerHTML = '';
     container.appendChild(grid);
+}
+
+function cambiarVista(vista) {
+    vistaActual = vista;
+    document.querySelectorAll('.view-toggle button').forEach(b => b.classList.remove('active'));
+    event.target.classList.add('active');
+    mostrarProductos();
+}
+
+function crearTarjetaProductoCuadricula(producto) {
+    const card = document.createElement('div');
+    card.className = 'product-card grid-view';
+    card.onclick = () => mostrarDetalleProducto(producto);
+    
+    const emoji = obtenerEmojiProducto(producto);
+    const precioMin = Math.min(...producto.presentaciones.map(p => obtenerPrecio(producto.id, p)));
+    
+    card.innerHTML = `
+        <div class="product-image">${emoji}</div>
+        <div class="product-name">${producto.nombre}</div>
+        <div class="product-price">Desde Gs. ${precioMin.toLocaleString()}</div>
+    `;
+    
+    return card;
+}
+
+function obtenerEmojiProducto(producto) {
+    const nombre = producto.nombre.toLowerCase();
+    if (nombre.includes('jabón') || nombre.includes('jabon')) return '🧼';
+    if (nombre.includes('shampoo')) return '🧴';
+    if (nombre.includes('desodorante')) return '💨';
+    if (nombre.includes('pañal') || nombre.includes('panal')) return '🍼';
+    if (nombre.includes('toallita')) return '🧻';
+    if (nombre.includes('havaianas') || nombre.includes('ipanema')) return '🩴';
+    if (nombre.includes('aceite')) return '🫗';
+    if (nombre.includes('talco')) return '✨';
+    return '📦';
+}
+
+function mostrarDetalleProducto(producto) {
+    const modal = document.getElementById('productDetailModal');
+    const emoji = obtenerEmojiProducto(producto);
+    const catNombre = categorias.find(c => c.id === producto.categoria)?.nombre || '';
+    
+    document.getElementById('detailImage').textContent = emoji;
+    document.getElementById('detailTitle').textContent = producto.nombre;
+    document.getElementById('detailCategory').textContent = `${catNombre} › ${producto.subcategoria}`;
+    
+    // Info de presentaciones
+    const infoHTML = producto.presentaciones.map(pres => {
+        const precio = obtenerPrecio(producto.id, pres);
+        return `
+            <div class="product-detail-info-row">
+                <span><strong>${pres.tamano}</strong></span>
+                <span style="color:#2563eb;font-weight:700;">Gs. ${precio.toLocaleString()}</span>
+            </div>
+        `;
+    }).join('');
+    
+    document.getElementById('detailInfo').innerHTML = infoHTML;
+    
+    // Productos sugeridos
+    mostrarProductosSugeridos(producto);
+    
+    modal.classList.add('show');
+}
+
+function cerrarDetalleProducto() {
+    document.getElementById('productDetailModal').classList.remove('show');
+}
+
+function mostrarProductosSugeridos(productoActual) {
+    if (!clienteActual || !historialCompras[clienteActual.id]) {
+        document.getElementById('detailSuggestions').style.display = 'none';
+        return;
+    }
+    
+    const compras = historialCompras[clienteActual.id];
+    const sugeridos = Object.entries(compras)
+        .filter(([nombre, _]) => nombre !== productoActual.nombre)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3);
+    
+    if (sugeridos.length === 0) {
+        document.getElementById('detailSuggestions').style.display = 'none';
+        return;
+    }
+    
+    const html = sugeridos.map(([nombre, cantidad]) => {
+        const prod = productos.find(p => p.nombre === nombre);
+        const emoji = prod ? obtenerEmojiProducto(prod) : '📦';
+        return `
+            <div class="suggestion-item">
+                <div class="suggestion-icon">${emoji}</div>
+                <div style="flex:1;">
+                    <div style="font-weight:600;font-size:14px;">${nombre}</div>
+                    <div style="font-size:12px;color:#6b7280;">Comprado ${cantidad} veces</div>
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    document.getElementById('detailSuggestions').innerHTML = `
+        <h3>✨ Este cliente también compra:</h3>
+        ${html}
+    `;
+    document.getElementById('detailSuggestions').style.display = 'block';
+}
+
+function toggleDarkMode() {
+    document.body.classList.toggle('dark-mode');
+    const isDark = document.body.classList.contains('dark-mode');
+    localStorage.setItem('dark_mode', isDark);
+    document.querySelector('.dark-mode-toggle').textContent = isDark ? '☀️' : '🌙';
 }
 
 function crearTarjetaProducto(producto) {

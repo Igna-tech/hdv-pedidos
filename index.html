@@ -79,6 +79,37 @@
         .tab-content { display: none; }
         .tab-content.active { display: block; }
         
+        /* Vista de cuadrícula */
+        .view-toggle { display: flex; gap: 5px; margin-bottom: 15px; background: white; padding: 10px; border-radius: 8px; }
+        .view-toggle button { padding: 8px 16px; border: 2px solid #e5e7eb; background: white; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; color: #6b7280; }
+        .view-toggle button.active { background: #2563eb; color: white; border-color: #2563eb; }
+        
+        .products-grid { display: grid; gap: 15px; }
+        .products-grid.grid-view { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+        .product-card.grid-view { padding: 12px; text-align: center; cursor: pointer; transition: transform 0.2s; }
+        .product-card.grid-view:active { transform: scale(0.95); }
+        .product-image { width: 100%; height: 120px; object-fit: contain; background: #f9fafb; border-radius: 8px; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; font-size: 48px; }
+        .product-card.grid-view .product-name { font-size: 14px; margin-bottom: 5px; }
+        .product-card.grid-view .product-price { color: #2563eb; font-weight: 700; font-size: 16px; }
+        
+        /* Modal de detalles del producto */
+        .product-detail-modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1001; align-items: center; justify-content: center; }
+        .product-detail-modal.show { display: flex; }
+        .product-detail-content { background: white; border-radius: 16px; padding: 0; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; }
+        .product-detail-header { position: relative; }
+        .product-detail-image { width: 100%; height: 200px; object-fit: contain; background: #f9fafb; display: flex; align-items: center; justify-content: center; font-size: 80px; border-radius: 16px 16px 0 0; }
+        .close-detail { position: absolute; top: 10px; right: 10px; width: 36px; height: 36px; background: white; border: none; border-radius: 50%; font-size: 20px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+        .product-detail-body { padding: 20px; }
+        .product-detail-title { font-size: 20px; font-weight: 700; margin-bottom: 10px; }
+        .product-detail-category { font-size: 13px; color: #6b7280; margin-bottom: 15px; }
+        .product-detail-info { background: #f9fafb; padding: 15px; border-radius: 8px; margin-bottom: 15px; }
+        .product-detail-info-row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 14px; border-bottom: 1px solid #e5e7eb; }
+        .product-detail-info-row:last-child { border-bottom: none; }
+        .product-suggestions { margin-top: 20px; padding-top: 20px; border-top: 2px solid #e5e7eb; }
+        .product-suggestions h3 { font-size: 16px; margin-bottom: 10px; color: #111827; }
+        .suggestion-item { display: flex; align-items: center; gap: 10px; padding: 10px; background: #f9fafb; border-radius: 8px; margin-bottom: 8px; }
+        .suggestion-icon { font-size: 32px; }
+        
         /* Lista de precios */
         .precio-lista-item { background: white; padding: 15px; border-radius: 12px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
         .precio-lista-item h3 { font-size: 16px; color: #111827; margin-bottom: 10px; }
@@ -86,6 +117,19 @@
         .precio-lista-presentacion:last-child { border-bottom: none; }
         .precio-lista-tamano { color: #6b7280; }
         .precio-lista-precio { font-weight: 600; color: #2563eb; }
+        
+        /* Modo Oscuro */
+        body.dark-mode { background: #1f2937; color: #f3f4f6; }
+        body.dark-mode .header { background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%); }
+        body.dark-mode .container, body.dark-mode .card, body.dark-mode .product-card, body.dark-mode .cliente-selector, body.dark-mode .search-container, body.dark-mode .cart-summary, body.dark-mode .modal-content, body.dark-mode .precio-lista-item, body.dark-mode .product-detail-content { background: #374151; color: #f3f4f6; border-color: #4b5563; }
+        body.dark-mode .search-input, body.dark-mode select, body.dark-mode input, body.dark-mode textarea { background: #4b5563; color: #f3f4f6; border-color: #6b7280; }
+        body.dark-mode .product-cat, body.dark-mode .precio-lista-tamano { color: #9ca3af; }
+        body.dark-mode .category-btn { background: #4b5563; border-color: #6b7280; color: #f3f4f6; }
+        body.dark-mode .category-btn.active { background: #2563eb; border-color: #2563eb; }
+        body.dark-mode .product-image, body.dark-mode .product-detail-image, body.dark-mode .product-detail-info, body.dark-mode .suggestion-item { background: #4b5563; }
+        body.dark-mode .tabs { background: #374151; border-color: #4b5563; }
+        body.dark-mode .view-toggle { background: #4b5563; }
+        .dark-mode-toggle { position: fixed; bottom: 100px; right: 20px; width: 50px; height: 50px; background: #2563eb; border: none; border-radius: 50%; font-size: 24px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 99; }
     </style>
 </head>
 <body>
@@ -106,6 +150,7 @@
         <!-- TAB: HACER PEDIDO -->
         <div id="tab-pedidos" class="tab-content active">
         <div class="cliente-selector">
+        <div class="cliente-selector">
             <label for="clienteSelect">Seleccionar Cliente:</label>
             <select id="clienteSelect">
                 <option value="">-- Seleccione un cliente --</option>
@@ -114,6 +159,12 @@
         <div class="search-container">
             <input type="text" class="search-input" id="searchInput" placeholder="🔍 Buscar producto por nombre..." disabled>
         </div>
+        
+        <div class="view-toggle">
+            <button class="active" onclick="cambiarVista('lista')">📋 Lista</button>
+            <button onclick="cambiarVista('cuadricula')">🎯 Cuadrícula</button>
+        </div>
+        
         <div class="category-filters" id="categoryFilters"></div>
         <div id="productsContainer">
             <div class="loading"><div class="spinner"></div>Cargando productos...</div>
@@ -174,6 +225,29 @@
             </div>
         </div>
     </div>
+    <!-- Modal Detalles del Producto -->
+    <div class="product-detail-modal" id="productDetailModal">
+        <div class="product-detail-content">
+            <div class="product-detail-header">
+                <div class="product-detail-image" id="detailImage">📦</div>
+                <button class="close-detail" onclick="cerrarDetalleProducto()">×</button>
+            </div>
+            <div class="product-detail-body">
+                <div class="product-detail-title" id="detailTitle"></div>
+                <div class="product-detail-category" id="detailCategory"></div>
+                
+                <div class="product-detail-info" id="detailInfo"></div>
+                
+                <div id="detailSuggestions" class="product-suggestions" style="display:none;"></div>
+                
+                <button class="btn-confirm" style="width:100%;padding:14px;margin-top:15px;" onclick="cerrarDetalleProducto()">Cerrar</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Botón Modo Oscuro -->
+    <button class="dark-mode-toggle" onclick="toggleDarkMode()" title="Modo Oscuro">🌙</button>
+    
     <script src="app.js"></script>
 </body>
 </html>

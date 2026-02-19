@@ -87,6 +87,7 @@
         <button class="main-tab" onclick="cambiarSeccion('precios')">💰 Precios por Cliente</button>
         <button class="main-tab" onclick="cambiarSeccion('productos')">🏷️ Gestionar Productos</button>
         <button class="main-tab" onclick="cambiarSeccion('clientes')">👥 Gestionar Clientes</button>
+        <button class="main-tab" onclick="cambiarSeccion('herramientas')">🛠️ Herramientas</button>
     </div>
 
     <div class="container">
@@ -226,12 +227,7 @@
         <!-- SECCIÓN: REPORTES -->
         <div id="seccion-reportes" class="tab-content">
             <div class="card">
-                <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
-                    <button class="btn btn-primary" onclick="tipoReporte='zona';generarReporte()">Por Zona</button>
-                    <button class="btn btn-primary" onclick="tipoReporte='vendedor';generarReporte()">Por Vendedor</button>
-                    <button class="btn btn-primary" onclick="tipoReporte='producto';generarReporte()">Por Producto</button>
-                    <button class="btn btn-primary" onclick="tipoReporte='cliente';generarReporte()">Por Cliente</button>
-                </div>
+                <h2 style="margin-bottom:15px;">Período de Análisis</h2>
                 <div class="filters">
                     <div class="filter-group">
                         <label>Desde:</label>
@@ -241,7 +237,28 @@
                         <label>Hasta:</label>
                         <input type="date" id="reporteFechaHasta">
                     </div>
+                    <div class="filter-group">
+                        <label>Comparar con:</label>
+                        <select id="comparacionPeriodo">
+                            <option value="ninguno">Sin comparar</option>
+                            <option value="anterior">Período Anterior</option>
+                            <option value="mesanterior">Mes Anterior</option>
+                        </select>
+                    </div>
                 </div>
+                <div style="display: flex; gap: 10px; margin-top:15px; flex-wrap: wrap;">
+                    <button class="btn btn-primary" onclick="tipoReporte='zona';generarReporte()">Por Zona</button>
+                    <button class="btn btn-primary" onclick="tipoReporte='vendedor';generarReporte()">Por Vendedor</button>
+                    <button class="btn btn-primary" onclick="tipoReporte='producto';generarReporte()">Por Producto</button>
+                    <button class="btn btn-primary" onclick="tipoReporte='cliente';generarReporte()">Por Cliente</button>
+                    <button class="btn btn-success" onclick="tipoReporte='margen';generarReporte()">💰 Análisis Margen</button>
+                </div>
+            </div>
+            
+            <!-- Comparación de Períodos -->
+            <div class="card" id="comparacionCard" style="display:none;">
+                <h2>📊 Comparación de Períodos</h2>
+                <div class="stats" id="statsComparacion"></div>
             </div>
 
             <div class="card" id="statsReporte" style="display:none;">
@@ -377,6 +394,52 @@
                         </thead>
                         <tbody id="clientesBody"></tbody>
                     </table>
+                </div>
+            </div>
+        </div>
+        
+        <!-- SECCIÓN: HERRAMIENTAS -->
+        <div id="seccion-herramientas" class="tab-content">
+            <div class="success" id="successHerramientas">✓ Operación completada</div>
+            
+            <!-- Backup y Restaurar -->
+            <div class="card">
+                <h2>💾 Backup y Restauración</h2>
+                <p style="color:#6b7280;margin-bottom:20px;">Guarda una copia de seguridad de todos tus datos o restaura desde un backup anterior.</p>
+                <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                    <button class="btn btn-success" onclick="crearBackup()">📥 Descargar Backup Completo</button>
+                    <button class="btn btn-primary" onclick="document.getElementById('restaurarFile').click()">📤 Restaurar desde Backup</button>
+                    <input type="file" id="restaurarFile" accept=".json" style="display:none;" onchange="restaurarBackup(event)">
+                </div>
+            </div>
+            
+            <!-- Importar Productos desde Excel -->
+            <div class="card">
+                <h2>📊 Importar Productos desde Excel</h2>
+                <p style="color:#6b7280;margin-bottom:15px;">Importa múltiples productos desde un archivo Excel (.xlsx o .csv)</p>
+                
+                <div style="background:#f9fafb;padding:15px;border-radius:8px;margin-bottom:15px;">
+                    <strong style="display:block;margin-bottom:10px;">Formato requerido (columnas):</strong>
+                    <code style="background:white;padding:10px;display:block;border-radius:4px;font-size:13px;">
+                        Nombre | Categoría | Subcategoría | Presentación | Precio
+                    </code>
+                    <p style="font-size:13px;color:#6b7280;margin-top:10px;">Ejemplo: Jabón Dove | cuidado_personal | Jabones | 125g | 5000</p>
+                </div>
+                
+                <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                    <button class="btn btn-secondary" onclick="descargarPlantillaExcel()">📄 Descargar Plantilla</button>
+                    <button class="btn btn-primary" onclick="document.getElementById('importarFile').click()">📤 Importar Excel/CSV</button>
+                    <input type="file" id="importarFile" accept=".xlsx,.xls,.csv" style="display:none;" onchange="importarProductosExcel(event)">
+                </div>
+            </div>
+            
+            <!-- Limpiar Datos -->
+            <div class="card">
+                <h2 style="color:#ef4444;">🗑️ Limpieza de Datos</h2>
+                <p style="color:#6b7280;margin-bottom:20px;">⚠️ Estas acciones son irreversibles. Crea un backup antes de continuar.</p>
+                <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                    <button class="btn btn-danger" onclick="limpiarPedidos()">Borrar Todos los Pedidos</button>
+                    <button class="btn btn-danger" onclick="limpiarStockLocal()">Resetear Stock Local</button>
                 </div>
             </div>
         </div>

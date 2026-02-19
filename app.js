@@ -897,13 +897,15 @@ function cambiarTab(tab) {
 }
 
 function cargarListaPrecios() {
-    if (!productosData || productos.length === 0) {
+    if (!productos || productos.length === 0) {
         document.getElementById('preciosContainer').innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚠️</div>Primero carga los productos</div>';
         return;
     }
     
     // Cargar filtros de categoría
     const container = document.getElementById('categoryFiltersPrecio');
+    if (!container) return; // Protección adicional
+    
     container.innerHTML = '';
     const btnTodas = document.createElement('button');
     btnTodas.className = 'category-btn active';
@@ -930,9 +932,12 @@ function cargarListaPrecios() {
     });
     
     // Búsqueda
-    document.getElementById('searchPrecios').oninput = (e) => {
-        mostrarListaPrecios(e.target.value.toLowerCase());
-    };
+    const searchInput = document.getElementById('searchPrecios');
+    if (searchInput) {
+        searchInput.oninput = (e) => {
+            mostrarListaPrecios(e.target.value.toLowerCase());
+        };
+    }
     
     mostrarListaPrecios();
 }

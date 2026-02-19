@@ -1,29 +1,67 @@
 # 📋 INSTRUCCIONES PARA ACTUALIZAR LA APP
 
-## 🔄 Cada vez que actualices archivos (index.html, app.js, admin.html, admin.js):
+## ⚡ RESPUESTA RÁPIDA: ¿Cambiar versión siempre?
 
-### ⚠️ IMPORTANTE: Incrementar versión en service-worker.js
+### ✅ SÍ cambiar versión cuando:
+- Cambias archivos `.js` o `.html` (app.js, index.html, admin.js, admin.html)
+- Cambias la lógica o funcionalidad de la app
+- Los vendedores necesitan ver los cambios inmediatamente
 
-1. Abre el archivo `service-worker.js`
-2. En la línea 2, cambia el número de versión:
-   ```javascript
-   const VERSION = '1.8'; // <-- INCREMENTA ESTO
-   ```
-   
-3. Cambia a:
-   ```javascript
-   const VERSION = '1.9'; // Nueva versión
-   ```
+### ❌ NO cambiar versión cuando:
+- Solo actualizas `productos.json` (precios, productos nuevos)
+- Cambias datos en Google Sheets
+- Cambias solo imágenes o estilos menores
+- Actualizas documentación (README, etc.)
 
-4. Sube TODOS los archivos a GitHub (incluyendo service-worker.js actualizado)
+### 💡 Regla de oro:
+**¿Cambié código (JS/HTML)? → SÍ, cambiar versión**
+**¿Solo cambié datos (JSON)? → NO, se actualiza solo**
 
 ---
 
-## ✅ Qué hace esto:
+## 🔄 Proceso completo de actualización:
+
+### Escenario 1: Cambios en CÓDIGO (JS/HTML)
+
+1. Abre `service-worker.js`
+2. Línea 2, incrementa:
+   ```javascript
+   const VERSION = '1.8'; // <-- CAMBIA A 1.9
+   ```
+
+3. Guarda todos los archivos
+4. Sube a GitHub con Desktop
+5. Los vendedores verán el botón verde "🔄 Nueva versión disponible"
+
+### Escenario 2: Solo cambios en DATOS (productos.json)
+
+1. Edita `productos.json` (agregar productos, cambiar precios, etc.)
+2. Sube SOLO productos.json a GitHub
+3. ✅ **¡Listo!** No necesitas cambiar versión
+4. Los cambios se verán en ~30 segundos automáticamente
+
+---
+
+## 📝 Ejemplos prácticos:
+
+| Acción | ¿Cambiar versión? | ¿Por qué? |
+|--------|-------------------|-----------|
+| Agregaste 5 productos nuevos | ❌ NO | productos.json se actualiza solo |
+| Cambiaste precios | ❌ NO | Solo datos, no código |
+| Corregiste un bug en app.js | ✅ SÍ | Código cambió |
+| Agregaste nueva función | ✅ SÍ | Código cambió |
+| Cambiaste diseño/colores CSS | ✅ SÍ | HTML cambió |
+| Agregaste nuevo cliente | ❌ NO | Solo datos |
+| Modificaste stock | ❌ NO | Solo datos |
+
+---
+
+## ✅ Qué hace el sistema:
 
 - **Los usuarios verán el botón verde "🔄 Nueva versión disponible"** automáticamente
 - Al hacer click, la app se actualiza sola
 - **Ya no necesitas borrar datos del navegador** ✨
+- productos.json se actualiza automáticamente sin cambiar versión
 
 ---
 
@@ -40,21 +78,32 @@
 
 ---
 
-## 📝 Notas:
+## 🎯 Resumen súper rápido:
 
-- **Incrementa la versión SIEMPRE** que cambies algo
-- Usa decimales: 1.8 → 1.9 → 2.0 → 2.1, etc.
-- El service worker se actualiza automáticamente cada 30 segundos
-- Los pedidos guardados NO se borran al actualizar
+```
+CÓDIGO (JS/HTML) CAMBIÓ:
+1. Incrementa versión en service-worker.js (1.8 → 1.9)
+2. Sube todo a GitHub
+3. Vendedores ven botón verde
+
+SOLO DATOS (JSON) CAMBIARON:
+1. Sube productos.json a GitHub
+2. ¡Listo! Se actualiza solo en 30 seg
+```
 
 ---
 
-## 🎯 Resumen rápido:
+## 💻 Versionado recomendado:
 
-```
-1. Cambias código
-2. Incrementas versión en service-worker.js (1.8 → 1.9)
-3. Subes todo a GitHub
-4. Los vendedores ven "Nueva versión disponible"
-5. ¡Listo! 🚀
-```
+- Cambios pequeños: 1.8 → 1.9
+- Cambios medianos: 1.9 → 2.0
+- Cambios grandes: 2.0 → 3.0
+
+---
+
+## ⚠️ Importante:
+
+- Los pedidos guardados NUNCA se borran al actualizar
+- El botón verde aparece solo si hay código nuevo
+- productos.json SIEMPRE está actualizado (no necesita versión)
+- Si dudas: cambia la versión (no hace daño)

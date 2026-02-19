@@ -1,11 +1,13 @@
 // CAMBIAR ESTE NÚMERO CADA VEZ QUE ACTUALICES
-const VERSION = '1.8'; // <-- INCREMENTA ESTO EN CADA ACTUALIZACIÓN
+const VERSION = '1.9'; // <-- INCREMENTA ESTO EN CADA ACTUALIZACIÓN
 const CACHE_NAME = `hdv-pedidos-v${VERSION}`;
 
 const urlsToCache = [
     './',
     './index.html',
     './app.js',
+    './admin.html',
+    './admin.js',
     './productos.json',
     './manifest.json'
 ];

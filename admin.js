@@ -1227,3 +1227,67 @@ function descargarJSON(data, nombreArchivo) {
     link.download = nombreArchivo;
     link.click();
 }
+
+// ============================================
+// SISTEMA DE ACTUALIZACIÓN
+// ============================================
+async function registrarServiceWorker() {
+    if ('serviceWorker' in navigator) {
+        try {
+            const registration = await navigator.serviceWorker.register('service-worker.js');
+            console.log('Service Worker registrado');
+            
+            registration.addEventListener('updatefound', () => {
+                const newWorker = registration.installing;
+                newWorker.addEventListener('statechange', () => {
+                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                        mostrarBotonActualizacion();
+                    }
+                });
+            });
+            
+            setInterval(() => {
+                registration.update();
+            }, 30000);
+            
+        } catch (e) {
+            console.log('SW no disponible:', e);
+        }
+    }
+}
+
+function mostrarBotonActualizacion() {
+    const btn = document.getElementById('updateButton');
+    if (btn) {
+        btn.style.display = 'block';
+    }
+}
+
+function actualizarAhora() {
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistration().then(reg => {
+            if (reg && reg.waiting) {
+                reg.waiting.postMessage('SKIP_WAITING');
+            }
+        });
+        
+        if ('caches' in window) {
+            caches.keys().then(names => {
+                names.forEach(name => caches.delete(name));
+            });
+        }
+        
+        setTimeout(() => {
+            window.location.reload(true);
+        }, 500);
+    }
+}
+
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+        window.location.reload();
+    });
+}
+
+// Registrar al cargar
+window.addEventListener('load', registrarServiceWorker);

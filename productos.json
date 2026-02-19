@@ -859,6 +859,13 @@
       "nombre": "Distribuidora Occidental",
       "zona": "Loma Plata",
       "precios_personalizados": {}
+    },
+    {
+      "id": "C027",
+      "nombre": "Los Gurkos SRL",
+      "zona": "Colonia Neuland",
+      "tipo": "mayorista_estandar",
+      "precios_personalizados": {}
     }
   ]
 }

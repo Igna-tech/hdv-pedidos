@@ -51,6 +51,16 @@
         .modal-content { background: white; border-radius: 16px; padding: 24px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; }
         .modal-header { font-size: 20px; font-weight: 700; margin-bottom: 20px; }
         .cart-item { display: flex; justify-content: space-between; align-items: center; gap: 15px; padding: 15px 0; border-bottom: 1px solid #e5e7eb; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 5px; }
+        .form-group select, .form-group input, .form-group textarea { width: 100%; padding: 10px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; font-family: inherit; }
+        .form-group textarea { resize: vertical; min-height: 60px; }
+        .discount-row { display: flex; gap: 10px; align-items: end; }
+        .discount-row input { flex: 1; }
+        .discount-row button { padding: 10px 16px; background: #2563eb; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+        .total-section { background: #f9fafb; padding: 15px; border-radius: 8px; margin: 15px 0; }
+        .total-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 14px; }
+        .total-row.final { font-size: 18px; font-weight: 700; color: #2563eb; padding-top: 10px; border-top: 2px solid #e5e7eb; margin-top: 10px; }
         .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
         .modal-btn { flex: 1; padding: 12px; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; }
         .btn-cancel { background: #f3f4f6; color: #374151; }
@@ -134,6 +144,30 @@
         <div class="modal-content">
             <div class="modal-header">Resumen del Pedido</div>
             <div id="cartItemsList"></div>
+            
+            <div class="total-section" id="totalSection" style="display:none;"></div>
+            
+            <div class="form-group">
+                <label>💰 Tipo de Pago:</label>
+                <select id="tipoPago">
+                    <option value="contado">Contado</option>
+                    <option value="credito">Crédito</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>🎁 Descuento (%):</label>
+                <div class="discount-row">
+                    <input type="number" id="descuento" value="0" min="0" max="100" placeholder="0">
+                    <button onclick="aplicarDescuento()">Aplicar</button>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>📝 Notas/Observaciones:</label>
+                <textarea id="notasPedido" placeholder="Ej: Entregar después de las 3pm, cliente pidió factura, etc."></textarea>
+            </div>
+            
             <div class="modal-actions">
                 <button class="modal-btn btn-cancel" onclick="closeCartModal()">Cancelar</button>
                 <button class="modal-btn btn-confirm" onclick="confirmarPedido()">Confirmar Pedido</button>

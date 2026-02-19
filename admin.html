@@ -80,6 +80,7 @@
     <!-- Tabs Principales -->
     <div class="main-tabs">
         <button class="main-tab active" onclick="cambiarSeccion('pedidos')">📦 Pedidos</button>
+        <button class="main-tab" onclick="cambiarSeccion('creditos')">💳 Créditos</button>
         <button class="main-tab" onclick="cambiarSeccion('reportes')">📊 Reportes</button>
         <button class="main-tab" onclick="cambiarSeccion('precios')">💰 Precios por Cliente</button>
         <button class="main-tab" onclick="cambiarSeccion('productos')">🏷️ Gestionar Productos</button>
@@ -140,6 +141,49 @@
 
             <div class="card" id="pedidosList">
                 <div class="loading"><div class="spinner"></div><p style="margin-top: 15px;">Cargando pedidos...</p></div>
+            </div>
+        </div>
+
+        <!-- SECCIÓN: CRÉDITOS -->
+        <div id="seccion-creditos" class="tab-content">
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-label">Total Créditos Pendientes</div>
+                    <div class="stat-value money" id="totalCreditosPendientes">Gs. 0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Cantidad de Créditos</div>
+                    <div class="stat-value" id="cantidadCreditos">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Clientes con Crédito</div>
+                    <div class="stat-value" id="clientesConCredito">0</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="filters">
+                    <div class="filter-group">
+                        <label>Cliente</label>
+                        <select id="filterClienteCredito"><option value="">Todos</option></select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Estado</label>
+                        <select id="filterEstadoCredito">
+                            <option value="pendiente_pago">Pendiente Pago</option>
+                            <option value="pagado">Pagado</option>
+                            <option value="todos">Todos</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button class="btn btn-primary" onclick="aplicarFiltrosCreditos()">Aplicar Filtros</button>
+                    <button class="btn btn-secondary" onclick="exportarCreditosExcel()" style="margin-left: auto;">📊 Exportar Excel</button>
+                </div>
+            </div>
+
+            <div class="card" id="creditosList">
+                <div class="loading"><div class="spinner"></div><p style="margin-top: 15px;">Cargando créditos...</p></div>
             </div>
         </div>
 

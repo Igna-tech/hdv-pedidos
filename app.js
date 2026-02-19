@@ -254,6 +254,7 @@ function mostrarModalCarrito() {
     lista.innerHTML = '';
     if (carrito.length === 0) {
         lista.innerHTML = '<div class="empty-state">El carrito está vacío</div>';
+        document.getElementById('totalSection').style.display = 'none';
     } else {
         carrito.forEach((item, index) => {
             const div = document.createElement('div');
@@ -276,13 +277,45 @@ function mostrarModalCarrito() {
             `;
             lista.appendChild(div);
         });
-        const total = carrito.reduce((s, i) => s + i.precio * i.cantidad, 0);
-        const totalDiv = document.createElement('div');
-        totalDiv.style.cssText = 'margin-top:20px;padding-top:20px;border-top:2px solid #e5e7eb;';
-        totalDiv.innerHTML = `<div style="display:flex;justify-content:space-between;font-size:18px;font-weight:700"><span>TOTAL</span><span>Gs. ${total.toLocaleString()}</span></div>`;
-        lista.appendChild(totalDiv);
+        
+        calcularTotales();
+        document.getElementById('totalSection').style.display = 'block';
     }
     document.getElementById('cartModal').classList.add('show');
+}
+
+let descuentoAplicado = 0;
+
+function aplicarDescuento() {
+    descuentoAplicado = parseFloat(document.getElementById('descuento').value) || 0;
+    if (descuentoAplicado < 0) descuentoAplicado = 0;
+    if (descuentoAplicado > 100) descuentoAplicado = 100;
+    document.getElementById('descuento').value = descuentoAplicado;
+    calcularTotales();
+}
+
+function calcularTotales() {
+    const subtotal = carrito.reduce((s, i) => s + i.precio * i.cantidad, 0);
+    const montoDescuento = subtotal * (descuentoAplicado / 100);
+    const total = subtotal - montoDescuento;
+    
+    const totalSection = document.getElementById('totalSection');
+    totalSection.innerHTML = `
+        <div class="total-row">
+            <span>Subtotal:</span>
+            <span>Gs. ${subtotal.toLocaleString()}</span>
+        </div>
+        ${descuentoAplicado > 0 ? `
+        <div class="total-row" style="color:#ef4444;">
+            <span>Descuento (${descuentoAplicado}%):</span>
+            <span>- Gs. ${montoDescuento.toLocaleString()}</span>
+        </div>
+        ` : ''}
+        <div class="total-row final">
+            <span>TOTAL:</span>
+            <span>Gs. ${total.toLocaleString()}</span>
+        </div>
+    `;
 }
 
 function editarCantidadCarrito(index, cambio) {
@@ -324,6 +357,14 @@ function closeCartModal() {
 async function confirmarPedido() {
     if (!clienteActual || carrito.length === 0) return;
     
+    const tipoPago = document.getElementById('tipoPago').value;
+    const descuento = descuentoAplicado;
+    const notas = document.getElementById('notasPedido').value.trim();
+    
+    const subtotal = carrito.reduce((s, i) => s + i.precio * i.cantidad, 0);
+    const montoDescuento = subtotal * (descuento / 100);
+    const total = subtotal - montoDescuento;
+    
     const pedido = {
         id: Date.now().toString(),
         fecha: new Date().toISOString(),
@@ -337,8 +378,13 @@ async function confirmarPedido() {
             precio_unitario: i.precio,
             subtotal: i.precio * i.cantidad 
         })),
-        total: carrito.reduce((s, i) => s + i.precio * i.cantidad, 0),
-        estado: 'pendiente',
+        subtotal: subtotal,
+        descuento: descuento,
+        monto_descuento: montoDescuento,
+        total: total,
+        tipo_pago: tipoPago,
+        notas: notas,
+        estado: tipoPago === 'credito' ? 'pendiente_pago' : 'pendiente',
         sincronizado: false
     };
     
@@ -350,11 +396,53 @@ async function confirmarPedido() {
     // Enviar a Google Sheets
     await enviarAGoogleSheets(pedido);
     
+    // Preguntar si quiere compartir por WhatsApp
+    if (confirm('¿Deseas compartir este pedido por WhatsApp?')) {
+        compartirPorWhatsApp(pedido);
+    }
+    
     mostrarExito(`Pedido de ${clienteActual.nombre} guardado`);
+    
+    // Limpiar
     carrito = [];
+    descuentoAplicado = 0;
+    document.getElementById('descuento').value = 0;
+    document.getElementById('notasPedido').value = '';
+    document.getElementById('tipoPago').value = 'contado';
+    
     actualizarCarrito();
     closeCartModal();
     mostrarProductos();
+}
+
+function compartirPorWhatsApp(pedido) {
+    let mensaje = `*PEDIDO HDV DISTRIBUCIONES*\n\n`;
+    mensaje += `📋 *Pedido #${pedido.id.slice(-6)}*\n`;
+    mensaje += `📅 ${new Date(pedido.fecha).toLocaleString('es-PY')}\n`;
+    mensaje += `👤 *Cliente:* ${pedido.cliente.nombre}\n`;
+    mensaje += `📍 *Zona:* ${pedido.zona}\n`;
+    mensaje += `👨‍💼 *Vendedor:* ${pedido.vendedor}\n\n`;
+    
+    mensaje += `*PRODUCTOS:*\n`;
+    pedido.items.forEach(item => {
+        mensaje += `• ${item.nombre} (${item.presentacion})\n`;
+        mensaje += `  ${item.cantidad} × Gs. ${item.precio_unitario.toLocaleString()} = Gs. ${item.subtotal.toLocaleString()}\n`;
+    });
+    
+    mensaje += `\n*TOTALES:*\n`;
+    mensaje += `Subtotal: Gs. ${pedido.subtotal.toLocaleString()}\n`;
+    if (pedido.descuento > 0) {
+        mensaje += `Descuento (${pedido.descuento}%): -Gs. ${pedido.monto_descuento.toLocaleString()}\n`;
+    }
+    mensaje += `*TOTAL: Gs. ${pedido.total.toLocaleString()}*\n\n`;
+    mensaje += `💰 *Tipo de pago:* ${pedido.tipo_pago === 'credito' ? 'CRÉDITO' : 'CONTADO'}\n`;
+    
+    if (pedido.notas) {
+        mensaje += `\n📝 *Notas:* ${pedido.notas}`;
+    }
+    
+    const url = `https://wa.me/?text=${encodeURIComponent(mensaje)}`;
+    window.open(url, '_blank');
 }
 
 async function enviarAGoogleSheets(pedido) {

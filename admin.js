@@ -73,6 +73,9 @@ function cambiarSeccion(seccion) {
         clientesFiltrados = [...productosData.clientes];
         mostrarClientesGestion();
     }
+    if (seccion === 'creditos') {
+        cargarCreditos();
+    }
 }
 
 // ============================================
@@ -641,6 +644,134 @@ function guardarClientes() {
     descargarJSON(productosData, 'productos.json');
     document.getElementById('successClientes').style.display = 'block';
     setTimeout(() => document.getElementById('successClientes').style.display = 'none', 3000);
+}
+
+// ============================================
+// SECCIÓN CRÉDITOS
+// ============================================
+function cargarCreditos() {
+    const filterClienteCredito = document.getElementById('filterClienteCredito');
+    filterClienteCredito.innerHTML = '<option value="">Todos</option>';
+    productosData.clientes.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.id;
+        opt.textContent = `${c.nombre} — ${c.zona}`;
+        filterClienteCredito.appendChild(opt);
+    });
+    aplicarFiltrosCreditos();
+}
+
+function aplicarFiltrosCreditos() {
+    const cliente = document.getElementById('filterClienteCredito').value;
+    const estado = document.getElementById('filterEstadoCredito').value;
+    let creditos = todosLosPedidos.filter(p => p.tipo_pago === 'credito');
+    if (cliente) creditos = creditos.filter(p => p.cliente.id === cliente);
+    if (estado !== 'todos') creditos = creditos.filter(p => (p.estado || 'pendiente_pago') === estado);
+    mostrarCreditos(creditos);
+    actualizarEstadisticasCreditos(creditos);
+}
+
+function mostrarCreditos(creditos) {
+    const container = document.getElementById('creditosList');
+    if (creditos.length === 0) {
+        container.innerHTML = '<div class="empty-state"><div style="font-size:48px;margin-bottom:15px;">💳</div>No hay créditos</div>';
+        return;
+    }
+    container.innerHTML = '';
+    creditos.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+    creditos.forEach(p => {
+        const estado = p.estado || 'pendiente_pago';
+        const clienteInfo = productosData.clientes.find(c => c.id === p.cliente.id);
+        const zona = clienteInfo?.zona || '';
+        const div = document.createElement('div');
+        div.className = 'pedido-card';
+        div.innerHTML = `
+            <div class="pedido-header">
+                <div>
+                    <h3 style="margin-bottom:5px;">${p.cliente.nombre}</h3>
+                    <div style="font-size:14px;color:#6b7280;">📍 ${zona} • 🕐 ${new Date(p.fecha).toLocaleString('es-PY')}</div>
+                    ${p.notas ? `<div style="font-size:13px;color:#6b7280;margin-top:5px;">📝 ${p.notas}</div>` : ''}
+                </div>
+                <span class="pedido-status ${estado === 'pagado' ? 'status-entregado' : 'status-pendiente'}">${estado === 'pagado' ? 'PAGADO' : 'PENDIENTE PAGO'}</span>
+            </div>
+            <div style="margin-bottom:15px;">
+                ${p.items.map(i => `<div style="display:flex;justify-content:space-between;padding:8px 0;font-size:14px;">
+                    <span>${i.nombre} <span style="color:#6b7280;">(${i.presentacion} × ${i.cantidad})</span></span>
+                    <strong>Gs. ${i.subtotal.toLocaleString()}</strong>
+                </div>`).join('')}
+            </div>
+            <div style="padding-top:15px;border-top:2px solid #e5e7eb;">
+                ${p.subtotal ? `<div style="display:flex;justify-content:space-between;font-size:14px;margin-bottom:5px;">
+                    <span>Subtotal:</span><span>Gs. ${p.subtotal.toLocaleString()}</span>
+                </div>` : ''}
+                ${p.descuento > 0 ? `<div style="display:flex;justify-content:space-between;font-size:14px;color:#ef4444;margin-bottom:5px;">
+                    <span>Descuento (${p.descuento}%):</span><span>-Gs. ${p.monto_descuento.toLocaleString()}</span>
+                </div>` : ''}
+                <div style="display:flex;justify-content:space-between;font-size:18px;font-weight:700;color:#2563eb;padding-top:10px;border-top:2px solid #e5e7eb;">
+                    <span>TOTAL:</span><span>Gs. ${p.total.toLocaleString()}</span>
+                </div>
+            </div>
+            <div style="display:flex;gap:10px;margin-top:15px;flex-wrap:wrap;">
+                ${estado === 'pendiente_pago' ? 
+                    `<button class="btn btn-success" onclick="marcarCreditoPagado('${p.id}')">✓ Marcar Pagado</button>` :
+                    `<button class="btn btn-secondary" onclick="marcarCreditoPendiente('${p.id}')">↩ Marcar Pendiente</button>`
+                }
+                <button class="btn btn-secondary" onclick="compartirCreditoPorWhatsApp('${p.id}')">📱 WhatsApp</button>
+            </div>
+        `;
+        container.appendChild(div);
+    });
+}
+
+function actualizarEstadisticasCreditos(creditos) {
+    const pendientes = creditos.filter(p => (p.estado || 'pendiente_pago') === 'pendiente_pago');
+    const totalPendiente = pendientes.reduce((s, p) => s + p.total, 0);
+    document.getElementById('totalCreditosPendientes').textContent = totalPendiente.toLocaleString();
+    document.getElementById('cantidadCreditos').textContent = creditos.length;
+    document.getElementById('clientesConCredito').textContent = [...new Set(creditos.map(p => p.cliente.id))].length;
+}
+
+function marcarCreditoPagado(id) {
+    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    const p = pedidos.find(x => x.id === id);
+    if (p) {
+        p.estado = 'pagado';
+        localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
+        todosLosPedidos = pedidos;
+        aplicarFiltrosCreditos();
+    }
+}
+
+function marcarCreditoPendiente(id) {
+    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    const p = pedidos.find(x => x.id === id);
+    if (p) {
+        p.estado = 'pendiente_pago';
+        localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
+        todosLosPedidos = pedidos;
+        aplicarFiltrosCreditos();
+    }
+}
+
+function compartirCreditoPorWhatsApp(id) {
+    const pedido = todosLosPedidos.find(p => p.id === id);
+    if (!pedido) return;
+    let mensaje = `*RECORDATORIO DE CRÉDITO - HDV*\n\n📋 *Pedido #${pedido.id.slice(-6)}*\n📅 ${new Date(pedido.fecha).toLocaleString('es-PY')}\n👤 *Cliente:* ${pedido.cliente.nombre}\n\n*TOTAL A PAGAR: Gs. ${pedido.total.toLocaleString()}*\nEstado: ${pedido.estado === 'pagado' ? '✅ PAGADO' : '⏳ PENDIENTE DE PAGO'}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(mensaje)}`, '_blank');
+}
+
+function exportarCreditosExcel() {
+    let csv = 'Fecha,Cliente,Zona,Total,Estado,Notas\n';
+    const cliente = document.getElementById('filterClienteCredito').value;
+    const estado = document.getElementById('filterEstadoCredito').value;
+    let creditos = todosLosPedidos.filter(p => p.tipo_pago === 'credito');
+    if (cliente) creditos = creditos.filter(p => p.cliente.id === cliente);
+    if (estado !== 'todos') creditos = creditos.filter(p => (p.estado || 'pendiente_pago') === estado);
+    creditos.forEach(p => {
+        const c = productosData.clientes.find(x => x.id === p.cliente.id);
+        csv += `"${p.fecha}","${p.cliente.nombre}","${c?.zona || ''}",${p.total},"${p.estado || 'pendiente_pago'}","${p.notas || ''}"\n`;
+    });
+    descargarCSV(csv, `creditos_${new Date().toISOString().split('T')[0]}.csv`);
 }
 
 // ============================================

@@ -71,32 +71,100 @@
             .filters { grid-template-columns: 1fr; }
         }
     </style>
-</head>
+/* Layout con Sidebar */
 <body>
-    <div class="header">
-        <h1>🎯 Panel de Administración</h1>
-        <div class="subtitle">HDV Distribuciones</div>
-        <button id="updateButton" style="display:none;position:absolute;top:15px;right:15px;padding:8px 16px;background:#10b981;color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;animation:pulse 2s infinite;" onclick="actualizarAhora()">
-            🔄 Nueva versión disponible
-        </button>
-    </div>
-    <style>
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
-    </style>
-
-    <!-- Tabs Principales -->
-    <div class="main-tabs">
-        <button class="main-tab active" onclick="cambiarSeccion('pedidos')">📦 Pedidos</button>
-        <button class="main-tab" onclick="cambiarSeccion('creditos')">💳 Créditos</button>
-        <button class="main-tab" onclick="cambiarSeccion('stock')">📊 Stock/Inventario</button>
-        <button class="main-tab" onclick="cambiarSeccion('reportes')">📈 Reportes</button>
-        <button class="main-tab" onclick="cambiarSeccion('precios')">💰 Precios por Cliente</button>
-        <button class="main-tab" onclick="cambiarSeccion('productos')">🏷️ Gestionar Productos</button>
-        <button class="main-tab" onclick="cambiarSeccion('clientes')">👥 Gestionar Clientes</button>
-        <button class="main-tab" onclick="cambiarSeccion('herramientas')">🛠️ Herramientas</button>
-    </div>
-
+    <div class="admin-layout">
+        <!-- Sidebar -->
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h2>HDV Admin</h2>
+                <button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
+            </div>
+            
+            <div class="sidebar-menu">
+                <!-- DATOS -->
+                <div class="menu-section">
+                    <div class="menu-section-title" onclick="toggleMenuSection(this)">
+                        <span>📊 DATOS</span>
+                        <span class="menu-arrow">▼</span>
+                    </div>
+                    <div class="menu-items">
+                        <button class="menu-item active" onclick="cambiarSeccion('pedidos')">
+                            <span class="menu-icon">📦</span>
+                            <span class="menu-label">Pedidos</span>
+                        </button>
+                        <button class="menu-item" onclick="cambiarSeccion('creditos')">
+                            <span class="menu-icon">💳</span>
+                            <span class="menu-label">Créditos</span>
+                        </button>
+                        <button class="menu-item" onclick="cambiarSeccion('reportes')">
+                            <span class="menu-icon">📈</span>
+                            <span class="menu-label">Reportes</span>
+                        </button>
+                        <button class="menu-item" onclick="cambiarSeccion('stock')">
+                            <span class="menu-icon">📊</span>
+                            <span class="menu-label">Stock/Inventario</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- GESTIÓN -->
+                <div class="menu-section">
+                    <div class="menu-section-title" onclick="toggleMenuSection(this)">
+                        <span>⚙️ GESTIÓN</span>
+                        <span class="menu-arrow">▼</span>
+                    </div>
+                    <div class="menu-items">
+                        <button class="menu-item" onclick="cambiarSeccion('productos')">
+                            <span class="menu-icon">🏷️</span>
+                            <span class="menu-label">Gestionar Productos</span>
+                        </button>
+                        <button class="menu-item" onclick="cambiarSeccion('clientes')">
+                            <span class="menu-icon">👥</span>
+                            <span class="menu-label">Gestionar Clientes</span>
+                        </button>
+                        <button class="menu-item" onclick="cambiarSeccion('precios')">
+                            <span class="menu-icon">💰</span>
+                            <span class="menu-label">Precios por Cliente</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- OPCIONES -->
+                <div class="menu-section">
+                    <div class="menu-section-title" onclick="toggleMenuSection(this)">
+                        <span>🛠️ OPCIONES</span>
+                        <span class="menu-arrow">▼</span>
+                    </div>
+                    <div class="menu-items">
+                        <button class="menu-item" onclick="cambiarSeccion('herramientas')">
+                            <span class="menu-icon">🔧</span>
+                            <span class="menu-label">Herramientas</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="sidebar-footer">
+                <div style="font-size:12px;color:#94a3b8;">Versión 2.3</div>
+            </div>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="main-content" id="mainContent">
+            <div class="header">
+                <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
+                <div>
+                    <h1>Panel de Administración</h1>
+                    <div class="subtitle">HDV Distribuciones</div>
+                </div>
+                <button id="updateButton" style="display:none;padding:8px 16px;background:#10b981;color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;animation:pulse 2s infinite;" onclick="actualizarAhora()">
+                    🔄 Nueva versión
+                </button>
+            </div>
+    
     <div class="container">
+
         <!-- SECCIÓN: PEDIDOS -->
         <div id="seccion-pedidos" class="tab-content active">
             <div class="stats">
@@ -438,7 +506,29 @@
                 <div style="display:flex;gap:10px;flex-wrap:wrap;">
                     <button class="btn btn-secondary" onclick="descargarPlantillaExcel()">📄 Descargar Plantilla</button>
                     <button class="btn btn-primary" onclick="document.getElementById('importarFile').click()">📤 Importar Excel/CSV</button>
+            </div>
+
                     <input type="file" id="importarFile" accept=".xlsx,.xls,.csv" style="display:none;" onchange="importarProductosExcel(event)">
+                </div>
+            </div>
+
+            <!-- Importar Clientes desde Excel -->
+            <div class="card">
+                <h2>👥 Importar Clientes Masivamente</h2>
+                <p style="color:#6b7280;margin-bottom:15px;">Importa múltiples clientes desde un archivo Excel (.xlsx o .csv)</p>
+                
+                <div style="background:#f9fafb;padding:15px;border-radius:8px;margin-bottom:15px;">
+                    <strong style="display:block;margin-bottom:10px;">Formato requerido (columnas):</strong>
+                    <code style="background:white;padding:10px;display:block;border-radius:4px;font-size:13px;">
+                        Razon Social | RUC | Telefono | Direccion | Encargado
+                    </code>
+                    <p style="font-size:13px;color:#6b7280;margin-top:10px;">Ejemplo: Supermercado Central S.A. | 80012345-6 | 0981234567 | Av. Central 1234, Loma Plata | Juan Pérez</p>
+                </div>
+                
+                <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                    <button class="btn btn-secondary" onclick="descargarPlantillaClientes()">📄 Descargar Plantilla</button>
+                    <button class="btn btn-primary" onclick="document.getElementById('importarClientesFile').click()">📤 Importar Excel/CSV</button>
+                    <input type="file" id="importarClientesFile" accept=".xlsx,.xls,.csv" style="display:none;" onchange="importarClientesExcel(event)">
                 </div>
             </div>
             

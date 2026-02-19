@@ -59,21 +59,6 @@ async function cargarDatosIniciales() {
     }
 }
 
-function cambiarSeccion(seccion) {
-    document.querySelectorAll('.main-tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-    
-    event.target.classList.add('active');
-    document.getElementById(`seccion-${seccion}`).classList.add('active');
-    
-    if (seccion === 'productos' && productosFiltrados.length > 0) {
-        mostrarProductosGestion();
-    }
-    if (seccion === 'clientes') {
-        clientesFiltrados = [...productosData.clientes];
-        mostrarClientesGestion();
-    }
-    if (seccion === 'creditos') {
         cargarCreditos();
     }
     if (seccion === 'stock') {
@@ -1178,6 +1163,80 @@ function limpiarPedidos() {
     if (!confirm('¿ELIMINAR TODOS LOS PEDIDOS? Esta acción no se puede deshacer.')) return;
     if (!confirm('¿Estás completamente seguro? Todos los pedidos se perderán.')) return;
     
+
+// Importar clientes masivamente
+function descargarPlantillaClientes() {
+    let csv = 'Razon Social,RUC,Telefono,Direccion,Encargado\n';
+    csv += 'Supermercado Central S.A.,80012345-6,0981234567,"Av. Central 1234, Loma Plata",Juan Pérez\n';
+    csv += 'Comercial Norte,80067890-1,0982345678,"Ruta 3 Km 45, Filadelfia",María González\n';
+    descargarCSV(csv, 'plantilla_clientes.csv');
+}
+
+function importarClientesExcel(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const texto = e.target.result;
+            const lineas = texto.split('\n').filter(l => l.trim());
+            lineas.shift(); // Remover encabezados
+            
+            let agregados = 0;
+            lineas.forEach(linea => {
+                const [razonSocial, ruc, telefono, direccion, encargado] = linea.split(',').map(s => s.trim().replace(/^"|"$/g, ''));
+                if (!razonSocial || !ruc) return;
+                
+                const ultimoId = productosData.clientes.length > 0 ? 
+                    parseInt(productosData.clientes[productosData.clientes.length - 1].id.replace('C', '')) : 0;
+                const nuevoId = `C${String(ultimoId + agregados + 1).padStart(3, '0')}`;
+                
+                productosData.clientes.push({
+                    id: nuevoId,
+                    nombre: razonSocial,
+                    razon_social: razonSocial,
+                    ruc: ruc || '',
+                    telefono: telefono || '',
+                    direccion: direccion || '',
+                    encargado: encargado || '',
+                    zona: direccion || '',
+                    tipo: 'mayorista_estandar',
+                    oculto: false,
+                    precios_personalizados: {}
+                });
+                agregados++;
+            });
+            
+            if (agregados > 0) {
+                descargarJSON(productosData, 'productos.json');
+                mostrarMensajeHerramientas(`${agregados} clientes importados. Descarga el archivo y súbelo a GitHub.`);
+            }
+        } catch (error) {
+            alert('Error al importar: ' + error.message);
+        }
+        event.target.value = '';
+    };
+    reader.readAsText(file);
+}
+
+// Toggle hide/show productos
+function toggleOcultarProducto(id) {
+    const prod = productosData.productos.find(p => p.id === id);
+    if (prod) {
+        prod.oculto = !prod.oculto;
+        mostrarProductosGestion();
+    }
+}
+
+// Toggle hide/show clientes
+function toggleOcultarCliente(id) {
+    const cliente = productosData.clientes.find(c => c.id === id);
+    if (cliente) {
+        cliente.oculto = !cliente.oculto;
+        mostrarClientesGestion();
+    }
+}
     localStorage.removeItem('hdv_pedidos');
     todosLosPedidos = [];
     mostrarMensajeHerramientas('Todos los pedidos han sido eliminados');
@@ -1333,3 +1392,42 @@ if ('serviceWorker' in navigator) {
 
 // Registrar al cargar
 window.addEventListener('load', registrarServiceWorker);
+
+// ============================================
+// FUNCIONES SIDEBAR
+// ============================================
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    sidebar.classList.toggle('open');
+}
+
+function toggleMenuSection(element) {
+    element.parentElement.classList.toggle('collapsed');
+}
+
+function cambiarSeccion(seccion) {
+    // Remover active de todos los menu items
+    document.querySelectorAll('.menu-item').forEach(item => item.classList.remove('active'));
+    
+    // Agregar active al item clickeado
+    event.target.closest('.menu-item').classList.add('active');
+    
+    // Cambiar contenido
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.getElementById(`seccion-${seccion}`).classList.add('active');
+    
+    // Ejecutar funciones de carga según sección
+    if (seccion === 'productos' && productosFiltrados.length > 0) {
+        mostrarProductosGestion();
+    }
+    if (seccion === 'clientes') {
+        clientesFiltrados = [...productosData.clientes];
+        mostrarClientesGestion();
+    }
+    if (seccion === 'creditos') {
+        cargarCreditos();
+    }
+    if (seccion === 'stock') {
+        cargarStock();
+    }
+}

@@ -970,7 +970,7 @@ function generarReporte() {
     }
 }
 
-function compararPeriodos(desdeActual, hastaActual, tipoCom paracion) {
+function compararPeriodos(desdeActual, hastaActual, tipoComparacion) {
     const diasDiferencia = Math.ceil((hastaActual - desdeActual) / (1000 * 60 * 60 * 24));
     let desdeAnterior, hastaAnterior;
     

@@ -418,6 +418,7 @@
                     <button class="btn btn-success" onclick="guardarProductos()">💾 Guardar y Descargar</button>
                     <div style="flex:1;min-width:250px;">
                         <input type="text" id="buscarProducto" placeholder="🔍 Buscar productos..." oninput="filtrarProductos()" style="width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px;">
+                        <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:14px;"><input type="checkbox" id="mostrarOcultosProductos" onchange="filtrarProductos()"> Mostrar productos ocultos</label>
                     </div>
                 </div>
             </div>
@@ -450,6 +451,7 @@
                     <button class="btn btn-success" onclick="guardarClientes()">💾 Guardar y Descargar</button>
                     <div style="flex:1;min-width:250px;">
                         <input type="text" id="buscarCliente" placeholder="🔍 Buscar clientes..." oninput="filtrarClientes()" style="width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px;">
+                        <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:14px;"><input type="checkbox" id="mostrarOcultosClientes" onchange="filtrarClientes()"> Mostrar clientes ocultos</label>
                     </div>
                 </div>
             </div>

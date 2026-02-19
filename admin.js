@@ -425,9 +425,13 @@ function guardarPreciosPersonalizados() {
 // ============================================
 function filtrarProductos() {
     const filtro = document.getElementById('buscarProducto').value.toLowerCase();
-    productosFiltrados = productosData.productos.filter(p => 
-        p.nombre.toLowerCase().includes(filtro) || p.id.toLowerCase().includes(filtro)
-    );
+    const mostrarOcultos = document.getElementById('mostrarOcultosProductos')?.checked || false;
+    
+    productosFiltrados = productosData.productos.filter(p => {
+        const cumpleFiltro = p.nombre.toLowerCase().includes(filtro) || p.id.toLowerCase().includes(filtro);
+        const noOculto = mostrarOcultos || !p.oculto;
+        return cumpleFiltro && noOculto;
+    });
     mostrarProductosGestion();
 }
 
@@ -445,7 +449,9 @@ function mostrarProductosGestion() {
             </div>
         `).join('');
         
+        const estaOculto = prod.oculto || false;
         const tr = document.createElement('tr');
+        tr.style.opacity = estaOculto ? '0.5' : '1';
         tr.innerHTML = `
             <td><strong>${prod.id}</strong></td>
             <td><input type="text" value="${prod.nombre}" onchange="actualizarProducto('${prod.id}', 'nombre', this.value)"></td>
@@ -457,7 +463,10 @@ function mostrarProductosGestion() {
                 ${presHTML}
                 <button onclick="agregarPresentacion('${prod.id}')" class="btn btn-primary" style="padding:5px 10px;font-size:12px;margin-top:5px;">+ Presentación</button>
             </td>
-            <td><button onclick="eliminarProducto('${prod.id}')" style="width:32px;height:32px;border:2px solid #ef4444;background:white;color:#ef4444;border-radius:6px;cursor:pointer;">🗑️</button></td>
+            <td>
+                <button onclick="toggleOcultarProducto('${prod.id}')" style="width:32px;height:32px;border:2px solid ${estaOculto ? '#10b981' : '#f59e0b'};background:white;color:${estaOculto ? '#10b981' : '#f59e0b'};border-radius:6px;cursor:pointer;margin-right:5px;" title="${estaOculto ? 'Mostrar' : 'Ocultar'}">${estaOculto ? '👁️' : '🙈'}</button>
+                <button onclick="eliminarProducto('${prod.id}')" style="width:32px;height:32px;border:2px solid #ef4444;background:white;color:#ef4444;border-radius:6px;cursor:pointer;">🗑️</button>
+            </td>
         `;
         tbody.appendChild(tr);
     });
@@ -558,16 +567,20 @@ function guardarProductos() {
 
 function filtrarClientes() {
     const filtro = document.getElementById('buscarCliente').value.toLowerCase();
-    clientesFiltrados = productosData.clientes.filter(c => 
-        (c.nombre && c.nombre.toLowerCase().includes(filtro)) ||
-        (c.razon_social && c.razon_social.toLowerCase().includes(filtro)) ||
-        (c.ruc && c.ruc.toLowerCase().includes(filtro)) ||
-        (c.telefono && c.telefono.toLowerCase().includes(filtro)) ||
-        (c.direccion && c.direccion.toLowerCase().includes(filtro)) ||
-        (c.zona && c.zona.toLowerCase().includes(filtro)) ||
-        (c.encargado && c.encargado.toLowerCase().includes(filtro)) ||
-        c.id.toLowerCase().includes(filtro)
-    );
+    const mostrarOcultos = document.getElementById('mostrarOcultosClientes')?.checked || false;
+    
+    clientesFiltrados = productosData.clientes.filter(c => {
+        const cumpleFiltro = (c.nombre && c.nombre.toLowerCase().includes(filtro)) ||
+               (c.razon_social && c.razon_social.toLowerCase().includes(filtro)) ||
+               (c.ruc && c.ruc.toLowerCase().includes(filtro)) ||
+               (c.telefono && c.telefono.toLowerCase().includes(filtro)) ||
+               (c.direccion && c.direccion.toLowerCase().includes(filtro)) ||
+               (c.zona && c.zona.toLowerCase().includes(filtro)) ||
+               (c.encargado && c.encargado.toLowerCase().includes(filtro)) ||
+               c.id.toLowerCase().includes(filtro);
+        const noOculto = mostrarOcultos || !c.oculto;
+        return cumpleFiltro && noOculto;
+    });
     mostrarClientesGestion();
 }
 
@@ -577,8 +590,10 @@ function mostrarClientesGestion() {
     
     clientesFiltrados.forEach(cliente => {
         const cantidadPrecios = cliente.precios_personalizados ? Object.keys(cliente.precios_personalizados).length : 0;
+        const estaOculto = cliente.oculto || false;
         
         const tr = document.createElement('tr');
+        tr.style.opacity = estaOculto ? '0.5' : '1';
         tr.innerHTML = `
             <td><strong>${cliente.id}</strong></td>
             <td><input type="text" value="${cliente.razon_social || cliente.nombre || ''}" onchange="actualizarCliente('${cliente.id}', 'razon_social', this.value)" style="min-width:200px;"></td>
@@ -588,7 +603,8 @@ function mostrarClientesGestion() {
             <td><input type="text" value="${cliente.encargado || ''}" onchange="actualizarCliente('${cliente.id}', 'encargado', this.value)" style="min-width:150px;"></td>
             <td style="text-align:center;">${cantidadPrecios > 0 ? `<span style="color:#2563eb;font-weight:600;">${cantidadPrecios}</span>` : '-'}</td>
             <td>
-                <button onclick="verDetalleCliente('${cliente.id}')" class="btn btn-secondary" style="padding:6px 12px;font-size:12px;margin-right:5px;">👁️</button>
+                <button onclick="toggleOcultarCliente('${cliente.id}')" style="width:32px;height:32px;border:2px solid ${estaOculto ? '#10b981' : '#f59e0b'};background:white;color:${estaOculto ? '#10b981' : '#f59e0b'};border-radius:6px;cursor:pointer;margin-right:5px;" title="${estaOculto ? 'Mostrar' : 'Ocultar'}">${estaOculto ? '👁️' : '🙈'}</button>
+                <button onclick="verDetalleCliente('${cliente.id}')" class="btn btn-secondary" style="padding:6px 12px;font-size:12px;margin-right:5px;">📋</button>
                 <button onclick="eliminarCliente('${cliente.id}')" style="width:32px;height:32px;border:2px solid #ef4444;background:white;color:#ef4444;border-radius:6px;cursor:pointer;">🗑️</button>
             </td>
         `;

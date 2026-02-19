@@ -130,10 +130,62 @@
         body.dark-mode .tabs { background: #374151; border-color: #4b5563; }
         body.dark-mode .view-toggle { background: #4b5563; }
         .dark-mode-toggle { position: fixed; bottom: 100px; right: 20px; width: 50px; height: 50px; background: #2563eb; border: none; border-radius: 50%; font-size: 24px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 99; }
+/* Layout con Sidebar */
+.vendor-layout { display: flex; height: 100vh; overflow: hidden; }
+.vendor-sidebar { width: 260px; background: #1e293b; color: white; display: flex; flex-direction: column; transition: transform 0.3s; z-index: 1000; }
+.vendor-sidebar.collapsed { transform: translateX(-260px); }
+.vendor-sidebar-header { padding: 18px; border-bottom: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; }
+.vendor-sidebar-header h2 { margin: 0; font-size: 18px; font-weight: 700; }
+.vendor-sidebar-toggle, .vendor-mobile-menu-btn { background: none; border: none; color: white; font-size: 22px; cursor: pointer; padding: 4px; }
+.vendor-sidebar-menu { flex: 1; overflow-y: auto; padding: 8px 0; }
+.vendor-sidebar-footer { padding: 12px 18px; border-top: 1px solid #334155; font-size: 11px; color: #94a3b8; }
+.vendor-menu-item { width: 100%; padding: 12px 18px; background: none; border: none; color: #cbd5e1; text-align: left; cursor: pointer; display: flex; align-items: center; gap: 12px; font-size: 14px; transition: all 0.2s; border-left: 3px solid transparent; }
+.vendor-menu-item:hover { background: #334155; color: white; }
+.vendor-menu-item.active { background: #3b82f6; color: white; border-left-color: #60a5fa; }
+.vendor-menu-icon { font-size: 18px; width: 22px; text-align: center; }
+.vendor-menu-label { flex: 1; }
+.vendor-menu-divider { height: 1px; background: #334155; margin: 8px 0; }
+.vendor-main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: #f8fafc; }
+.vendor-mobile-menu-btn { display: none; }
+.vendor-view { display: none; height: 100%; overflow-y: auto; padding: 20px; }
+.vendor-view.active { display: block; }
+@media (max-width: 768px) {
+    .vendor-sidebar { position: fixed; left: 0; top: 0; bottom: 0; transform: translateX(-260px); box-shadow: 2px 0 10px rgba(0,0,0,0.3); }
+    .vendor-sidebar.open { transform: translateX(0); }
+    .vendor-mobile-menu-btn { display: block; }
+}
     </style>
 </head>
 <body>
+    <div class="vendor-layout">
+        <div class="vendor-sidebar" id="vendorSidebar">
+            <div class="vendor-sidebar-header">
+                <h2>🚚 HDV Pedidos</h2>
+                <button class="vendor-sidebar-toggle" onclick="toggleVendorSidebar()">☰</button>
+            </div>
+            <div class="vendor-sidebar-menu">
+                <button class="vendor-menu-item active" onclick="cambiarVistaVendedor('productos')">
+                    <span class="vendor-menu-icon">📦</span>
+                    <span class="vendor-menu-label">Productos</span>
+                </button>
+                <button class="vendor-menu-item" onclick="cambiarVistaVendedor('precios')">
+                    <span class="vendor-menu-icon">💰</span>
+                    <span class="vendor-menu-label">Lista de Precios</span>
+                </button>
+                <div class="vendor-menu-divider"></div>
+                <button class="vendor-menu-item" onclick="cambiarVistaVendedor('pedidos')">
+                    <span class="vendor-menu-icon">📋</span>
+                    <span class="vendor-menu-label">Mis Pedidos</span>
+                </button>
+            </div>
+            <div class="vendor-sidebar-footer">
+                <div id="vendorNameDisplay"></div>
+                <div style="margin-top:4px;">v2.4</div>
+            </div>
+        </div>
+        <div class="vendor-main-content">
     <div class="header">
+                <button class="vendor-mobile-menu-btn" onclick="toggleVendorSidebar()">☰</button>
         <h1>HDV Distribuciones</h1>
         <div class="subtitle">Sistema de Pedidos</div>
         <span class="status-badge offline" id="statusBadge">Sin conexión</span>
@@ -141,8 +193,9 @@
             🔄 Nueva versión disponible
         </button>
     </div>
-    <style>
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+    .vendor-sidebar.open { transform: translateX(0); }
+    .vendor-mobile-menu-btn { display: block; }
+}
     </style>
     <div class="success-message" id="successMessage">✓ Pedido guardado exitosamente</div>
     
@@ -262,6 +315,7 @@
                     <label>Razón Social / Nombre Comercial *</label>
                     <input type="text" id="clienteRapidoRazon" placeholder="Ej: Supermercado Central S.A." style="width:100%;padding:10px;border:2px solid #e5e7eb;border-radius:8px;">
                 </div>
+            <div class="vendor-view active" id="vista-productos">
                 
                 <div class="form-group">
                     <label>RUC *</label>
@@ -316,5 +370,8 @@
     </div>
     
     <script src="app.js"></script>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

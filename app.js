@@ -85,7 +85,7 @@ function cargarClientes() {
     const datalist = document.createElement('datalist');
     datalist.id = 'clientesDatalist';
     
-    clientes.forEach(c => {
+    clientes.filter(c => !c.oculto).forEach(c => {
         const option = document.createElement('option');
         const razonSocial = c.razon_social || c.nombre;
         const direccion = c.direccion || c.zona || '';
@@ -178,7 +178,7 @@ function filtrarPorCategoria(categoriaId, btn) {
 
 function mostrarProductos(termino = '') {
     const container = document.getElementById('productsContainer');
-    let filtrados = productos;
+    let filtrados = productos.filter(p => !p.oculto); // Excluir productos ocultos
     if (filtroCategoria !== 'todas') filtrados = filtrados.filter(p => p.categoria === filtroCategoria);
     if (termino) filtrados = filtrados.filter(p => p.nombre.toLowerCase().includes(termino));
     if (filtrados.length === 0) {
@@ -1085,3 +1085,51 @@ function mostrarListaPrecios(termino = '') {
         container.appendChild(div);
     });
 }
+
+// ============================================
+// FUNCIONES SIDEBAR VENDEDORES
+// ============================================
+function toggleVendorSidebar() {
+    const sidebar = document.getElementById('vendorSidebar');
+    sidebar.classList.toggle('open');
+}
+
+function cambiarVistaVendedor(vista) {
+    // Remover active de todos los menu items
+    document.querySelectorAll('.vendor-menu-item').forEach(item => item.classList.remove('active'));
+    
+    // Agregar active al item clickeado
+    event.target.closest('.vendor-menu-item')?.classList.add('active');
+    
+    // Cambiar contenido
+    document.querySelectorAll('.vendor-view').forEach(v => v.classList.remove('active'));
+    const vistaElement = document.getElementById(`vista-${vista}`);
+    if (vistaElement) {
+        vistaElement.classList.add('active');
+    }
+    
+    // Ejecutar funciones específicas según vista
+    if (vista === 'precios') {
+        cargarListaPrecios();
+    }
+    if (vista === 'pedidos') {
+        cargarPedidosOffline();
+    }
+    
+    // Cerrar sidebar en móvil
+    if (window.innerWidth < 768) {
+        document.getElementById('vendorSidebar').classList.remove('open');
+    }
+}
+
+// Mostrar nombre del vendedor en sidebar
+function mostrarNombreVendedorSidebar() {
+    const nombre = localStorage.getItem('vendedor_nombre');
+    const display = document.getElementById('vendorNameDisplay');
+    if (display && nombre) {
+        display.textContent = `👤 ${nombre}`;
+    }
+}
+
+// Llamar al cargar
+window.addEventListener('load', mostrarNombreVendedorSidebar);

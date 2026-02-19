@@ -78,7 +78,7 @@ function cargarClientes() {
     input.type = 'text';
     input.id = 'clienteSearch';
     input.className = 'search-input';
-    input.placeholder = '🔍 Buscar cliente...';
+    input.placeholder = '🔍 Buscar cliente por nombre, RUC o dirección...';
     input.setAttribute('list', 'clientesDatalist');
     input.style.cssText = 'width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 16px;';
     
@@ -87,7 +87,10 @@ function cargarClientes() {
     
     clientes.forEach(c => {
         const option = document.createElement('option');
-        option.value = `${c.nombre} — ${c.zona}`;
+        const razonSocial = c.razon_social || c.nombre;
+        const direccion = c.direccion || c.zona || '';
+        const ruc = c.ruc ? ` - RUC: ${c.ruc}` : '';
+        option.value = `${razonSocial}${ruc} — ${direccion}`;
         option.dataset.id = c.id;
         datalist.appendChild(option);
     });
@@ -99,10 +102,15 @@ function cargarClientes() {
     // Evento de búsqueda
     input.addEventListener('input', (e) => {
         const texto = e.target.value.toLowerCase();
-        const cliente = clientes.find(c => 
-            `${c.nombre} — ${c.zona}`.toLowerCase() === texto.toLowerCase() ||
-            c.nombre.toLowerCase() === texto.toLowerCase()
-        );
+        const cliente = clientes.find(c => {
+            const razonSocial = (c.razon_social || c.nombre || '').toLowerCase();
+            const direccion = (c.direccion || c.zona || '').toLowerCase();
+            const ruc = (c.ruc || '').toLowerCase();
+            const busqueda = `${razonSocial} ${direccion} ${ruc}`;
+            return busqueda.includes(texto) || 
+                   razonSocial === texto ||
+                   ruc === texto;
+        });
         
         if (cliente) {
             clienteActual = cliente;
@@ -220,11 +228,6 @@ function obtenerEmojiProducto(producto) {
 }
 
 function mostrarDetalleProducto(producto) {
-    if (!clienteActual) {
-        alert('Por favor, selecciona un cliente primero');
-        return;
-    }
-    
     const modal = document.getElementById('productDetailModal');
     const emoji = obtenerEmojiProducto(producto);
     const catNombre = categorias.find(c => c.id === producto.categoria)?.nombre || '';
@@ -254,8 +257,12 @@ function mostrarDetalleProducto(producto) {
     
     document.getElementById('detailInfo').innerHTML = infoHTML;
     
-    // Productos sugeridos
-    mostrarProductosSugeridos(producto);
+    // Productos sugeridos (solo si hay cliente)
+    if (clienteActual) {
+        mostrarProductosSugeridos(producto);
+    } else {
+        document.getElementById('detailSuggestions').style.display = 'none';
+    }
     
     modal.classList.add('show');
 }
@@ -458,11 +465,6 @@ function crearTarjetaProducto(producto) {
 }
 
 function seleccionarVariante(producto, index) {
-    if (!clienteActual) {
-        alert('Por favor, selecciona un cliente primero');
-        return;
-    }
-    
     const pres = producto.presentaciones[index];
     const precio = obtenerPrecio(producto.id, pres);
     const sel = document.getElementById(`selected-${producto.id}`);
@@ -642,8 +644,67 @@ function closeCartModal() {
 }
 
 async function confirmarPedido() {
-    if (!clienteActual || carrito.length === 0) return;
+    if (carrito.length === 0) {
+        alert('El carrito está vacío');
+        return;
+    }
     
+    // Si no hay cliente seleccionado, pedir datos
+    if (!clienteActual) {
+        closeCartModal();
+        document.getElementById('clienteRapidoModal').classList.add('show');
+        return;
+    }
+    
+    // Proceder con el pedido normal
+    procesarPedido();
+}
+
+function cerrarClienteRapido() {
+    document.getElementById('clienteRapidoModal').classList.remove('show');
+    document.getElementById('clienteRapidoRazon').value = '';
+    document.getElementById('clienteRapidoRUC').value = '';
+    document.getElementById('clienteRapidoTelefono').value = '';
+    document.getElementById('clienteRapidoDireccion').value = '';
+    document.getElementById('clienteRapidoEncargado').value = '';
+}
+
+function confirmarConClienteRapido() {
+    const razonSocial = document.getElementById('clienteRapidoRazon').value.trim();
+    const ruc = document.getElementById('clienteRapidoRUC').value.trim();
+    const telefono = document.getElementById('clienteRapidoTelefono').value.trim();
+    const direccion = document.getElementById('clienteRapidoDireccion').value.trim();
+    const encargado = document.getElementById('clienteRapidoEncargado').value.trim();
+    const guardar = document.getElementById('guardarClienteCheck').checked;
+    
+    if (!razonSocial || !ruc || !telefono || !direccion) {
+        alert('Por favor completa todos los campos obligatorios (*)');
+        return;
+    }
+    
+    // Crear cliente temporal con todos los datos
+    const clienteTemporal = {
+        id: 'TEMP_' + Date.now(),
+        nombre: razonSocial,
+        razon_social: razonSocial,
+        ruc: ruc,
+        telefono: telefono,
+        direccion: direccion,
+        encargado: encargado || '',
+        zona: direccion, // Por compatibilidad
+        tipo: 'mayorista_estandar',
+        esTemporalNuevo: true,
+        guardarEnSistema: guardar
+    };
+    
+    clienteActual = clienteTemporal;
+    cerrarClienteRapido();
+    
+    // Procesar el pedido
+    procesarPedido();
+}
+
+async function procesarPedido() {
     const tipoPago = document.getElementById('tipoPago').value;
     const descuento = descuentoAplicado;
     const notas = document.getElementById('notasPedido').value.trim();
@@ -655,8 +716,16 @@ async function confirmarPedido() {
     const pedido = {
         id: Date.now().toString(),
         fecha: new Date().toISOString(),
-        cliente: { id: clienteActual.id, nombre: clienteActual.nombre },
-        zona: clienteActual.zona || '',
+        cliente: { 
+            id: clienteActual.id, 
+            nombre: clienteActual.nombre,
+            razon_social: clienteActual.razon_social || clienteActual.nombre,
+            ruc: clienteActual.ruc || '',
+            telefono: clienteActual.telefono || '',
+            direccion: clienteActual.direccion || clienteActual.zona || '',
+            encargado: clienteActual.encargado || ''
+        },
+        zona: clienteActual.direccion || clienteActual.zona || '',
         vendedor: localStorage.getItem('vendedor_nombre') || 'Vendedor',
         items: carrito.map(i => ({ 
             nombre: i.nombre,
@@ -672,7 +741,15 @@ async function confirmarPedido() {
         tipo_pago: tipoPago,
         notas: notas,
         estado: tipoPago === 'credito' ? 'pendiente_pago' : 'pendiente',
-        sincronizado: false
+        sincronizado: false,
+        clienteNuevo: clienteActual.esTemporalNuevo ? {
+            razon_social: clienteActual.razon_social,
+            ruc: clienteActual.ruc,
+            telefono: clienteActual.telefono,
+            direccion: clienteActual.direccion,
+            encargado: clienteActual.encargado,
+            guardar: clienteActual.guardarEnSistema
+        } : null
     };
     
     // Guardar localmente
@@ -690,12 +767,25 @@ async function confirmarPedido() {
     
     mostrarExito(`Pedido de ${clienteActual.nombre} guardado`);
     
+    // Si era cliente temporal, mostrar mensaje
+    if (clienteActual.esTemporalNuevo && clienteActual.guardarEnSistema) {
+        setTimeout(() => {
+            alert('💡 Cliente guardado temporalmente. El administrador puede agregarlo permanentemente desde el panel admin.');
+        }, 1000);
+    }
+    
     // Limpiar
     carrito = [];
     descuentoAplicado = 0;
     document.getElementById('descuento').value = 0;
     document.getElementById('notasPedido').value = '';
     document.getElementById('tipoPago').value = 'contado';
+    
+    // Si era cliente temporal, limpiar selección
+    if (clienteActual.esTemporalNuevo) {
+        clienteActual = null;
+        document.getElementById('clienteSelect').value = '';
+    }
     
     actualizarCarrito();
     closeCartModal();

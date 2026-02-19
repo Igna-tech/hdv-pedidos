@@ -76,7 +76,13 @@
     <div class="header">
         <h1>🎯 Panel de Administración</h1>
         <div class="subtitle">HDV Distribuciones</div>
+        <button id="updateButton" style="display:none;position:absolute;top:15px;right:15px;padding:8px 16px;background:#10b981;color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;animation:pulse 2s infinite;" onclick="actualizarAhora()">
+            🔄 Nueva versión disponible
+        </button>
     </div>
+    <style>
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+    </style>
 
     <!-- Tabs Principales -->
     <div class="main-tabs">
@@ -386,10 +392,13 @@
                         <thead>
                             <tr>
                                 <th>ID</th>
-                                <th>Nombre</th>
-                                <th>Zona</th>
-                                <th>Precios Personalizados</th>
-                                <th style="width:80px;">Acciones</th>
+                                <th>Razón Social</th>
+                                <th>RUC</th>
+                                <th>Teléfono</th>
+                                <th>Dirección</th>
+                                <th>Encargado</th>
+                                <th>Precios</th>
+                                <th style="width:120px;">Acciones</th>
                             </tr>
                         </thead>
                         <tbody id="clientesBody"></tbody>
@@ -478,15 +487,29 @@
 
     <!-- Modal Nuevo Cliente -->
     <div class="modal" id="modalNuevoCliente">
-        <div class="modal-content">
+        <div class="modal-content" style="max-width:700px;">
             <div class="modal-header">Nuevo Cliente</div>
-            <div class="filter-group">
-                <label>Nombre del Cliente:</label>
-                <input type="text" id="nuevoClienteNombre" placeholder="Ej: Supermercado Central">
-            </div>
-            <div class="filter-group">
-                <label>Zona:</label>
-                <input type="text" id="nuevoClienteZona" placeholder="Ej: Loma Plata">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;">
+                <div class="filter-group" style="grid-column:1/-1;">
+                    <label>Razón Social / Nombre Comercial:</label>
+                    <input type="text" id="nuevoClienteRazon" placeholder="Ej: Supermercado Central S.A.">
+                </div>
+                <div class="filter-group">
+                    <label>RUC:</label>
+                    <input type="text" id="nuevoClienteRUC" placeholder="Ej: 80012345-6">
+                </div>
+                <div class="filter-group">
+                    <label>Teléfono:</label>
+                    <input type="tel" id="nuevoClienteTelefono" placeholder="Ej: 0981234567">
+                </div>
+                <div class="filter-group" style="grid-column:1/-1;">
+                    <label>Dirección:</label>
+                    <input type="text" id="nuevoClienteDireccion" placeholder="Ej: Av. Central 1234, Loma Plata">
+                </div>
+                <div class="filter-group" style="grid-column:1/-1;">
+                    <label>Nombre del Encargado (opcional):</label>
+                    <input type="text" id="nuevoClienteEncargado" placeholder="Ej: Juan Pérez">
+                </div>
             </div>
             <div class="modal-actions">
                 <button class="btn btn-secondary" onclick="cerrarModalCliente()">Cancelar</button>

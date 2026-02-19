@@ -574,8 +574,13 @@ function guardarProductos() {
 function filtrarClientes() {
     const filtro = document.getElementById('buscarCliente').value.toLowerCase();
     clientesFiltrados = productosData.clientes.filter(c => 
-        c.nombre.toLowerCase().includes(filtro) || 
-        c.zona.toLowerCase().includes(filtro) ||
+        (c.nombre && c.nombre.toLowerCase().includes(filtro)) ||
+        (c.razon_social && c.razon_social.toLowerCase().includes(filtro)) ||
+        (c.ruc && c.ruc.toLowerCase().includes(filtro)) ||
+        (c.telefono && c.telefono.toLowerCase().includes(filtro)) ||
+        (c.direccion && c.direccion.toLowerCase().includes(filtro)) ||
+        (c.zona && c.zona.toLowerCase().includes(filtro)) ||
+        (c.encargado && c.encargado.toLowerCase().includes(filtro)) ||
         c.id.toLowerCase().includes(filtro)
     );
     mostrarClientesGestion();
@@ -591,10 +596,16 @@ function mostrarClientesGestion() {
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td><strong>${cliente.id}</strong></td>
-            <td><input type="text" value="${cliente.nombre}" onchange="actualizarCliente('${cliente.id}', 'nombre', this.value)" style="min-width:200px;"></td>
-            <td><input type="text" value="${cliente.zona || ''}" onchange="actualizarCliente('${cliente.id}', 'zona', this.value)" style="min-width:150px;"></td>
-            <td>${cantidadPrecios > 0 ? `${cantidadPrecios} productos` : 'Sin precios personalizados'}</td>
-            <td><button onclick="eliminarCliente('${cliente.id}')" style="width:32px;height:32px;border:2px solid #ef4444;background:white;color:#ef4444;border-radius:6px;cursor:pointer;">🗑️</button></td>
+            <td><input type="text" value="${cliente.razon_social || cliente.nombre || ''}" onchange="actualizarCliente('${cliente.id}', 'razon_social', this.value)" style="min-width:200px;"></td>
+            <td><input type="text" value="${cliente.ruc || ''}" onchange="actualizarCliente('${cliente.id}', 'ruc', this.value)" style="min-width:120px;"></td>
+            <td><input type="tel" value="${cliente.telefono || ''}" onchange="actualizarCliente('${cliente.id}', 'telefono', this.value)" style="min-width:120px;"></td>
+            <td><input type="text" value="${cliente.direccion || cliente.zona || ''}" onchange="actualizarCliente('${cliente.id}', 'direccion', this.value)" style="min-width:200px;"></td>
+            <td><input type="text" value="${cliente.encargado || ''}" onchange="actualizarCliente('${cliente.id}', 'encargado', this.value)" style="min-width:150px;"></td>
+            <td style="text-align:center;">${cantidadPrecios > 0 ? `<span style="color:#2563eb;font-weight:600;">${cantidadPrecios}</span>` : '-'}</td>
+            <td>
+                <button onclick="verDetalleCliente('${cliente.id}')" class="btn btn-secondary" style="padding:6px 12px;font-size:12px;margin-right:5px;">👁️</button>
+                <button onclick="eliminarCliente('${cliente.id}')" style="width:32px;height:32px;border:2px solid #ef4444;background:white;color:#ef4444;border-radius:6px;cursor:pointer;">🗑️</button>
+            </td>
         `;
         tbody.appendChild(tr);
     });
@@ -606,6 +617,26 @@ function actualizarCliente(id, campo, valor) {
 }
 
 function eliminarCliente(id) {
+
+function verDetalleCliente(id) {
+    const cliente = productosData.clientes.find(c => c.id === id);
+    if (!cliente) return;
+    
+    const preciosPersonalizados = cliente.precios_personalizados ? Object.keys(cliente.precios_personalizados).length : 0;
+    
+    alert(`📋 DETALLES DEL CLIENTE
+
+ID: ${cliente.id}
+Razón Social: ${cliente.razon_social || cliente.nombre || "N/A"}
+RUC: ${cliente.ruc || "N/A"}
+Teléfono: ${cliente.telefono || "N/A"}
+Dirección: ${cliente.direccion || cliente.zona || "N/A"}
+Encargado: ${cliente.encargado || "N/A"}
+
+Precios Personalizados: ${preciosPersonalizados} productos
+
+Puedes editar los datos directamente en la tabla.`);
+}
     if (!confirm('¿Eliminar este cliente? Se perderán sus precios personalizados.')) return;
     productosData.clientes = productosData.clientes.filter(c => c.id !== id);
     clientesFiltrados = clientesFiltrados.filter(c => c.id !== id);
@@ -621,11 +652,14 @@ function cerrarModalCliente() {
 }
 
 function agregarNuevoCliente() {
-    const nombre = document.getElementById('nuevoClienteNombre').value;
-    const zona = document.getElementById('nuevoClienteZona').value;
+    const razonSocial = document.getElementById('nuevoClienteRazon').value.trim();
+    const ruc = document.getElementById('nuevoClienteRUC').value.trim();
+    const telefono = document.getElementById('nuevoClienteTelefono').value.trim();
+    const direccion = document.getElementById('nuevoClienteDireccion').value.trim();
+    const encargado = document.getElementById('nuevoClienteEncargado').value.trim();
     
-    if (!nombre || !zona) {
-        alert('Completa todos los campos');
+    if (!razonSocial || !ruc || !telefono || !direccion) {
+        alert('Completa todos los campos obligatorios (Razón Social, RUC, Teléfono, Dirección)');
         return;
     }
     
@@ -635,8 +669,13 @@ function agregarNuevoCliente() {
     
     productosData.clientes.push({
         id: nuevoId,
-        nombre: nombre,
-        zona: zona,
+        nombre: razonSocial, // Por compatibilidad
+        razon_social: razonSocial,
+        ruc: ruc,
+        telefono: telefono,
+        direccion: direccion,
+        encargado: encargado,
+        zona: direccion, // Por compatibilidad con código antiguo
         tipo: 'mayorista_estandar',
         precios_personalizados: {}
     });
@@ -646,8 +685,11 @@ function agregarNuevoCliente() {
     cerrarModalCliente();
     
     // Limpiar formulario
-    document.getElementById('nuevoClienteNombre').value = '';
-    document.getElementById('nuevoClienteZona').value = '';
+    document.getElementById('nuevoClienteRazon').value = '';
+    document.getElementById('nuevoClienteRUC').value = '';
+    document.getElementById('nuevoClienteTelefono').value = '';
+    document.getElementById('nuevoClienteDireccion').value = '';
+    document.getElementById('nuevoClienteEncargado').value = '';
 }
 
 function guardarClientes() {

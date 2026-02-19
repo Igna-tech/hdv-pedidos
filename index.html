@@ -251,6 +251,53 @@
         </div>
     </div>
     
+    <!-- Modal Cliente Rápido -->
+    <div class="modal" id="clienteRapidoModal">
+        <div class="modal-content" style="max-width:600px;">
+            <div class="modal-header">👤 Datos del Cliente</div>
+            <p style="color:#6b7280;font-size:14px;margin-bottom:15px;">No has seleccionado un cliente. Completa la información:</p>
+            
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;">
+                <div class="form-group" style="grid-column:1/-1;">
+                    <label>Razón Social / Nombre Comercial *</label>
+                    <input type="text" id="clienteRapidoRazon" placeholder="Ej: Supermercado Central S.A." style="width:100%;padding:10px;border:2px solid #e5e7eb;border-radius:8px;">
+                </div>
+                
+                <div class="form-group">
+                    <label>RUC *</label>
+                    <input type="text" id="clienteRapidoRUC" placeholder="Ej: 80012345-6" style="width:100%;padding:10px;border:2px solid #e5e7eb;border-radius:8px;">
+                </div>
+                
+                <div class="form-group">
+                    <label>Teléfono *</label>
+                    <input type="tel" id="clienteRapidoTelefono" placeholder="Ej: 0981234567" style="width:100%;padding:10px;border:2px solid #e5e7eb;border-radius:8px;">
+                </div>
+                
+                <div class="form-group" style="grid-column:1/-1;">
+                    <label>Dirección *</label>
+                    <input type="text" id="clienteRapidoDireccion" placeholder="Ej: Av. Central 1234, Loma Plata" style="width:100%;padding:10px;border:2px solid #e5e7eb;border-radius:8px;">
+                </div>
+                
+                <div class="form-group" style="grid-column:1/-1;">
+                    <label>Nombre del Encargado (opcional)</label>
+                    <input type="text" id="clienteRapidoEncargado" placeholder="Ej: Juan Pérez" style="width:100%;padding:10px;border:2px solid #e5e7eb;border-radius:8px;">
+                </div>
+            </div>
+            
+            <div style="background:#f9fafb;padding:12px;border-radius:8px;margin:15px 0;">
+                <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer;">
+                    <input type="checkbox" id="guardarClienteCheck" checked>
+                    <span>Guardar este cliente en el sistema para próximos pedidos</span>
+                </label>
+            </div>
+            
+            <div class="modal-actions">
+                <button class="modal-btn btn-cancel" onclick="cerrarClienteRapido()">Cancelar</button>
+                <button class="modal-btn btn-confirm" onclick="confirmarConClienteRapido()">Continuar con Pedido</button>
+            </div>
+        </div>
+    </div>
+    
     <!-- Botón Modo Oscuro con menú -->
     <button class="dark-mode-toggle" onclick="toggleDarkMode()" oncontextmenu="mostrarMenuOpciones(event)" title="Modo Oscuro (mantén presionado para más opciones)">🌙</button>
     

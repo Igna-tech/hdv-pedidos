@@ -137,7 +137,13 @@
         <h1>HDV Distribuciones</h1>
         <div class="subtitle">Sistema de Pedidos</div>
         <span class="status-badge offline" id="statusBadge">Sin conexión</span>
+        <button id="updateButton" style="display:none;position:absolute;top:15px;right:15px;padding:8px 16px;background:#10b981;color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;animation:pulse 2s infinite;" onclick="actualizarAhora()">
+            🔄 Nueva versión disponible
+        </button>
     </div>
+    <style>
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+    </style>
     <div class="success-message" id="successMessage">✓ Pedido guardado exitosamente</div>
     
     <div class="container">
@@ -245,8 +251,22 @@
         </div>
     </div>
     
-    <!-- Botón Modo Oscuro -->
-    <button class="dark-mode-toggle" onclick="toggleDarkMode()" title="Modo Oscuro">🌙</button>
+    <!-- Botón Modo Oscuro con menú -->
+    <button class="dark-mode-toggle" onclick="toggleDarkMode()" oncontextmenu="mostrarMenuOpciones(event)" title="Modo Oscuro (mantén presionado para más opciones)">🌙</button>
+    
+    <!-- Menú de opciones -->
+    <div id="optionsMenu" style="display:none;position:fixed;bottom:110px;right:20px;background:white;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.3);padding:10px;z-index:100;min-width:200px;">
+        <div style="padding:10px;border-bottom:1px solid #e5e7eb;font-weight:600;font-size:14px;">Opciones</div>
+        <button onclick="forzarActualizacion()" style="width:100%;text-align:left;padding:12px;border:none;background:none;cursor:pointer;font-size:14px;border-radius:6px;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='none'">
+            🔄 Forzar Actualización
+        </button>
+        <button onclick="limpiarTodoElCache()" style="width:100%;text-align:left;padding:12px;border:none;background:none;cursor:pointer;font-size:14px;border-radius:6px;color:#ef4444;" onmouseover="this.style.background='#fee2e2'" onmouseout="this.style.background='none'">
+            🗑️ Limpiar Caché
+        </button>
+        <button onclick="cerrarMenuOpciones()" style="width:100%;text-align:left;padding:12px;border:none;background:none;cursor:pointer;font-size:14px;border-radius:6px;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='none'">
+            ❌ Cerrar
+        </button>
+    </div>
     
     <script src="app.js"></script>
 </body>

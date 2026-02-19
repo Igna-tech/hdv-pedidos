@@ -355,6 +355,73 @@ function toggleDarkMode() {
     document.querySelector('.dark-mode-toggle').textContent = isDark ? '☀️' : '🌙';
 }
 
+function mostrarMenuOpciones(e) {
+    e.preventDefault();
+    const menu = document.getElementById('optionsMenu');
+    menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+}
+
+function cerrarMenuOpciones() {
+    document.getElementById('optionsMenu').style.display = 'none';
+}
+
+function forzarActualizacion() {
+    if (confirm('¿Forzar recarga completa? Esto limpiará el caché y recargará la app.')) {
+        cerrarMenuOpciones();
+        
+        // Limpiar caché
+        if ('caches' in window) {
+            caches.keys().then(names => {
+                names.forEach(name => caches.delete(name));
+            });
+        }
+        
+        // Desregistrar service worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(registrations => {
+                registrations.forEach(reg => reg.unregister());
+            });
+        }
+        
+        // Limpiar localStorage de sync
+        const keysToKeep = ['vendedor_nombre', 'dark_mode'];
+        const allKeys = Object.keys(localStorage);
+        allKeys.forEach(key => {
+            if (!keysToKeep.includes(key)) {
+                // No borrar, solo marcar para re-sync
+            }
+        });
+        
+        // Recargar forzado
+        setTimeout(() => {
+            window.location.reload(true);
+        }, 500);
+    }
+}
+
+function limpiarTodoElCache() {
+    if (confirm('⚠️ ¿BORRAR TODO EL CACHÉ? Esto eliminará datos temporales pero NO los pedidos guardados.')) {
+        cerrarMenuOpciones();
+        
+        if ('caches' in window) {
+            caches.keys().then(names => {
+                names.forEach(name => caches.delete(name));
+            });
+        }
+        
+        alert('✓ Caché limpiado. Recarga la página para ver los cambios.');
+    }
+}
+
+// Cerrar menú si se hace click fuera
+document.addEventListener('click', (e) => {
+    const menu = document.getElementById('optionsMenu');
+    const btn = document.querySelector('.dark-mode-toggle');
+    if (menu && !menu.contains(e.target) && e.target !== btn) {
+        menu.style.display = 'none';
+    }
+});
+
 function crearTarjetaProducto(producto) {
     const card = document.createElement('div');
     card.className = 'product-card';
@@ -743,11 +810,73 @@ function mostrarExito(msg) {
 async function registrarServiceWorker() {
     if ('serviceWorker' in navigator) {
         try {
-            await navigator.serviceWorker.register('service-worker.js');
+            const registration = await navigator.serviceWorker.register('service-worker.js');
+            console.log('Service Worker registrado');
+            
+            // Detectar cuando hay una actualización disponible
+            registration.addEventListener('updatefound', () => {
+                const newWorker = registration.installing;
+                newWorker.addEventListener('statechange', () => {
+                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                        // Hay una nueva versión disponible
+                        mostrarBotonActualizacion();
+                    }
+                });
+            });
+            
+            // Revisar updates cada 30 segundos
+            setInterval(() => {
+                registration.update();
+            }, 30000);
+            
         } catch (e) {
             console.log('SW no disponible:', e);
         }
     }
+}
+
+function mostrarBotonActualizacion() {
+    const btn = document.getElementById('updateButton');
+    if (btn) {
+        btn.style.display = 'block';
+        // También mostrar notificación
+        if (Notification.permission === 'granted') {
+            new Notification('HDV Distribuciones', {
+                body: '🔄 Nueva versión disponible. Haz click para actualizar.',
+                icon: '/icon-192.png'
+            });
+        }
+    }
+}
+
+function actualizarAhora() {
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistration().then(reg => {
+            if (reg && reg.waiting) {
+                // Decirle al service worker que se active inmediatamente
+                reg.waiting.postMessage('SKIP_WAITING');
+            }
+        });
+        
+        // Limpiar caché y recargar
+        if ('caches' in window) {
+            caches.keys().then(names => {
+                names.forEach(name => caches.delete(name));
+            });
+        }
+        
+        // Esperar un momento y recargar
+        setTimeout(() => {
+            window.location.reload(true);
+        }, 500);
+    }
+}
+
+// Detectar cuando el SW se activa y recargar
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+        window.location.reload();
+    });
 }
 
 // ============================================

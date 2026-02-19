@@ -412,3 +412,115 @@ async function registrarServiceWorker() {
         }
     }
 }
+
+// ============================================
+// LISTA DE PRECIOS
+// ============================================
+let filtroCategoriaPrecio = 'todas';
+
+function cambiarTab(tab) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    
+    event.target.classList.add('active');
+    document.getElementById(`tab-${tab}`).classList.add('active');
+    
+    if (tab === 'precios') {
+        cargarListaPrecios();
+    }
+}
+
+function cargarListaPrecios() {
+    if (!productosData || productos.length === 0) {
+        document.getElementById('preciosContainer').innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚠️</div>Primero carga los productos</div>';
+        return;
+    }
+    
+    // Cargar filtros de categoría
+    const container = document.getElementById('categoryFiltersPrecio');
+    container.innerHTML = '';
+    const btnTodas = document.createElement('button');
+    btnTodas.className = 'category-btn active';
+    btnTodas.textContent = 'Todas';
+    btnTodas.onclick = (e) => {
+        filtroCategoriaPrecio = 'todas';
+        document.querySelectorAll('#categoryFiltersPrecio .category-btn').forEach(b => b.classList.remove('active'));
+        e.target.classList.add('active');
+        mostrarListaPrecios();
+    };
+    container.appendChild(btnTodas);
+    
+    categorias.forEach(cat => {
+        const btn = document.createElement('button');
+        btn.className = 'category-btn';
+        btn.textContent = cat.nombre;
+        btn.onclick = (e) => {
+            filtroCategoriaPrecio = cat.id;
+            document.querySelectorAll('#categoryFiltersPrecio .category-btn').forEach(b => b.classList.remove('active'));
+            e.target.classList.add('active');
+            mostrarListaPrecios();
+        };
+        container.appendChild(btn);
+    });
+    
+    // Búsqueda
+    document.getElementById('searchPrecios').oninput = (e) => {
+        mostrarListaPrecios(e.target.value.toLowerCase());
+    };
+    
+    mostrarListaPrecios();
+}
+
+function mostrarListaPrecios(termino = '') {
+    const container = document.getElementById('preciosContainer');
+    let filtrados = productos;
+    
+    if (filtroCategoriaPrecio !== 'todas') {
+        filtrados = filtrados.filter(p => p.categoria === filtroCategoriaPrecio);
+    }
+    
+    if (termino) {
+        filtrados = filtrados.filter(p => p.nombre.toLowerCase().includes(termino));
+    }
+    
+    if (filtrados.length === 0) {
+        container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🔍</div>No se encontraron productos</div>';
+        return;
+    }
+    
+    container.innerHTML = '';
+    
+    filtrados.forEach(producto => {
+        const div = document.createElement('div');
+        div.className = 'precio-lista-item';
+        
+        const catNombre = categorias.find(c => c.id === producto.categoria)?.nombre || '';
+        
+        const presentacionesHTML = producto.presentaciones.map(pres => {
+            let precio = pres.precio_base;
+            
+            // Si hay cliente seleccionado, mostrar su precio personalizado
+            if (clienteActual && clienteActual.precios_personalizados && clienteActual.precios_personalizados[producto.id]) {
+                const precioPersonalizado = clienteActual.precios_personalizados[producto.id].find(p => p.tamano === pres.tamano);
+                if (precioPersonalizado) {
+                    precio = precioPersonalizado.precio;
+                }
+            }
+            
+            return `
+                <div class="precio-lista-presentacion">
+                    <span class="precio-lista-tamano">${pres.tamano}</span>
+                    <span class="precio-lista-precio">Gs. ${precio.toLocaleString()}</span>
+                </div>
+            `;
+        }).join('');
+        
+        div.innerHTML = `
+            <h3>${producto.nombre}</h3>
+            <div style="font-size: 12px; color: #6b7280; margin-bottom: 10px;">${catNombre} › ${producto.subcategoria}</div>
+            ${presentacionesHTML}
+        `;
+        
+        container.appendChild(div);
+    });
+}

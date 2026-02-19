@@ -76,6 +76,9 @@ function cambiarSeccion(seccion) {
     if (seccion === 'creditos') {
         cargarCreditos();
     }
+    if (seccion === 'stock') {
+        cargarStock();
+    }
 }
 
 // ============================================
@@ -271,6 +274,13 @@ function reportePorZona(pedidos) {
     const data = Object.entries(zonas).map(([zona, d]) => ({
         zona, ...d, promedio: Math.round(d.total / d.pedidos)
     })).sort((a, b) => b.total - a.total);
+    
+    // Generar gráfico
+    mostrarGrafico(
+        data.map(d => d.zona),
+        data.map(d => d.total),
+        'Ventas por Zona (Gs.)'
+    );
     
     mostrarTablaReporte(
         ['Zona', 'Pedidos', 'Total Ventas', 'Ticket Promedio'],
@@ -772,6 +782,163 @@ function exportarCreditosExcel() {
         csv += `"${p.fecha}","${p.cliente.nombre}","${c?.zona || ''}",${p.total},"${p.estado || 'pendiente_pago'}","${p.notas || ''}"\n`;
     });
     descargarCSV(csv, `creditos_${new Date().toISOString().split('T')[0]}.csv`);
+}
+
+// ============================================
+// SECCIÓN STOCK/INVENTARIO
+// ============================================
+let stockFiltrado = [];
+
+function cargarStock() {
+    stockFiltrado = [];
+    productosData.productos.forEach(prod => {
+        prod.presentaciones.forEach((pres, idx) => {
+            if (!pres.stock) pres.stock = 0;
+            if (!pres.stock_minimo) pres.stock_minimo = 10;
+            stockFiltrado.push({
+                productoId: prod.id,
+                nombre: prod.nombre,
+                presentacion: pres.tamano,
+                presIdx: idx,
+                stock: pres.stock || 0,
+                stock_minimo: pres.stock_minimo || 10
+            });
+        });
+    });
+    mostrarStock();
+}
+
+function filtrarStock() {
+    const filtro = document.getElementById('buscarStock').value.toLowerCase();
+    stockFiltrado = [];
+    productosData.productos.forEach(prod => {
+        if (!prod.nombre.toLowerCase().includes(filtro) && filtro) return;
+        prod.presentaciones.forEach((pres, idx) => {
+            if (!pres.stock) pres.stock = 0;
+            if (!pres.stock_minimo) pres.stock_minimo = 10;
+            stockFiltrado.push({
+                productoId: prod.id,
+                nombre: prod.nombre,
+                presentacion: pres.tamano,
+                presIdx: idx,
+                stock: pres.stock || 0,
+                stock_minimo: pres.stock_minimo || 10
+            });
+        });
+    });
+    mostrarStock();
+}
+
+function mostrarStock() {
+    const tbody = document.getElementById('stockBody');
+    tbody.innerHTML = '';
+    
+    stockFiltrado.forEach(item => {
+        const estado = item.stock === 0 ? '🔴 Agotado' : 
+                      item.stock <= item.stock_minimo ? '🟡 Bajo' : '🟢 OK';
+        const colorEstado = item.stock === 0 ? '#ef4444' : 
+                           item.stock <= item.stock_minimo ? '#f59e0b' : '#10b981';
+        
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><strong>${item.nombre}</strong></td>
+            <td>${item.presentacion}</td>
+            <td><input type="number" value="${item.stock}" min="0" onchange="actualizarStock('${item.productoId}', ${item.presIdx}, 'stock', this.value)" style="width:100px;"></td>
+            <td><input type="number" value="${item.stock_minimo}" min="0" onchange="actualizarStock('${item.productoId}', ${item.presIdx}, 'stock_minimo', this.value)" style="width:100px;"></td>
+            <td><span style="color:${colorEstado};font-weight:600;">${estado}</span></td>
+            <td>
+                <button onclick="ajustarStock('${item.productoId}', ${item.presIdx}, 10)" class="btn btn-primary" style="padding:6px 12px;font-size:12px;">+10</button>
+                <button onclick="ajustarStock('${item.productoId}', ${item.presIdx}, -10)" class="btn btn-secondary" style="padding:6px 12px;font-size:12px;">-10</button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+function actualizarStock(productoId, presIdx, campo, valor) {
+    const prod = productosData.productos.find(p => p.id === productoId);
+    if (prod && prod.presentaciones[presIdx]) {
+        prod.presentaciones[presIdx][campo] = parseInt(valor) || 0;
+        filtrarStock();
+    }
+}
+
+function ajustarStock(productoId, presIdx, cantidad) {
+    const prod = productosData.productos.find(p => p.id === productoId);
+    if (prod && prod.presentaciones[presIdx]) {
+        prod.presentaciones[presIdx].stock = (prod.presentaciones[presIdx].stock || 0) + cantidad;
+        if (prod.presentaciones[presIdx].stock < 0) prod.presentaciones[presIdx].stock = 0;
+        filtrarStock();
+    }
+}
+
+function guardarStock() {
+    descargarJSON(productosData, 'productos.json');
+    document.getElementById('successStock').style.display = 'block';
+    setTimeout(() => document.getElementById('successStock').style.display = 'none', 3000);
+}
+
+function exportarStockExcel() {
+    let csv = 'Producto,Presentacion,Stock Actual,Stock Minimo,Estado\n';
+    stockFiltrado.forEach(item => {
+        const estado = item.stock === 0 ? 'Agotado' : item.stock <= item.stock_minimo ? 'Bajo' : 'OK';
+        csv += `"${item.nombre}","${item.presentacion}",${item.stock},${item.stock_minimo},"${estado}"\n`;
+    });
+    descargarCSV(csv, `stock_${new Date().toISOString().split('T')[0]}.csv`);
+}
+
+// ============================================
+// GRÁFICOS EN REPORTES
+// ============================================
+let chartInstance = null;
+
+function mostrarGrafico(labels, datos, titulo) {
+    const canvas = document.getElementById('chartReporte');
+    const ctx = canvas.getContext('2d');
+    
+    if (chartInstance) {
+        chartInstance.destroy();
+    }
+    
+    chartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: titulo,
+                data: datos,
+                backgroundColor: 'rgba(37, 99, 235, 0.8)',
+                borderColor: 'rgba(37, 99, 235, 1)',
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                title: {
+                    display: true,
+                    text: titulo,
+                    font: { size: 16, weight: 'bold' }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return 'Gs. ' + value.toLocaleString();
+                        }
+                    }
+                }
+            }
+        }
+    });
+    
+    document.getElementById('graficoReporte').style.display = 'block';
 }
 
 // ============================================

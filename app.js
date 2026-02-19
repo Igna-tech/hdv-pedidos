@@ -475,13 +475,42 @@ async function enviarAGoogleSheets(pedido) {
 
 function actualizarEstadoConexion() {
     const badge = document.getElementById('statusBadge');
+    const pedidosPendientes = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]')
+        .filter(p => !p.sincronizado).length;
+    
     if (navigator.onLine) {
-        badge.textContent = '● En línea';
+        badge.textContent = pedidosPendientes > 0 ? 
+            `● En línea (${pedidosPendientes} pendiente${pedidosPendientes > 1 ? 's' : ''} de sync)` : 
+            '● En línea';
         badge.className = 'status-badge online';
+        
+        // Intentar sincronizar pedidos pendientes
+        if (pedidosPendientes > 0) {
+            sincronizarPedidosPendientes();
+        }
     } else {
-        badge.textContent = '● Sin conexión';
+        badge.textContent = pedidosPendientes > 0 ? 
+            `● Sin conexión (${pedidosPendientes} guardado${pedidosPendientes > 1 ? 's' : ''})` : 
+            '● Sin conexión';
         badge.className = 'status-badge offline';
     }
+}
+
+async function sincronizarPedidosPendientes() {
+    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    const pendientes = pedidos.filter(p => !p.sincronizado);
+    
+    for (const pedido of pendientes) {
+        try {
+            await enviarAGoogleSheets(pedido);
+            pedido.sincronizado = true;
+        } catch (error) {
+            console.log('Error sincronizando pedido:', pedido.id);
+        }
+    }
+    
+    localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
+    actualizarEstadoConexion();
 }
 
 function mostrarExito(msg) {

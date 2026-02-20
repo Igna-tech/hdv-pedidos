@@ -1,0 +1,139 @@
+✅ PROBLEMAS ARREGLADOS EN v2.7
+
+=================================================================
+PROBLEMA 1: BOTÓN DE ACTUALIZACIÓN NO APARECE
+=================================================================
+
+CAUSA:
+- El botón SÍ está en el código
+- Solo aparece cuando HAY una actualización pendiente
+- Si no hay cambios, no aparece (es correcto)
+
+ARREGLADO:
+✅ Service worker se registra correctamente
+✅ Verifica updates cada 30 segundos
+✅ Botón aparecerá cuando subas v2.7
+
+CÓMO PROBAR:
+1. Sube los archivos de v2.7
+2. Espera 5 minutos
+3. Recarga el admin (deberías ver v2.6 todavía)
+4. Espera 30 segundos
+5. Debería aparecer botón verde "🔄 Nueva versión"
+6. Click → Se actualiza a v2.7
+
+
+=================================================================
+PROBLEMA 2: HERRAMIENTAS APARECEN EN TODAS LAS PESTAÑAS
+=================================================================
+
+DIAGNÓSTICO:
+Las herramientas SOLO están en seccion-herramientas (correcto).
+Si las ves en todas las pestañas, es porque:
+
+POSIBLE CAUSA 1: Todas las secciones tienen class "active"
+- Verifica en DevTools (F12) → Elements
+- Busca "tab-content active"
+- Solo debería haber UNA con active
+
+POSIBLE CAUSA 2: CSS no está funcionando
+- Verifica en DevTools → Computed
+- .tab-content debería tener display: none
+- .tab-content.active debería tener display: block
+
+¿QUÉ HACER?
+1. Abre admin
+2. Presiona F12
+3. Ve a Console
+4. Pega esto:
+
+```javascript
+document.querySelectorAll('.tab-content').forEach((el, i) => {
+    console.log(`Sección ${i}: ${el.id} - Visible: ${el.classList.contains('active')}`);
+});
+```
+
+5. Mándame el resultado
+
+
+=================================================================
+PROBLEMA 3: HIDE/SHOW NO ACCIONA
+=================================================================
+
+ARREGLADO:
+✅ Función toggleOcultarProducto ahora descarga productos.json automáticamente
+✅ Función toggleOcultarCliente ahora descarga productos.json automáticamente
+✅ Muestra alert explicando qué hacer
+
+CÓMO FUNCIONA AHORA:
+1. Click en 🙈 (ocultar producto/cliente)
+2. Se descarga productos.json automáticamente
+3. Alert te dice: "Producto ocultado. Descarga y sube a GitHub"
+4. Subes el productos.json a GitHub
+5. Listo - producto/cliente ocultado
+
+IMPORTANTE:
+El cambio NO es permanente hasta que subas productos.json
+Es decir:
+- Click 🙈 → Cambio LOCAL (solo en tu navegador)
+- Descargas productos.json → Archivo con cambio
+- Subes a GitHub → Cambio PERMANENTE
+
+
+=================================================================
+ARCHIVOS A SUBIR (v2.7)
+=================================================================
+
+1. admin.js ⭐ (Arreglado: hide/show descarga JSON)
+2. admin.html (Versión 2.7)
+3. service-worker.js (Versión 2.7)
+4. index.html
+5. app.js
+
+
+=================================================================
+TESTING DESPUÉS DE SUBIR
+=================================================================
+
+TEST 1: Botón de actualización
+1. Sube v2.7
+2. Abre admin (debería decir v2.6 si tienes caché)
+3. Espera 30-60 segundos
+4. Debería aparecer botón verde
+5. Click → Actualiza a v2.7
+
+TEST 2: Hide/Show
+1. Ve a GESTIÓN → Gestionar Productos
+2. Click en 🙈 en cualquier producto
+3. Debería descargar productos.json
+4. Debería mostrar alert
+5. Sube ese productos.json a GitHub
+
+TEST 3: Herramientas duplicadas
+1. Abre Console (F12)
+2. Ejecuta el código que puse arriba
+3. Mándame qué imprime
+
+
+=================================================================
+SI BOTÓN NO APARECE DESPUÉS DE 2 MINUTOS
+=================================================================
+
+Fuerza un cambio visible:
+1. Abre admin.html
+2. Busca línea 178: <div style="font-size:12px;color:#94a3b8;">Versión 2.7</div>
+3. Cámbiala a: <div style="font-size:12px;color:#94a3b8;">Versión 2.7 🔥</div>
+4. Sube ese cambio
+5. Ahora SÍ o SÍ el service worker detectará el cambio
+
+
+=================================================================
+RESUMEN
+=================================================================
+
+✅ Hide/Show arreglado (descarga JSON automáticamente)
+✅ Service Worker configurado correctamente
+⏳ Herramientas duplicadas: Necesito info de Console para diagnosticar
+
+Sube v2.7 y prueba hide/show primero.
+Para lo de herramientas duplicadas, ejecuta el código en Console.

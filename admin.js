@@ -1236,6 +1236,9 @@ function toggleOcultarProducto(id) {
     if (prod) {
         prod.oculto = !prod.oculto;
         mostrarProductosGestion();
+        // Descargar automáticamente el JSON actualizado
+        descargarJSON(productosData, 'productos.json');
+        alert(`Producto ${prod.oculto ? 'ocultado' : 'mostrado'}. Descarga el productos.json y súbelo a GitHub.`);
     }
 }
 
@@ -1245,6 +1248,9 @@ function toggleOcultarCliente(id) {
     if (cliente) {
         cliente.oculto = !cliente.oculto;
         mostrarClientesGestion();
+        // Descargar automáticamente el JSON actualizado
+        descargarJSON(productosData, 'productos.json');
+        alert(`Cliente ${cliente.oculto ? 'ocultado' : 'mostrado'}. Descarga el productos.json y súbelo a GitHub.`);
     }
 }
     localStorage.removeItem('hdv_pedidos');
@@ -1449,5 +1455,3 @@ function cambiarSeccion(seccion) {
     }
 }
 
-// Registrar service worker al cargar
-window.addEventListener('load', registrarServiceWorker);

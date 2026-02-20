@@ -157,35 +157,7 @@
     </style>
 </head>
 <body>
-    <div class="vendor-layout">
-        <div class="vendor-sidebar" id="vendorSidebar">
-            <div class="vendor-sidebar-header">
-                <h2>🚚 HDV Pedidos</h2>
-                <button class="vendor-sidebar-toggle" onclick="toggleVendorSidebar()">☰</button>
-            </div>
-            <div class="vendor-sidebar-menu">
-                <button class="vendor-menu-item active" onclick="cambiarVistaVendedor('productos')">
-                    <span class="vendor-menu-icon">📦</span>
-                    <span class="vendor-menu-label">Productos</span>
-                </button>
-                <button class="vendor-menu-item" onclick="cambiarVistaVendedor('precios')">
-                    <span class="vendor-menu-icon">💰</span>
-                    <span class="vendor-menu-label">Lista de Precios</span>
-                </button>
-                <div class="vendor-menu-divider"></div>
-                <button class="vendor-menu-item" onclick="cambiarVistaVendedor('pedidos')">
-                    <span class="vendor-menu-icon">📋</span>
-                    <span class="vendor-menu-label">Mis Pedidos</span>
-                </button>
-            </div>
-            <div class="vendor-sidebar-footer">
-                <div id="vendorNameDisplay"></div>
-                <div style="margin-top:4px;">v2.4</div>
-            </div>
-        </div>
-        <div class="vendor-main-content">
     <div class="header">
-                <button class="vendor-mobile-menu-btn" onclick="toggleVendorSidebar()">☰</button>
         <h1>HDV Distribuciones</h1>
         <div class="subtitle">Sistema de Pedidos</div>
         <span class="status-badge offline" id="statusBadge">Sin conexión</span>
@@ -315,7 +287,6 @@
                     <label>Razón Social / Nombre Comercial *</label>
                     <input type="text" id="clienteRapidoRazon" placeholder="Ej: Supermercado Central S.A." style="width:100%;padding:10px;border:2px solid #e5e7eb;border-radius:8px;">
                 </div>
-            <div class="vendor-view active" id="vista-productos">
                 
                 <div class="form-group">
                     <label>RUC *</label>
@@ -370,8 +341,5 @@
     </div>
     
     <script src="app.js"></script>
-            </div>
-        </div>
-    </div>
 </body>
 </html>

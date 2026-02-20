@@ -1,0 +1,74 @@
+🔧 NO SE VEN LOS CAMBIOS? SOLUCIÓN RÁPIDA:
+
+OPCIÓN 1: Usar la herramienta de actualización (RECOMENDADO)
+================================================================
+1. Sube el archivo: force-update.html a tu repo
+2. Visita: https://igna-tech.github.io/hdv-pedidos/force-update.html
+3. Click en "✨ Reseteo Completo"
+4. Espera 3 segundos
+5. ¡Listo! Deberías ver el admin con sidebar funcionando
+
+
+OPCIÓN 2: Manual (si la opción 1 no funciona)
+================================================================
+1. Abre el admin: https://igna-tech.github.io/hdv-pedidos/admin.html
+2. Presiona F12 (para abrir DevTools)
+3. Ve a la pestaña "Application" o "Aplicación"
+4. En el menú izquierdo, encuentra "Service Workers"
+5. Click en "Unregister" en todos los service workers
+6. Luego ve a "Storage" → "Clear site data"
+7. Marca todas las casillas
+8. Click "Clear site data"
+9. Cierra DevTools
+10. Presiona Ctrl+Shift+R (Windows) o Cmd+Shift+R (Mac)
+
+
+OPCIÓN 3: Desde la consola (más técnico)
+================================================================
+1. Abre el admin
+2. Presiona F12
+3. Ve a la pestaña "Console"
+4. Pega este código y presiona Enter:
+
+```javascript
+(async () => {
+    // Limpiar cachés
+    const caches = await window.caches.keys();
+    await Promise.all(caches.map(c => window.caches.delete(c)));
+    
+    // Desregistrar service workers
+    const regs = await navigator.serviceWorker.getRegistrations();
+    await Promise.all(regs.map(r => r.unregister()));
+    
+    alert('✅ Limpieza completa! Recarga la página');
+    location.reload(true);
+})();
+```
+
+
+POR QUÉ PASA ESTO:
+================================================================
+El service worker anterior (v2.4 o anterior) está cacheando
+la versión vieja. Una vez que lo limpies UNA VEZ, las futuras
+actualizaciones funcionarán automáticamente con el botón verde.
+
+
+ARCHIVOS A SUBIR (v2.6):
+================================================================
+1. service-worker.js (v2.6 - MUY IMPORTANTE)
+2. admin.html
+3. admin.js  
+4. index.html
+5. app.js
+6. force-update.html (NUEVO - herramienta de ayuda)
+
+
+DESPUÉS DE ACTUALIZAR:
+================================================================
+✅ Deberías ver:
+   - Admin con sidebar a la izquierda
+   - 3 categorías: DATOS, GESTIÓN, OPCIONES
+   - Versión 2.6 en el footer del sidebar
+   - Todo funcional
+
+Si aún no funciona, usa force-update.html

@@ -59,12 +59,6 @@ async function cargarDatosIniciales() {
     }
 }
 
-        cargarCreditos();
-    }
-    if (seccion === 'stock') {
-        cargarStock();
-    }
-}
 
 // ============================================
 // SECCIÓN PEDIDOS
@@ -1425,12 +1419,19 @@ function cambiarSeccion(seccion) {
     // Remover active de todos los menu items
     document.querySelectorAll('.menu-item').forEach(item => item.classList.remove('active'));
     
-    // Agregar active al item clickeado
-    event.target.closest('.menu-item').classList.add('active');
+    // Agregar active al item clickeado (buscar por onclick que contenga la seccion)
+    document.querySelectorAll('.menu-item').forEach(item => {
+        if (item.getAttribute('onclick') && item.getAttribute('onclick').includes(`'${seccion}'`)) {
+            item.classList.add('active');
+        }
+    });
     
     // Cambiar contenido
     document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-    document.getElementById(`seccion-${seccion}`).classList.add('active');
+    const seccionElement = document.getElementById(`seccion-${seccion}`);
+    if (seccionElement) {
+        seccionElement.classList.add('active');
+    }
     
     // Ejecutar funciones de carga según sección
     if (seccion === 'productos' && productosFiltrados.length > 0) {

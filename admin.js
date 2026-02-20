@@ -1,3 +1,5 @@
+// HDV Admin v2.7 - Updated 2024-02-20 03:30 UTC
+// VERSIÓN CORRECTA CON HIDE/SHOW FUNCIONAL
 // Variables globales
 let todosLosPedidos = [];
 let productosData = { productos: [], categorias: [], clientes: [] };

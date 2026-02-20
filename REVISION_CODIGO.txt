@@ -1,0 +1,195 @@
+🔍 REVISIÓN COMPLETA DEL CÓDIGO
+
+=================================================================
+✅ LO QUE ESTÁ BIEN
+=================================================================
+
+1. ESTRUCTURA HTML:
+   ✅ Sidebar correctamente implementado
+   ✅ Solo seccion-pedidos tiene "active" al inicio
+   ✅ CSS de .tab-content funcionando correctamente
+   ✅ Todos los onclick en los botones del sidebar
+
+2. FUNCIONES JAVASCRIPT:
+   ✅ cambiarSeccion() existe y funciona
+   ✅ toggleOcultarProducto() existe (descarga JSON automáticamente)
+   ✅ toggleOcultarCliente() existe (descarga JSON automáticamente)
+   ✅ registrarServiceWorker() existe y se llama en load
+   ✅ mostrarBotonActualizacion() existe
+   ✅ descargarJSON() existe
+
+3. BOTONES HIDE/SHOW:
+   ✅ Se crean dinámicamente en JavaScript (correcto)
+   ✅ Cambian de 🙈 (ocultar) a 👁️ (mostrar)
+   ✅ Colores: naranja (visible) → verde (oculto)
+
+4. SINTAXIS:
+   ✅ admin.js sin errores
+   ✅ app.js sin errores
+   ✅ service-worker.js sin errores
+
+
+=================================================================
+🐛 BUG ENCONTRADO Y CORREGIDO
+=================================================================
+
+PROBLEMA:
+❌ service-worker.js tenía VERSION = '2.5'
+❌ admin.html tenía Versión 2.7
+❌ Desincronización → Service worker no detectaba updates
+
+SOLUCIÓN:
+✅ service-worker.js actualizado a VERSION = '2.7'
+✅ Ahora admin.html y service-worker.js coinciden
+
+
+=================================================================
+📊 ESTADO DE LOS ARCHIVOS
+=================================================================
+
+admin.html:
+- Sidebar: ✅ Implementado
+- Footer: ✅ Versión 2.7
+- Botón update: ✅ Presente (oculto por defecto)
+- Estructura: ✅ Correcta
+
+admin.js:
+- Funciones sidebar: ✅ Presentes
+- Hide/show: ✅ Con descarga automática JSON
+- Service worker: ✅ Se registra al cargar
+- Sintaxis: ✅ Sin errores
+
+service-worker.js:
+- Versión: ✅ 2.7 (CORREGIDO)
+- Actualización: ✅ Cada 30 segundos
+- Caché: ✅ Configurado
+
+index.html (app vendedores):
+- Sin sidebar: ✅ Versión estable
+- Hide/show: ✅ Filtrado automático
+
+app.js:
+- Productos ocultos: ✅ No se muestran
+- Clientes ocultos: ✅ No se muestran
+- Sintaxis: ✅ Sin errores
+
+
+=================================================================
+🎯 PROBLEMAS QUE REPORTASTE
+=================================================================
+
+1. BOTÓN DE ACTUALIZACIÓN NO APARECE:
+   Diagnóstico: El botón SOLO aparece cuando hay actualización pendiente
+   Estado: ✅ CORRECTO - Funcionará cuando subas v2.7
+   
+2. HERRAMIENTAS EN TODAS LAS PESTAÑAS:
+   Diagnóstico: Código correcto, solo están en seccion-herramientas
+   Estado: ⚠️ NECESITO VERIFICACIÓN - Ver instrucciones abajo
+   
+3. HIDE/SHOW NO ACCIONA:
+   Diagnóstico: Función existe y descarga JSON
+   Estado: ✅ CORREGIDO - Ahora descarga automáticamente
+
+
+=================================================================
+🧪 TESTS PARA HACER
+=================================================================
+
+TEST 1: Versión
+1. Sube los archivos (especialmente service-worker.js corregido)
+2. Espera 5 minutos
+3. Abre admin
+4. Footer debería decir "Versión 2.7"
+
+TEST 2: Herramientas duplicadas (IMPORTANTE)
+1. Abre admin
+2. Presiona F12 → Console
+3. Pega este código:
+
+```javascript
+document.querySelectorAll('.tab-content').forEach((el, i) => {
+    const isVisible = window.getComputedStyle(el).display !== 'none';
+    console.log(`${el.id}: ${isVisible ? 'VISIBLE' : 'OCULTO'}`);
+});
+```
+
+4. Debería mostrar:
+   - seccion-pedidos: VISIBLE
+   - Todo lo demás: OCULTO
+
+Si ves más de uno VISIBLE, hay un problema de CSS.
+
+TEST 3: Hide/Show
+1. Ve a GESTIÓN → Gestionar Productos
+2. Click en 🙈 de cualquier producto
+3. Debería:
+   - Descargar productos.json
+   - Mostrar alert
+   - Botón cambiar a 👁️ verde
+   - Fila ponerse semitransparente
+
+TEST 4: Botón de actualización
+1. Después de subir v2.7
+2. Si tienes v2.6 cacheada
+3. Espera 30-60 segundos
+4. Debería aparecer botón verde arriba
+
+
+=================================================================
+📤 ARCHIVOS CORREGIDOS PARA SUBIR
+=================================================================
+
+1. service-worker.js ⭐ CORREGIDO (v2.7)
+2. admin.html (v2.7)
+3. admin.js (hide/show con descarga)
+4. index.html
+5. app.js
+
+
+=================================================================
+🔧 SI HERRAMIENTAS SIGUEN APARECIENDO EN TODAS PARTES
+=================================================================
+
+Ejecuta este test en Console:
+
+```javascript
+// Test 1: Verificar cuántas secciones son visibles
+let visibles = 0;
+document.querySelectorAll('.tab-content').forEach(el => {
+    if (window.getComputedStyle(el).display !== 'none') {
+        console.log('VISIBLE:', el.id);
+        visibles++;
+    }
+});
+console.log('Total visibles:', visibles, '(debería ser 1)');
+
+// Test 2: Verificar si hay múltiples .active
+let actives = document.querySelectorAll('.tab-content.active').length;
+console.log('Elementos con .active:', actives, '(debería ser 1)');
+
+// Test 3: Verificar CSS
+let css = window.getComputedStyle(document.querySelector('.tab-content'));
+console.log('CSS de .tab-content display:', css.display, '(debería ser none)');
+```
+
+Mándame el resultado y te diré exactamente qué está mal.
+
+
+=================================================================
+✅ CONCLUSIÓN
+=================================================================
+
+El código está BIEN ESTRUCTURADO.
+
+BUG PRINCIPAL CORREGIDO:
+✅ service-worker.js ahora tiene versión 2.7
+
+PROBLEMAS REPORTADOS:
+✅ Hide/show: Funcional (descarga JSON)
+⏳ Botón update: Aparecerá cuando subas v2.7
+⚠️ Herramientas duplicadas: Necesito test de Console
+
+Siguiente paso:
+1. Sube service-worker.js corregido
+2. Ejecuta los tests
+3. Mándame resultados

@@ -1,0 +1,114 @@
+🚨 PROBLEMA: Ves v2.3 cuando debería ser v2.7
+
+=================================================================
+SOLUCIÓN INMEDIATA (3 PASOS)
+=================================================================
+
+PASO 1: SUBE ESTOS ARCHIVOS A GITHUB
+-----------------------------------------------------------------
+1. admin.html (ahora dice Versión 2.7 en el footer)
+2. admin.js
+3. service-worker.js (v2.7)
+4. FORZAR_ACTUALIZACION_DEFINITIVA.html ⭐ NUEVO
+5. index.html
+6. app.js
+
+⏰ IMPORTANTE: Espera 5 minutos después de subir
+
+
+PASO 2: USA LA HERRAMIENTA ESPECIAL
+-----------------------------------------------------------------
+Ve a esta URL:
+https://igna-tech.github.io/hdv-pedidos/FORZAR_ACTUALIZACION_DEFINITIVA.html
+
+La página hará:
+1. ✅ Verificar si GitHub tiene v2.7
+2. ✅ Limpiar TODA tu caché
+3. ✅ Redirigirte al admin fresco
+
+Sigue los 3 botones en orden:
+   [1] Verificar Servidor
+   [2] Limpieza Total
+   [3] Ir a Admin v2.7
+
+
+PASO 3: VERIFICAR
+-----------------------------------------------------------------
+Deberías ver:
+✅ "Versión 2.7" en el footer del sidebar (abajo a la izquierda)
+✅ Sidebar funcional con categorías
+✅ Todo funcionando
+
+
+=================================================================
+SI LA HERRAMIENTA DICE "SERVIDOR DESACTUALIZADO"
+=================================================================
+
+Significa que GitHub Pages NO actualizó todavía.
+
+HAZ ESTO:
+1. Espera 10 minutos más
+2. Vuelve a la herramienta
+3. Click en "Verificar Servidor" de nuevo
+
+GitHub Pages puede tardar hasta 10-15 minutos en actualizar.
+
+
+=================================================================
+ALTERNATIVA MANUAL (SI LA HERRAMIENTA NO FUNCIONA)
+=================================================================
+
+En Brave:
+
+1. Ve a: brave://settings/clearBrowserData
+
+2. Selecciona:
+   - Intervalo: "Todo"
+   - ✅ Cookies y datos de sitios
+   - ✅ Imágenes y archivos en caché
+   - ✅ Datos de aplicaciones alojadas
+
+3. Click "Borrar datos"
+
+4. Espera 5 minutos
+
+5. Ve a: https://igna-tech.github.io/hdv-pedidos/admin.html?v=999999
+
+
+=================================================================
+CÓMO SABER SI FUNCIONÓ
+=================================================================
+
+ANTES:
+- Footer dice: "Versión 2.3"
+
+DESPUÉS:
+- Footer dice: "Versión 2.7"
+
+
+Si después de todo esto TODAVÍA ves 2.3:
+👉 GitHub no tiene los archivos nuevos
+👉 Verifica que SÍ subiste admin.html con v2.7
+
+
+=================================================================
+ARCHIVOS QUE DEBES SUBIR (CONFIRMACIÓN)
+=================================================================
+
+✅ admin.html            → Contiene "Versión 2.7"
+✅ admin.js              → Hide/show arreglado
+✅ service-worker.js     → VERSION = '2.7'
+✅ index.html
+✅ app.js
+✅ FORZAR_ACTUALIZACION_DEFINITIVA.html → Herramienta
+
+
+=================================================================
+RESUMEN
+=================================================================
+
+1. Sube archivos v2.7
+2. Espera 5 minutos
+3. Usa FORZAR_ACTUALIZACION_DEFINITIVA.html
+4. Verifica footer = 2.7
+5. ¡Listo!

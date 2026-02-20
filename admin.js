@@ -1448,3 +1448,6 @@ function cambiarSeccion(seccion) {
         cargarStock();
     }
 }
+
+// Registrar service worker al cargar
+window.addEventListener('load', registrarServiceWorker);

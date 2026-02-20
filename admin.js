@@ -1,4 +1,4 @@
-// HDV Admin v2.7 - Updated 2024-02-20 03:30 UTC
+// HDV Admin v2.8 - Fixed syntax errors
 // VERSIÓN CORRECTA CON HIDE/SHOW FUNCIONAL
 // Variables globales
 let todosLosPedidos = [];
@@ -208,28 +208,6 @@ function exportarPedidosExcel() {
 // ============================================
 // SECCIÓN REPORTES
 // ============================================
-function generarReporte() {
-    const desde = new Date(document.getElementById('reporteFechaDesde').value);
-    const hasta = new Date(document.getElementById('reporteFechaHasta').value);
-    hasta.setHours(23, 59, 59);
-    
-    const pedidos = todosLosPedidos.filter(p => {
-        const f = new Date(p.fecha);
-        return f >= desde && f <= hasta;
-    });
-    
-    if (pedidos.length === 0) {
-        alert('No hay pedidos en ese rango');
-        return;
-    }
-    
-    mostrarEstadisticasReporte(pedidos);
-    
-    if (tipoReporte === 'zona') reportePorZona(pedidos);
-    else if (tipoReporte === 'vendedor') reportePorVendedor(pedidos);
-    else if (tipoReporte === 'producto') reportePorProducto(pedidos);
-    else if (tipoReporte === 'cliente') reportePorCliente(pedidos);
-}
 
 function mostrarEstadisticasReporte(pedidos) {
     const total = pedidos.reduce((s, p) => s + p.total, 0);
@@ -614,6 +592,11 @@ function actualizarCliente(id, campo, valor) {
 }
 
 function eliminarCliente(id) {
+    if (!confirm('¿Eliminar este cliente? Se perderán sus precios personalizados.')) return;
+    productosData.clientes = productosData.clientes.filter(c => c.id !== id);
+    clientesFiltrados = clientesFiltrados.filter(c => c.id !== id);
+    mostrarClientesGestion();
+}
 
 function verDetalleCliente(id) {
     const cliente = productosData.clientes.find(c => c.id === id);
@@ -633,11 +616,6 @@ Encargado: ${cliente.encargado || "N/A"}
 Precios Personalizados: ${preciosPersonalizados} productos
 
 Puedes editar los datos directamente en la tabla.`);
-}
-    if (!confirm('¿Eliminar este cliente? Se perderán sus precios personalizados.')) return;
-    productosData.clientes = productosData.clientes.filter(c => c.id !== id);
-    clientesFiltrados = clientesFiltrados.filter(c => c.id !== id);
-    mostrarClientesGestion();
 }
 
 function mostrarModalNuevoCliente() {
@@ -1174,7 +1152,11 @@ function importarProductosExcel(event) {
 function limpiarPedidos() {
     if (!confirm('¿ELIMINAR TODOS LOS PEDIDOS? Esta acción no se puede deshacer.')) return;
     if (!confirm('¿Estás completamente seguro? Todos los pedidos se perderán.')) return;
-    
+    localStorage.removeItem('hdv_pedidos');
+    todosLosPedidos = [];
+    mostrarMensajeHerramientas('Todos los pedidos han sido eliminados');
+    setTimeout(() => location.reload(), 1500);
+}
 
 // Importar clientes masivamente
 function descargarPlantillaClientes() {
@@ -1254,11 +1236,6 @@ function toggleOcultarCliente(id) {
         descargarJSON(productosData, 'productos.json');
         alert(`Cliente ${cliente.oculto ? 'ocultado' : 'mostrado'}. Descarga el productos.json y súbelo a GitHub.`);
     }
-}
-    localStorage.removeItem('hdv_pedidos');
-    todosLosPedidos = [];
-    mostrarMensajeHerramientas('Todos los pedidos han sido eliminados');
-    setTimeout(() => location.reload(), 1500);
 }
 
 function limpiarStockLocal() {

@@ -19,7 +19,7 @@
         .toast-info { background: linear-gradient(135deg, #3b82f6, #2563eb); }
         .toast-close { background: none; border: none; color: white; font-size: 18px; cursor: pointer; margin-left: auto; opacity: 0.7; }
 
-        /* ===== CONFIRM MODAL ===== */
+        /* ===== CONFIRM ===== */
         .confirm-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 8000; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
         .confirm-overlay.show { display: flex; }
         .confirm-box { background: white; border-radius: 16px; padding: 28px; max-width: 420px; width: 90%; text-align: center; animation: popIn 0.3s ease; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
@@ -65,6 +65,8 @@
         .header { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); color: white; padding: 16px 24px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); position: sticky; top: 0; z-index: 100; display: flex; align-items: center; gap: 12px; }
         .header h1 { font-size: 20px; margin-bottom: 2px; }
         .header .subtitle { font-size: 13px; opacity: 0.8; }
+        .offline-bar { display: none; background: linear-gradient(135deg, #f59e0b, #d97706); color: white; text-align: center; padding: 8px; font-size: 13px; font-weight: 600; }
+        .offline-bar.show { display: block; }
 
         /* ===== CONTENT ===== */
         .container { flex: 1; overflow-y: auto; padding: 24px; }
@@ -72,15 +74,15 @@
         .tab-content.active { display: block; }
         .card { background: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
         .card h2 { font-size: 18px; margin-bottom: 15px; color: #111827; }
-        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 24px; }
-        .stat-card { background: white; padding: 18px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); transition: transform 0.2s, box-shadow 0.2s; }
-        .stat-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 24px; }
+        .stat-card { background: white; padding: 16px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); transition: transform 0.2s; }
+        .stat-card:hover { transform: translateY(-2px); }
         .stat-card.clickable { cursor: pointer; }
-        .stat-label { font-size: 13px; color: #6b7280; margin-bottom: 4px; }
-        .stat-value { font-size: 28px; font-weight: 700; color: #111827; }
+        .stat-label { font-size: 12px; color: #6b7280; margin-bottom: 4px; }
+        .stat-value { font-size: 24px; font-weight: 700; color: #111827; }
         .stat-value.money { color: #2563eb; }
         .stat-value.danger { color: #ef4444; }
-        .stat-sub { font-size: 12px; color: #9ca3af; margin-top: 4px; }
+        .stat-sub { font-size: 12px; color: #9ca3af; margin-top: 2px; }
 
         .btn { padding: 10px 20px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
         .btn:active { transform: scale(0.97); }
@@ -92,8 +94,9 @@
         .btn-danger:hover { background: #dc2626; }
         .btn-secondary { background: #e5e7eb; color: #374151; }
         .btn-secondary:hover { background: #d1d5db; }
+        .btn-sm { padding: 6px 12px; font-size: 12px; }
 
-        .filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 16px; }
         .filter-group label { display: block; font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 5px; }
         .filter-group select, .filter-group input { width: 100%; padding: 10px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; transition: border-color 0.2s; }
         .filter-group select:focus, .filter-group input:focus { outline: none; border-color: #3b82f6; }
@@ -104,24 +107,54 @@
         .tabla tr:hover { background: #f9fafb; }
         .tabla input, .tabla select { width: 100%; padding: 8px; border: 2px solid #e5e7eb; border-radius: 6px; font-size: 14px; }
 
-        .pedido-card { border-bottom: 1px solid #e5e7eb; padding: 20px; }
-        .pedido-card:hover { background: #f9fafb; }
-        .pedido-header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px; flex-wrap: wrap; gap: 10px; }
-        .pedido-status { padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
-        .status-pendiente { background: #fef3c7; color: #92400e; }
-        .status-entregado { background: #d1fae5; color: #065f46; }
-
         .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 2000; align-items: center; justify-content: center; backdrop-filter: blur(2px); }
         .modal.show { display: flex; }
-        .modal-content { background: white; border-radius: 16px; padding: 24px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; animation: popIn 0.3s ease; }
+        .modal-content { background: white; border-radius: 16px; padding: 24px; max-width: 600px; width: 90%; max-height: 85vh; overflow-y: auto; animation: popIn 0.3s ease; }
         .modal-header { font-size: 20px; font-weight: 700; margin-bottom: 20px; }
         .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
 
         .empty-state { text-align: center; padding: 60px 20px; color: #6b7280; }
-        .loading { text-align: center; padding: 40px; }
         .spinner { border: 3px solid #f3f4f6; border-top: 3px solid #2563eb; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         @keyframes pulse { 0%,100%{opacity:1}50%{opacity:.6} }
+
+        /* ===== PIPELINE / KANBAN ===== */
+        .pipeline-stats { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 16px; }
+        .pipe-stat { flex: 1; min-width: 100px; padding: 12px; border-radius: 10px; text-align: center; cursor: pointer; transition: transform 0.2s; border: 2px solid transparent; }
+        .pipe-stat:hover { transform: scale(1.03); }
+        .pipe-stat.active { border-color: currentColor; }
+        .pipe-stat-count { font-size: 28px; font-weight: 800; }
+        .pipe-stat-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
+
+        .view-toggle { display: flex; gap: 4px; background: #f3f4f6; padding: 4px; border-radius: 10px; margin-bottom: 16px; }
+        .view-toggle-btn { padding: 8px 20px; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; background: transparent; color: #6b7280; transition: all 0.2s; }
+        .view-toggle-btn.active { background: white; color: #111827; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+
+        .kanban { display: flex; gap: 16px; overflow-x: auto; padding-bottom: 16px; min-height: 400px; }
+        .kanban-col { min-width: 280px; flex: 1; background: #f8fafc; border-radius: 12px; display: flex; flex-direction: column; }
+        .kanban-col-header { padding: 14px 16px; font-weight: 700; font-size: 14px; border-radius: 12px 12px 0 0; display: flex; justify-content: space-between; align-items: center; }
+        .kanban-col-count { font-size: 13px; font-weight: 600; opacity: 0.8; }
+        .kanban-col-body { padding: 10px; flex: 1; overflow-y: auto; max-height: 600px; }
+        .kanban-card { background: white; border-radius: 10px; padding: 14px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); transition: box-shadow 0.2s; border-left: 4px solid; }
+        .kanban-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.12); }
+        .kanban-card-name { font-weight: 700; font-size: 14px; margin-bottom: 4px; }
+        .kanban-card-info { font-size: 12px; color: #6b7280; margin-bottom: 8px; }
+        .kanban-card-total { font-weight: 700; color: #2563eb; font-size: 15px; margin-bottom: 10px; }
+        .kanban-card-items { font-size: 12px; color: #6b7280; margin-bottom: 10px; max-height: 60px; overflow: hidden; }
+        .kanban-card-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+        .kanban-card-note { background: #fef3c7; padding: 6px 10px; border-radius: 6px; font-size: 11px; color: #92400e; margin-bottom: 8px; }
+
+        .pedido-card { border-bottom: 1px solid #e5e7eb; padding: 20px; }
+        .pedido-card:hover { background: #f9fafb; }
+        .pedido-header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px; flex-wrap: wrap; gap: 10px; }
+        .pedido-status { padding: 5px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+
+        /* ===== EDIT PEDIDO ===== */
+        .edit-item { display: flex; align-items: center; gap: 10px; padding: 12px 0; border-bottom: 1px solid #f3f4f6; }
+        .edit-item:last-child { border-bottom: none; }
+        .edit-item-name { flex: 1; font-size: 14px; }
+        .edit-item-qty { width: 70px; padding: 8px; text-align: center; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; font-weight: 600; }
+        .edit-item-remove { width: 32px; height: 32px; border-radius: 8px; border: 2px solid #ef4444; background: white; color: #ef4444; cursor: pointer; font-size: 16px; }
 
         /* ===== DASHBOARD ===== */
         .dash-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; margin-top: 20px; }
@@ -148,23 +181,11 @@
         .activity-text { color: #374151; line-height: 1.4; }
         .activity-time { color: #9ca3af; font-size: 12px; margin-top: 2px; }
 
-        @media (max-width: 768px) {
-            .pedido-header { flex-direction: column; }
-            .filters { grid-template-columns: 1fr; }
-            .stats { grid-template-columns: repeat(2, 1fr); }
-            .dash-grid { grid-template-columns: 1fr; }
-            .container { padding: 16px; }
-            .header { padding: 12px 16px; }
-            .toast-container { left: 16px; right: 16px; top: 12px; }
-            .catalogo-grid { grid-template-columns: repeat(2, 1fr) !important; }
-            .ruta-card { flex-direction: column; }
-        }
-
         /* ===== CATÁLOGO ===== */
         .catalogo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
-        .catalogo-item { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08); transition: transform 0.2s, box-shadow 0.2s; }
-        .catalogo-item:hover { transform: translateY(-3px); box-shadow: 0 6px 16px rgba(0,0,0,0.12); }
-        .catalogo-img { width: 100%; height: 160px; object-fit: cover; background: #f3f4f6; display: flex; align-items: center; justify-content: center; font-size: 48px; color: #d1d5db; }
+        .catalogo-item { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08); transition: transform 0.2s; cursor: pointer; }
+        .catalogo-item:hover { transform: translateY(-3px); }
+        .catalogo-img { width: 100%; height: 160px; background: #f3f4f6; display: flex; align-items: center; justify-content: center; font-size: 48px; color: #d1d5db; }
         .catalogo-img img { width: 100%; height: 100%; object-fit: cover; }
         .catalogo-info { padding: 14px; }
         .catalogo-nombre { font-weight: 700; font-size: 14px; color: #111827; margin-bottom: 4px; }
@@ -178,23 +199,30 @@
         .ruta-dia { width: 56px; height: 56px; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0; }
         .ruta-dia-nombre { font-size: 11px; text-transform: uppercase; }
         .ruta-dia-num { font-size: 20px; }
-        .ruta-clientes { flex: 1; }
-        .ruta-cliente { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #f3f4f6; font-size: 14px; }
-        .ruta-cliente:last-child { border-bottom: none; }
         .ruta-check { width: 22px; height: 22px; border-radius: 6px; border: 2px solid #d1d5db; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; flex-shrink: 0; }
         .ruta-check.done { background: #10b981; border-color: #10b981; color: white; }
-        .ruta-notas { font-size: 12px; color: #9ca3af; font-style: italic; }
 
-        /* ===== OFFLINE ===== */
-        .offline-bar { display: none; background: linear-gradient(135deg, #f59e0b, #d97706); color: white; text-align: center; padding: 8px; font-size: 13px; font-weight: 600; }
-        .offline-bar.show { display: block; }
-        .sync-badge { background: #f59e0b; color: white; font-size: 11px; padding: 2px 7px; border-radius: 10px; margin-left: 8px; }
-
-        /* ===== CREDIT AGING ===== */
+        /* ===== CREDITS ===== */
         .credit-age-ok { border-left: 4px solid #10b981; }
         .credit-age-warning { border-left: 4px solid #f59e0b; }
         .credit-age-danger { border-left: 4px solid #ef4444; }
         .credit-age-critical { border-left: 4px solid #7c2d12; background: #fef2f2; }
+
+        @media (max-width: 768px) {
+            .pedido-header { flex-direction: column; }
+            .filters { grid-template-columns: 1fr; }
+            .stats { grid-template-columns: repeat(2, 1fr); }
+            .dash-grid { grid-template-columns: 1fr; }
+            .container { padding: 16px; }
+            .header { padding: 12px 16px; }
+            .toast-container { left: 16px; right: 16px; top: 12px; }
+            .kanban { flex-direction: column; }
+            .kanban-col { min-width: auto; }
+            .catalogo-grid { grid-template-columns: repeat(2, 1fr) !important; }
+            .ruta-card { flex-direction: column; }
+            .pipeline-stats { flex-wrap: wrap; }
+            .pipe-stat { min-width: 80px; }
+        }
     </style>
 </head>
 <body>
@@ -214,52 +242,46 @@
     <div class="admin-layout">
         <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
         <div class="sidebar" id="sidebar">
-            <div class="sidebar-header">
-                <h2>HDV Admin</h2>
-                <button class="sidebar-toggle" onclick="toggleSidebar()">✕</button>
-            </div>
+            <div class="sidebar-header"><h2>HDV Admin</h2><button class="sidebar-toggle" onclick="toggleSidebar()">✕</button></div>
             <div class="sidebar-menu">
+                <div class="menu-section"><div class="menu-items">
+                    <button class="menu-item active" onclick="cambiarSeccion('dashboard')"><span class="menu-icon">🏠</span><span class="menu-label">Dashboard</span></button>
+                </div></div>
                 <div class="menu-section">
+                    <div class="menu-section-title" onclick="toggleMenuSection(this)"><span>📦 PIPELINE</span><span class="menu-arrow">▼</span></div>
                     <div class="menu-items">
-                        <button class="menu-item active" onclick="cambiarSeccion('dashboard')">
-                            <span class="menu-icon">🏠</span>
-                            <span class="menu-label">Dashboard</span>
-                        </button>
+                        <button class="menu-item" onclick="cambiarSeccion('pipeline')"><span class="menu-icon">📋</span><span class="menu-label">Gestión Pedidos</span><span class="menu-badge" id="badgeNuevos" style="display:none">0</span></button>
+                        <button class="menu-item" onclick="cambiarSeccion('ventas')"><span class="menu-icon">✅</span><span class="menu-label">Ventas Finalizadas</span></button>
+                        <button class="menu-item" onclick="cambiarSeccion('no_entregados')"><span class="menu-icon">❌</span><span class="menu-label">No Entregados</span></button>
                     </div>
                 </div>
                 <div class="menu-section">
                     <div class="menu-section-title" onclick="toggleMenuSection(this)"><span>📊 DATOS</span><span class="menu-arrow">▼</span></div>
                     <div class="menu-items">
-                        <button class="menu-item" onclick="cambiarSeccion('pedidos')"><span class="menu-icon">📦</span><span class="menu-label">Pedidos</span><span class="menu-badge" id="badgePedidos" style="display:none">0</span></button>
                         <button class="menu-item" onclick="cambiarSeccion('creditos')"><span class="menu-icon">💳</span><span class="menu-label">Créditos</span><span class="menu-badge" id="badgeCreditos" style="display:none">0</span></button>
                         <button class="menu-item" onclick="cambiarSeccion('reportes')"><span class="menu-icon">📈</span><span class="menu-label">Reportes</span></button>
-                        <button class="menu-item" onclick="cambiarSeccion('stock')"><span class="menu-icon">📊</span><span class="menu-label">Stock/Inventario</span><span class="menu-badge" id="badgeStock" style="display:none">0</span></button>
+                        <button class="menu-item" onclick="cambiarSeccion('stock')"><span class="menu-icon">📊</span><span class="menu-label">Stock</span><span class="menu-badge" id="badgeStock" style="display:none">0</span></button>
                     </div>
                 </div>
                 <div class="menu-section">
                     <div class="menu-section-title" onclick="toggleMenuSection(this)"><span>⚙️ GESTIÓN</span><span class="menu-arrow">▼</span></div>
                     <div class="menu-items">
-                        <button class="menu-item" onclick="cambiarSeccion('productos')"><span class="menu-icon">🏷️</span><span class="menu-label">Gestionar Productos</span></button>
-                        <button class="menu-item" onclick="cambiarSeccion('clientes')"><span class="menu-icon">👥</span><span class="menu-label">Gestionar Clientes</span></button>
-                        <button class="menu-item" onclick="cambiarSeccion('precios')"><span class="menu-icon">💰</span><span class="menu-label">Precios por Cliente</span></button>
-                        <button class="menu-item" onclick="cambiarSeccion('catalogo')"><span class="menu-icon">📸</span><span class="menu-label">Catálogo Visual</span></button>
-                    </div>
-                </div>
-                <div class="menu-section">
-                    <div class="menu-section-title" onclick="toggleMenuSection(this)"><span>🗺️ RUTAS</span><span class="menu-arrow">▼</span></div>
-                    <div class="menu-items">
-                        <button class="menu-item" onclick="cambiarSeccion('rutas')"><span class="menu-icon">📍</span><span class="menu-label">Agenda de Visitas</span></button>
+                        <button class="menu-item" onclick="cambiarSeccion('productos')"><span class="menu-icon">🏷️</span><span class="menu-label">Productos</span></button>
+                        <button class="menu-item" onclick="cambiarSeccion('clientes')"><span class="menu-icon">👥</span><span class="menu-label">Clientes</span></button>
+                        <button class="menu-item" onclick="cambiarSeccion('precios')"><span class="menu-icon">💰</span><span class="menu-label">Precios</span></button>
+                        <button class="menu-item" onclick="cambiarSeccion('catalogo')"><span class="menu-icon">📸</span><span class="menu-label">Catálogo</span></button>
                     </div>
                 </div>
                 <div class="menu-section">
                     <div class="menu-section-title" onclick="toggleMenuSection(this)"><span>🛠️ OPCIONES</span><span class="menu-arrow">▼</span></div>
                     <div class="menu-items">
+                        <button class="menu-item" onclick="cambiarSeccion('rutas')"><span class="menu-icon">📍</span><span class="menu-label">Rutas</span></button>
                         <button class="menu-item" onclick="cambiarSeccion('herramientas')"><span class="menu-icon">🔧</span><span class="menu-label">Herramientas</span></button>
                         <button class="menu-item" onclick="cambiarSeccion('actividad')"><span class="menu-icon">📋</span><span class="menu-label">Historial</span></button>
                     </div>
                 </div>
             </div>
-            <div class="sidebar-footer"><div style="font-size:12px;color:#94a3b8;">Versión 3.1</div></div>
+            <div class="sidebar-footer"><div style="font-size:12px;color:#94a3b8;">Versión 4.0</div></div>
         </div>
 
         <div class="main-content" id="mainContent">
@@ -268,51 +290,73 @@
                 <div style="flex:1"><h1>Panel de Administración</h1><div class="subtitle">HDV Distribuciones</div></div>
                 <button id="updateButton" style="display:none;padding:8px 16px;background:#10b981;color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;animation:pulse 2s infinite" onclick="actualizarAhora()">🔄 Actualizar</button>
             </div>
-            <div class="offline-bar" id="offlineBar">📡 Sin conexión — Los cambios se guardarán localmente<span class="sync-badge" id="syncCount" style="display:none">0</span></div>
+            <div class="offline-bar" id="offlineBar">📡 Sin conexión — Los cambios se guardarán localmente</div>
 
             <div class="container">
-                <!-- DASHBOARD -->
+                <!-- ===== DASHBOARD ===== -->
                 <div id="seccion-dashboard" class="tab-content active">
                     <h2 style="font-size:24px;font-weight:700;margin-bottom:4px" id="dashSaludo">Buenos días 👋</h2>
                     <p style="color:#6b7280;margin-bottom:20px" id="dashFechaHoy"></p>
+                    <div class="pipeline-stats" id="dashPipelineStats"></div>
                     <div class="stats">
-                        <div class="stat-card clickable" onclick="cambiarSeccion('pedidos')"><div class="stat-label">Pedidos Hoy</div><div class="stat-value" id="dashPedidosHoy">0</div><div class="stat-sub" id="dashPedidosSub">0 pendientes</div></div>
+                        <div class="stat-card"><div class="stat-label">Ventas Semana</div><div class="stat-value money" id="dashVentasSemana">Gs. 0</div><div class="stat-sub" id="dashVentasSemanaSub">Solo entregas completadas</div></div>
+                        <div class="stat-card"><div class="stat-label">Ventas Mes</div><div class="stat-value money" id="dashVentasMes">Gs. 0</div><div class="stat-sub" id="dashVentasMesSub">Solo entregas completadas</div></div>
                         <div class="stat-card clickable" onclick="cambiarSeccion('creditos')"><div class="stat-label">Créditos Pendientes</div><div class="stat-value danger" id="dashCreditosTotal">Gs. 0</div><div class="stat-sub" id="dashCreditosSub">0 créditos</div></div>
-                        <div class="stat-card"><div class="stat-label">Ventas Semana</div><div class="stat-value money" id="dashVentasSemana">Gs. 0</div><div class="stat-sub" id="dashVentasSemanaSub">0 pedidos</div></div>
-                        <div class="stat-card"><div class="stat-label">Ventas Mes</div><div class="stat-value money" id="dashVentasMes">Gs. 0</div><div class="stat-sub" id="dashVentasMesSub">0 pedidos</div></div>
                     </div>
                     <div class="dash-grid">
                         <div class="dash-card"><h3>🚨 Alertas de Stock</h3><div id="dashStockAlertas"><div class="dash-empty">Sin alertas</div></div></div>
-                        <div class="dash-card"><h3>📦 Últimos Pedidos</h3><div id="dashUltimosPedidos"><div class="dash-empty">Sin pedidos</div></div></div>
+                        <div class="dash-card"><h3>📦 Pedidos Nuevos (por revisar)</h3><div id="dashNuevos"><div class="dash-empty">Sin pedidos nuevos</div></div></div>
                         <div class="dash-card"><h3>💳 Créditos por Cobrar</h3><div id="dashCreditosLista"><div class="dash-empty">Sin créditos</div></div></div>
                         <div class="dash-card"><h3>📋 Actividad Reciente</h3><div id="dashActividad"><div class="dash-empty">Sin actividad</div></div></div>
                     </div>
                 </div>
 
-                <!-- PEDIDOS -->
-                <div id="seccion-pedidos" class="tab-content">
+                <!-- ===== PIPELINE (GESTIÓN PEDIDOS) ===== -->
+                <div id="seccion-pipeline" class="tab-content">
+                    <div class="pipeline-stats" id="pipelineStats"></div>
+                    <div class="card" style="padding:12px 20px">
+                        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+                            <div class="view-toggle">
+                                <button class="view-toggle-btn active" onclick="setVistapipeline('kanban',this)">📊 Kanban</button>
+                                <button class="view-toggle-btn" onclick="setVistapipeline('lista',this)">📋 Lista</button>
+                            </div>
+                            <div style="display:flex;gap:8px;flex-wrap:wrap">
+                                <select id="filterPipeCliente" onchange="renderPipeline()" style="padding:8px;border:2px solid #e5e7eb;border-radius:8px;font-size:13px"><option value="">Todos los clientes</option></select>
+                                <select id="filterPipeZona" onchange="renderPipeline()" style="padding:8px;border:2px solid #e5e7eb;border-radius:8px;font-size:13px"><option value="">Todas las zonas</option></select>
+                                <button class="btn btn-secondary btn-sm" onclick="exportarPedidosExcel()">📊 Exportar</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="pipelineView"></div>
+                </div>
+
+                <!-- ===== VENTAS FINALIZADAS ===== -->
+                <div id="seccion-ventas" class="tab-content">
                     <div class="stats">
-                        <div class="stat-card"><div class="stat-label">Total Pedidos</div><div class="stat-value" id="totalPedidos">0</div></div>
-                        <div class="stat-card"><div class="stat-label">Pendientes</div><div class="stat-value" id="pedidosPendientes">0</div></div>
-                        <div class="stat-card"><div class="stat-label">Entregados</div><div class="stat-value" id="pedidosEntregados">0</div></div>
-                        <div class="stat-card"><div class="stat-label">Total Gs.</div><div class="stat-value money" id="totalGuaranies">0</div></div>
+                        <div class="stat-card"><div class="stat-label">Ventas Semana</div><div class="stat-value money" id="ventasSemana">Gs. 0</div></div>
+                        <div class="stat-card"><div class="stat-label">Ventas Mes</div><div class="stat-value money" id="ventasMes">Gs. 0</div></div>
+                        <div class="stat-card"><div class="stat-label">Total Entregas</div><div class="stat-value" id="ventasCant">0</div></div>
                     </div>
                     <div class="card">
                         <div class="filters">
-                            <div class="filter-group"><label>Fecha</label><input type="date" id="filterFecha" onchange="aplicarFiltrosPedidos()"></div>
-                            <div class="filter-group"><label>Cliente</label><select id="filterCliente" onchange="aplicarFiltrosPedidos()"><option value="">Todos</option></select></div>
-                            <div class="filter-group"><label>Zona</label><select id="filterZona" onchange="aplicarFiltrosPedidos()"><option value="">Todas</option></select></div>
-                            <div class="filter-group"><label>Estado</label><select id="filterEstado" onchange="aplicarFiltrosPedidos()"><option value="">Todos</option><option value="pendiente">Pendiente</option><option value="entregado">Entregado</option></select></div>
-                        </div>
-                        <div style="display:flex;gap:10px;flex-wrap:wrap">
-                            <button class="btn btn-secondary" onclick="limpiarFiltrosPedidos()">Limpiar</button>
-                            <button class="btn btn-secondary" onclick="exportarPedidosExcel()" style="margin-left:auto">📊 Exportar</button>
+                            <div class="filter-group"><label>Desde</label><input type="date" id="ventasDesde" onchange="renderVentas()"></div>
+                            <div class="filter-group"><label>Hasta</label><input type="date" id="ventasHasta" onchange="renderVentas()"></div>
+                            <div class="filter-group"><label>Cliente</label><select id="ventasCliente" onchange="renderVentas()"><option value="">Todos</option></select></div>
                         </div>
                     </div>
-                    <div class="card" id="pedidosList"><div class="loading"><div class="spinner"></div><p style="margin-top:15px">Cargando...</p></div></div>
+                    <div class="card" id="ventasList"></div>
                 </div>
 
-                <!-- CRÉDITOS -->
+                <!-- ===== NO ENTREGADOS ===== -->
+                <div id="seccion-no_entregados" class="tab-content">
+                    <div class="card">
+                        <h2>❌ Historial de No Entregados / Parciales</h2>
+                        <p style="color:#6b7280;margin-bottom:16px">Pedidos que no se pudieron entregar o fueron entregados parcialmente.</p>
+                    </div>
+                    <div class="card" id="noEntregadosList"></div>
+                </div>
+
+                <!-- ===== CRÉDITOS ===== -->
                 <div id="seccion-creditos" class="tab-content">
                     <div class="stats">
                         <div class="stat-card"><div class="stat-label">Total Pendientes</div><div class="stat-value money" id="totalCreditosPendientes">Gs. 0</div></div>
@@ -324,119 +368,68 @@
                             <div class="filter-group"><label>Cliente</label><select id="filterClienteCredito"><option value="">Todos</option></select></div>
                             <div class="filter-group"><label>Estado</label><select id="filterEstadoCredito"><option value="pendiente_pago">Pendiente</option><option value="pagado">Pagado</option><option value="todos">Todos</option></select></div>
                         </div>
-                        <div style="display:flex;gap:10px;flex-wrap:wrap">
-                            <button class="btn btn-primary" onclick="aplicarFiltrosCreditos()">Aplicar</button>
-                            <button class="btn btn-secondary" onclick="exportarCreditosExcel()" style="margin-left:auto">📊 Exportar</button>
-                        </div>
+                        <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn btn-primary" onclick="aplicarFiltrosCreditos()">Aplicar</button><button class="btn btn-secondary" onclick="exportarCreditosExcel()" style="margin-left:auto">📊 Exportar</button></div>
                     </div>
-                    <div class="card" id="creditosList"><div class="loading"><div class="spinner"></div><p style="margin-top:15px">Cargando...</p></div></div>
+                    <div class="card" id="creditosList"></div>
                 </div>
 
-                <!-- STOCK -->
+                <!-- ===== STOCK ===== -->
                 <div id="seccion-stock" class="tab-content">
-                    <div class="card">
-                        <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center"><h2 style="margin:0;flex:1">Control de Inventario</h2><button class="btn btn-success" onclick="guardarStock()">💾 Guardar</button><button class="btn btn-secondary" onclick="exportarStockExcel()">📊 Exportar</button></div>
-                        <input type="text" id="buscarStock" placeholder="🔍 Buscar productos..." oninput="filtrarStock()" style="width:100%;padding:12px;border:2px solid #e5e7eb;border-radius:8px">
-                    </div>
+                    <div class="card"><div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center"><h2 style="margin:0;flex:1">Control de Inventario</h2><button class="btn btn-success" onclick="guardarStock()">💾 Guardar</button><button class="btn btn-secondary" onclick="exportarStockExcel()">📊 Exportar</button></div><input type="text" id="buscarStock" placeholder="🔍 Buscar..." oninput="filtrarStock()" style="width:100%;padding:12px;border:2px solid #e5e7eb;border-radius:8px"></div>
                     <div class="card"><div style="overflow-x:auto"><table class="tabla"><thead><tr><th>Producto</th><th>Presentación</th><th>Stock Actual</th><th>Stock Mínimo</th><th>Estado</th><th>Acciones</th></tr></thead><tbody id="stockBody"></tbody></table></div></div>
                 </div>
 
-                <!-- REPORTES -->
+                <!-- ===== REPORTES ===== -->
                 <div id="seccion-reportes" class="tab-content">
-                    <div class="card">
-                        <h2 style="margin-bottom:15px">Período de Análisis</h2>
-                        <div class="filters">
-                            <div class="filter-group"><label>Desde:</label><input type="date" id="reporteFechaDesde"></div>
-                            <div class="filter-group"><label>Hasta:</label><input type="date" id="reporteFechaHasta"></div>
-                            <div class="filter-group"><label>Comparar con:</label><select id="comparacionPeriodo"><option value="ninguno">Sin comparar</option><option value="anterior">Período Anterior</option><option value="mesanterior">Mes Anterior</option></select></div>
-                        </div>
-                        <div style="display:flex;gap:10px;margin-top:15px;flex-wrap:wrap">
-                            <button class="btn btn-primary" onclick="tipoReporte='zona';generarReporte()">Por Zona</button>
-                            <button class="btn btn-primary" onclick="tipoReporte='vendedor';generarReporte()">Por Vendedor</button>
-                            <button class="btn btn-primary" onclick="tipoReporte='producto';generarReporte()">Por Producto</button>
-                            <button class="btn btn-primary" onclick="tipoReporte='cliente';generarReporte()">Por Cliente</button>
-                            <button class="btn btn-success" onclick="tipoReporte='margen';generarReporte()">💰 Margen</button>
-                        </div>
-                    </div>
+                    <div class="card"><h2 style="margin-bottom:15px">Período de Análisis</h2><div class="filters"><div class="filter-group"><label>Desde:</label><input type="date" id="reporteFechaDesde"></div><div class="filter-group"><label>Hasta:</label><input type="date" id="reporteFechaHasta"></div><div class="filter-group"><label>Comparar con:</label><select id="comparacionPeriodo"><option value="ninguno">Sin comparar</option><option value="anterior">Período Anterior</option><option value="mesanterior">Mes Anterior</option></select></div></div><div style="display:flex;gap:10px;margin-top:15px;flex-wrap:wrap"><button class="btn btn-primary" onclick="tipoReporte='zona';generarReporte()">Por Zona</button><button class="btn btn-primary" onclick="tipoReporte='producto';generarReporte()">Por Producto</button><button class="btn btn-primary" onclick="tipoReporte='cliente';generarReporte()">Por Cliente</button><button class="btn btn-success" onclick="tipoReporte='margen';generarReporte()">💰 Margen</button></div></div>
                     <div class="card" id="comparacionCard" style="display:none"><h2>📊 Comparación</h2><div class="stats" id="statsComparacion"></div></div>
                     <div class="card" id="statsReporte" style="display:none"><h2>Resumen</h2><div class="stats"><div class="stat-card"><div class="stat-label">Total Ventas</div><div class="stat-value money" id="rTotalVentas">Gs. 0</div></div><div class="stat-card"><div class="stat-label">Pedidos</div><div class="stat-value" id="rTotalPedidos">0</div></div><div class="stat-card"><div class="stat-label">Ticket Promedio</div><div class="stat-value money" id="rTicketPromedio">Gs. 0</div></div></div></div>
-                    <div class="card" id="graficoReporte" style="display:none"><h2>Visualización</h2><canvas id="chartReporte" style="max-height:400px"></canvas></div>
+                    <div class="card" id="graficoReporte" style="display:none"><canvas id="chartReporte" style="max-height:400px"></canvas></div>
                     <div class="card" id="resultadosReporte" style="display:none"><div style="display:flex;justify-content:space-between;margin-bottom:15px;flex-wrap:wrap;gap:10px"><h2 id="tituloReporte">Reporte</h2><button class="btn btn-primary" onclick="exportarReporteExcel()">📥 Exportar</button></div><div style="overflow-x:auto"><table class="tabla" id="tablaReporte"><thead id="reporteHeader"></thead><tbody id="reporteBody"></tbody></table></div></div>
                 </div>
 
-                <!-- PRECIOS -->
+                <!-- ===== PRECIOS ===== -->
                 <div id="seccion-precios" class="tab-content">
-                    <div class="card"><h2>Precios Personalizados</h2><div class="filter-group" style="max-width:400px"><label>Seleccionar Cliente:</label><select id="preciosCliente" onchange="cargarPreciosCliente()"><option value="">-- Seleccione --</option></select></div></div>
-                    <div class="card" id="preciosCard" style="display:none">
-                        <div style="margin-bottom:15px"><input type="text" id="buscarProductoPrecio" placeholder="🔍 Buscar producto..." style="width:100%;padding:10px;border:2px solid #e5e7eb;border-radius:8px"></div>
-                        <div style="overflow-x:auto"><table class="tabla"><thead><tr><th>Producto</th><th>Presentación</th><th>Precio Base</th><th>Precio Personalizado</th></tr></thead><tbody id="preciosBody"></tbody></table></div>
-                        <div style="margin-top:20px"><button class="btn btn-success" onclick="guardarPreciosPersonalizados()">💾 Guardar y Descargar</button></div>
-                    </div>
+                    <div class="card"><h2>Precios Personalizados</h2><div class="filter-group" style="max-width:400px"><label>Cliente:</label><select id="preciosCliente" onchange="cargarPreciosCliente()"><option value="">-- Seleccione --</option></select></div></div>
+                    <div class="card" id="preciosCard" style="display:none"><div style="margin-bottom:15px"><input type="text" id="buscarProductoPrecio" placeholder="🔍 Buscar..." style="width:100%;padding:10px;border:2px solid #e5e7eb;border-radius:8px"></div><div style="overflow-x:auto"><table class="tabla"><thead><tr><th>Producto</th><th>Presentación</th><th>Precio Base</th><th>Precio Personalizado</th></tr></thead><tbody id="preciosBody"></tbody></table></div><div style="margin-top:20px"><button class="btn btn-success" onclick="guardarPreciosPersonalizados()">💾 Guardar y Descargar</button></div></div>
                 </div>
 
-                <!-- PRODUCTOS -->
+                <!-- ===== PRODUCTOS ===== -->
                 <div id="seccion-productos" class="tab-content">
-                    <div class="card"><div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap"><button class="btn btn-primary" onclick="mostrarModalNuevoProducto()">+ Nuevo Producto</button><button class="btn btn-success" onclick="guardarProductos()">💾 Guardar</button><div style="flex:1;min-width:250px"><input type="text" id="buscarProducto" placeholder="🔍 Buscar..." oninput="filtrarProductos()" style="width:100%;padding:12px;border:2px solid #e5e7eb;border-radius:8px"><label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:14px"><input type="checkbox" id="mostrarOcultosProductos" onchange="filtrarProductos()"> Mostrar ocultos</label></div></div></div>
+                    <div class="card"><div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap"><button class="btn btn-primary" onclick="mostrarModalNuevoProducto()">+ Nuevo</button><button class="btn btn-success" onclick="guardarProductos()">💾 Guardar</button><div style="flex:1;min-width:250px"><input type="text" id="buscarProducto" placeholder="🔍 Buscar..." oninput="filtrarProductos()" style="width:100%;padding:12px;border:2px solid #e5e7eb;border-radius:8px"><label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:14px"><input type="checkbox" id="mostrarOcultosProductos" onchange="filtrarProductos()"> Mostrar ocultos</label></div></div></div>
                     <div class="card"><div style="overflow-x:auto"><table class="tabla"><thead><tr><th>ID</th><th>Producto</th><th>Categoría</th><th>Subcategoría</th><th>Presentaciones</th><th style="width:80px">Acciones</th></tr></thead><tbody id="productosBody"></tbody></table></div></div>
                 </div>
 
-                <!-- CLIENTES -->
+                <!-- ===== CLIENTES ===== -->
                 <div id="seccion-clientes" class="tab-content">
-                    <div class="card"><div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap"><button class="btn btn-primary" onclick="mostrarModalNuevoCliente()">+ Nuevo Cliente</button><button class="btn btn-success" onclick="guardarClientes()">💾 Guardar</button><div style="flex:1;min-width:250px"><input type="text" id="buscarCliente" placeholder="🔍 Buscar..." oninput="filtrarClientes()" style="width:100%;padding:12px;border:2px solid #e5e7eb;border-radius:8px"><label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:14px"><input type="checkbox" id="mostrarOcultosClientes" onchange="filtrarClientes()"> Mostrar ocultos</label></div></div></div>
+                    <div class="card"><div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap"><button class="btn btn-primary" onclick="mostrarModalNuevoCliente()">+ Nuevo</button><button class="btn btn-success" onclick="guardarClientes()">💾 Guardar</button><div style="flex:1;min-width:250px"><input type="text" id="buscarCliente" placeholder="🔍 Buscar..." oninput="filtrarClientes()" style="width:100%;padding:12px;border:2px solid #e5e7eb;border-radius:8px"><label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:14px"><input type="checkbox" id="mostrarOcultosClientes" onchange="filtrarClientes()"> Mostrar ocultos</label></div></div></div>
                     <div class="card"><div style="overflow-x:auto"><table class="tabla"><thead><tr><th>ID</th><th>Razón Social</th><th>RUC</th><th>Teléfono</th><th>Dirección</th><th>Encargado</th><th>Precios</th><th style="width:120px">Acciones</th></tr></thead><tbody id="clientesBody"></tbody></table></div></div>
                 </div>
 
-                <!-- CATÁLOGO VISUAL -->
+                <!-- ===== CATÁLOGO ===== -->
                 <div id="seccion-catalogo" class="tab-content">
-                    <div class="card">
-                        <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center">
-                            <h2 style="margin:0;flex:1">📸 Catálogo de Productos</h2>
-                            <select id="filtroCatalogoCat" onchange="renderCatalogo()" style="padding:10px;border:2px solid #e5e7eb;border-radius:8px;font-size:14px">
-                                <option value="">Todas las categorías</option>
-                            </select>
-                        </div>
-                        <div style="margin-bottom:16px">
-                            <input type="text" id="buscarCatalogo" placeholder="🔍 Buscar producto..." oninput="renderCatalogo()" style="width:100%;padding:12px;border:2px solid #e5e7eb;border-radius:8px">
-                        </div>
-                        <label style="display:flex;align-items:center;gap:8px;margin-bottom:16px;font-size:14px;color:#6b7280"><input type="checkbox" id="catalogoMostrarOcultos" onchange="renderCatalogo()"> Mostrar ocultos</label>
-                    </div>
+                    <div class="card"><div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center"><h2 style="margin:0;flex:1">📸 Catálogo</h2><select id="filtroCatalogoCat" onchange="renderCatalogo()" style="padding:10px;border:2px solid #e5e7eb;border-radius:8px;font-size:14px"><option value="">Todas</option></select></div><input type="text" id="buscarCatalogo" placeholder="🔍 Buscar..." oninput="renderCatalogo()" style="width:100%;padding:12px;border:2px solid #e5e7eb;border-radius:8px;margin-bottom:12px"><label style="display:flex;align-items:center;gap:8px;font-size:14px;color:#6b7280"><input type="checkbox" id="catalogoMostrarOcultos" onchange="renderCatalogo()"> Mostrar ocultos</label></div>
                     <div class="catalogo-grid" id="catalogoGrid"></div>
                 </div>
 
-                <!-- RUTAS / AGENDA -->
+                <!-- ===== RUTAS ===== -->
                 <div id="seccion-rutas" class="tab-content">
-                    <div class="card">
-                        <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center">
-                            <h2 style="margin:0;flex:1">📍 Agenda de Visitas</h2>
-                            <button class="btn btn-primary" onclick="mostrarModalNuevaRuta()">+ Nueva Visita</button>
-                        </div>
-                        <div class="filters">
-                            <div class="filter-group"><label>Semana:</label><input type="week" id="filtroSemanaRuta" onchange="renderRutas()"></div>
-                            <div class="filter-group"><label>Zona:</label><select id="filtroZonaRuta" onchange="renderRutas()"><option value="">Todas</option></select></div>
-                        </div>
-                    </div>
+                    <div class="card"><div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center"><h2 style="margin:0;flex:1">📍 Agenda de Visitas</h2><button class="btn btn-primary" onclick="mostrarModalNuevaRuta()">+ Nueva Visita</button></div><div class="filters"><div class="filter-group"><label>Semana:</label><input type="week" id="filtroSemanaRuta" onchange="renderRutas()"></div><div class="filter-group"><label>Zona:</label><select id="filtroZonaRuta" onchange="renderRutas()"><option value="">Todas</option></select></div></div></div>
                     <div id="rutasContainer"></div>
-                    <div class="card" style="margin-top:20px">
-                        <h3 style="margin-bottom:12px">📊 Resumen Semanal</h3>
-                        <div class="stats" id="rutasStats">
-                            <div class="stat-card"><div class="stat-label">Visitas Programadas</div><div class="stat-value" id="rutasTotalVisitas">0</div></div>
-                            <div class="stat-card"><div class="stat-label">Completadas</div><div class="stat-value success" id="rutasCompletadas" style="color:#10b981">0</div></div>
-                            <div class="stat-card"><div class="stat-label">Pendientes</div><div class="stat-value warning" id="rutasPendientes" style="color:#f59e0b">0</div></div>
-                        </div>
-                    </div>
+                    <div class="card" style="margin-top:16px"><h3 style="margin-bottom:12px">📊 Resumen</h3><div class="stats"><div class="stat-card"><div class="stat-label">Programadas</div><div class="stat-value" id="rutasTotalVisitas">0</div></div><div class="stat-card"><div class="stat-label">Completadas</div><div class="stat-value" id="rutasCompletadas" style="color:#10b981">0</div></div><div class="stat-card"><div class="stat-label">Pendientes</div><div class="stat-value" id="rutasPendientes" style="color:#f59e0b">0</div></div></div></div>
                 </div>
 
-                <!-- HERRAMIENTAS -->
+                <!-- ===== HERRAMIENTAS ===== -->
                 <div id="seccion-herramientas" class="tab-content">
-                    <div class="card"><h2>💾 Backup y Restauración</h2><p style="color:#6b7280;margin-bottom:20px">Guarda o restaura todos tus datos.</p><div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn btn-success" onclick="crearBackup()">📥 Descargar Backup</button><button class="btn btn-primary" onclick="document.getElementById('restaurarFile').click()">📤 Restaurar</button><input type="file" id="restaurarFile" accept=".json" style="display:none" onchange="restaurarBackup(event)"></div></div>
-                    <div class="card"><h2>📊 Importar Productos desde Excel</h2><p style="color:#6b7280;margin-bottom:15px">Importa productos desde .xlsx o .csv</p><div style="background:#f9fafb;padding:15px;border-radius:8px;margin-bottom:15px"><strong style="display:block;margin-bottom:10px">Columnas:</strong><code style="background:white;padding:10px;display:block;border-radius:4px;font-size:13px">Nombre | Categoría | Subcategoría | Presentación | Precio</code></div><div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn btn-secondary" onclick="descargarPlantillaExcel()">📄 Plantilla</button><button class="btn btn-primary" onclick="document.getElementById('importarFile').click()">📤 Importar</button><input type="file" id="importarFile" accept=".xlsx,.xls,.csv" style="display:none" onchange="importarProductosExcel(event)"></div></div>
-                    <div class="card"><h2>👥 Importar Clientes Masivamente</h2><p style="color:#6b7280;margin-bottom:15px">Importa clientes desde .xlsx o .csv</p><div style="background:#f9fafb;padding:15px;border-radius:8px;margin-bottom:15px"><strong style="display:block;margin-bottom:10px">Columnas:</strong><code style="background:white;padding:10px;display:block;border-radius:4px;font-size:13px">Razon Social | RUC | Telefono | Direccion | Encargado</code></div><div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn btn-secondary" onclick="descargarPlantillaClientes()">📄 Plantilla</button><button class="btn btn-primary" onclick="document.getElementById('importarClientesFile').click()">📤 Importar</button><input type="file" id="importarClientesFile" accept=".xlsx,.xls,.csv" style="display:none" onchange="importarClientesExcel(event)"></div></div>
-                    <div class="card"><h2 style="color:#ef4444">🗑️ Limpieza de Datos</h2><p style="color:#6b7280;margin-bottom:20px">⚠️ Acciones irreversibles. Crea un backup primero.</p><div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn btn-danger" onclick="limpiarPedidos()">Borrar Pedidos</button><button class="btn btn-danger" onclick="limpiarStockLocal()">Resetear Stock</button><button class="btn btn-danger" onclick="limpiarHistorial()">Borrar Historial</button></div></div>
+                    <div class="card"><h2>💾 Backup</h2><p style="color:#6b7280;margin-bottom:20px">Guarda o restaura todos tus datos.</p><div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn btn-success" onclick="crearBackup()">📥 Descargar Backup</button><button class="btn btn-primary" onclick="document.getElementById('restaurarFile').click()">📤 Restaurar</button><input type="file" id="restaurarFile" accept=".json" style="display:none" onchange="restaurarBackup(event)"></div></div>
+                    <div class="card"><h2>📊 Importar Productos</h2><p style="color:#6b7280;margin-bottom:15px">Desde .xlsx o .csv</p><div style="background:#f9fafb;padding:15px;border-radius:8px;margin-bottom:15px"><code style="background:white;padding:10px;display:block;border-radius:4px;font-size:13px">Nombre | Categoría | Subcategoría | Presentación | Precio</code></div><div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn btn-secondary" onclick="descargarPlantillaExcel()">📄 Plantilla</button><button class="btn btn-primary" onclick="document.getElementById('importarFile').click()">📤 Importar</button><input type="file" id="importarFile" accept=".xlsx,.xls,.csv" style="display:none" onchange="importarProductosExcel(event)"></div></div>
+                    <div class="card"><h2>👥 Importar Clientes</h2><p style="color:#6b7280;margin-bottom:15px">Desde .xlsx o .csv</p><div style="background:#f9fafb;padding:15px;border-radius:8px;margin-bottom:15px"><code style="background:white;padding:10px;display:block;border-radius:4px;font-size:13px">Razon Social | RUC | Telefono | Direccion | Encargado</code></div><div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn btn-secondary" onclick="descargarPlantillaClientes()">📄 Plantilla</button><button class="btn btn-primary" onclick="document.getElementById('importarClientesFile').click()">📤 Importar</button><input type="file" id="importarClientesFile" accept=".xlsx,.xls,.csv" style="display:none" onchange="importarClientesExcel(event)"></div></div>
+                    <div class="card"><h2 style="color:#ef4444">🗑️ Limpieza de Datos</h2><p style="color:#6b7280;margin-bottom:20px">⚠️ Irreversible. Crea backup primero.</p><div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn btn-danger" onclick="limpiarPedidos()">Borrar Pedidos</button><button class="btn btn-danger" onclick="limpiarStockLocal()">Resetear Stock</button><button class="btn btn-danger" onclick="limpiarHistorial()">Borrar Historial</button></div></div>
                 </div>
 
-                <!-- HISTORIAL -->
+                <!-- ===== HISTORIAL ===== -->
                 <div id="seccion-actividad" class="tab-content">
-                    <div class="card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px"><h2 style="margin:0">📋 Historial de Actividad</h2><button class="btn btn-secondary" onclick="limpiarHistorial()">🗑️ Limpiar</button></div><div id="actividadCompleta"><div class="dash-empty">Sin actividad</div></div></div>
+                    <div class="card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px"><h2 style="margin:0">📋 Historial</h2><button class="btn btn-secondary" onclick="limpiarHistorial()">🗑️ Limpiar</button></div><div id="actividadCompleta"><div class="dash-empty">Sin actividad</div></div></div>
                 </div>
             </div>
         </div>
@@ -444,13 +437,31 @@
 
     <!-- MODALES -->
     <div class="modal" id="modalNuevoProducto"><div class="modal-content"><div class="modal-header">Nuevo Producto</div><div class="filter-group"><label>Nombre:</label><input type="text" id="nuevoNombre" placeholder="Ej: Jabón Dove"></div><div class="filter-group"><label>Categoría:</label><select id="nuevoCategoria"></select></div><div class="filter-group"><label>Subcategoría:</label><input type="text" id="nuevoSubcategoria" placeholder="Ej: Jabones"></div><div class="filter-group"><label>Presentaciones (separadas por coma):</label><input type="text" id="nuevoPresentaciones" placeholder="Ej: 125g, 90g"></div><div class="filter-group"><label>Precio Base:</label><input type="number" id="nuevoPrecio" placeholder="1000"></div><div class="modal-actions"><button class="btn btn-secondary" onclick="cerrarModal()">Cancelar</button><button class="btn btn-primary" onclick="agregarNuevoProducto()">Agregar</button></div></div></div>
-    <div class="modal" id="modalNuevoCliente"><div class="modal-content" style="max-width:700px"><div class="modal-header">Nuevo Cliente</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:15px"><div class="filter-group" style="grid-column:1/-1"><label>Razón Social:</label><input type="text" id="nuevoClienteRazon" placeholder="Ej: Supermercado Central S.A."></div><div class="filter-group"><label>RUC:</label><input type="text" id="nuevoClienteRUC" placeholder="Ej: 80012345-6"></div><div class="filter-group"><label>Teléfono:</label><input type="tel" id="nuevoClienteTelefono" placeholder="Ej: 0981234567"></div><div class="filter-group" style="grid-column:1/-1"><label>Dirección:</label><input type="text" id="nuevoClienteDireccion" placeholder="Ej: Av. Central 1234"></div><div class="filter-group" style="grid-column:1/-1"><label>Encargado (opcional):</label><input type="text" id="nuevoClienteEncargado" placeholder="Ej: Juan Pérez"></div></div><div class="modal-actions"><button class="btn btn-secondary" onclick="cerrarModalCliente()">Cancelar</button><button class="btn btn-primary" onclick="agregarNuevoCliente()">Agregar</button></div></div></div>
+    <div class="modal" id="modalNuevoCliente"><div class="modal-content" style="max-width:700px"><div class="modal-header">Nuevo Cliente</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:15px"><div class="filter-group" style="grid-column:1/-1"><label>Razón Social:</label><input type="text" id="nuevoClienteRazon" placeholder="Ej: Supermercado Central"></div><div class="filter-group"><label>RUC:</label><input type="text" id="nuevoClienteRUC" placeholder="80012345-6"></div><div class="filter-group"><label>Teléfono:</label><input type="tel" id="nuevoClienteTelefono" placeholder="0981234567"></div><div class="filter-group" style="grid-column:1/-1"><label>Dirección:</label><input type="text" id="nuevoClienteDireccion" placeholder="Av. Central 1234"></div><div class="filter-group" style="grid-column:1/-1"><label>Encargado:</label><input type="text" id="nuevoClienteEncargado" placeholder="Juan Pérez"></div></div><div class="modal-actions"><button class="btn btn-secondary" onclick="cerrarModalCliente()">Cancelar</button><button class="btn btn-primary" onclick="agregarNuevoCliente()">Agregar</button></div></div></div>
 
-    <!-- Modal Imagen Catálogo -->
-    <div class="modal" id="modalImagenCatalogo"><div class="modal-content" style="max-width:500px"><div class="modal-header">📸 Imagen del Producto</div><div id="imgPreviewContainer" style="text-align:center;margin-bottom:16px"><div style="width:200px;height:200px;background:#f3f4f6;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;font-size:64px;color:#d1d5db" id="imgPreview">📦</div></div><div class="filter-group"><label>Seleccionar imagen:</label><input type="file" id="catalogoImgInput" accept="image/*" onchange="previsualizarImagen(event)"></div><p style="font-size:12px;color:#9ca3af;margin-top:8px">La imagen se guarda localmente en tu navegador (máx ~2MB recomendado)</p><div class="modal-actions"><button class="btn btn-secondary" onclick="cerrarModalImagen()">Cancelar</button><button class="btn btn-danger" onclick="eliminarImagenCatalogo()" id="btnEliminarImg" style="display:none">🗑️ Quitar</button><button class="btn btn-primary" onclick="guardarImagenCatalogo()">Guardar</button></div></div></div>
+    <!-- MODAL EDITAR PEDIDO -->
+    <div class="modal" id="modalEditarPedido"><div class="modal-content" style="max-width:650px">
+        <div class="modal-header">✏️ Editar Pedido — <span id="editPedidoCliente"></span></div>
+        <div id="editPedidoItems"></div>
+        <div class="filter-group" style="margin-top:16px"><label>Nota de modificación:</label><input type="text" id="editPedidoNota" placeholder="Ej: Sin stock de Jabón Dove en proveedor"></div>
+        <div style="margin-top:12px;font-size:18px;font-weight:700;text-align:right">Total: <span id="editPedidoTotal">Gs. 0</span></div>
+        <div class="modal-actions"><button class="btn btn-secondary" onclick="cerrarModalEditar()">Cancelar</button><button class="btn btn-primary" onclick="guardarEdicionPedido()">💾 Guardar Cambios</button></div>
+    </div></div>
 
-    <!-- Modal Nueva Ruta -->
-    <div class="modal" id="modalNuevaRuta"><div class="modal-content" style="max-width:500px"><div class="modal-header">📍 Programar Visita</div><div class="filter-group"><label>Cliente:</label><select id="rutaCliente" style="width:100%;padding:10px;border:2px solid #e5e7eb;border-radius:8px"></select></div><div class="filter-group"><label>Fecha:</label><input type="date" id="rutaFecha"></div><div class="filter-group"><label>Hora estimada:</label><input type="time" id="rutaHora" value="09:00"></div><div class="filter-group"><label>Notas (opcional):</label><input type="text" id="rutaNotas" placeholder="Ej: Llevar muestras, cobrar crédito"></div><div class="modal-actions"><button class="btn btn-secondary" onclick="cerrarModalRuta()">Cancelar</button><button class="btn btn-primary" onclick="guardarNuevaRuta()">Programar</button></div></div></div>
+    <!-- MODAL ENTREGA PARCIAL -->
+    <div class="modal" id="modalParcial"><div class="modal-content" style="max-width:650px">
+        <div class="modal-header">⚠️ Entrega Parcial — <span id="parcialCliente"></span></div>
+        <p style="color:#6b7280;margin-bottom:16px">Ajustá las cantidades entregadas. Los items con 0 quedarán como pendientes.</p>
+        <div id="parcialItems"></div>
+        <div style="margin-top:12px;font-size:18px;font-weight:700;text-align:right">Entregado: <span id="parcialTotal">Gs. 0</span></div>
+        <div class="modal-actions"><button class="btn btn-secondary" onclick="cerrarModalParcial()">Cancelar</button><button class="btn btn-success" onclick="confirmarEntregaParcial()">✓ Confirmar Entrega Parcial</button></div>
+    </div></div>
+
+    <!-- MODAL IMAGEN CATÁLOGO -->
+    <div class="modal" id="modalImagenCatalogo"><div class="modal-content" style="max-width:500px"><div class="modal-header">📸 Imagen del Producto</div><div id="imgPreviewContainer" style="text-align:center;margin-bottom:16px"><div style="width:200px;height:200px;background:#f3f4f6;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;font-size:64px;color:#d1d5db" id="imgPreview">📦</div></div><div class="filter-group"><label>Seleccionar imagen:</label><input type="file" id="catalogoImgInput" accept="image/*" onchange="previsualizarImagen(event)"></div><div class="modal-actions"><button class="btn btn-secondary" onclick="cerrarModalImagen()">Cancelar</button><button class="btn btn-danger" onclick="eliminarImagenCatalogo()" id="btnEliminarImg" style="display:none">🗑️ Quitar</button><button class="btn btn-primary" onclick="guardarImagenCatalogo()">Guardar</button></div></div></div>
+
+    <!-- MODAL NUEVA RUTA -->
+    <div class="modal" id="modalNuevaRuta"><div class="modal-content" style="max-width:500px"><div class="modal-header">📍 Programar Visita</div><div class="filter-group"><label>Cliente:</label><select id="rutaCliente" style="width:100%;padding:10px;border:2px solid #e5e7eb;border-radius:8px"></select></div><div class="filter-group"><label>Fecha:</label><input type="date" id="rutaFecha"></div><div class="filter-group"><label>Hora:</label><input type="time" id="rutaHora" value="09:00"></div><div class="filter-group"><label>Notas:</label><input type="text" id="rutaNotas" placeholder="Llevar muestras, cobrar crédito"></div><div class="modal-actions"><button class="btn btn-secondary" onclick="cerrarModalRuta()">Cancelar</button><button class="btn btn-primary" onclick="guardarNuevaRuta()">Programar</button></div></div></div>
 
     <script src="admin.js"></script>
 </body>

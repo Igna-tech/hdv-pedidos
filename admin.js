@@ -139,8 +139,11 @@ function renderPipeline(){
     else renderListaPipeline(v);
     // Update badges
     const nuevos=todosLosPedidos.filter(p=>getEstado(p)==='nuevo').length;
+    const preparados=todosLosPedidos.filter(p=>getEstado(p)==='preparado').length;
     const bn=document.getElementById('badgeNuevos');
     if(nuevos>0){bn.textContent=nuevos;bn.style.display='inline';}else bn.style.display='none';
+    const bc=document.getElementById('badgeChecklist');
+    if(preparados>0){bc.textContent=preparados;bc.style.display='inline';}else bc.style.display='none';
 }
 
 // ============================================
@@ -163,8 +166,8 @@ function renderKanbanCard(p,estado){
     let acciones='';
     if(estado==='nuevo') acciones=`<button class="btn btn-primary btn-sm" onclick="editarPedido('${p.id}')">✏️ Revisar</button><button class="btn btn-sm" style="background:${ESTADOS.revisado.bg};color:${ESTADOS.revisado.color}" onclick="avanzarEstado('${p.id}')">→ Revisado</button>`;
     else if(estado==='revisado') acciones=`<button class="btn btn-primary btn-sm" onclick="editarPedido('${p.id}')">✏️</button><button class="btn btn-sm" style="background:${ESTADOS.preparado.bg};color:${ESTADOS.preparado.color}" onclick="avanzarEstado('${p.id}')">→ Preparado</button>`;
-    else if(estado==='preparado') acciones=`<button class="btn btn-sm" style="background:${ESTADOS.en_ruta.bg};color:${ESTADOS.en_ruta.color}" onclick="avanzarEstado('${p.id}')">🚛 A Ruta</button>`;
-    else if(estado==='en_ruta') acciones=`<button class="btn btn-success btn-sm" onclick="confirmarEntrega('${p.id}')">✅ Entregado</button><button class="btn btn-sm" style="background:#fef3c7;color:#92400e" onclick="abrirEntregaParcial('${p.id}')">⚠️ Parcial</button><button class="btn btn-danger btn-sm" onclick="marcarNoEntregado('${p.id}')">❌</button>`;
+    else if(estado==='preparado') acciones=`<button class="btn btn-sm" style="background:${ESTADOS.en_ruta.bg};color:${ESTADOS.en_ruta.color}" onclick="avanzarEstado('${p.id}')">🚛 A Ruta</button><button class="btn btn-sm" style="background:#eff6ff;color:#2563eb" onclick="generarRemitoPDF('${p.id}')">📄</button>`;
+    else if(estado==='en_ruta') acciones=`<button class="btn btn-success btn-sm" onclick="confirmarEntrega('${p.id}')">✅ Entregado</button><button class="btn btn-sm" style="background:#fef3c7;color:#92400e" onclick="abrirEntregaParcial('${p.id}')">⚠️ Parcial</button><button class="btn btn-danger btn-sm" onclick="marcarNoEntregado('${p.id}')">❌</button><button class="btn btn-sm" style="background:#eff6ff;color:#2563eb" onclick="generarRemitoPDF('${p.id}')">📄</button>`;
     return`<div class="kanban-card" style="border-left-color:${s.color}"><div class="kanban-card-name">${p.cliente.nombre}</div><div class="kanban-card-info">📍 ${cl?.zona||''} • ${tiempoRelativo(new Date(p.fecha))}</div>${nota}<div class="kanban-card-items">${itemsPreview}</div><div class="kanban-card-total">Gs. ${p.total.toLocaleString()}</div><div class="kanban-card-actions">${acciones}<button class="btn btn-danger btn-sm" onclick="eliminarPedido('${p.id}')" style="margin-left:auto">🗑️</button></div></div>`;
 }
 
@@ -180,8 +183,8 @@ function renderListaPipeline(container){
         let acciones='';
         if(estado==='nuevo') acciones=`<button class="btn btn-primary btn-sm" onclick="editarPedido('${p.id}')">✏️ Revisar</button><button class="btn btn-sm" style="background:${ESTADOS.revisado.bg};color:${ESTADOS.revisado.color}" onclick="avanzarEstado('${p.id}')">→ Revisado</button>`;
         else if(estado==='revisado') acciones=`<button class="btn btn-primary btn-sm" onclick="editarPedido('${p.id}')">✏️</button><button class="btn btn-sm" style="background:${ESTADOS.preparado.bg};color:${ESTADOS.preparado.color}" onclick="avanzarEstado('${p.id}')">→ Preparado</button>`;
-        else if(estado==='preparado') acciones=`<button class="btn btn-sm" style="background:${ESTADOS.en_ruta.bg};color:${ESTADOS.en_ruta.color}" onclick="avanzarEstado('${p.id}')">🚛 A Ruta</button>`;
-        else if(estado==='en_ruta') acciones=`<button class="btn btn-success btn-sm" onclick="confirmarEntrega('${p.id}')">✅ Entregado</button><button class="btn btn-sm" style="background:#fef3c7;color:#92400e" onclick="abrirEntregaParcial('${p.id}')">⚠️ Parcial</button><button class="btn btn-danger btn-sm" onclick="marcarNoEntregado('${p.id}')">❌</button>`;
+        else if(estado==='preparado') acciones=`<button class="btn btn-sm" style="background:${ESTADOS.en_ruta.bg};color:${ESTADOS.en_ruta.color}" onclick="avanzarEstado('${p.id}')">🚛 A Ruta</button><button class="btn btn-sm" style="background:#eff6ff;color:#2563eb" onclick="generarRemitoPDF('${p.id}')">📄 Remito</button>`;
+        else if(estado==='en_ruta') acciones=`<button class="btn btn-success btn-sm" onclick="confirmarEntrega('${p.id}')">✅ Entregado</button><button class="btn btn-sm" style="background:#fef3c7;color:#92400e" onclick="abrirEntregaParcial('${p.id}')">⚠️ Parcial</button><button class="btn btn-danger btn-sm" onclick="marcarNoEntregado('${p.id}')">❌</button><button class="btn btn-sm" style="background:#eff6ff;color:#2563eb" onclick="generarRemitoPDF('${p.id}')">📄 Remito</button>`;
         if(PIPE_ORDER.includes(estado)) acciones+=`<button class="btn btn-secondary btn-sm" onclick="retrocederEstado('${p.id}')" style="margin-left:4px">←</button>`;
         return`<div class="pedido-card"><div class="pedido-header"><div><h3 style="margin-bottom:5px">${p.cliente.nombre}</h3><div style="font-size:13px;color:#6b7280">📍 ${cl?.zona||''} • ${new Date(p.fecha).toLocaleString('es-PY')}</div>${nota}</div><span class="pedido-status" style="background:${s.bg};color:${s.color}">${s.icon} ${s.label}</span></div><div style="margin-bottom:12px">${p.items.map(i=>`<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:14px"><span>${i.nombre} <span style="color:#6b7280">(${i.presentacion} × ${i.cantidad})</span></span><strong>Gs. ${i.subtotal.toLocaleString()}</strong></div>`).join('')}</div><div style="display:flex;justify-content:space-between;padding-top:12px;border-top:2px solid #e5e7eb;font-size:18px;font-weight:700"><span>TOTAL</span><span>Gs. ${p.total.toLocaleString()}</span></div><div style="display:flex;gap:6px;margin-top:12px;flex-wrap:wrap">${acciones}<button class="btn btn-danger btn-sm" onclick="eliminarPedido('${p.id}')" style="margin-left:auto">🗑️</button></div></div>`;
     }).join('')+'</div>';
@@ -388,7 +391,7 @@ function renderVentas(){
     if(ventas.length===0){c.innerHTML='<div class="empty-state">No hay ventas finalizadas en este período</div>';return;}
     c.innerHTML=ventas.sort((a,b)=>new Date(b.fecha_entrega||b.fecha)-new Date(a.fecha_entrega||a.fecha)).map(p=>{
         const s=ESTADOS[getEstado(p)];const cl=productosData.clientes.find(x=>x.id===p.cliente.id);
-        return`<div class="pedido-card"><div class="pedido-header"><div><h3 style="margin-bottom:5px">${p.cliente.nombre}</h3><div style="font-size:13px;color:#6b7280">📍 ${cl?.zona||''} • Entregado: ${new Date(p.fecha_entrega||p.fecha).toLocaleString('es-PY')}</div></div><span class="pedido-status" style="background:${s.bg};color:${s.color}">${s.icon} ${s.label}</span></div><div style="margin-bottom:12px">${p.items.map(i=>`<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:14px"><span>${i.nombre} (${i.presentacion} × ${i.cantidad})</span><strong>Gs. ${i.subtotal.toLocaleString()}</strong></div>`).join('')}</div><div style="font-size:18px;font-weight:700;text-align:right;padding-top:12px;border-top:2px solid #e5e7eb">Gs. ${p.total.toLocaleString()}</div></div>`;
+        return`<div class="pedido-card"><div class="pedido-header"><div><h3 style="margin-bottom:5px">${p.cliente.nombre}</h3><div style="font-size:13px;color:#6b7280">📍 ${cl?.zona||''} • Entregado: ${new Date(p.fecha_entrega||p.fecha).toLocaleString('es-PY')}</div></div><div style="display:flex;gap:6px;align-items:center"><button class="btn btn-sm" style="background:#eff6ff;color:#2563eb" onclick="generarRemitoPDF('${p.id}')">📄 Remito</button><span class="pedido-status" style="background:${s.bg};color:${s.color}">${s.icon} ${s.label}</span></div></div><div style="margin-bottom:12px">${p.items.map(i=>`<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:14px"><span>${i.nombre} (${i.presentacion} × ${i.cantidad})</span><strong>Gs. ${i.subtotal.toLocaleString()}</strong></div>`).join('')}</div><div style="font-size:18px;font-weight:700;text-align:right;padding-top:12px;border-top:2px solid #e5e7eb">Gs. ${p.total.toLocaleString()}</div></div>`;
     }).join('');
 }
 
@@ -573,7 +576,7 @@ function toggleVisitaCompletada(id){const r=obtenerRutas();const v=r.find(x=>x.i
 async function eliminarVisita(id){if(!await confirmar('Eliminar','¿Eliminar visita?','📍'))return;guardarRutasLS(obtenerRutas().filter(r=>r.id!==id));toast('Eliminada','warning');renderRutas();}
 
 // HERRAMIENTAS
-function crearBackup(){descargarJSON({fecha:new Date().toISOString(),version:'4.0',datos:{productos:productosData,pedidos:todosLosPedidos,actividad:JSON.parse(localStorage.getItem('hdv_actividad')||'[]'),catalogo_imgs:JSON.parse(localStorage.getItem('hdv_catalogo_imgs')||'{}'),rutas:JSON.parse(localStorage.getItem('hdv_rutas')||'[]')}},`hdv_backup_${new Date().toISOString().split('T')[0]}.json`);registrarActividad('sistema','Backup creado');toast('Backup descargado','success');}
+function crearBackup(){descargarJSON({fecha:new Date().toISOString(),version:'4.1',datos:{productos:productosData,pedidos:todosLosPedidos,actividad:JSON.parse(localStorage.getItem('hdv_actividad')||'[]'),catalogo_imgs:JSON.parse(localStorage.getItem('hdv_catalogo_imgs')||'{}'),rutas:JSON.parse(localStorage.getItem('hdv_rutas')||'[]')}},`hdv_backup_${new Date().toISOString().split('T')[0]}.json`);registrarActividad('sistema','Backup creado');toast('Backup descargado','success');}
 function restaurarBackup(e){const f=e.target.files[0];if(!f)return;confirmar('Restaurar','Reemplazará todos los datos. ¿Continuar?','📤','Restaurar','btn-primary').then(ok=>{if(!ok){e.target.value='';return;}const r=new FileReader();r.onload=ev=>{try{const b=JSON.parse(ev.target.result);if(b.datos){productosData=b.datos.productos;localStorage.setItem('hdv_pedidos',JSON.stringify(b.datos.pedidos));if(b.datos.actividad)localStorage.setItem('hdv_actividad',JSON.stringify(b.datos.actividad));if(b.datos.catalogo_imgs)localStorage.setItem('hdv_catalogo_imgs',JSON.stringify(b.datos.catalogo_imgs));if(b.datos.rutas)localStorage.setItem('hdv_rutas',JSON.stringify(b.datos.rutas));registrarActividad('sistema','Backup restaurado');toast('Restaurado. Recargando...','success');setTimeout(()=>location.reload(),1500);}}catch(er){toast('Archivo inválido','error');}e.target.value='';};r.readAsText(f);});}
 function descargarPlantillaExcel(){descargarCSV('Nombre,Categoria,Subcategoria,Presentacion,Precio\nEjemplo,cuidado_personal,Jabones,125g,5000\n','plantilla_productos.csv');toast('Descargada','info');}
 function importarProductosExcel(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{try{const ls=ev.target.result.split('\n').filter(l=>l.trim());ls.shift();let n=0;ls.forEach(l=>{const[nom,cat,sub,pres,pre]=l.split(',').map(s=>s.trim());if(!nom||!cat)return;const uid=productosData.productos.length>0?parseInt(productosData.productos[productosData.productos.length-1].id.replace('P','')):0;productosData.productos.push({id:`P${String(uid+n+1).padStart(3,'0')}`,nombre:nom,categoria:cat,subcategoria:sub||'General',presentaciones:[{tamano:pres||'Unidad',precio_base:parseInt(pre)||0}]});n++;});if(n>0){descargarJSON(productosData,'productos.json');registrarActividad('producto',`${n} importados`);toast(`${n} productos importados`,'success');}}catch(er){toast('Error: '+er.message,'error');}e.target.value='';};r.readAsText(f);}
@@ -581,6 +584,212 @@ function descargarPlantillaClientes(){descargarCSV('Razon Social,RUC,Telefono,Di
 function importarClientesExcel(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{try{const ls=ev.target.result.split('\n').filter(l=>l.trim());ls.shift();let n=0;ls.forEach(l=>{const[raz,ruc,tel,dir,enc]=l.split(',').map(s=>s.trim().replace(/^"|"$/g,''));if(!raz||!ruc)return;const uid=productosData.clientes.length>0?parseInt(productosData.clientes[productosData.clientes.length-1].id.replace('C','')):0;productosData.clientes.push({id:`C${String(uid+n+1).padStart(3,'0')}`,nombre:raz,razon_social:raz,ruc,telefono:tel||'',direccion:dir||'',encargado:enc||'',zona:dir||'',tipo:'mayorista_estandar',oculto:false,precios_personalizados:{}});n++;});if(n>0){descargarJSON(productosData,'productos.json');registrarActividad('cliente',`${n} importados`);toast(`${n} clientes importados`,'success');}}catch(er){toast('Error: '+er.message,'error');}e.target.value='';};r.readAsText(f);}
 function limpiarPedidos(){confirmar('Borrar Pedidos','¿ELIMINAR TODOS los pedidos?','🗑️').then(ok=>{if(!ok)return;confirmar('Seguro?','No se puede deshacer.','⚠️').then(ok2=>{if(!ok2)return;localStorage.removeItem('hdv_pedidos');todosLosPedidos=[];registrarActividad('sistema','Pedidos eliminados');toast('Eliminados','warning');setTimeout(()=>location.reload(),1500);});});}
 function limpiarStockLocal(){confirmar('Resetear Stock','¿Resetear stock local?','📊').then(ok=>{if(!ok)return;localStorage.removeItem('stock_local');registrarActividad('stock','Stock reseteado');toast('Reseteado','success');});}
+
+// ============================================
+// CHECKLIST DE CARGA
+// ============================================
+let checklistChecked={};
+function renderChecklist(){
+    const preparados=todosLosPedidos.filter(p=>getEstado(p)==='preparado');
+    checklistChecked=JSON.parse(localStorage.getItem('hdv_checklist_checked')||'{}');
+    // Group all items across all preparados
+    const agrupado={};let totalUnidades=0;
+    preparados.forEach(p=>{
+        p.items.forEach(item=>{
+            const key=`${item.nombre}|${item.presentacion}`;
+            if(!agrupado[key])agrupado[key]={nombre:item.nombre,presentacion:item.presentacion,cantidad:0,pedidos:[]};
+            agrupado[key].cantidad+=item.cantidad;
+            agrupado[key].pedidos.push({clienteNombre:p.cliente.nombre,cantidad:item.cantidad,pedidoId:p.id});
+            totalUnidades+=item.cantidad;
+        });
+    });
+    const items=Object.values(agrupado).sort((a,b)=>a.nombre.localeCompare(b.nombre));
+    const checkedCount=items.filter(i=>checklistChecked[`${i.nombre}|${i.presentacion}`]).length;
+    const pct=items.length>0?Math.round(checkedCount/items.length*100):0;
+    // Stats
+    document.getElementById('checkPedidos').textContent=preparados.length;
+    document.getElementById('checkProductos').textContent=items.length;
+    document.getElementById('checkUnidades').textContent=totalUnidades;
+    document.getElementById('checkProgreso').textContent=`${pct}%`;
+    // Grid by category
+    const grid=document.getElementById('checklistGrid');
+    if(items.length===0){grid.innerHTML='<div class="card" style="grid-column:1/-1"><div class="empty-state"><div style="font-size:48px;margin-bottom:15px">📦</div>No hay pedidos PREPARADOS para cargar<br><br>Mové pedidos a estado PREPARADO desde el Pipeline.</div></div>';document.getElementById('checklistPorPedido').innerHTML='';return;}
+    // Group by first letter for visual grouping
+    const grupos={};items.forEach(i=>{const letra=i.nombre.charAt(0).toUpperCase();if(!grupos[letra])grupos[letra]=[];grupos[letra].push(i);});
+    grid.innerHTML=Object.entries(grupos).sort((a,b)=>a[0].localeCompare(b[0])).map(([letra,prods])=>{
+        const checkedInGroup=prods.filter(i=>checklistChecked[`${i.nombre}|${i.presentacion}`]).length;
+        const pctG=Math.round(checkedInGroup/prods.length*100);
+        return`<div class="checklist-cat"><div class="checklist-cat-header" style="background:#eff6ff;color:#2563eb"><span>${letra} — ${prods.length} productos</span><span>${checkedInGroup}/${prods.length}</span></div><div class="checklist-progress"><div class="checklist-progress-bar" style="width:${pctG}%"></div></div>${prods.map(i=>{
+            const key=`${i.nombre}|${i.presentacion}`;const done=checklistChecked[key];
+            return`<div class="checklist-item ${done?'checked':''}" onclick="toggleChecklistItem('${key.replace(/'/g,"\\'")}')"><div class="checklist-check ${done?'done':''}">${done?'✓':''}</div><div class="checklist-name"><strong>${i.nombre}</strong><div class="checklist-detail">${i.presentacion} • ${i.pedidos.length} pedido${i.pedidos.length>1?'s':''}: ${i.pedidos.map(p=>`${p.clienteNombre} (${p.cantidad})`).join(', ')}</div></div><div class="checklist-qty">${i.cantidad}</div></div>`;
+        }).join('')}</div>`;
+    }).join('');
+    // Detail per order
+    const ppDiv=document.getElementById('checklistPorPedido');
+    ppDiv.innerHTML=preparados.map(p=>{
+        const cl=productosData.clientes.find(c=>c.id===p.cliente.id);
+        return`<div style="padding:14px 0;border-bottom:1px solid #f3f4f6"><div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><div><strong>${p.cliente.nombre}</strong><span style="font-size:12px;color:#6b7280;margin-left:8px">📍 ${cl?.zona||''}</span></div><div style="display:flex;gap:6px"><button class="btn btn-sm" style="background:#eff6ff;color:#2563eb" onclick="generarRemitoPDF('${p.id}')">📄 Remito</button><button class="btn btn-sm" style="background:${ESTADOS.en_ruta.bg};color:${ESTADOS.en_ruta.color}" onclick="avanzarEstado('${p.id}')">🚛 A Ruta</button></div></div><div style="font-size:13px;color:#6b7280;margin-top:6px">${p.items.map(i=>`${i.nombre} (${i.presentacion}) ×${i.cantidad}`).join(' • ')}</div><div style="font-size:15px;font-weight:700;color:#2563eb;margin-top:4px">Gs. ${p.total.toLocaleString()}</div></div>`;
+    }).join('');
+}
+
+function toggleChecklistItem(key){
+    checklistChecked[key]=!checklistChecked[key];
+    localStorage.setItem('hdv_checklist_checked',JSON.stringify(checklistChecked));
+    renderChecklist();
+}
+
+function copiarChecklist(){
+    const preparados=todosLosPedidos.filter(p=>getEstado(p)==='preparado');
+    const agrupado={};
+    preparados.forEach(p=>p.items.forEach(i=>{const k=`${i.nombre}|${i.presentacion}`;if(!agrupado[k])agrupado[k]={nombre:i.nombre,pres:i.presentacion,cant:0};agrupado[k].cant+=i.cantidad;}));
+    let txt='📦 CHECKLIST DE CARGA\n'+new Date().toLocaleDateString('es-PY')+'\n\n';
+    Object.values(agrupado).sort((a,b)=>a.nombre.localeCompare(b.nombre)).forEach(i=>{txt+=`☐ ${i.nombre} (${i.pres}) — ${i.cant} uds\n`;});
+    txt+=`\n📊 ${preparados.length} pedidos | ${Object.keys(agrupado).length} productos`;
+    navigator.clipboard.writeText(txt);toast('Checklist copiada','success');
+}
+
+function imprimirChecklist(){
+    const preparados=todosLosPedidos.filter(p=>getEstado(p)==='preparado');
+    const agrupado={};
+    preparados.forEach(p=>p.items.forEach(i=>{const k=`${i.nombre}|${i.presentacion}`;if(!agrupado[k])agrupado[k]={nombre:i.nombre,pres:i.presentacion,cant:0};agrupado[k].cant+=i.cantidad;}));
+    const items=Object.values(agrupado).sort((a,b)=>a.nombre.localeCompare(b.nombre));
+    const w=window.open('','','width=400,height=600');
+    w.document.write(`<html><head><title>Checklist</title><style>body{font-family:monospace;font-size:13px;padding:20px}table{width:100%;border-collapse:collapse}td,th{border:1px solid #000;padding:6px;text-align:left}th{background:#eee}.hdr{text-align:center;margin-bottom:10px}@media print{body{padding:5mm}}</style></head><body><div class="hdr"><strong>HDV DISTRIBUCIONES</strong><br>CHECKLIST DE CARGA<br>${new Date().toLocaleDateString('es-PY')}</div><table><tr><th>☐</th><th>Producto</th><th>Pres.</th><th>Cant.</th></tr>${items.map(i=>`<tr><td>☐</td><td>${i.nombre}</td><td>${i.pres}</td><td><strong>${i.cant}</strong></td></tr>`).join('')}</table><p style="margin-top:10px">${preparados.length} pedidos | ${items.length} productos</p></body></html>`);
+    w.document.close();w.focus();setTimeout(()=>w.print(),300);
+}
+
+async function avanzarTodosPreparados(){
+    const preparados=todosLosPedidos.filter(p=>getEstado(p)==='preparado');
+    if(preparados.length===0){toast('No hay pedidos preparados','info');return;}
+    if(!await confirmar('Todos a Ruta',`¿Mover ${preparados.length} pedidos a EN RUTA?`,'🚛','Sí, todos a ruta','btn-primary'))return;
+    preparados.forEach(p=>p.estado='en_ruta');
+    guardarPedidosLS();
+    localStorage.removeItem('hdv_checklist_checked');
+    registrarActividad('pedido',`🚛 ${preparados.length} pedidos movidos a EN RUTA`);
+    toast(`${preparados.length} pedidos en ruta`,'success');
+    renderChecklist();renderPipeline();cargarDashboard();
+}
+
+// ============================================
+// PDF REMITO / FACTURA
+// ============================================
+function generarRemitoPDF(pedidoId){
+    const p=todosLosPedidos.find(x=>x.id===pedidoId);if(!p)return;
+    const cl=productosData.clientes.find(c=>c.id===p.cliente.id);
+    const {jsPDF}=window.jspdf;
+    const doc=new jsPDF({unit:'mm',format:'a4'});
+    const w=210,mg=15;
+    // Header
+    doc.setFillColor(37,99,235);doc.rect(0,0,w,36,'F');
+    doc.setTextColor(255,255,255);doc.setFontSize(20);doc.setFont(undefined,'bold');
+    doc.text('HDV DISTRIBUCIONES',mg,16);
+    doc.setFontSize(10);doc.setFont(undefined,'normal');
+    doc.text('Remito de Entrega',mg,24);
+    doc.text(`N° ${p.id}`,w-mg,16,{align:'right'});
+    doc.text(new Date().toLocaleDateString('es-PY',{day:'2-digit',month:'long',year:'numeric'}),w-mg,24,{align:'right'});
+    // Client info
+    doc.setTextColor(0,0,0);let y=46;
+    doc.setFillColor(243,244,246);doc.rect(mg,y-6,w-mg*2,28,'F');
+    doc.setFontSize(11);doc.setFont(undefined,'bold');doc.text('CLIENTE',mg+4,y);
+    doc.setFont(undefined,'normal');doc.setFontSize(10);
+    doc.text(`Razón Social: ${cl?.razon_social||cl?.nombre||p.cliente.nombre}`,mg+4,y+7);
+    doc.text(`RUC: ${cl?.ruc||'—'}`,mg+4,y+14);
+    doc.text(`Dirección: ${cl?.direccion||cl?.zona||'—'}`,mg+4,y+21);
+    doc.text(`Tel: ${cl?.telefono||'—'}`,w/2+10,y+14);
+    // Estado
+    y+=34;
+    const estado=getEstado(p);const s=ESTADOS[estado];
+    doc.setFontSize(9);doc.setTextColor(100,100,100);
+    doc.text(`Estado: ${s.label}${p.nota_edicion?' | Nota: '+p.nota_edicion:''}`,mg,y);
+    doc.text(`Pedido: ${new Date(p.fecha).toLocaleString('es-PY')}`,w-mg,y,{align:'right'});
+    y+=6;
+    // Items table
+    const tableData=p.items.map((item,i)=>[i+1,item.nombre,item.presentacion,item.cantidad,`Gs. ${item.precio_unitario.toLocaleString()}`,`Gs. ${item.subtotal.toLocaleString()}`]);
+    doc.autoTable({
+        startY:y,
+        head:[['#','Producto','Presentación','Cant.','P. Unit.','Subtotal']],
+        body:tableData,
+        theme:'striped',
+        headStyles:{fillColor:[37,99,235],textColor:255,fontStyle:'bold',fontSize:9},
+        bodyStyles:{fontSize:9},
+        columnStyles:{0:{halign:'center',cellWidth:10},3:{halign:'center',cellWidth:15},4:{halign:'right',cellWidth:30},5:{halign:'right',cellWidth:32}},
+        margin:{left:mg,right:mg}
+    });
+    // Total
+    y=doc.lastAutoTable.finalY+6;
+    doc.setFillColor(37,99,235);doc.rect(w/2,y-4,w/2-mg,14,'F');
+    doc.setTextColor(255,255,255);doc.setFontSize(14);doc.setFont(undefined,'bold');
+    doc.text(`TOTAL: Gs. ${p.total.toLocaleString()}`,w-mg-4,y+5,{align:'right'});
+    // Payment method
+    y+=18;doc.setTextColor(0,0,0);doc.setFontSize(9);doc.setFont(undefined,'normal');
+    doc.text(`Forma de Pago: ${p.tipo_pago==='credito'?'CRÉDITO':'CONTADO'}`,mg,y);
+    // Signatures
+    y+=20;const sigW=(w-mg*2-20)/2;
+    doc.line(mg,y,mg+sigW,y);doc.line(w-mg-sigW,y,w-mg,y);
+    doc.setFontSize(8);
+    doc.text('Firma Entrega',mg+(sigW/2),y+5,{align:'center'});
+    doc.text('Firma Recepción',w-mg-(sigW/2),y+5,{align:'center'});
+    // Footer
+    doc.setFontSize(7);doc.setTextColor(150,150,150);
+    doc.text('HDV Distribuciones — Documento generado automáticamente',w/2,285,{align:'center'});
+    // Download
+    doc.save(`remito_${p.id}_${p.cliente.nombre.replace(/[^a-zA-Z0-9]/g,'_')}.pdf`);
+    registrarActividad('pedido',`📄 Remito generado: ${p.cliente.nombre}`);
+    toast('Remito PDF descargado','success');
+}
+
+// ============================================
+// VENTAS EXPORT & WEEKLY SUMMARY
+// ============================================
+function exportarVentasCSV(){
+    const ventas=todosLosPedidos.filter(p=>getEstado(p)==='entregado'||getEstado(p)==='parcial');
+    let csv='Fecha Entrega,Cliente,Zona,Estado,Producto,Presentacion,Cantidad,Precio Unit,Subtotal,Total Pedido,Pago\n';
+    ventas.forEach(p=>{const cl=productosData.clientes.find(c=>c.id===p.cliente.id);p.items.forEach((i,idx)=>{csv+=`"${p.fecha_entrega||p.fecha}","${p.cliente.nombre}","${cl?.zona||''}","${getEstado(p)}","${i.nombre}","${i.presentacion}",${i.cantidad},${i.precio_unitario},${i.subtotal},${idx===0?p.total:''},"${p.tipo_pago||'contado'}"\n`;});});
+    descargarCSV(csv,`ventas_${new Date().toISOString().split('T')[0]}.csv`);toast('Exportado','info');
+}
+
+function generarResumenSemanalPDF(){
+    const ventas=todosLosPedidos.filter(p=>{const e=getEstado(p);return e==='entregado'||e==='parcial';});
+    if(ventas.length===0){toast('Sin ventas para resumir','warning');return;}
+    // Group by week
+    const hoy=new Date();const inicioSemana=new Date(hoy);inicioSemana.setDate(hoy.getDate()-hoy.getDay());inicioSemana.setHours(0,0,0,0);
+    const semana=ventas.filter(p=>new Date(p.fecha_entrega||p.fecha)>=inicioSemana);
+    // Show weekly summary card
+    const resDiv=document.getElementById('ventasResumenSemanal');
+    if(semana.length===0){resDiv.style.display='none';toast('Sin ventas esta semana','warning');return;}
+    // Group by client
+    const porCliente={};semana.forEach(p=>{if(!porCliente[p.cliente.nombre])porCliente[p.cliente.nombre]={total:0,pedidos:0,zona:''};porCliente[p.cliente.nombre].total+=p.total;porCliente[p.cliente.nombre].pedidos++;const cl=productosData.clientes.find(c=>c.id===p.cliente.id);porCliente[p.cliente.nombre].zona=cl?.zona||'';});
+    // Group by product
+    const porProd={};semana.forEach(p=>{p.items.forEach(i=>{const k=`${i.nombre} (${i.presentacion})`;if(!porProd[k])porProd[k]={cant:0,total:0};porProd[k].cant+=i.cantidad;porProd[k].total+=i.subtotal;});});
+    const totalSemana=semana.reduce((s,p)=>s+p.total,0);
+    // Generate PDF
+    const{jsPDF}=window.jspdf;const doc=new jsPDF({unit:'mm',format:'a4'});const w=210,mg=15;
+    // Header
+    doc.setFillColor(37,99,235);doc.rect(0,0,w,32,'F');
+    doc.setTextColor(255);doc.setFontSize(18);doc.setFont(undefined,'bold');
+    doc.text('RESUMEN SEMANAL DE VENTAS',mg,15);
+    doc.setFontSize(10);doc.setFont(undefined,'normal');
+    doc.text(`HDV Distribuciones — Semana del ${inicioSemana.toLocaleDateString('es-PY')}`,mg,24);
+    doc.text(new Date().toLocaleDateString('es-PY'),w-mg,15,{align:'right'});
+    // Summary
+    let y=42;doc.setTextColor(0);doc.setFontSize(12);doc.setFont(undefined,'bold');
+    doc.text(`Total Ventas: Gs. ${totalSemana.toLocaleString()}`,mg,y);
+    doc.text(`${semana.length} entregas`,w-mg,y,{align:'right'});
+    y+=10;
+    // Table by client
+    const clData=Object.entries(porCliente).sort((a,b)=>b[1].total-a[1].total).map(([nom,d])=>[nom,d.zona,d.pedidos,`Gs. ${d.total.toLocaleString()}`]);
+    doc.autoTable({startY:y,head:[['Cliente','Zona','Entregas','Total']],body:clData,theme:'striped',headStyles:{fillColor:[37,99,235],textColor:255,fontStyle:'bold',fontSize:9},bodyStyles:{fontSize:9},columnStyles:{3:{halign:'right'}},margin:{left:mg,right:mg}});
+    y=doc.lastAutoTable.finalY+10;
+    // Table by product
+    const prData=Object.entries(porProd).sort((a,b)=>b[1].total-a[1].total).slice(0,20).map(([nom,d])=>[nom,d.cant,`Gs. ${d.total.toLocaleString()}`]);
+    doc.setFontSize(11);doc.setFont(undefined,'bold');doc.text('Top Productos',mg,y);y+=4;
+    doc.autoTable({startY:y,head:[['Producto','Unidades','Total']],body:prData,theme:'striped',headStyles:{fillColor:[16,185,129],textColor:255,fontStyle:'bold',fontSize:9},bodyStyles:{fontSize:9},columnStyles:{1:{halign:'center'},2:{halign:'right'}},margin:{left:mg,right:mg}});
+    // Footer
+    doc.setFontSize(7);doc.setTextColor(150);doc.text('HDV Distribuciones — Resumen generado automáticamente',w/2,285,{align:'center'});
+    doc.save(`resumen_semanal_${inicioSemana.toISOString().split('T')[0]}.pdf`);
+    toast('Resumen PDF descargado','success');
+    registrarActividad('sistema','📄 Resumen semanal PDF generado');
+}
 
 // ============================================
 // UTILITIES
@@ -622,4 +831,5 @@ function cambiarSeccion(s){
     if(s==='actividad')renderActividad(obtenerActividad(50),'actividadCompleta');
     if(s==='catalogo')inicializarCatalogo();
     if(s==='rutas')inicializarRutas();
+    if(s==='checklist')renderChecklist();
 }

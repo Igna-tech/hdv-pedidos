@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Panel Admin - HDV</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f3f4f6; }
@@ -202,6 +204,22 @@
         .ruta-check { width: 22px; height: 22px; border-radius: 6px; border: 2px solid #d1d5db; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; flex-shrink: 0; }
         .ruta-check.done { background: #10b981; border-color: #10b981; color: white; }
 
+        /* ===== CHECKLIST CARGA ===== */
+        .checklist-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 16px; }
+        .checklist-cat { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+        .checklist-cat-header { padding: 14px 16px; font-weight: 700; font-size: 14px; display: flex; justify-content: space-between; align-items: center; }
+        .checklist-item { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-top: 1px solid #f3f4f6; font-size: 14px; transition: background 0.2s; }
+        .checklist-item:hover { background: #f9fafb; }
+        .checklist-item.checked { background: #f0fdf4; }
+        .checklist-item.checked .checklist-name { text-decoration: line-through; opacity: 0.6; }
+        .checklist-check { width: 24px; height: 24px; border-radius: 6px; border: 2px solid #d1d5db; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s; font-size: 14px; }
+        .checklist-check.done { background: #10b981; border-color: #10b981; color: white; }
+        .checklist-name { flex: 1; }
+        .checklist-qty { font-weight: 700; font-size: 16px; color: #2563eb; min-width: 60px; text-align: right; }
+        .checklist-detail { font-size: 11px; color: #9ca3af; }
+        .checklist-progress { height: 6px; background: #e5e7eb; border-radius: 3px; margin: 0 16px 12px; overflow: hidden; }
+        .checklist-progress-bar { height: 100%; background: linear-gradient(90deg, #10b981, #059669); border-radius: 3px; transition: width 0.4s ease; }
+
         /* ===== CREDITS ===== */
         .credit-age-ok { border-left: 4px solid #10b981; }
         .credit-age-warning { border-left: 4px solid #f59e0b; }
@@ -253,6 +271,7 @@
                         <button class="menu-item" onclick="cambiarSeccion('pipeline')"><span class="menu-icon">📋</span><span class="menu-label">Gestión Pedidos</span><span class="menu-badge" id="badgeNuevos" style="display:none">0</span></button>
                         <button class="menu-item" onclick="cambiarSeccion('ventas')"><span class="menu-icon">✅</span><span class="menu-label">Ventas Finalizadas</span></button>
                         <button class="menu-item" onclick="cambiarSeccion('no_entregados')"><span class="menu-icon">❌</span><span class="menu-label">No Entregados</span></button>
+                        <button class="menu-item" onclick="cambiarSeccion('checklist')"><span class="menu-icon">📦</span><span class="menu-label">Checklist Carga</span><span class="menu-badge" id="badgeChecklist" style="display:none">0</span></button>
                     </div>
                 </div>
                 <div class="menu-section">
@@ -281,7 +300,7 @@
                     </div>
                 </div>
             </div>
-            <div class="sidebar-footer"><div style="font-size:12px;color:#94a3b8;">Versión 4.0</div></div>
+            <div class="sidebar-footer"><div style="font-size:12px;color:#94a3b8;">Versión 4.1</div></div>
         </div>
 
         <div class="main-content" id="mainContent">
@@ -343,7 +362,12 @@
                             <div class="filter-group"><label>Hasta</label><input type="date" id="ventasHasta" onchange="renderVentas()"></div>
                             <div class="filter-group"><label>Cliente</label><select id="ventasCliente" onchange="renderVentas()"><option value="">Todos</option></select></div>
                         </div>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+                            <button class="btn btn-secondary btn-sm" onclick="exportarVentasCSV()">📊 Exportar CSV</button>
+                            <button class="btn btn-primary btn-sm" onclick="generarResumenSemanalPDF()">📄 Resumen PDF</button>
+                        </div>
                     </div>
+                    <div class="card" id="ventasResumenSemanal" style="display:none"></div>
                     <div class="card" id="ventasList"></div>
                 </div>
 
@@ -354,6 +378,31 @@
                         <p style="color:#6b7280;margin-bottom:16px">Pedidos que no se pudieron entregar o fueron entregados parcialmente.</p>
                     </div>
                     <div class="card" id="noEntregadosList"></div>
+                </div>
+
+                <!-- ===== CHECKLIST DE CARGA ===== -->
+                <div id="seccion-checklist" class="tab-content">
+                    <div class="card">
+                        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+                            <div>
+                                <h2 style="margin:0">📦 Checklist de Carga</h2>
+                                <p style="color:#6b7280;font-size:13px;margin-top:4px">Productos agrupados de todos los pedidos <strong>PREPARADOS</strong> para cargar al camión.</p>
+                            </div>
+                            <div style="display:flex;gap:8px;flex-wrap:wrap">
+                                <button class="btn btn-primary btn-sm" onclick="imprimirChecklist()">🖨️ Imprimir</button>
+                                <button class="btn btn-secondary btn-sm" onclick="copiarChecklist()">📋 Copiar</button>
+                                <button class="btn btn-success btn-sm" onclick="avanzarTodosPreparados()">🚛 Todos a Ruta</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="stats">
+                        <div class="stat-card"><div class="stat-label">Pedidos a cargar</div><div class="stat-value" id="checkPedidos">0</div></div>
+                        <div class="stat-card"><div class="stat-label">Productos distintos</div><div class="stat-value" id="checkProductos">0</div></div>
+                        <div class="stat-card"><div class="stat-label">Unidades totales</div><div class="stat-value" id="checkUnidades">0</div></div>
+                        <div class="stat-card"><div class="stat-label">Progreso</div><div class="stat-value" id="checkProgreso" style="color:#10b981">0%</div></div>
+                    </div>
+                    <div class="checklist-grid" id="checklistGrid"></div>
+                    <div class="card" style="margin-top:16px"><h3 style="margin-bottom:12px">📋 Detalle por Pedido</h3><div id="checklistPorPedido"></div></div>
                 </div>
 
                 <!-- ===== CRÉDITOS ===== -->

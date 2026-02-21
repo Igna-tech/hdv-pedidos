@@ -1,5 +1,5 @@
 // CAMBIAR ESTE NÚMERO CADA VEZ QUE ACTUALICES
-const VERSION = '4.2'; // <-- INCREMENTA ESTO EN CADA ACTUALIZACIÓN
+const VERSION = '4.3'; // <-- INCREMENTA ESTO EN CADA ACTUALIZACIÓN
 const CACHE_NAME = `hdv-pedidos-v${VERSION}`;
 
 const urlsToCache = [
@@ -9,7 +9,9 @@ const urlsToCache = [
     './admin.html',
     './admin.js',
     './productos.json',
-    './manifest.json'
+    './manifest.json',
+    './icon-192.png',
+    './icon-512.png'
 ];
 
 // Archivos que SIEMPRE deben buscar en red primero (para updates rápidos)

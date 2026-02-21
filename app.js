@@ -44,13 +44,48 @@ function construirHistorialCompras() {
 function verificarVendedor() {
     const vendedor = localStorage.getItem('vendedor_nombre');
     if (!vendedor) {
-        const nombre = prompt('Por favor, ingresa tu nombre (vendedor):');
-        if (nombre && nombre.trim()) {
-            localStorage.setItem('vendedor_nombre', nombre.trim());
-        } else {
-            verificarVendedor(); // Volver a preguntar si no ingresa nada
-        }
+        // Mostrar modal de login en vez de prompt recursivo
+        mostrarLoginVendedor();
     }
+}
+
+function mostrarLoginVendedor() {
+    // Crear modal de login si no existe
+    if (!document.getElementById('loginVendedorModal')) {
+        const modal = document.createElement('div');
+        modal.id = 'loginVendedorModal';
+        modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:2000;display:flex;align-items:center;justify-content:center;';
+        modal.innerHTML = `
+            <div style="background:white;border-radius:16px;padding:30px;max-width:400px;width:90%;text-align:center;">
+                <div style="font-size:48px;margin-bottom:15px;">🚚</div>
+                <h2 style="margin-bottom:5px;color:#111827;">HDV Distribuciones</h2>
+                <p style="color:#6b7280;margin-bottom:20px;">Ingresá tu nombre para comenzar</p>
+                <input type="text" id="loginVendedorInput" placeholder="Ej: Juan Pérez" 
+                    style="width:100%;padding:14px;border:2px solid #e5e7eb;border-radius:10px;font-size:16px;text-align:center;margin-bottom:15px;"
+                    onkeydown="if(event.key==='Enter')confirmarLoginVendedor()">
+                <button onclick="confirmarLoginVendedor()" 
+                    style="width:100%;padding:14px;background:#2563eb;color:white;border:none;border-radius:10px;font-size:16px;font-weight:600;cursor:pointer;">
+                    Ingresar
+                </button>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        // Focus automático
+        setTimeout(() => document.getElementById('loginVendedorInput')?.focus(), 100);
+    }
+}
+
+function confirmarLoginVendedor() {
+    const input = document.getElementById('loginVendedorInput');
+    const nombre = input?.value?.trim();
+    if (!nombre) {
+        input.style.borderColor = '#ef4444';
+        input.placeholder = 'Debes ingresar tu nombre';
+        return;
+    }
+    localStorage.setItem('vendedor_nombre', nombre);
+    document.getElementById('loginVendedorModal')?.remove();
+    mostrarNombreVendedorSidebar();
 }
 
 async function cargarDatos() {
@@ -70,22 +105,28 @@ async function cargarDatos() {
 
 function cargarClientes() {
     const select = document.getElementById('clienteSelect');
-    select.innerHTML = '<option value="">-- Escribe para buscar cliente --</option>';
+    select.style.display = 'none'; // Ocultar select original
     
-    // Convertir select en input con datalist para buscador
     const container = select.parentElement;
+    
+    // Evitar crear duplicados si se llama múltiples veces
+    if (document.getElementById('clienteSearch')) return;
+    
     const input = document.createElement('input');
     input.type = 'text';
     input.id = 'clienteSearch';
     input.className = 'search-input';
     input.placeholder = '🔍 Buscar cliente por nombre, RUC o dirección...';
     input.setAttribute('list', 'clientesDatalist');
+    input.setAttribute('autocomplete', 'off');
     input.style.cssText = 'width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 16px;';
     
     const datalist = document.createElement('datalist');
     datalist.id = 'clientesDatalist';
     
-    clientes.filter(c => !c.oculto).forEach(c => {
+    const clientesVisibles = clientes.filter(c => !c.oculto);
+    
+    clientesVisibles.forEach(c => {
         const option = document.createElement('option');
         const razonSocial = c.razon_social || c.nombre;
         const direccion = c.direccion || c.zona || '';
@@ -95,37 +136,47 @@ function cargarClientes() {
         datalist.appendChild(option);
     });
     
-    select.style.display = 'none';
     container.appendChild(input);
     container.appendChild(datalist);
     
-    // Evento de búsqueda
+    // Indicador visual de cliente seleccionado
+    const badge = document.createElement('div');
+    badge.id = 'clienteSeleccionadoBadge';
+    badge.style.cssText = 'display:none;margin-top:8px;padding:8px 12px;background:#dcfce7;border:1px solid #86efac;border-radius:8px;font-size:14px;color:#166534;';
+    container.appendChild(badge);
+    
+    // Evento de búsqueda mejorado
     input.addEventListener('input', (e) => {
-        const texto = e.target.value.toLowerCase();
-        const cliente = clientes.find(c => {
+        const texto = e.target.value.toLowerCase().trim();
+        if (!texto) {
+            clienteActual = null;
+            badge.style.display = 'none';
+            document.getElementById('searchInput').disabled = true;
+            return;
+        }
+        
+        // Buscar match en clientes visibles
+        const cliente = clientesVisibles.find(c => {
             const razonSocial = (c.razon_social || c.nombre || '').toLowerCase();
             const direccion = (c.direccion || c.zona || '').toLowerCase();
             const ruc = (c.ruc || '').toLowerCase();
-            const busqueda = `${razonSocial} ${direccion} ${ruc}`;
-            return busqueda.includes(texto) || 
-                   razonSocial === texto ||
-                   ruc === texto;
+            const valorCompleto = `${razonSocial}${ruc ? ` - ruc: ${ruc}` : ''} — ${direccion}`;
+            return valorCompleto === texto || razonSocial === texto;
         });
         
         if (cliente) {
             clienteActual = cliente;
             document.getElementById('searchInput').disabled = false;
+            badge.innerHTML = `✅ <strong>${cliente.razon_social || cliente.nombre}</strong>`;
+            badge.style.display = 'block';
+            input.style.borderColor = '#22c55e';
             carrito = [];
             actualizarCarrito();
             mostrarProductos();
+        } else {
+            badge.style.display = 'none';
+            input.style.borderColor = '#e5e7eb';
         }
-    });
-    
-    clientes.forEach(c => {
-        const option = document.createElement('option');
-        option.value = c.id;
-        option.textContent = c.nombre + ' — ' + (c.zona || '');
-        select.appendChild(option);
     });
 }
 
@@ -147,20 +198,6 @@ function cargarCategorias() {
 }
 
 function inicializarEventListeners() {
-    document.getElementById('clienteSelect').addEventListener('change', (e) => {
-        const clienteId = e.target.value;
-        if (clienteId) {
-            clienteActual = clientes.find(c => c.id === clienteId);
-            document.getElementById('searchInput').disabled = false;
-            carrito = [];
-            actualizarCarrito();
-            mostrarProductos();
-        } else {
-            clienteActual = null;
-            document.getElementById('searchInput').disabled = true;
-            document.getElementById('productsContainer').innerHTML = '<div class="empty-state"><div class="empty-state-icon">👤</div>Seleccione un cliente para comenzar</div>';
-        }
-    });
     document.getElementById('searchInput').addEventListener('input', (e) => {
         mostrarProductos(e.target.value.toLowerCase());
     });
@@ -195,7 +232,14 @@ function mostrarProductos(termino = '') {
 function cambiarVista(vista) {
     vistaActual = vista;
     document.querySelectorAll('.view-toggle button').forEach(b => b.classList.remove('active'));
-    event.target.classList.add('active');
+    // Marcar el botón correcto según la vista
+    const buttons = document.querySelectorAll('.view-toggle button');
+    buttons.forEach(b => {
+        if ((vista === 'lista' && b.textContent.includes('Lista')) || 
+            (vista === 'cuadricula' && b.textContent.includes('Cuadrícula'))) {
+            b.classList.add('active');
+        }
+    });
     mostrarProductos();
 }
 
@@ -825,8 +869,13 @@ function compartirPorWhatsApp(pedido) {
 async function enviarAGoogleSheets(pedido) {
     const SHEET_URL = 'https://script.google.com/macros/s/AKfycbxowigrfPMtoVhSDklxpeSoIfaYxV56oHKB7oZYTGoGrShubG4BiLsOYW9FF4-eLij3/exec';
     
+    if (!navigator.onLine) {
+        console.log('Sin conexión - pedido queda pendiente de sync');
+        return false;
+    }
+    
     try {
-        const response = await fetch(SHEET_URL, {
+        await fetch(SHEET_URL, {
             method: 'POST',
             mode: 'no-cors',
             headers: {
@@ -835,18 +884,22 @@ async function enviarAGoogleSheets(pedido) {
             body: JSON.stringify(pedido)
         });
         
-        // Marcar como sincronizado
+        // Con no-cors no podemos verificar la respuesta real,
+        // pero si no hubo error de red, marcamos como enviado
         const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
         const pedidoLocal = pedidos.find(p => p.id === pedido.id);
         if (pedidoLocal) {
             pedidoLocal.sincronizado = true;
+            pedidoLocal.fecha_sync = new Date().toISOString();
             localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
         }
         
         console.log('Pedido enviado a Google Sheets');
+        return true;
     } catch (error) {
         console.error('Error al enviar a Google Sheets:', error);
-        // El pedido queda guardado localmente de todos modos
+        // No marcar como sincronizado - queda pendiente
+        return false;
     }
 }
 
@@ -873,21 +926,48 @@ function actualizarEstadoConexion() {
     }
 }
 
+let sincronizando = false;
+
 async function sincronizarPedidosPendientes() {
-    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
-    const pendientes = pedidos.filter(p => !p.sincronizado);
+    if (sincronizando) return; // Evitar llamadas simultáneas
+    sincronizando = true;
     
-    for (const pedido of pendientes) {
-        try {
-            await enviarAGoogleSheets(pedido);
-            pedido.sincronizado = true;
-        } catch (error) {
-            console.log('Error sincronizando pedido:', pedido.id);
+    try {
+        const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+        const pendientes = pedidos.filter(p => !p.sincronizado);
+        
+        for (const pedido of pendientes) {
+            try {
+                await enviarAGoogleSheets(pedido);
+            } catch (error) {
+                console.log('Error sincronizando pedido:', pedido.id);
+            }
         }
+        
+        // Actualizar badge SIN disparar otra sincronización
+        actualizarBadgeConexion();
+    } finally {
+        sincronizando = false;
     }
+}
+
+// Función separada para solo actualizar el badge visual
+function actualizarBadgeConexion() {
+    const badge = document.getElementById('statusBadge');
+    const pedidosPendientes = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]')
+        .filter(p => !p.sincronizado).length;
     
-    localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
-    actualizarEstadoConexion();
+    if (navigator.onLine) {
+        badge.textContent = pedidosPendientes > 0 ? 
+            `● En línea (${pedidosPendientes} pendiente${pedidosPendientes > 1 ? 's' : ''})` : 
+            '● En línea';
+        badge.className = 'status-badge online';
+    } else {
+        badge.textContent = pedidosPendientes > 0 ? 
+            `● Sin conexión (${pedidosPendientes} guardado${pedidosPendientes > 1 ? 's' : ''})` : 
+            '● Sin conexión';
+        badge.className = 'status-badge offline';
+    }
 }
 
 function mostrarExito(msg) {
@@ -978,7 +1058,13 @@ function cambiarTab(tab) {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
     
-    event.target.classList.add('active');
+    // Marcar el tab correcto
+    document.querySelectorAll('.tab').forEach(t => {
+        if ((tab === 'pedidos' && t.textContent.includes('Pedido')) || 
+            (tab === 'precios' && t.textContent.includes('Precios'))) {
+            t.classList.add('active');
+        }
+    });
     document.getElementById(`tab-${tab}`).classList.add('active');
     
     if (tab === 'precios') {
@@ -1034,7 +1120,7 @@ function cargarListaPrecios() {
 
 function mostrarListaPrecios(termino = '') {
     const container = document.getElementById('preciosContainer');
-    let filtrados = productos;
+    let filtrados = productos.filter(p => !p.oculto); // Excluir ocultos también en precios
     
     if (filtroCategoriaPrecio !== 'todas') {
         filtrados = filtrados.filter(p => p.categoria === filtroCategoriaPrecio);
@@ -1098,8 +1184,12 @@ function cambiarVistaVendedor(vista) {
     // Remover active de todos los menu items
     document.querySelectorAll('.vendor-menu-item').forEach(item => item.classList.remove('active'));
     
-    // Agregar active al item clickeado
-    event.target.closest('.vendor-menu-item')?.classList.add('active');
+    // Agregar active al item correspondiente
+    document.querySelectorAll('.vendor-menu-item').forEach(item => {
+        if (item.getAttribute('onclick')?.includes(vista)) {
+            item.classList.add('active');
+        }
+    });
     
     // Cambiar contenido
     document.querySelectorAll('.vendor-view').forEach(v => v.classList.remove('active'));
@@ -1118,7 +1208,8 @@ function cambiarVistaVendedor(vista) {
     
     // Cerrar sidebar en móvil
     if (window.innerWidth < 768) {
-        document.getElementById('vendorSidebar').classList.remove('open');
+        const sidebar = document.getElementById('vendorSidebar');
+        if (sidebar) sidebar.classList.remove('open');
     }
 }
 
@@ -1129,6 +1220,43 @@ function mostrarNombreVendedorSidebar() {
     if (display && nombre) {
         display.textContent = `👤 ${nombre}`;
     }
+}
+
+// Cargar pedidos guardados localmente
+function cargarPedidosOffline() {
+    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    const container = document.getElementById('vista-pedidos');
+    if (!container) return;
+    
+    if (pedidos.length === 0) {
+        container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📋</div>No hay pedidos guardados</div>';
+        return;
+    }
+    
+    // Mostrar pedidos más recientes primero
+    const pedidosOrdenados = [...pedidos].reverse();
+    
+    container.innerHTML = `<h3 style="margin-bottom:15px;">📋 Mis Pedidos (${pedidos.length})</h3>`;
+    
+    pedidosOrdenados.forEach(pedido => {
+        const fecha = new Date(pedido.fecha).toLocaleString('es-PY');
+        const syncIcon = pedido.sincronizado ? '✅' : '⏳';
+        const syncText = pedido.sincronizado ? 'Sincronizado' : 'Pendiente';
+        
+        const div = document.createElement('div');
+        div.style.cssText = 'background:white;padding:15px;border-radius:12px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,0.1);';
+        div.innerHTML = `
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <strong>#${pedido.id.slice(-6)}</strong>
+                <span style="font-size:12px;padding:4px 8px;border-radius:12px;background:${pedido.sincronizado ? '#dcfce7' : '#fef3c7'};color:${pedido.sincronizado ? '#166534' : '#92400e'};">${syncIcon} ${syncText}</span>
+            </div>
+            <div style="font-size:14px;color:#6b7280;">📅 ${fecha}</div>
+            <div style="font-size:14px;margin-top:4px;">👤 ${pedido.cliente?.nombre || 'Sin cliente'}</div>
+            <div style="font-size:16px;font-weight:700;color:#2563eb;margin-top:8px;">Gs. ${(pedido.total || 0).toLocaleString()}</div>
+            <div style="font-size:13px;color:#6b7280;margin-top:4px;">${pedido.items?.length || 0} productos · ${pedido.tipo_pago === 'credito' ? 'Crédito' : 'Contado'}</div>
+        `;
+        container.appendChild(div);
+    });
 }
 
 // Llamar al cargar

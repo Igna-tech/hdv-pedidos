@@ -576,8 +576,8 @@ function toggleVisitaCompletada(id){const r=obtenerRutas();const v=r.find(x=>x.i
 async function eliminarVisita(id){if(!await confirmar('Eliminar','¿Eliminar visita?','📍'))return;guardarRutasLS(obtenerRutas().filter(r=>r.id!==id));toast('Eliminada','warning');renderRutas();}
 
 // HERRAMIENTAS
-function crearBackup(){descargarJSON({fecha:new Date().toISOString(),version:'4.1',datos:{productos:productosData,pedidos:todosLosPedidos,actividad:JSON.parse(localStorage.getItem('hdv_actividad')||'[]'),catalogo_imgs:JSON.parse(localStorage.getItem('hdv_catalogo_imgs')||'{}'),rutas:JSON.parse(localStorage.getItem('hdv_rutas')||'[]')}},`hdv_backup_${new Date().toISOString().split('T')[0]}.json`);registrarActividad('sistema','Backup creado');toast('Backup descargado','success');}
-function restaurarBackup(e){const f=e.target.files[0];if(!f)return;confirmar('Restaurar','Reemplazará todos los datos. ¿Continuar?','📤','Restaurar','btn-primary').then(ok=>{if(!ok){e.target.value='';return;}const r=new FileReader();r.onload=ev=>{try{const b=JSON.parse(ev.target.result);if(b.datos){productosData=b.datos.productos;localStorage.setItem('hdv_pedidos',JSON.stringify(b.datos.pedidos));if(b.datos.actividad)localStorage.setItem('hdv_actividad',JSON.stringify(b.datos.actividad));if(b.datos.catalogo_imgs)localStorage.setItem('hdv_catalogo_imgs',JSON.stringify(b.datos.catalogo_imgs));if(b.datos.rutas)localStorage.setItem('hdv_rutas',JSON.stringify(b.datos.rutas));registrarActividad('sistema','Backup restaurado');toast('Restaurado. Recargando...','success');setTimeout(()=>location.reload(),1500);}}catch(er){toast('Archivo inválido','error');}e.target.value='';};r.readAsText(f);});}
+function crearBackup(){descargarJSON({fecha:new Date().toISOString(),version:'4.2',datos:{productos:productosData,pedidos:todosLosPedidos,actividad:JSON.parse(localStorage.getItem('hdv_actividad')||'[]'),catalogo_imgs:JSON.parse(localStorage.getItem('hdv_catalogo_imgs')||'{}'),rutas:JSON.parse(localStorage.getItem('hdv_rutas')||'[]'),costos:JSON.parse(localStorage.getItem('hdv_costos')||'{}')}},`hdv_backup_${new Date().toISOString().split('T')[0]}.json`);registrarActividad('sistema','Backup creado');toast('Backup descargado','success');}
+function restaurarBackup(e){const f=e.target.files[0];if(!f)return;confirmar('Restaurar','Reemplazará todos los datos. ¿Continuar?','📤','Restaurar','btn-primary').then(ok=>{if(!ok){e.target.value='';return;}const r=new FileReader();r.onload=ev=>{try{const b=JSON.parse(ev.target.result);if(b.datos){productosData=b.datos.productos;localStorage.setItem('hdv_pedidos',JSON.stringify(b.datos.pedidos));if(b.datos.actividad)localStorage.setItem('hdv_actividad',JSON.stringify(b.datos.actividad));if(b.datos.catalogo_imgs)localStorage.setItem('hdv_catalogo_imgs',JSON.stringify(b.datos.catalogo_imgs));if(b.datos.rutas)localStorage.setItem('hdv_rutas',JSON.stringify(b.datos.rutas));if(b.datos.costos)localStorage.setItem('hdv_costos',JSON.stringify(b.datos.costos));registrarActividad('sistema','Backup restaurado');toast('Restaurado. Recargando...','success');setTimeout(()=>location.reload(),1500);}}catch(er){toast('Archivo inválido','error');}e.target.value='';};r.readAsText(f);});}
 function descargarPlantillaExcel(){descargarCSV('Nombre,Categoria,Subcategoria,Presentacion,Precio\nEjemplo,cuidado_personal,Jabones,125g,5000\n','plantilla_productos.csv');toast('Descargada','info');}
 function importarProductosExcel(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{try{const ls=ev.target.result.split('\n').filter(l=>l.trim());ls.shift();let n=0;ls.forEach(l=>{const[nom,cat,sub,pres,pre]=l.split(',').map(s=>s.trim());if(!nom||!cat)return;const uid=productosData.productos.length>0?parseInt(productosData.productos[productosData.productos.length-1].id.replace('P','')):0;productosData.productos.push({id:`P${String(uid+n+1).padStart(3,'0')}`,nombre:nom,categoria:cat,subcategoria:sub||'General',presentaciones:[{tamano:pres||'Unidad',precio_base:parseInt(pre)||0}]});n++;});if(n>0){descargarJSON(productosData,'productos.json');registrarActividad('producto',`${n} importados`);toast(`${n} productos importados`,'success');}}catch(er){toast('Error: '+er.message,'error');}e.target.value='';};r.readAsText(f);}
 function descargarPlantillaClientes(){descargarCSV('Razon Social,RUC,Telefono,Direccion,Encargado\nEjemplo S.A.,80012345-6,0981234567,"Av. Central",Juan\n','plantilla_clientes.csv');toast('Descargada','info');}
@@ -792,6 +792,273 @@ function generarResumenSemanalPDF(){
 }
 
 // ============================================
+// RANKING DE CLIENTES
+// ============================================
+function renderRanking(){
+    const dias=parseInt(document.getElementById('rankingPeriodo').value)||0;
+    const orden=document.getElementById('rankingOrden').value;
+    const hoy=new Date();
+    const completados=todosLosPedidos.filter(p=>{const e=getEstado(p);return e==='entregado'||e==='parcial';});
+    let filtrados=completados;
+    if(dias>0){const desde=new Date(hoy.getTime()-dias*86400000);filtrados=completados.filter(p=>new Date(p.fecha_entrega||p.fecha)>=desde);}
+    // Group by client
+    const porCliente={};
+    filtrados.forEach(p=>{
+        const cid=p.cliente.id;const cn=p.cliente.nombre;
+        if(!porCliente[cid])porCliente[cid]={id:cid,nombre:cn,total:0,pedidos:0,items:0,fechas:[]};
+        porCliente[cid].total+=p.total;porCliente[cid].pedidos++;
+        porCliente[cid].items+=p.items.reduce((s,i)=>s+i.cantidad,0);
+        porCliente[cid].fechas.push(new Date(p.fecha_entrega||p.fecha));
+    });
+    const clientes=Object.values(porCliente);
+    // Calculate frequency (average days between orders)
+    clientes.forEach(c=>{
+        c.fechas.sort((a,b)=>a-b);
+        if(c.fechas.length>=2){
+            const diffs=[];for(let i=1;i<c.fechas.length;i++)diffs.push((c.fechas[i]-c.fechas[i-1])/86400000);
+            c.frecuencia=Math.round(diffs.reduce((s,d)=>s+d,0)/diffs.length);
+        }else c.frecuencia=999;
+        c.ultimoPedido=c.fechas[c.fechas.length-1];
+        c.diasSinComprar=Math.floor((hoy-c.ultimoPedido)/86400000);
+        c.ticketProm=Math.round(c.total/c.pedidos);
+    });
+    // Sort
+    if(orden==='total')clientes.sort((a,b)=>b.total-a.total);
+    else if(orden==='pedidos')clientes.sort((a,b)=>b.pedidos-a.pedidos);
+    else clientes.sort((a,b)=>a.frecuencia-b.frecuencia);
+    const maxTotal=clientes.length>0?clientes[0].total:1;
+    // Stats
+    const activos=clientes.filter(c=>c.diasSinComprar<=30).length;
+    const totalFact=clientes.reduce((s,c)=>s+c.total,0);
+    const ticketGen=clientes.length>0?Math.round(totalFact/clientes.reduce((s,c)=>s+c.pedidos,0)):0;
+    document.getElementById('rankActivos').textContent=activos;
+    document.getElementById('rankTotal').textContent=`Gs. ${totalFact.toLocaleString()}`;
+    document.getElementById('rankTicket').textContent=`Gs. ${ticketGen.toLocaleString()}`;
+    // Inactivos: all clients that have NO orders in period or haven't ordered in 30+ days
+    const todosClientes=productosData.clientes.filter(c=>!c.oculto);
+    const clientesConPedido=new Set(clientes.map(c=>c.id));
+    const inactivos=[];
+    todosClientes.forEach(c=>{
+        const data=porCliente[c.id];
+        if(!data){inactivos.push({nombre:c.nombre||c.razon_social,zona:c.zona||'',diasSinComprar:'Nunca compró',telefono:c.telefono});return;}
+        if(data.diasSinComprar>30)inactivos.push({nombre:c.nombre||c.razon_social,zona:c.zona||'',diasSinComprar:data.diasSinComprar+' días',telefono:c.telefono,ultimaCompra:data.ultimoPedido});
+    });
+    document.getElementById('rankInactivos').textContent=inactivos.length;
+    // Render ranking list
+    const list=document.getElementById('rankingList');
+    if(clientes.length===0){list.innerHTML='<div class="card"><div class="empty-state">Sin ventas en este período</div></div>';} 
+    else{list.innerHTML=clientes.map((c,i)=>{
+        const posClass=i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':'rank-n';
+        const barW=Math.round(c.total/maxTotal*100);
+        const freqTxt=c.frecuencia<999?`Cada ${c.frecuencia}d`:'1 pedido';
+        return`<div class="rank-card"><div class="rank-pos ${posClass}">${i+1}</div><div class="rank-info"><div class="rank-name">${c.nombre}</div><div class="rank-detail">📦 ${c.pedidos} pedidos • 🎫 Gs. ${c.ticketProm.toLocaleString()} prom • ⏱️ ${freqTxt} • Último: hace ${c.diasSinComprar}d</div><div class="rank-bar"><div class="rank-bar-fill" style="width:${barW}%"></div></div></div><div class="rank-total"><div class="rank-total-value">Gs. ${c.total.toLocaleString()}</div><div class="rank-total-sub">${c.items} uds</div></div></div>`;
+    }).join('');}
+    // Render inactivos
+    const iList=document.getElementById('inactividadList');
+    if(inactivos.length===0)iList.innerHTML='<div class="dash-empty" style="color:#10b981">✅ Todos los clientes están activos</div>';
+    else iList.innerHTML=inactivos.map(c=>{
+        const tel=c.telefono?.replace(/^0/,'')||'';
+        return`<div class="rank-card inactivo-card"><div class="rank-pos rank-n">⚠️</div><div class="rank-info"><div class="rank-name">${c.nombre}</div><div class="rank-detail">📍 ${c.zona} • ⏳ ${c.diasSinComprar}${c.ultimaCompra?' • Última: '+c.ultimaCompra.toLocaleDateString('es-PY'):''}</div></div><div>${tel?`<button class="btn btn-success btn-sm" onclick="window.open('https://wa.me/595${tel}?text=${encodeURIComponent('Hola '+c.nombre+'! 👋 Hace un tiempo que no nos visitás. ¿Necesitás productos? Estamos para ayudarte. — HDV Distribuciones')}','_blank')">📱 Contactar</button>`:''}</div></div>`;
+    }).join('');
+}
+
+// ============================================
+// LISTA DE COSTOS
+// ============================================
+function getCostos(){return JSON.parse(localStorage.getItem('hdv_costos')||'{}');}
+function setCostos(c){localStorage.setItem('hdv_costos',JSON.stringify(c));}
+
+function renderCostos(){
+    const costos=getCostos();
+    const buscar=(document.getElementById('buscarCosto')?.value||'').toLowerCase();
+    const tbody=document.getElementById('costosBody');
+    tbody.innerHTML='';
+    let conCosto=0,sinCosto=0,margenes=[];
+    productosData.productos.forEach(prod=>{
+        if(prod.oculto)return;
+        if(buscar&&!prod.nombre.toLowerCase().includes(buscar))return;
+        prod.presentaciones.forEach((pres,idx)=>{
+            const key=`${prod.id}_${pres.tamano}`;
+            const costoData=costos[key]||{};
+            const costo=costoData.costo||0;
+            const venta=pres.precio_base;
+            const margen=costo>0&&venta>0?((venta-costo)/venta*100):0;
+            if(costo>0){conCosto++;margenes.push(margen);}else sinCosto++;
+            const margenClass=margen>=30?'cost-margin-good':margen>=15?'cost-margin-ok':costo>0?'cost-margin-bad':'';
+            const fechaAct=costoData.fecha?new Date(costoData.fecha).toLocaleDateString('es-PY'):'—';
+            const tr=document.createElement('tr');
+            tr.innerHTML=`<td><strong>${prod.nombre}</strong></td><td>${pres.tamano}</td><td><input type="number" value="${costo||''}" min="0" placeholder="0" onchange="actualizarCosto('${key}',this.value)" style="width:110px;padding:6px;border:2px solid #e5e7eb;border-radius:6px;font-size:14px"></td><td>Gs. ${venta.toLocaleString()}</td><td class="${margenClass}">${costo>0?margen.toFixed(1)+'%':'—'}</td><td style="font-size:12px;color:#9ca3af">${fechaAct}</td>`;
+            tbody.appendChild(tr);
+        });
+    });
+    document.getElementById('costConCosto').textContent=conCosto;
+    document.getElementById('costSinCosto').textContent=sinCosto;
+    document.getElementById('costMargenProm').textContent=margenes.length>0?(margenes.reduce((s,m)=>s+m,0)/margenes.length).toFixed(1)+'%':'—';
+}
+
+function actualizarCosto(key,valor){
+    const costos=getCostos();
+    const v=parseInt(valor)||0;
+    if(v>0)costos[key]={costo:v,fecha:new Date().toISOString()};
+    else delete costos[key];
+    setCostos(costos);
+}
+
+function guardarCostos(){
+    setCostos(getCostos());
+    registrarActividad('producto','Lista de costos actualizada');
+    toast('Costos guardados','success');
+}
+
+function exportarCostosCSV(){
+    const costos=getCostos();
+    let csv='Producto,Presentacion,Costo Compra,Precio Venta,Margen %\n';
+    productosData.productos.forEach(prod=>{
+        if(prod.oculto)return;
+        prod.presentaciones.forEach(pres=>{
+            const key=`${prod.id}_${pres.tamano}`;
+            const c=costos[key]?.costo||0;
+            const v=pres.precio_base;
+            const m=c>0&&v>0?((v-c)/v*100).toFixed(1):'';
+            csv+=`"${prod.nombre}","${pres.tamano}",${c},${v},"${m}"\n`;
+        });
+    });
+    descargarCSV(csv,`costos_${new Date().toISOString().split('T')[0]}.csv`);
+    toast('Exportado','info');
+}
+
+function importarCostosCSV(e){
+    const file=e.target.files[0];if(!file)return;
+    const reader=new FileReader();
+    reader.onload=ev=>{
+        try{
+            const lines=ev.target.result.split('\n').filter(l=>l.trim());
+            lines.shift(); // header
+            const costos=getCostos();
+            let updated=0;
+            lines.forEach(line=>{
+                const parts=line.split(',').map(s=>s.trim().replace(/^"|"$/g,''));
+                const[nombre,pres,costoStr]=parts;
+                if(!nombre||!costoStr)return;
+                const costo=parseInt(costoStr)||0;
+                if(costo<=0)return;
+                // Find matching product
+                const prod=productosData.productos.find(p=>p.nombre.toLowerCase()===nombre.toLowerCase()||p.nombre.toLowerCase().includes(nombre.toLowerCase()));
+                if(!prod)return;
+                let presObj=prod.presentaciones.find(pr=>pr.tamano===pres);
+                if(!presObj&&prod.presentaciones.length===1)presObj=prod.presentaciones[0];
+                if(!presObj)return;
+                const key=`${prod.id}_${presObj.tamano}`;
+                costos[key]={costo,fecha:new Date().toISOString()};
+                updated++;
+            });
+            setCostos(costos);
+            registrarActividad('producto',`${updated} costos importados desde CSV`);
+            toast(`${updated} costos actualizados`,'success');
+            renderCostos();
+        }catch(err){toast('Error: '+err.message,'error');}
+        e.target.value='';
+    };
+    reader.readAsText(file);
+}
+
+// PDF PARSING
+let pdfCostMatches=[];
+
+async function importarCostosPDF(e){
+    const file=e.target.files[0];if(!file)return;
+    toast('Extrayendo texto del PDF...','info',2000);
+    try{
+        const arrayBuffer=await file.arrayBuffer();
+        if(typeof pdfjsLib==='undefined'){toast('Error: pdf.js no cargó','error');return;}
+        pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        const pdf=await pdfjsLib.getDocument({data:arrayBuffer}).promise;
+        let fullText='';
+        for(let i=1;i<=pdf.numPages;i++){
+            const page=await pdf.getPage(i);
+            const content=await page.getTextContent();
+            const strings=content.items.map(item=>item.str);
+            fullText+=strings.join(' ')+'\n';
+        }
+        document.getElementById('pdfTextoExtraido').textContent=fullText||'(No se pudo extraer texto)';
+        // Try to find numbers that look like prices and match to products
+        pdfCostMatches=intentarMatchearCostos(fullText);
+        renderPDFMatches();
+        document.getElementById('modalPDFCostos').classList.add('show');
+    }catch(err){
+        toast('Error al leer PDF: '+err.message,'error');
+        console.error(err);
+    }
+    e.target.value='';
+}
+
+function intentarMatchearCostos(texto){
+    const matches=[];
+    const textLower=texto.toLowerCase();
+    productosData.productos.forEach(prod=>{
+        if(prod.oculto)return;
+        const nombreLower=prod.nombre.toLowerCase();
+        // Check if product name appears in the PDF
+        const words=nombreLower.split(/\s+/);
+        const mainWord=words.reduce((a,b)=>a.length>b.length?a:b,'');
+        if(mainWord.length<3)return;
+        const idx=textLower.indexOf(mainWord);
+        if(idx===-1)return;
+        // Find numbers near the product name (within 200 chars)
+        const nearby=texto.substring(Math.max(0,idx-50),idx+200);
+        const numbers=nearby.match(/[\d.,]+/g);
+        if(!numbers)return;
+        // Filter to plausible prices (>100, <10000000)
+        const prices=numbers.map(n=>parseInt(n.replace(/[.,]/g,''))).filter(n=>n>=100&&n<=10000000);
+        if(prices.length===0)return;
+        prod.presentaciones.forEach(pres=>{
+            const bestPrice=prices[0]; // First found number
+            matches.push({
+                productoId:prod.id,
+                nombre:prod.nombre,
+                presentacion:pres.tamano,
+                costoDetectado:bestPrice,
+                precioVenta:pres.precio_base,
+                selected:true,
+                key:`${prod.id}_${pres.tamano}`
+            });
+        });
+    });
+    return matches;
+}
+
+function renderPDFMatches(){
+    const c=document.getElementById('pdfMatchesContainer');
+    if(pdfCostMatches.length===0){
+        c.innerHTML='<div style="padding:16px;background:#fef3c7;border-radius:8px;color:#92400e;font-size:14px">⚠️ No se encontraron coincidencias automáticas. Podés editar los costos manualmente en la tabla.</div>';
+        document.getElementById('pdfMatchStats').textContent='';
+        return;
+    }
+    c.innerHTML='<div style="font-weight:700;margin-bottom:8px">Coincidencias encontradas:</div>'+pdfCostMatches.map((m,i)=>{
+        const margen=m.costoDetectado>0&&m.precioVenta>0?((m.precioVenta-m.costoDetectado)/m.precioVenta*100).toFixed(1):'—';
+        return`<div class="cost-match"><input type="checkbox" class="cost-match-check" ${m.selected?'checked':''} onchange="pdfCostMatches[${i}].selected=this.checked"><div style="flex:1"><strong>${m.nombre}</strong> (${m.presentacion})<div style="font-size:12px;color:#6b7280">Detectado: Gs. ${m.costoDetectado.toLocaleString()} → Venta: Gs. ${m.precioVenta.toLocaleString()} = ${margen}% margen</div></div><input type="number" value="${m.costoDetectado}" onchange="pdfCostMatches[${i}].costoDetectado=parseInt(this.value)||0" style="width:110px;padding:6px;border:2px solid #e5e7eb;border-radius:6px;font-size:14px"></div>`;
+    }).join('');
+    document.getElementById('pdfMatchStats').textContent=`${pdfCostMatches.length} productos detectados • Podés ajustar los montos antes de aplicar`;
+}
+
+function aplicarCostosPDF(){
+    const costos=getCostos();
+    let n=0;
+    pdfCostMatches.forEach(m=>{
+        if(!m.selected||m.costoDetectado<=0)return;
+        costos[m.key]={costo:m.costoDetectado,fecha:new Date().toISOString()};
+        n++;
+    });
+    setCostos(costos);
+    registrarActividad('producto',`${n} costos actualizados desde factura PDF`);
+    toast(`${n} costos actualizados`,'success');
+    cerrarModalPDFCostos();
+    renderCostos();
+}
+
+function cerrarModalPDFCostos(){document.getElementById('modalPDFCostos').classList.remove('show');pdfCostMatches=[];}
+
+// ============================================
 // UTILITIES
 // ============================================
 let chartInstance=null;
@@ -832,4 +1099,6 @@ function cambiarSeccion(s){
     if(s==='catalogo')inicializarCatalogo();
     if(s==='rutas')inicializarRutas();
     if(s==='checklist')renderChecklist();
+    if(s==='ranking')renderRanking();
+    if(s==='costos')renderCostos();
 }

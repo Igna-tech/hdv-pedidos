@@ -7,6 +7,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f3f4f6; }
@@ -220,6 +221,33 @@
         .checklist-progress { height: 6px; background: #e5e7eb; border-radius: 3px; margin: 0 16px 12px; overflow: hidden; }
         .checklist-progress-bar { height: 100%; background: linear-gradient(90deg, #10b981, #059669); border-radius: 3px; transition: width 0.4s ease; }
 
+        /* ===== RANKING ===== */
+        .rank-card { display: flex; align-items: center; gap: 16px; padding: 16px; background: white; border-radius: 12px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); transition: transform 0.2s; }
+        .rank-card:hover { transform: translateX(4px); }
+        .rank-pos { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px; flex-shrink: 0; }
+        .rank-1 { background: linear-gradient(135deg, #fbbf24, #f59e0b); color: white; }
+        .rank-2 { background: linear-gradient(135deg, #9ca3af, #6b7280); color: white; }
+        .rank-3 { background: linear-gradient(135deg, #d97706, #b45309); color: white; }
+        .rank-n { background: #f3f4f6; color: #6b7280; }
+        .rank-info { flex: 1; min-width: 0; }
+        .rank-name { font-weight: 700; font-size: 15px; color: #111827; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .rank-detail { font-size: 12px; color: #6b7280; margin-top: 2px; }
+        .rank-total { text-align: right; flex-shrink: 0; }
+        .rank-total-value { font-weight: 700; font-size: 16px; color: #2563eb; }
+        .rank-total-sub { font-size: 11px; color: #9ca3af; }
+        .rank-bar { height: 4px; background: #e5e7eb; border-radius: 2px; margin-top: 6px; overflow: hidden; }
+        .rank-bar-fill { height: 100%; border-radius: 2px; background: linear-gradient(90deg, #3b82f6, #2563eb); }
+        .inactivo-card { border-left: 4px solid #ef4444; background: #fef2f2; }
+        .inactivo-card .rank-name { color: #991b1b; }
+
+        /* ===== COSTOS ===== */
+        .cost-margin-good { color: #10b981; font-weight: 600; }
+        .cost-margin-ok { color: #f59e0b; font-weight: 600; }
+        .cost-margin-bad { color: #ef4444; font-weight: 600; }
+        .pdf-preview-area { background: #1e293b; color: #e2e8f0; padding: 16px; border-radius: 10px; font-family: monospace; font-size: 12px; max-height: 300px; overflow-y: auto; white-space: pre-wrap; margin-bottom: 16px; }
+        .cost-match { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #f3f4f6; font-size: 14px; }
+        .cost-match-check { width: 20px; height: 20px; accent-color: #2563eb; }
+
         /* ===== CREDITS ===== */
         .credit-age-ok { border-left: 4px solid #10b981; }
         .credit-age-warning { border-left: 4px solid #f59e0b; }
@@ -280,6 +308,7 @@
                         <button class="menu-item" onclick="cambiarSeccion('creditos')"><span class="menu-icon">💳</span><span class="menu-label">Créditos</span><span class="menu-badge" id="badgeCreditos" style="display:none">0</span></button>
                         <button class="menu-item" onclick="cambiarSeccion('reportes')"><span class="menu-icon">📈</span><span class="menu-label">Reportes</span></button>
                         <button class="menu-item" onclick="cambiarSeccion('stock')"><span class="menu-icon">📊</span><span class="menu-label">Stock</span><span class="menu-badge" id="badgeStock" style="display:none">0</span></button>
+                        <button class="menu-item" onclick="cambiarSeccion('ranking')"><span class="menu-icon">🏆</span><span class="menu-label">Ranking Clientes</span></button>
                     </div>
                 </div>
                 <div class="menu-section">
@@ -289,6 +318,7 @@
                         <button class="menu-item" onclick="cambiarSeccion('clientes')"><span class="menu-icon">👥</span><span class="menu-label">Clientes</span></button>
                         <button class="menu-item" onclick="cambiarSeccion('precios')"><span class="menu-icon">💰</span><span class="menu-label">Precios</span></button>
                         <button class="menu-item" onclick="cambiarSeccion('catalogo')"><span class="menu-icon">📸</span><span class="menu-label">Catálogo</span></button>
+                        <button class="menu-item" onclick="cambiarSeccion('costos')"><span class="menu-icon">🧾</span><span class="menu-label">Lista de Costos</span></button>
                     </div>
                 </div>
                 <div class="menu-section">
@@ -300,7 +330,7 @@
                     </div>
                 </div>
             </div>
-            <div class="sidebar-footer"><div style="font-size:12px;color:#94a3b8;">Versión 4.1</div></div>
+            <div class="sidebar-footer"><div style="font-size:12px;color:#94a3b8;">Versión 4.2</div></div>
         </div>
 
         <div class="main-content" id="mainContent">
@@ -428,6 +458,41 @@
                     <div class="card"><div style="overflow-x:auto"><table class="tabla"><thead><tr><th>Producto</th><th>Presentación</th><th>Stock Actual</th><th>Stock Mínimo</th><th>Estado</th><th>Acciones</th></tr></thead><tbody id="stockBody"></tbody></table></div></div>
                 </div>
 
+                <!-- ===== RANKING CLIENTES ===== -->
+                <div id="seccion-ranking" class="tab-content">
+                    <div class="card">
+                        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+                            <div><h2 style="margin:0">🏆 Ranking de Clientes</h2><p style="color:#6b7280;font-size:13px;margin-top:4px">Basado en entregas completadas</p></div>
+                            <div style="display:flex;gap:8px;flex-wrap:wrap">
+                                <select id="rankingPeriodo" onchange="renderRanking()" style="padding:8px;border:2px solid #e5e7eb;border-radius:8px;font-size:13px">
+                                    <option value="30">Últimos 30 días</option>
+                                    <option value="60">Últimos 60 días</option>
+                                    <option value="90">Últimos 90 días</option>
+                                    <option value="365">Último año</option>
+                                    <option value="0">Todo</option>
+                                </select>
+                                <select id="rankingOrden" onchange="renderRanking()" style="padding:8px;border:2px solid #e5e7eb;border-radius:8px;font-size:13px">
+                                    <option value="total">Por Monto</option>
+                                    <option value="pedidos">Por Pedidos</option>
+                                    <option value="frecuencia">Por Frecuencia</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="stats">
+                        <div class="stat-card"><div class="stat-label">Clientes Activos</div><div class="stat-value" id="rankActivos" style="color:#10b981">0</div></div>
+                        <div class="stat-card"><div class="stat-label">Inactivos (+30d)</div><div class="stat-value danger" id="rankInactivos">0</div></div>
+                        <div class="stat-card"><div class="stat-label">Ticket Promedio</div><div class="stat-value money" id="rankTicket">Gs. 0</div></div>
+                        <div class="stat-card"><div class="stat-label">Total Facturado</div><div class="stat-value money" id="rankTotal">Gs. 0</div></div>
+                    </div>
+                    <div id="rankingList"></div>
+                    <div class="card" style="margin-top:16px">
+                        <h3 style="margin-bottom:12px;color:#ef4444">🚨 Alerta de Inactividad</h3>
+                        <p style="color:#6b7280;font-size:13px;margin-bottom:12px">Clientes que no realizan pedidos hace más de 30 días.</p>
+                        <div id="inactividadList"></div>
+                    </div>
+                </div>
+
                 <!-- ===== REPORTES ===== -->
                 <div id="seccion-reportes" class="tab-content">
                     <div class="card"><h2 style="margin-bottom:15px">Período de Análisis</h2><div class="filters"><div class="filter-group"><label>Desde:</label><input type="date" id="reporteFechaDesde"></div><div class="filter-group"><label>Hasta:</label><input type="date" id="reporteFechaHasta"></div><div class="filter-group"><label>Comparar con:</label><select id="comparacionPeriodo"><option value="ninguno">Sin comparar</option><option value="anterior">Período Anterior</option><option value="mesanterior">Mes Anterior</option></select></div></div><div style="display:flex;gap:10px;margin-top:15px;flex-wrap:wrap"><button class="btn btn-primary" onclick="tipoReporte='zona';generarReporte()">Por Zona</button><button class="btn btn-primary" onclick="tipoReporte='producto';generarReporte()">Por Producto</button><button class="btn btn-primary" onclick="tipoReporte='cliente';generarReporte()">Por Cliente</button><button class="btn btn-success" onclick="tipoReporte='margen';generarReporte()">💰 Margen</button></div></div>
@@ -460,6 +525,41 @@
                     <div class="card"><div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center"><h2 style="margin:0;flex:1">📸 Catálogo</h2><select id="filtroCatalogoCat" onchange="renderCatalogo()" style="padding:10px;border:2px solid #e5e7eb;border-radius:8px;font-size:14px"><option value="">Todas</option></select></div><input type="text" id="buscarCatalogo" placeholder="🔍 Buscar..." oninput="renderCatalogo()" style="width:100%;padding:12px;border:2px solid #e5e7eb;border-radius:8px;margin-bottom:12px"><label style="display:flex;align-items:center;gap:8px;font-size:14px;color:#6b7280"><input type="checkbox" id="catalogoMostrarOcultos" onchange="renderCatalogo()"> Mostrar ocultos</label></div>
                     <div class="catalogo-grid" id="catalogoGrid"></div>
                 </div>
+
+                <!-- ===== LISTA DE COSTOS ===== -->
+                <div id="seccion-costos" class="tab-content">
+                    <div class="card">
+                        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+                            <div><h2 style="margin:0">🧾 Lista de Costos</h2><p style="color:#6b7280;font-size:13px;margin-top:4px">Costo de compra, precio de venta y margen por producto</p></div>
+                            <div style="display:flex;gap:8px;flex-wrap:wrap">
+                                <button class="btn btn-success btn-sm" onclick="guardarCostos()">💾 Guardar</button>
+                                <button class="btn btn-secondary btn-sm" onclick="exportarCostosCSV()">📊 Exportar</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="stats">
+                        <div class="stat-card"><div class="stat-label">Productos con Costo</div><div class="stat-value" id="costConCosto" style="color:#10b981">0</div></div>
+                        <div class="stat-card"><div class="stat-label">Sin Costo</div><div class="stat-value danger" id="costSinCosto">0</div></div>
+                        <div class="stat-card"><div class="stat-label">Margen Promedio</div><div class="stat-value" id="costMargenProm" style="color:#2563eb">0%</div></div>
+                    </div>
+                    <div class="card">
+                        <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
+                            <input type="text" id="buscarCosto" placeholder="🔍 Buscar producto..." oninput="renderCostos()" style="flex:1;min-width:200px;padding:10px;border:2px solid #e5e7eb;border-radius:8px">
+                            <button class="btn btn-primary btn-sm" onclick="document.getElementById('costoImportCSV').click()">📤 Importar CSV</button>
+                            <input type="file" id="costoImportCSV" accept=".csv,.txt" style="display:none" onchange="importarCostosCSV(event)">
+                            <button class="btn btn-primary btn-sm" onclick="document.getElementById('costoImportPDF').click()">📄 Subir Factura PDF</button>
+                            <input type="file" id="costoImportPDF" accept=".pdf" style="display:none" onchange="importarCostosPDF(event)">
+                        </div>
+                        <div style="overflow-x:auto">
+                            <table class="tabla">
+                                <thead><tr><th>Producto</th><th>Presentación</th><th>Costo Compra</th><th>Precio Venta</th><th>Margen</th><th>Última Actualización</th></tr></thead>
+                                <tbody id="costosBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ===== MODAL REVISAR PDF COSTOS ===== -->
 
                 <!-- ===== RUTAS ===== -->
                 <div id="seccion-rutas" class="tab-content">
@@ -511,6 +611,19 @@
 
     <!-- MODAL NUEVA RUTA -->
     <div class="modal" id="modalNuevaRuta"><div class="modal-content" style="max-width:500px"><div class="modal-header">📍 Programar Visita</div><div class="filter-group"><label>Cliente:</label><select id="rutaCliente" style="width:100%;padding:10px;border:2px solid #e5e7eb;border-radius:8px"></select></div><div class="filter-group"><label>Fecha:</label><input type="date" id="rutaFecha"></div><div class="filter-group"><label>Hora:</label><input type="time" id="rutaHora" value="09:00"></div><div class="filter-group"><label>Notas:</label><input type="text" id="rutaNotas" placeholder="Llevar muestras, cobrar crédito"></div><div class="modal-actions"><button class="btn btn-secondary" onclick="cerrarModalRuta()">Cancelar</button><button class="btn btn-primary" onclick="guardarNuevaRuta()">Programar</button></div></div></div>
+
+    <!-- MODAL REVISAR PDF COSTOS -->
+    <div class="modal" id="modalPDFCostos"><div class="modal-content" style="max-width:750px">
+        <div class="modal-header">📄 Revisar Factura — Actualizar Costos</div>
+        <p style="color:#6b7280;margin-bottom:12px">Texto extraído del PDF. Seleccioná los items a actualizar:</p>
+        <div class="pdf-preview-area" id="pdfTextoExtraido">Cargando...</div>
+        <div id="pdfMatchesContainer"></div>
+        <div style="margin-top:8px;font-size:13px;color:#6b7280" id="pdfMatchStats"></div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="cerrarModalPDFCostos()">Cancelar</button>
+            <button class="btn btn-success" onclick="aplicarCostosPDF()">✅ Aplicar Costos Seleccionados</button>
+        </div>
+    </div></div>
 
     <script src="admin.js"></script>
 </body>

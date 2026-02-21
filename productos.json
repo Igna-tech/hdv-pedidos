@@ -38,10 +38,10 @@
       "presentaciones": [
         {
           "tamano": "125g",
-          "precio_base": 1000
+          "precio_base": 100000
         },
         {
-          "tamano": "90g",
+          "tamano": "70g",
           "precio_base": 1000
         }
       ]
@@ -130,7 +130,8 @@
         },
         {
           "tamano": "90g",
-          "precio_base": 1000
+          "precio_base": 1000,
+          "stock": 0
         }
       ]
     },

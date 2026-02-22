@@ -10,6 +10,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     registrarServiceWorker();
     cargarModoOscuro();
     construirHistorialCompras();
+    renderDashboard();
+    // Ocultar barra del carrito en el dashboard
+    const cartBar = document.getElementById('cartSummaryBar');
+    if (cartBar) cartBar.style.display = 'none';
 });
 
 function cargarModoOscuro() {
@@ -156,8 +160,8 @@ async function cargarDatos() {
 
 function actualizarIndicadorDatos() {
     const ultimaCarga = localStorage.getItem('hdv_ultima_carga');
-    const badge = document.getElementById('statusBadge');
-    if (!badge) return;
+    const dataInfo = document.getElementById('dataFreshness');
+    if (!dataInfo) return;
     
     if (ultimaCarga) {
         const ahora = new Date();
@@ -173,20 +177,9 @@ function actualizarIndicadorDatos() {
         else if (diffHrs < 24) texto = `hace ${diffHrs}h`;
         else texto = `hace ${diffDias}d`;
         
-        // Agregar al badge de conexión
-        const dataInfo = document.getElementById('dataFreshness') || document.createElement('div');
-        dataInfo.id = 'dataFreshness';
-        dataInfo.style.cssText = 'font-size:11px;opacity:0.8;margin-top:2px;';
-        dataInfo.textContent = `📊 Datos: ${texto}`;
-        
-        if (diffHrs >= 24) {
-            dataInfo.style.color = '#fbbf24';
-            dataInfo.textContent += ' ⚠️';
-        }
-        
-        if (!dataInfo.parentElement) {
-            badge.parentElement.appendChild(dataInfo);
-        }
+        dataInfo.textContent = `📊 ${texto}`;
+        dataInfo.style.color = diffHrs >= 24 ? '#fbbf24' : '';
+        if (diffHrs >= 24) dataInfo.textContent += ' ⚠️';
     }
 }
 
@@ -276,9 +269,11 @@ function cargarClientes() {
             actualizarCarrito();
             mostrarProductos();
             mostrarUltimoPedidoCliente(cliente.id);
+            renderClienteSummary(cliente.id);
         } else {
             badge.style.display = 'none';
             input.style.borderColor = '#e5e7eb';
+            renderClienteSummary(null);
         }
     });
 }
@@ -305,6 +300,14 @@ function inicializarEventListeners() {
         mostrarProductos(e.target.value.toLowerCase());
     });
     document.getElementById('viewCartBtn').addEventListener('click', mostrarModalCarrito);
+    
+    const searchPrecios = document.getElementById('searchPrecios');
+    if (searchPrecios) {
+        searchPrecios.addEventListener('input', (e) => {
+            mostrarListaPrecios(e.target.value.toLowerCase());
+        });
+    }
+    
     window.addEventListener('online', actualizarEstadoConexion);
     window.addEventListener('offline', actualizarEstadoConexion);
 }
@@ -318,9 +321,13 @@ function filtrarPorCategoria(categoriaId, btn) {
 
 function mostrarProductos(termino = '') {
     const container = document.getElementById('productsContainer');
-    let filtrados = productos.filter(p => !p.oculto); // Excluir productos ocultos
+    let filtrados = productos.filter(p => !p.oculto);
     if (filtroCategoria !== 'todas') filtrados = filtrados.filter(p => p.categoria === filtroCategoria);
     if (termino) filtrados = filtrados.filter(p => p.nombre.toLowerCase().includes(termino));
+    
+    const countEl = document.getElementById('productCount');
+    if (countEl) countEl.textContent = `${filtrados.length} producto${filtrados.length !== 1 ? 's' : ''}`;
+    
     if (filtrados.length === 0) {
         container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🔍</div>No se encontraron productos</div>';
         return;
@@ -335,11 +342,9 @@ function mostrarProductos(termino = '') {
 function cambiarVista(vista) {
     vistaActual = vista;
     document.querySelectorAll('.view-toggle button').forEach(b => b.classList.remove('active'));
-    // Marcar el botón correcto según la vista
-    const buttons = document.querySelectorAll('.view-toggle button');
-    buttons.forEach(b => {
+    document.querySelectorAll('.view-toggle button').forEach(b => {
         if ((vista === 'lista' && b.textContent.includes('Lista')) || 
-            (vista === 'cuadricula' && b.textContent.includes('Cuadrícula'))) {
+            (vista === 'cuadricula' && (b.textContent.includes('Grid') || b.textContent.includes('Cuadrícula')))) {
             b.classList.add('active');
         }
     });
@@ -516,72 +521,6 @@ function toggleDarkMode() {
     document.querySelector('.dark-mode-toggle').textContent = isDark ? '☀️' : '🌙';
 }
 
-function mostrarMenuOpciones(e) {
-    e.preventDefault();
-    const menu = document.getElementById('optionsMenu');
-    menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
-}
-
-function cerrarMenuOpciones() {
-    document.getElementById('optionsMenu').style.display = 'none';
-}
-
-function forzarActualizacion() {
-    if (confirm('¿Forzar recarga completa? Esto limpiará el caché y recargará la app.')) {
-        cerrarMenuOpciones();
-        
-        // Limpiar caché
-        if ('caches' in window) {
-            caches.keys().then(names => {
-                names.forEach(name => caches.delete(name));
-            });
-        }
-        
-        // Desregistrar service worker
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.getRegistrations().then(registrations => {
-                registrations.forEach(reg => reg.unregister());
-            });
-        }
-        
-        // Limpiar localStorage de sync
-        const keysToKeep = ['vendedor_nombre', 'dark_mode'];
-        const allKeys = Object.keys(localStorage);
-        allKeys.forEach(key => {
-            if (!keysToKeep.includes(key)) {
-                // No borrar, solo marcar para re-sync
-            }
-        });
-        
-        // Recargar forzado
-        setTimeout(() => {
-            window.location.reload(true);
-        }, 500);
-    }
-}
-
-function limpiarTodoElCache() {
-    if (confirm('⚠️ ¿BORRAR TODO EL CACHÉ? Esto eliminará datos temporales pero NO los pedidos guardados.')) {
-        cerrarMenuOpciones();
-        
-        if ('caches' in window) {
-            caches.keys().then(names => {
-                names.forEach(name => caches.delete(name));
-            });
-        }
-        
-        alert('✓ Caché limpiado. Recarga la página para ver los cambios.');
-    }
-}
-
-// Cerrar menú si se hace click fuera
-document.addEventListener('click', (e) => {
-    const menu = document.getElementById('optionsMenu');
-    const btn = document.querySelector('.dark-mode-toggle');
-    if (menu && !menu.contains(e.target) && e.target !== btn) {
-        menu.style.display = 'none';
-    }
-});
 
 function crearTarjetaProducto(producto) {
     const card = document.createElement('div');
@@ -600,7 +539,7 @@ function crearTarjetaProducto(producto) {
             </div>
             <div class="quantity-controls">
                 <button class="quantity-btn" onclick="cambiarCantidad('${producto.id}', -1)">−</button>
-                <input type="number" class="quantity-display" id="qty-${producto.id}" value="1" min="1" style="border:2px solid #e5e7eb;border-radius:6px;text-align:center;" onchange="actualizarCantidadDirecta('${producto.id}', this.value)">
+                <input type="number" class="quantity-display" id="qty-${producto.id}" value="1" min="1" style="border:2px solid #e5e7eb;border-radius:6px;text-align:center;width:50px;" onchange="actualizarCantidadDirecta('${producto.id}', this.value)">
                 <button class="quantity-btn" onclick="cambiarCantidad('${producto.id}', 1)">+</button>
             </div>
         </div>
@@ -608,11 +547,13 @@ function crearTarjetaProducto(producto) {
 
     const variantsContainer = card.querySelector(`#variants-${producto.id}`);
     producto.presentaciones.forEach((pres, i) => {
-        const btn = document.createElement('button');
-        btn.className = 'variant-btn';
-        btn.textContent = pres.tamano;
-        btn.onclick = () => seleccionarVariante(producto, i);
-        variantsContainer.appendChild(btn);
+        const precio = obtenerPrecio(producto.id, pres);
+        const inCart = carrito.some(item => item.productoId === producto.id && item.presentacion === pres.tamano);
+        const chip = document.createElement('button');
+        chip.className = 'variant-chip' + (inCart ? ' in-cart' : '');
+        chip.innerHTML = `<span class="v-size">${pres.tamano}</span><span class="v-price">${precio > 0 ? 'Gs. ' + precio.toLocaleString() : 'S/P'}</span>`;
+        chip.onclick = () => seleccionarVariante(producto, i);
+        variantsContainer.appendChild(chip);
     });
 
     return card;
@@ -625,26 +566,29 @@ function seleccionarVariante(producto, index) {
     
     const idx = carrito.findIndex(i => i.productoId === producto.id && i.presentacion === pres.tamano);
     
-    // Si no está en el carrito, pedir confirmación
     if (idx < 0) {
-        if (!confirm(`¿Agregar ${producto.nombre} (${pres.tamano}) al pedido?`)) {
-            return;
-        }
         carrito.push({ productoId: producto.id, nombre: producto.nombre, presentacion: pres.tamano, precio, cantidad: 1 });
         document.getElementById(`qty-${producto.id}`).value = 1;
-        mostrarExito(`${producto.nombre} agregado al pedido`);
-        // Animación visual
+        mostrarExito(`${producto.nombre} (${pres.tamano}) agregado`);
         const card = document.getElementById(`product-${producto.id}`);
         if (card) { card.classList.add('added'); setTimeout(() => card.classList.remove('added'), 500); }
     }
     
     sel.classList.add('show');
     document.getElementById(`sel-variant-${producto.id}`).textContent = pres.tamano;
-    document.getElementById(`sel-price-${producto.id}`).textContent = precio > 0 ? `Gs. ${precio.toLocaleString()}` : 'Sin precio cargado';
+    document.getElementById(`sel-price-${producto.id}`).textContent = precio > 0 ? `Gs. ${precio.toLocaleString()}` : 'Sin precio';
     
     if (idx >= 0) {
         document.getElementById(`qty-${producto.id}`).value = carrito[idx].cantidad;
     }
+    
+    // Refresh chip states
+    const chips = document.querySelectorAll(`#variants-${producto.id} .variant-chip`);
+    chips.forEach((chip, i) => {
+        const p = producto.presentaciones[i];
+        const isInCart = carrito.some(item => item.productoId === producto.id && item.presentacion === p.tamano);
+        chip.classList.toggle('in-cart', isInCart);
+    });
     
     actualizarCarrito();
 }
@@ -1212,21 +1156,20 @@ async function registrarServiceWorker() {
             const registration = await navigator.serviceWorker.register('service-worker.js');
             console.log('Service Worker registrado');
             
-            // Detectar cuando hay una actualización disponible
+            // Auto-update: cuando hay nueva versión, activarla automáticamente
             registration.addEventListener('updatefound', () => {
                 const newWorker = registration.installing;
                 newWorker.addEventListener('statechange', () => {
                     if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                        // Hay una nueva versión disponible
-                        mostrarBotonActualizacion();
+                        // Activar inmediatamente sin preguntar
+                        newWorker.postMessage('SKIP_WAITING');
+                        mostrarExito('🔄 Actualizando app...');
                     }
                 });
             });
             
-            // Revisar updates cada 30 segundos
-            setInterval(() => {
-                registration.update();
-            }, 30000);
+            // Revisar updates cada 60 segundos
+            setInterval(() => registration.update(), 60000);
             
         } catch (e) {
             console.log('SW no disponible:', e);
@@ -1234,47 +1177,14 @@ async function registrarServiceWorker() {
     }
 }
 
-function mostrarBotonActualizacion() {
-    const btn = document.getElementById('updateButton');
-    if (btn) {
-        btn.style.display = 'block';
-        // También mostrar notificación
-        if (Notification.permission === 'granted') {
-            new Notification('HDV Distribuciones', {
-                body: '🔄 Nueva versión disponible. Haz click para actualizar.',
-                icon: '/icon-192.png'
-            });
-        }
-    }
-}
-
-function actualizarAhora() {
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistration().then(reg => {
-            if (reg && reg.waiting) {
-                // Decirle al service worker que se active inmediatamente
-                reg.waiting.postMessage('SKIP_WAITING');
-            }
-        });
-        
-        // Limpiar caché y recargar
-        if ('caches' in window) {
-            caches.keys().then(names => {
-                names.forEach(name => caches.delete(name));
-            });
-        }
-        
-        // Esperar un momento y recargar
-        setTimeout(() => {
-            window.location.reload(true);
-        }, 500);
-    }
-}
-
-// Detectar cuando el SW se activa y recargar
+// Recargar automáticamente cuando el nuevo SW toma control
 if ('serviceWorker' in navigator) {
+    let refreshing = false;
     navigator.serviceWorker.addEventListener('controllerchange', () => {
-        window.location.reload();
+        if (!refreshing) {
+            refreshing = true;
+            window.location.reload();
+        }
     });
 }
 
@@ -1287,18 +1197,23 @@ function cambiarTab(tab) {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
     
-    // Marcar el tab correcto
     document.querySelectorAll('.tab').forEach(t => {
-        if ((tab === 'pedidos' && t.textContent.includes('Pedido')) || 
-            (tab === 'precios' && t.textContent.includes('Precios'))) {
+        if ((tab === 'dashboard' && t.textContent.includes('Inicio')) ||
+            (tab === 'pedidos' && t.textContent.includes('Pedido')) || 
+            (tab === 'precios' && t.textContent.includes('Precios')) ||
+            (tab === 'historial' && t.textContent.includes('Historial'))) {
             t.classList.add('active');
         }
     });
     document.getElementById(`tab-${tab}`).classList.add('active');
     
-    if (tab === 'precios') {
-        cargarListaPrecios();
-    }
+    // Mostrar/ocultar barra del carrito según el tab
+    const cartBar = document.getElementById('cartSummaryBar');
+    if (cartBar) cartBar.style.display = (tab === 'pedidos') ? 'flex' : 'none';
+    
+    if (tab === 'precios') cargarListaPrecios();
+    if (tab === 'dashboard') renderDashboard();
+    if (tab === 'historial') renderHistorial();
 }
 
 function cargarListaPrecios() {
@@ -1349,12 +1264,11 @@ function cargarListaPrecios() {
 
 function mostrarListaPrecios(termino = '') {
     const container = document.getElementById('preciosContainer');
-    let filtrados = productos.filter(p => !p.oculto); // Excluir ocultos también en precios
+    let filtrados = productos.filter(p => !p.oculto);
     
     if (filtroCategoriaPrecio !== 'todas') {
         filtrados = filtrados.filter(p => p.categoria === filtroCategoriaPrecio);
     }
-    
     if (termino) {
         filtrados = filtrados.filter(p => p.nombre.toLowerCase().includes(termino));
     }
@@ -1364,80 +1278,191 @@ function mostrarListaPrecios(termino = '') {
         return;
     }
     
-    container.innerHTML = '';
-    
+    let rows = '';
     filtrados.forEach(producto => {
-        const div = document.createElement('div');
-        div.className = 'precio-lista-item';
-        
         const catNombre = categorias.find(c => c.id === producto.categoria)?.nombre || '';
-        
-        const presentacionesHTML = producto.presentaciones.map(pres => {
+        producto.presentaciones.forEach((pres, i) => {
             let precio = pres.precio_base;
-            
-            // Si hay cliente seleccionado, mostrar su precio personalizado
+            let esPersonalizado = false;
             if (clienteActual && clienteActual.precios_personalizados && clienteActual.precios_personalizados[producto.id]) {
-                const precioPersonalizado = clienteActual.precios_personalizados[producto.id].find(p => p.tamano === pres.tamano);
-                if (precioPersonalizado) {
-                    precio = precioPersonalizado.precio;
-                }
+                const pp = clienteActual.precios_personalizados[producto.id].find(p => p.tamano === pres.tamano);
+                if (pp) { precio = pp.precio; esPersonalizado = true; }
             }
-            
-            return `
-                <div class="precio-lista-presentacion">
-                    <span class="precio-lista-tamano">${pres.tamano}</span>
-                    <span class="precio-lista-precio">Gs. ${precio.toLocaleString()}</span>
+            rows += `<tr>
+                ${i === 0 ? `<td rowspan="${producto.presentaciones.length}"><div class="pn">${producto.nombre}</div><div class="pc">${catNombre}</div></td>` : ''}
+                <td>${pres.tamano}</td>
+                <td class="pp">${esPersonalizado ? '⭐ ' : ''}Gs. ${precio.toLocaleString()}</td>
+            </tr>`;
+        });
+    });
+    
+    container.innerHTML = `
+        <div style="font-size:12px;color:#6b7280;margin-bottom:8px;">${filtrados.length} productos</div>
+        <table class="precio-tabla">
+            <thead><tr><th>Producto</th><th>Presentación</th><th style="text-align:right;">Precio</th></tr></thead>
+            <tbody>${rows}</tbody>
+        </table>
+    `;
+}
+
+// ============================================
+// DASHBOARD DEL VENDEDOR
+// ============================================
+function renderDashboard() {
+    const container = document.getElementById('dashboardContent');
+    if (!container) return;
+    
+    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    const vendedor = localStorage.getItem('vendedor_nombre') || 'Vendedor';
+    const hoy = new Date().toDateString();
+    
+    const pedidosHoy = pedidos.filter(p => new Date(p.fecha).toDateString() === hoy);
+    const montoHoy = pedidosHoy.reduce((s, p) => s + (p.total || 0), 0);
+    const clientesHoy = new Set(pedidosHoy.map(p => p.cliente?.nombre)).size;
+    const pendientes = pedidos.filter(p => !p.sincronizado).length;
+    
+    // Semana
+    const inicioSemana = new Date();
+    inicioSemana.setDate(inicioSemana.getDate() - inicioSemana.getDay());
+    const pedidosSemana = pedidos.filter(p => new Date(p.fecha) >= inicioSemana);
+    const montoSemana = pedidosSemana.reduce((s, p) => s + (p.total || 0), 0);
+    
+    // Últimos pedidos
+    const ultimos = [...pedidos].reverse().slice(0, 5);
+    
+    let recentHTML = '';
+    if (ultimos.length > 0) {
+        recentHTML = ultimos.map(p => {
+            const fecha = new Date(p.fecha);
+            const esHoy = fecha.toDateString() === hoy;
+            const fechaStr = esHoy ? fecha.toLocaleTimeString('es-PY', {hour: '2-digit', minute: '2-digit'}) : fecha.toLocaleDateString('es-PY');
+            return `<div class="dash-recent-item" onclick="verDetallePedido('${p.id}')" style="cursor:pointer;">
+                <div>
+                    <div style="font-weight:600;font-size:14px;">👤 ${p.cliente?.nombre || 'Sin cliente'}</div>
+                    <div style="font-size:12px;color:#6b7280;">${esHoy ? 'Hoy ' : ''}${fechaStr} · ${p.items?.length || 0} items</div>
                 </div>
-            `;
+                <div style="text-align:right;">
+                    <div style="font-weight:700;color:#2563eb;">Gs. ${(p.total || 0).toLocaleString()}</div>
+                    <span class="pedido-badge ${p.sincronizado ? 'sync' : 'pending'}">${p.sincronizado ? '✅' : '⏳'}</span>
+                </div>
+            </div>`;
         }).join('');
-        
-        div.innerHTML = `
-            <h3>${producto.nombre}</h3>
-            <div style="font-size: 12px; color: #6b7280; margin-bottom: 10px;">${catNombre} › ${producto.subcategoria}</div>
-            ${presentacionesHTML}
-        `;
-        
-        container.appendChild(div);
-    });
-}
-
-// ============================================
-// FUNCIONES SIDEBAR VENDEDORES (reservado para futura implementación)
-// ============================================
-function toggleVendorSidebar() {
-    const sidebar = document.getElementById('vendorSidebar');
-    if (sidebar) sidebar.classList.toggle('open');
-}
-
-function cambiarVistaVendedor(vista) {
-    document.querySelectorAll('.vendor-menu-item').forEach(item => item.classList.remove('active'));
-    document.querySelectorAll('.vendor-menu-item').forEach(item => {
-        if (item.getAttribute('onclick')?.includes(vista)) {
-            item.classList.add('active');
-        }
-    });
-    document.querySelectorAll('.vendor-view').forEach(v => v.classList.remove('active'));
-    const vistaElement = document.getElementById(`vista-${vista}`);
-    if (vistaElement) vistaElement.classList.add('active');
-    if (vista === 'precios') cargarListaPrecios();
-    if (vista === 'pedidos') cargarPedidosOffline();
-    if (window.innerWidth < 768) {
-        const sidebar = document.getElementById('vendorSidebar');
-        if (sidebar) sidebar.classList.remove('open');
+    } else {
+        recentHTML = '<div style="text-align:center;padding:20px;color:#6b7280;">Aún no hay pedidos</div>';
     }
+    
+    container.innerHTML = `
+        <div style="margin-bottom:15px;">
+            <div style="font-size:16px;font-weight:700;">👋 Hola, ${vendedor}</div>
+            <div style="font-size:13px;color:#6b7280;">${new Date().toLocaleDateString('es-PY', {weekday: 'long', day: 'numeric', month: 'long'})}</div>
+        </div>
+        
+        <div class="dash-grid">
+            <div class="dash-card blue">
+                <div class="dash-icon">📦</div>
+                <div class="dash-value">${pedidosHoy.length}</div>
+                <div class="dash-label">Pedidos hoy</div>
+            </div>
+            <div class="dash-card green">
+                <div class="dash-icon">💰</div>
+                <div class="dash-value">Gs. ${montoHoy > 999999 ? (montoHoy/1000000).toFixed(1)+'M' : montoHoy.toLocaleString()}</div>
+                <div class="dash-label">Venta del día</div>
+            </div>
+            <div class="dash-card orange">
+                <div class="dash-icon">👥</div>
+                <div class="dash-value">${clientesHoy}</div>
+                <div class="dash-label">Clientes hoy</div>
+            </div>
+            <div class="dash-card red">
+                <div class="dash-icon">⏳</div>
+                <div class="dash-value">${pendientes}</div>
+                <div class="dash-label">Pendientes sync</div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">
+                <span style="font-weight:700;font-size:14px;">📊 Esta semana</span>
+                <span style="font-size:13px;color:#6b7280;">${pedidosSemana.length} pedidos</span>
+            </div>
+            <div style="font-size:20px;font-weight:700;color:#10b981;">Gs. ${montoSemana.toLocaleString()}</div>
+        </div>
+        
+        <div style="font-size:15px;font-weight:700;margin:15px 0 10px;">📋 Últimos pedidos</div>
+        <div class="card" style="padding:5px 15px;">${recentHTML}</div>
+        
+        <button onclick="cambiarTab('pedidos')" style="width:100%;padding:14px;margin-top:15px;background:#2563eb;color:white;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;">
+            ➕ Nuevo Pedido
+        </button>
+    `;
 }
 
-// Mostrar nombre del vendedor (funciona con o sin sidebar)
-function mostrarNombreVendedorSidebar() {
-    const nombre = localStorage.getItem('vendedor_nombre');
-    const display = document.getElementById('vendorNameDisplay');
-    if (display && nombre) display.textContent = `👤 ${nombre}`;
+// ============================================
+// RESUMEN POR CLIENTE
+// ============================================
+function renderClienteSummary(clienteId) {
+    const container = document.getElementById('clienteSummary');
+    if (!container) return;
+    
+    if (!clienteId) {
+        container.style.display = 'none';
+        return;
+    }
+    
+    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    const pedidosCliente = pedidos.filter(p => p.cliente?.id === clienteId);
+    
+    if (pedidosCliente.length === 0) {
+        container.style.display = 'none';
+        return;
+    }
+    
+    const totalCompras = pedidosCliente.reduce((s, p) => s + (p.total || 0), 0);
+    const pedidosCredito = pedidosCliente.filter(p => p.tipo_pago === 'credito');
+    const montoCredito = pedidosCredito.reduce((s, p) => s + (p.total || 0), 0);
+    
+    // Productos favoritos
+    const productoCount = {};
+    pedidosCliente.forEach(p => {
+        (p.items || []).forEach(item => {
+            productoCount[item.nombre] = (productoCount[item.nombre] || 0) + item.cantidad;
+        });
+    });
+    const topProductos = Object.entries(productoCount).sort((a, b) => b[1] - a[1]).slice(0, 3);
+    const topHTML = topProductos.map(([nombre, qty]) => `${nombre} (${qty})`).join(', ');
+    
+    const ultimaCompra = new Date(pedidosCliente[pedidosCliente.length - 1].fecha).toLocaleDateString('es-PY');
+    
+    container.style.display = 'block';
+    container.innerHTML = `
+        <div class="client-summary">
+            <div style="font-weight:700;font-size:14px;margin-bottom:2px;">📊 Resumen del cliente</div>
+            <div class="client-summary-grid">
+                <div class="client-stat">
+                    <div class="client-stat-value">${pedidosCliente.length}</div>
+                    <div class="client-stat-label">Pedidos</div>
+                </div>
+                <div class="client-stat">
+                    <div class="client-stat-value">Gs. ${totalCompras > 999999 ? (totalCompras/1000000).toFixed(1)+'M' : totalCompras.toLocaleString()}</div>
+                    <div class="client-stat-label">Total compras</div>
+                </div>
+                <div class="client-stat">
+                    <div class="client-stat-value" style="color:${montoCredito > 0 ? '#f59e0b' : '#10b981'}">Gs. ${montoCredito.toLocaleString()}</div>
+                    <div class="client-stat-label">En crédito</div>
+                </div>
+            </div>
+            ${topHTML ? `<div style="font-size:12px;color:#6b7280;margin-top:10px;">⭐ Más pedidos: ${topHTML}</div>` : ''}
+            <div style="font-size:12px;color:#6b7280;margin-top:4px;">📅 Última compra: ${ultimaCompra}</div>
+        </div>
+    `;
 }
 
-// Cargar pedidos guardados localmente
-function cargarPedidosOffline() {
-    const container = document.getElementById('vista-pedidos');
-    if (!container) return; // No existe el contenedor aún
+// ============================================
+// HISTORIAL DE PEDIDOS
+// ============================================
+function renderHistorial() {
+    const container = document.getElementById('historialContent');
+    if (!container) return;
     
     const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
     
@@ -1447,28 +1472,183 @@ function cargarPedidosOffline() {
     }
     
     const pedidosOrdenados = [...pedidos].reverse();
-    container.innerHTML = `<h3 style="margin-bottom:15px;">📋 Mis Pedidos (${pedidos.length})</h3>`;
+    
+    container.innerHTML = `<div style="font-size:13px;color:#6b7280;margin-bottom:10px;">${pedidos.length} pedido${pedidos.length !== 1 ? 's' : ''} en total</div>`;
     
     pedidosOrdenados.forEach(pedido => {
-        const fecha = new Date(pedido.fecha).toLocaleString('es-PY');
-        const syncIcon = pedido.sincronizado ? '✅' : '⏳';
-        const syncText = pedido.sincronizado ? 'Sincronizado' : 'Pendiente';
+        const fecha = new Date(pedido.fecha);
+        const esHoy = fecha.toDateString() === new Date().toDateString();
+        const fechaStr = esHoy ? 'Hoy ' + fecha.toLocaleTimeString('es-PY', {hour:'2-digit', minute:'2-digit'}) : fecha.toLocaleDateString('es-PY');
         
         const div = document.createElement('div');
-        div.style.cssText = 'background:white;padding:15px;border-radius:12px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,0.1);';
+        div.className = 'pedido-card';
+        div.onclick = () => verDetallePedido(pedido.id);
         div.innerHTML = `
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-                <strong>#${pedido.id.slice(-6)}</strong>
-                <span style="font-size:12px;padding:4px 8px;border-radius:12px;background:${pedido.sincronizado ? '#dcfce7' : '#fef3c7'};color:${pedido.sincronizado ? '#166534' : '#92400e'};">${syncIcon} ${syncText}</span>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                <strong style="font-size:14px;">#${pedido.id.slice(-6)}</strong>
+                <span class="pedido-badge ${pedido.sincronizado ? 'sync' : 'pending'}">${pedido.sincronizado ? '✅ Sincronizado' : '⏳ Pendiente'}</span>
             </div>
-            <div style="font-size:14px;color:#6b7280;">📅 ${fecha}</div>
+            <div style="font-size:13px;color:#6b7280;">📅 ${fechaStr}</div>
             <div style="font-size:14px;margin-top:4px;">👤 ${pedido.cliente?.nombre || 'Sin cliente'}</div>
-            <div style="font-size:16px;font-weight:700;color:#2563eb;margin-top:8px;">Gs. ${(pedido.total || 0).toLocaleString()}</div>
-            <div style="font-size:13px;color:#6b7280;margin-top:4px;">${pedido.items?.length || 0} productos · ${pedido.tipo_pago === 'credito' ? 'Crédito' : 'Contado'}</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
+                <span style="font-size:17px;font-weight:700;color:#2563eb;">Gs. ${(pedido.total || 0).toLocaleString()}</span>
+                <span style="font-size:12px;color:#6b7280;">${pedido.items?.length || 0} items · ${pedido.tipo_pago === 'credito' ? 'Crédito' : 'Contado'}</span>
+            </div>
         `;
         container.appendChild(div);
     });
 }
 
+// ============================================
+// DETALLE DE PEDIDO
+// ============================================
+function verDetallePedido(pedidoId) {
+    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    const pedido = pedidos.find(p => p.id === pedidoId);
+    if (!pedido) return;
+    
+    const fecha = new Date(pedido.fecha).toLocaleString('es-PY');
+    const content = document.getElementById('detallePedidoContent');
+    const header = document.getElementById('detallePedidoHeader');
+    const actions = document.getElementById('detallePedidoActions');
+    
+    header.textContent = `Pedido #${pedido.id.slice(-6)}`;
+    
+    const itemsHTML = (pedido.items || []).map(item => `
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f3f4f6;font-size:14px;">
+            <div>
+                <div style="font-weight:600;">${item.nombre}</div>
+                <div style="font-size:12px;color:#6b7280;">${item.presentacion} × ${item.cantidad}</div>
+                ${item.nota ? `<div style="font-size:12px;color:#f59e0b;">📝 ${item.nota}</div>` : ''}
+            </div>
+            <div style="font-weight:600;color:#2563eb;">Gs. ${(item.subtotal || item.precio_unitario * item.cantidad).toLocaleString()}</div>
+        </div>
+    `).join('');
+    
+    content.innerHTML = `
+        <div style="font-size:13px;color:#6b7280;margin-bottom:12px;">
+            📅 ${fecha}<br>
+            👤 ${pedido.cliente?.nombre || 'Sin cliente'}<br>
+            👨‍💼 ${pedido.vendedor || 'N/A'}<br>
+            💰 ${pedido.tipo_pago === 'credito' ? 'Crédito' : 'Contado'}
+            ${pedido.notas ? `<br>📝 ${pedido.notas}` : ''}
+        </div>
+        ${itemsHTML}
+        <div style="margin-top:12px;padding-top:12px;border-top:2px solid #e5e7eb;">
+            ${pedido.descuento > 0 ? `<div style="display:flex;justify-content:space-between;font-size:14px;"><span>Subtotal</span><span>Gs. ${(pedido.subtotal || 0).toLocaleString()}</span></div>
+            <div style="display:flex;justify-content:space-between;font-size:14px;color:#ef4444;"><span>Descuento (${pedido.descuento}%)</span><span>-Gs. ${(pedido.monto_descuento || 0).toLocaleString()}</span></div>` : ''}
+            <div style="display:flex;justify-content:space-between;font-size:18px;font-weight:700;color:#2563eb;margin-top:8px;">
+                <span>TOTAL</span><span>Gs. ${(pedido.total || 0).toLocaleString()}</span>
+            </div>
+        </div>
+    `;
+    
+    actions.innerHTML = `
+        <button class="modal-btn btn-cancel" onclick="document.getElementById('detallePedidoModal').classList.remove('show')">Cerrar</button>
+        <button class="modal-btn" style="background:#25d366;color:white;" onclick="compartirPorWhatsApp(JSON.parse(localStorage.getItem('hdv_pedidos')||'[]').find(p=>p.id==='${pedido.id}'))">📱 WhatsApp</button>
+        <button class="modal-btn" style="background:#ef4444;color:white;" onclick="exportarPedidoPDF('${pedido.id}')">📄 PDF</button>
+    `;
+    
+    document.getElementById('detallePedidoModal').classList.add('show');
+}
+
+// ============================================
+// EXPORTAR PEDIDO A PDF
+// ============================================
+function exportarPedidoPDF(pedidoId) {
+    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    const pedido = pedidos.find(p => p.id === pedidoId);
+    if (!pedido) return;
+    
+    const fecha = new Date(pedido.fecha).toLocaleString('es-PY');
+    
+    // Generar HTML para el PDF
+    let itemsRows = (pedido.items || []).map((item, i) => `
+        <tr>
+            <td style="padding:8px;border:1px solid #ddd;text-align:center;">${i+1}</td>
+            <td style="padding:8px;border:1px solid #ddd;">${item.nombre}</td>
+            <td style="padding:8px;border:1px solid #ddd;text-align:center;">${item.presentacion}</td>
+            <td style="padding:8px;border:1px solid #ddd;text-align:center;">${item.cantidad}</td>
+            <td style="padding:8px;border:1px solid #ddd;text-align:right;">Gs. ${(item.precio_unitario || 0).toLocaleString()}</td>
+            <td style="padding:8px;border:1px solid #ddd;text-align:right;font-weight:bold;">Gs. ${(item.subtotal || item.precio_unitario * item.cantidad).toLocaleString()}</td>
+        </tr>
+        ${item.nota ? `<tr><td colspan="6" style="padding:4px 8px;border:1px solid #ddd;font-size:11px;color:#666;">📝 ${item.nota}</td></tr>` : ''}
+    `).join('');
+    
+    const pdfHTML = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Pedido ${pedido.id.slice(-6)}</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 30px; color: #333; max-width: 800px; margin: 0 auto; }
+        .header { text-align: center; border-bottom: 3px solid #2563eb; padding-bottom: 15px; margin-bottom: 20px; }
+        .header h1 { color: #2563eb; margin: 0; font-size: 24px; }
+        .header p { margin: 5px 0; color: #666; }
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+        .info-box { background: #f9fafb; padding: 12px; border-radius: 8px; }
+        .info-box h3 { font-size: 13px; color: #666; margin: 0 0 5px; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        th { background: #2563eb; color: white; padding: 10px; text-align: left; }
+        .total-box { text-align: right; margin-top: 10px; }
+        .total-box .grand { font-size: 22px; color: #2563eb; font-weight: bold; }
+        .footer { text-align: center; margin-top: 30px; padding-top: 15px; border-top: 1px solid #ddd; font-size: 12px; color: #999; }
+        @media print { body { padding: 15px; } }
+    </style></head><body>
+        <div class="header">
+            <h1>🚚 HDV DISTRIBUCIONES</h1>
+            <p>Nota de Pedido</p>
+        </div>
+        <div class="info-grid">
+            <div class="info-box">
+                <h3>PEDIDO</h3>
+                <div><strong>#${pedido.id.slice(-6)}</strong></div>
+                <div>📅 ${fecha}</div>
+                <div>💰 ${pedido.tipo_pago === 'credito' ? 'CRÉDITO' : 'CONTADO'}</div>
+            </div>
+            <div class="info-box">
+                <h3>CLIENTE</h3>
+                <div><strong>${pedido.cliente?.nombre || pedido.cliente?.razon_social || 'N/A'}</strong></div>
+                ${pedido.cliente?.ruc ? `<div>RUC: ${pedido.cliente.ruc}</div>` : ''}
+                ${pedido.cliente?.direccion ? `<div>${pedido.cliente.direccion}</div>` : ''}
+                ${pedido.cliente?.telefono ? `<div>Tel: ${pedido.cliente.telefono}</div>` : ''}
+            </div>
+        </div>
+        <div class="info-box" style="margin-bottom:15px;">
+            <h3>VENDEDOR</h3>
+            <div>${pedido.vendedor || 'N/A'} · Zona: ${pedido.zona || 'N/A'}</div>
+        </div>
+        ${pedido.notas ? `<div class="info-box" style="margin-bottom:15px;"><h3>NOTAS</h3><div>${pedido.notas}</div></div>` : ''}
+        <table>
+            <thead><tr>
+                <th style="width:40px;">#</th><th>Producto</th><th>Presentación</th><th style="width:60px;">Cant.</th><th style="text-align:right;">P. Unit.</th><th style="text-align:right;">Subtotal</th>
+            </tr></thead>
+            <tbody>${itemsRows}</tbody>
+        </table>
+        <div class="total-box">
+            ${pedido.descuento > 0 ? `
+                <div>Subtotal: Gs. ${(pedido.subtotal || 0).toLocaleString()}</div>
+                <div style="color:#ef4444;">Descuento (${pedido.descuento}%): -Gs. ${(pedido.monto_descuento || 0).toLocaleString()}</div>
+            ` : ''}
+            <div class="grand">TOTAL: Gs. ${(pedido.total || 0).toLocaleString()}</div>
+        </div>
+        <div style="margin-top:40px;display:grid;grid-template-columns:1fr 1fr;gap:40px;">
+            <div style="text-align:center;border-top:1px solid #333;padding-top:8px;font-size:13px;">Firma Vendedor</div>
+            <div style="text-align:center;border-top:1px solid #333;padding-top:8px;font-size:13px;">Firma Cliente</div>
+        </div>
+        <div class="footer">
+            HDV Distribuciones · Generado el ${new Date().toLocaleString('es-PY')}
+        </div>
+    </body></html>`;
+    
+    // Abrir en nueva ventana para imprimir/guardar como PDF
+    const win = window.open('', '_blank');
+    if (win) {
+        win.document.write(pdfHTML);
+        win.document.close();
+        setTimeout(() => win.print(), 500);
+    } else {
+        alert('Por favor permitir ventanas emergentes para exportar PDF');
+    }
+}
+
 // Llamar al cargar
-window.addEventListener('load', mostrarNombreVendedorSidebar);
+window.addEventListener('load', () => {
+    // Nada extra necesario, DOMContentLoaded maneja todo
+});

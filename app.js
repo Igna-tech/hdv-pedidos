@@ -1,7 +1,8 @@
 let productos = [], clientes = [], categorias = [], clienteActual = null, carrito = [], filtroCategoria = 'todas';
 let vistaActual = 'lista';
 let historialCompras = {};
-let carritoAnteriorCliente = null; // Para detectar cambio de cliente vs primera selección
+let carritoAnteriorCliente = null;
+const META_VENTA_DIARIA = 5000000; // Meta diaria en Gs (configurable)
 
 document.addEventListener('DOMContentLoaded', async () => {
     verificarVendedor();
@@ -10,12 +11,67 @@ document.addEventListener('DOMContentLoaded', async () => {
     actualizarEstadoConexion();
     registrarServiceWorker();
     cargarModoOscuro();
+    aplicarTemaZona();
     construirHistorialCompras();
+    limpiarPedidosViejos();
+    recuperarCarrito();
     renderDashboard();
-    // Ocultar barra del carrito en el dashboard
     const cartBar = document.getElementById('cartSummaryBar');
     if (cartBar) cartBar.style.display = 'none';
 });
+
+// Persistir carrito en localStorage
+function guardarCarrito() {
+    const data = { carrito, clienteId: clienteActual?.id || null, clienteNombre: clienteActual?.nombre || null, timestamp: Date.now() };
+    localStorage.setItem('hdv_carrito_temp', JSON.stringify(data));
+}
+
+// Recuperar carrito si la app se cerró sin confirmar
+function recuperarCarrito() {
+    const saved = localStorage.getItem('hdv_carrito_temp');
+    if (!saved) return;
+    try {
+        const data = JSON.parse(saved);
+        if (!data.carrito || data.carrito.length === 0) return;
+        // Solo recuperar si tiene menos de 12 horas
+        if (Date.now() - data.timestamp > 12 * 60 * 60 * 1000) {
+            localStorage.removeItem('hdv_carrito_temp');
+            return;
+        }
+        if (confirm(`📦 Tenés un pedido sin terminar (${data.carrito.length} productos${data.clienteNombre ? ' para ' + data.clienteNombre : ''}).\n\n¿Recuperar?`)) {
+            carrito = data.carrito;
+            if (data.clienteId) {
+                const cliente = clientes.find(c => c.id === data.clienteId);
+                if (cliente) {
+                    clienteActual = cliente;
+                    carritoAnteriorCliente = cliente.id;
+                    const input = document.getElementById('clienteSearch');
+                    const badge = document.getElementById('clienteSeleccionadoBadge');
+                    if (input) input.value = cliente.razon_social || cliente.nombre;
+                    if (badge) { badge.innerHTML = `✅ <strong>${cliente.razon_social || cliente.nombre}</strong>`; badge.style.display = 'block'; }
+                    document.getElementById('searchInput').disabled = false;
+                    renderClienteSummary(cliente.id);
+                }
+            }
+            actualizarCarrito();
+            mostrarProductos();
+            cambiarTab('pedidos');
+        } else {
+            localStorage.removeItem('hdv_carrito_temp');
+        }
+    } catch (e) { localStorage.removeItem('hdv_carrito_temp'); }
+}
+
+// Limpiar pedidos sincronizados de más de 30 días
+function limpiarPedidosViejos() {
+    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    const hace30dias = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    const filtrados = pedidos.filter(p => !p.sincronizado || new Date(p.fecha).getTime() > hace30dias);
+    if (filtrados.length < pedidos.length) {
+        localStorage.setItem('hdv_pedidos', JSON.stringify(filtrados));
+        console.log(`[Limpieza] ${pedidos.length - filtrados.length} pedidos viejos eliminados`);
+    }
+}
 
 function cargarModoOscuro() {
     const darkMode = localStorage.getItem('dark_mode') === 'true';
@@ -100,7 +156,6 @@ function verificarVendedor() {
 }
 
 function mostrarLoginVendedor() {
-    // Crear modal de login si no existe
     if (!document.getElementById('loginVendedorModal')) {
         const modal = document.createElement('div');
         modal.id = 'loginVendedorModal';
@@ -111,8 +166,17 @@ function mostrarLoginVendedor() {
                 <h2 style="margin-bottom:5px;color:#111827;">HDV Distribuciones</h2>
                 <p style="color:#6b7280;margin-bottom:20px;">Ingresá tu nombre para comenzar</p>
                 <input type="text" id="loginVendedorInput" placeholder="Ej: Juan Pérez" 
-                    style="width:100%;padding:14px;border:2px solid #e5e7eb;border-radius:10px;font-size:16px;text-align:center;margin-bottom:15px;"
+                    style="width:100%;padding:14px;border:2px solid #e5e7eb;border-radius:10px;font-size:16px;text-align:center;margin-bottom:12px;"
                     onkeydown="if(event.key==='Enter')confirmarLoginVendedor()">
+                <select id="loginZonaSelect" style="width:100%;padding:12px;border:2px solid #e5e7eb;border-radius:10px;font-size:15px;margin-bottom:15px;text-align:center;">
+                    <option value="">Seleccioná tu zona</option>
+                    <option value="central">🔵 Central</option>
+                    <option value="norte">🟢 Norte</option>
+                    <option value="sur">🟠 Sur</option>
+                    <option value="este">🔴 Este</option>
+                    <option value="oeste">🟣 Oeste</option>
+                    <option value="chaco">🟤 Chaco</option>
+                </select>
                 <button onclick="confirmarLoginVendedor()" 
                     style="width:100%;padding:14px;background:#2563eb;color:white;border:none;border-radius:10px;font-size:16px;font-weight:600;cursor:pointer;">
                     Ingresar
@@ -120,7 +184,6 @@ function mostrarLoginVendedor() {
             </div>
         `;
         document.body.appendChild(modal);
-        // Focus automático
         setTimeout(() => document.getElementById('loginVendedorInput')?.focus(), 100);
     }
 }
@@ -133,9 +196,44 @@ function confirmarLoginVendedor() {
         input.placeholder = 'Debes ingresar tu nombre';
         return;
     }
+    const zona = document.getElementById('loginZonaSelect')?.value || '';
     localStorage.setItem('vendedor_nombre', nombre);
+    if (zona) localStorage.setItem('vendedor_zona', zona);
     document.getElementById('loginVendedorModal')?.remove();
-    mostrarNombreVendedorSidebar();
+    aplicarTemaZona();
+}
+
+// Colores por zona
+const ZONA_COLORES = {
+    central: { primary: '#2563eb', gradient: 'linear-gradient(135deg, #2563eb, #1d4ed8)', label: '🔵 Central' },
+    norte:   { primary: '#059669', gradient: 'linear-gradient(135deg, #059669, #047857)', label: '🟢 Norte' },
+    sur:     { primary: '#d97706', gradient: 'linear-gradient(135deg, #d97706, #b45309)', label: '🟠 Sur' },
+    este:    { primary: '#dc2626', gradient: 'linear-gradient(135deg, #dc2626, #b91c1c)', label: '🔴 Este' },
+    oeste:   { primary: '#7c3aed', gradient: 'linear-gradient(135deg, #7c3aed, #6d28d9)', label: '🟣 Oeste' },
+    chaco:   { primary: '#78350f', gradient: 'linear-gradient(135deg, #92400e, #78350f)', label: '🟤 Chaco' }
+};
+
+function aplicarTemaZona() {
+    const zona = localStorage.getItem('vendedor_zona');
+    if (!zona || !ZONA_COLORES[zona]) return;
+    const tema = ZONA_COLORES[zona];
+    document.documentElement.style.setProperty('--primary', tema.primary);
+    const header = document.querySelector('.header');
+    if (header) header.style.background = tema.gradient;
+    // Colorear botones activos
+    const style = document.createElement('style');
+    style.id = 'zona-theme';
+    const old = document.getElementById('zona-theme');
+    if (old) old.remove();
+    style.textContent = `
+        .tab.active { color: ${tema.primary}; border-bottom-color: ${tema.primary}; }
+        .cart-btn, .btn-confirm, .discount-row button { background: ${tema.primary}; }
+        .category-btn.active { background: ${tema.primary}; border-color: ${tema.primary}; }
+        .variant-chip .v-price, .precio-tabla .pp, .cart-total, .total-row.final { color: ${tema.primary}; }
+        .quantity-btn { border-color: ${tema.primary}; color: ${tema.primary}; }
+        .quantity-btn:active { background: ${tema.primary}; }
+    `;
+    document.head.appendChild(style);
 }
 
 async function cargarDatos() {
@@ -146,7 +244,8 @@ async function cargarDatos() {
         clientes = data.clientes;
         categorias = data.categorias;
         
-        // Guardar timestamp de última actualización
+        // Guardar copia local para modo sin datos
+        localStorage.setItem('hdv_datos_cache', JSON.stringify(data));
         localStorage.setItem('hdv_ultima_carga', new Date().toISOString());
         
         cargarClientes();
@@ -154,7 +253,24 @@ async function cargarDatos() {
         mostrarProductos();
         actualizarIndicadorDatos();
     } catch (error) {
-        document.getElementById('productsContainer').innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚠️</div>Error al cargar los datos</div>';
+        // Intentar cargar desde caché local
+        const cache = localStorage.getItem('hdv_datos_cache');
+        if (cache) {
+            try {
+                const data = JSON.parse(cache);
+                productos = data.productos;
+                clientes = data.clientes;
+                categorias = data.categorias;
+                cargarClientes();
+                cargarCategorias();
+                mostrarProductos();
+                mostrarExito('⚠️ Sin conexión. Usando datos guardados.');
+            } catch (e) {
+                document.getElementById('productsContainer').innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚠️</div>Error al cargar datos. Verificá tu conexión.</div>';
+            }
+        } else {
+            document.getElementById('productsContainer').innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚠️</div>Sin datos. Conectate a internet para cargar productos.</div>';
+        }
         actualizarIndicadorDatos();
     }
 }
@@ -327,6 +443,16 @@ function mostrarProductos(termino = '') {
     if (filtroCategoria !== 'todas') filtrados = filtrados.filter(p => p.categoria === filtroCategoria);
     if (termino) filtrados = filtrados.filter(p => p.nombre.toLowerCase().includes(termino));
     
+    // Ordenar por popularidad del cliente si hay uno seleccionado
+    if (clienteActual && historialCompras[clienteActual.id]) {
+        const hist = historialCompras[clienteActual.id];
+        filtrados.sort((a, b) => {
+            const popA = hist[a.nombre] || 0;
+            const popB = hist[b.nombre] || 0;
+            return popB - popA; // Más pedidos primero
+        });
+    }
+    
     const countEl = document.getElementById('productCount');
     if (countEl) countEl.textContent = `${filtrados.length} producto${filtrados.length !== 1 ? 's' : ''}`;
     
@@ -336,7 +462,18 @@ function mostrarProductos(termino = '') {
     }
     const grid = document.createElement('div');
     grid.className = `products-grid ${vistaActual === 'cuadricula' ? 'grid-view' : ''}`;
-    filtrados.forEach(p => grid.appendChild(vistaActual === 'cuadricula' ? crearTarjetaProductoCuadricula(p) : crearTarjetaProducto(p)));
+    filtrados.forEach(p => {
+        const card = vistaActual === 'cuadricula' ? crearTarjetaProductoCuadricula(p) : crearTarjetaProducto(p);
+        // Indicar si es popular para este cliente
+        if (clienteActual && historialCompras[clienteActual.id]?.[p.nombre]) {
+            const badge = document.createElement('span');
+            badge.style.cssText = 'font-size:10px;background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:8px;margin-left:6px;';
+            badge.textContent = `⭐ ${historialCompras[clienteActual.id][p.nombre]}x`;
+            const nameEl = card.querySelector('.product-name');
+            if (nameEl) nameEl.appendChild(badge);
+        }
+        grid.appendChild(card);
+    });
     container.innerHTML = '';
     container.appendChild(grid);
 }
@@ -356,13 +493,19 @@ function cambiarVista(vista) {
 function crearTarjetaProductoCuadricula(producto) {
     const card = document.createElement('div');
     card.className = 'product-card grid-view';
+    card.id = `product-${producto.id}`;
     card.onclick = () => mostrarDetalleProducto(producto);
     
     const emoji = obtenerEmojiProducto(producto);
+    const imgHTML = producto.imagen 
+        ? `<img src="${producto.imagen}" alt="" style="width:100%;height:100%;object-fit:contain;border-radius:8px;" onerror="this.parentElement.innerHTML='${emoji}'">`
+        : emoji;
+    const precio = producto.presentaciones[0]?.precio_base || 0;
     
     card.innerHTML = `
-        <div class="product-image">${emoji}</div>
+        <div class="product-image">${imgHTML}</div>
         <div class="product-name">${producto.nombre}</div>
+        <div class="product-price">Gs. ${precio.toLocaleString()}</div>
     `;
     
     return card;
@@ -660,6 +803,9 @@ function actualizarCarrito() {
         badge.remove();
         btn.textContent = 'Ver Pedido';
     }
+    
+    // Persistir carrito
+    guardarCarrito();
 }
 
 function mostrarModalCarrito() {
@@ -670,30 +816,65 @@ function mostrarModalCarrito() {
         document.getElementById('totalSection').style.display = 'none';
     } else {
         carrito.forEach((item, index) => {
+            // Contenedor swipeable
+            const wrapper = document.createElement('div');
+            wrapper.style.cssText = 'position:relative;overflow:hidden;border-bottom:1px solid #e5e7eb;';
+            
+            // Fondo rojo de eliminación
+            const delBg = document.createElement('div');
+            delBg.style.cssText = 'position:absolute;right:0;top:0;bottom:0;width:80px;background:#ef4444;display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:13px;border-radius:0 8px 8px 0;';
+            delBg.textContent = '🗑️ Borrar';
+            wrapper.appendChild(delBg);
+            
             const div = document.createElement('div');
             div.className = 'cart-item';
+            div.style.cssText = 'position:relative;background:white;transition:transform 0.2s ease;z-index:1;border-bottom:none;';
             div.innerHTML = `
-                <div style="flex:1">
-                    <strong>${item.nombre}</strong><br>
-                    <span style="color:#6b7280;font-size:14px">${item.presentacion}</span>
-                    <div style="margin-top:6px;">
-                        <input type="text" id="nota-item-${index}" value="${item.nota || ''}" placeholder="📝 Nota (ej: entregar martes)" 
-                            onchange="actualizarNotaItem(${index}, this.value)"
-                            style="width:100%;padding:6px 8px;border:1px solid #e5e7eb;border-radius:6px;font-size:12px;color:#6b7280;">
+                <div style="flex:1;min-width:0;">
+                    <strong style="font-size:14px;">${item.nombre}</strong>
+                    <div style="font-size:12px;color:#6b7280;">${item.presentacion} · Gs. ${item.precio.toLocaleString()}/u</div>
+                    <input type="text" value="${item.nota || ''}" placeholder="📝 Nota..." 
+                        onchange="actualizarNotaItem(${index}, this.value)"
+                        style="width:100%;padding:5px 8px;border:1px solid #e5e7eb;border-radius:6px;font-size:11px;color:#6b7280;margin-top:4px;">
+                </div>
+                <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+                    <strong style="color:#2563eb;font-size:14px;">Gs. ${(item.precio * item.cantidad).toLocaleString()}</strong>
+                    <div style="display:flex;align-items:center;gap:6px;">
+                        <button onclick="editarCantidadCarrito(${index}, -1)" style="width:28px;height:28px;border:2px solid #2563eb;background:white;color:#2563eb;border-radius:6px;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;">−</button>
+                        <input type="number" id="cart-qty-${index}" value="${item.cantidad}" min="1" onchange="cambiarCantidadCarrito(${index}, this.value)" style="width:44px;padding:4px;border:2px solid #e5e7eb;border-radius:6px;text-align:center;font-size:14px;font-weight:600;">
+                        <button onclick="editarCantidadCarrito(${index}, 1)" style="width:28px;height:28px;border:2px solid #2563eb;background:white;color:#2563eb;border-radius:6px;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;">+</button>
                     </div>
                 </div>
-                <div style="display:flex;align-items:center;gap:10px">
-                    <button onclick="editarCantidadCarrito(${index}, -1)" style="width:32px;height:32px;border:2px solid #2563eb;background:white;color:#2563eb;border-radius:6px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center">−</button>
-                    <input type="number" id="cart-qty-${index}" value="${item.cantidad}" min="1" onchange="cambiarCantidadCarrito(${index}, this.value)" style="width:60px;padding:6px;border:2px solid #e5e7eb;border-radius:6px;text-align:center;font-size:14px;font-weight:600">
-                    <button onclick="editarCantidadCarrito(${index}, 1)" style="width:32px;height:32px;border:2px solid #2563eb;background:white;color:#2563eb;border-radius:6px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center">+</button>
-                </div>
-                <div style="text-align:right;min-width:120px">
-                    <strong>Gs. ${(item.precio * item.cantidad).toLocaleString()}</strong><br>
-                    <span style="color:#6b7280;font-size:13px">@Gs. ${item.precio.toLocaleString()}</span>
-                </div>
-                <button onclick="eliminarDelCarrito(${index})" style="width:32px;height:32px;border:2px solid #ef4444;background:white;color:#ef4444;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center">🗑️</button>
             `;
-            lista.appendChild(div);
+            
+            // Swipe touch handlers
+            let startX = 0, currentX = 0, swiping = false;
+            div.addEventListener('touchstart', (e) => {
+                startX = e.touches[0].clientX;
+                swiping = true;
+                div.style.transition = 'none';
+            }, {passive: true});
+            div.addEventListener('touchmove', (e) => {
+                if (!swiping) return;
+                currentX = e.touches[0].clientX - startX;
+                if (currentX < 0) { // Solo swipe izquierda
+                    div.style.transform = `translateX(${Math.max(currentX, -80)}px)`;
+                }
+            }, {passive: true});
+            div.addEventListener('touchend', () => {
+                swiping = false;
+                div.style.transition = 'transform 0.2s ease';
+                if (currentX < -60) {
+                    div.style.transform = 'translateX(-100%)';
+                    setTimeout(() => eliminarDelCarrito(index), 200);
+                } else {
+                    div.style.transform = 'translateX(0)';
+                }
+                currentX = 0;
+            });
+            
+            wrapper.appendChild(div);
+            lista.appendChild(wrapper);
         });
         
         calcularTotales();
@@ -956,6 +1137,7 @@ async function procesarPedido() {
     
     // Limpiar
     carrito = [];
+    localStorage.removeItem('hdv_carrito_temp');
     descuentoAplicado = 0;
     document.getElementById('descuento').value = 0;
     document.getElementById('notasPedido').value = '';
@@ -1318,85 +1500,219 @@ function renderDashboard() {
     const vendedor = localStorage.getItem('vendedor_nombre') || 'Vendedor';
     const hoy = new Date().toDateString();
     
+    // Stats hoy
     const pedidosHoy = pedidos.filter(p => new Date(p.fecha).toDateString() === hoy);
     const montoHoy = pedidosHoy.reduce((s, p) => s + (p.total || 0), 0);
     const clientesHoy = new Set(pedidosHoy.map(p => p.cliente?.nombre)).size;
     const pendientes = pedidos.filter(p => !p.sincronizado).length;
     
-    // Semana
+    // Semana actual
     const inicioSemana = new Date();
     inicioSemana.setDate(inicioSemana.getDate() - inicioSemana.getDay());
+    inicioSemana.setHours(0,0,0,0);
     const pedidosSemana = pedidos.filter(p => new Date(p.fecha) >= inicioSemana);
     const montoSemana = pedidosSemana.reduce((s, p) => s + (p.total || 0), 0);
     
+    // Semana anterior (para comparativa)
+    const inicioSemanaAnterior = new Date(inicioSemana);
+    inicioSemanaAnterior.setDate(inicioSemanaAnterior.getDate() - 7);
+    const pedidosSemanaAnterior = pedidos.filter(p => {
+        const f = new Date(p.fecha);
+        return f >= inicioSemanaAnterior && f < inicioSemana;
+    });
+    const montoSemanaAnterior = pedidosSemanaAnterior.reduce((s, p) => s + (p.total || 0), 0);
+    const diffSemanal = montoSemanaAnterior > 0 ? Math.round(((montoSemana - montoSemanaAnterior) / montoSemanaAnterior) * 100) : 0;
+    const diffIcon = diffSemanal > 0 ? '📈' : diffSemanal < 0 ? '📉' : '➡️';
+    const diffColor = diffSemanal > 0 ? '#10b981' : diffSemanal < 0 ? '#ef4444' : '#6b7280';
+    
+    // Meta de ventas
+    const progreso = Math.min(100, Math.round((montoHoy / META_VENTA_DIARIA) * 100));
+    const progresoColor = progreso >= 100 ? '#10b981' : progreso >= 50 ? '#f59e0b' : '#ef4444';
+    
+    // Top 10 productos de la semana
+    const productoCount = {};
+    pedidosSemana.forEach(p => {
+        (p.items || []).forEach(item => {
+            productoCount[item.nombre] = (productoCount[item.nombre] || 0) + item.cantidad;
+        });
+    });
+    const topProductos = Object.entries(productoCount).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    
+    // Clientes sin comprar en 7+ días
+    const clienteUltimaCompra = {};
+    pedidos.forEach(p => {
+        if (p.cliente?.nombre) {
+            const fecha = new Date(p.fecha).getTime();
+            if (!clienteUltimaCompra[p.cliente.nombre] || fecha > clienteUltimaCompra[p.cliente.nombre]) {
+                clienteUltimaCompra[p.cliente.nombre] = fecha;
+            }
+        }
+    });
+    const hace7dias = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const clientesInactivos = Object.entries(clienteUltimaCompra)
+        .filter(([, f]) => f < hace7dias)
+        .sort((a, b) => a[1] - b[1])
+        .slice(0, 5);
+    
+    // Atajos: últimos clientes con opción de repetir
+    const clientesRecientes = [];
+    const clientesVistos = new Set();
+    [...pedidos].reverse().forEach(p => {
+        if (p.cliente?.nombre && !clientesVistos.has(p.cliente.nombre)) {
+            clientesVistos.add(p.cliente.nombre);
+            clientesRecientes.push(p);
+        }
+    });
+    const atajosHTML = clientesRecientes.slice(0, 3).map(p => {
+        const items = p.items?.length || 0;
+        return `<button onclick="repetirPedidoRapido('${p.id}')" style="flex:1;padding:10px 8px;background:white;border:2px solid #e5e7eb;border-radius:10px;cursor:pointer;text-align:center;font-size:12px;">
+            <div style="font-size:18px;">🔄</div>
+            <div style="font-weight:600;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${p.cliente.nombre}</div>
+            <div style="color:#6b7280;">${items} items</div>
+        </button>`;
+    }).join('');
+    
     // Últimos pedidos
     const ultimos = [...pedidos].reverse().slice(0, 5);
+    const recentHTML = ultimos.length > 0 ? ultimos.map(p => {
+        const fecha = new Date(p.fecha);
+        const esHoy = fecha.toDateString() === hoy;
+        const fechaStr = esHoy ? fecha.toLocaleTimeString('es-PY', {hour: '2-digit', minute: '2-digit'}) : fecha.toLocaleDateString('es-PY');
+        return `<div onclick="verDetallePedido('${p.id}')" style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f3f4f6;cursor:pointer;">
+            <div>
+                <div style="font-weight:600;font-size:13px;">👤 ${p.cliente?.nombre || 'Sin cliente'}</div>
+                <div style="font-size:11px;color:#6b7280;">${esHoy ? 'Hoy ' : ''}${fechaStr} · ${p.items?.length || 0} items</div>
+            </div>
+            <div style="text-align:right;">
+                <div style="font-weight:700;color:#2563eb;font-size:14px;">Gs. ${(p.total || 0).toLocaleString()}</div>
+                <span class="pedido-badge ${p.sincronizado ? 'sync' : 'pending'}" style="font-size:10px;">${p.sincronizado ? '✅' : '⏳'}</span>
+            </div>
+        </div>`;
+    }).join('') : '<div style="text-align:center;padding:20px;color:#6b7280;font-size:13px;">Aún no hay pedidos</div>';
     
-    let recentHTML = '';
-    if (ultimos.length > 0) {
-        recentHTML = ultimos.map(p => {
-            const fecha = new Date(p.fecha);
-            const esHoy = fecha.toDateString() === hoy;
-            const fechaStr = esHoy ? fecha.toLocaleTimeString('es-PY', {hour: '2-digit', minute: '2-digit'}) : fecha.toLocaleDateString('es-PY');
-            return `<div class="dash-recent-item" onclick="verDetallePedido('${p.id}')" style="cursor:pointer;">
-                <div>
-                    <div style="font-weight:600;font-size:14px;">👤 ${p.cliente?.nombre || 'Sin cliente'}</div>
-                    <div style="font-size:12px;color:#6b7280;">${esHoy ? 'Hoy ' : ''}${fechaStr} · ${p.items?.length || 0} items</div>
-                </div>
-                <div style="text-align:right;">
-                    <div style="font-weight:700;color:#2563eb;">Gs. ${(p.total || 0).toLocaleString()}</div>
-                    <span class="pedido-badge ${p.sincronizado ? 'sync' : 'pending'}">${p.sincronizado ? '✅' : '⏳'}</span>
-                </div>
-            </div>`;
-        }).join('');
-    } else {
-        recentHTML = '<div style="text-align:center;padding:20px;color:#6b7280;">Aún no hay pedidos</div>';
-    }
+    // Top productos HTML
+    const topHTML = topProductos.length > 0 ? topProductos.map(([nombre, qty], i) => 
+        `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:13px;${i < topProductos.length-1 ? 'border-bottom:1px solid #f3f4f6;' : ''}">
+            <span>${i+1}. ${nombre}</span><span style="font-weight:600;color:#2563eb;">${qty}u</span>
+        </div>`
+    ).join('') : '<div style="font-size:13px;color:#6b7280;">Sin datos esta semana</div>';
+    
+    // Clientes inactivos HTML
+    const inactivosHTML = clientesInactivos.length > 0 ? clientesInactivos.map(([nombre, fecha]) => {
+        const dias = Math.floor((Date.now() - fecha) / (24*60*60*1000));
+        return `<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px;border-bottom:1px solid #f3f4f6;">
+            <span>👤 ${nombre}</span><span style="color:#ef4444;font-weight:600;">${dias}d sin comprar</span>
+        </div>`;
+    }).join('') : '<div style="font-size:13px;color:#6b7280;">Todos los clientes están activos 🎉</div>';
     
     container.innerHTML = `
-        <div style="margin-bottom:15px;">
+        <div style="margin-bottom:12px;">
             <div style="font-size:16px;font-weight:700;">👋 Hola, ${vendedor}</div>
-            <div style="font-size:13px;color:#6b7280;">${new Date().toLocaleDateString('es-PY', {weekday: 'long', day: 'numeric', month: 'long'})}</div>
+            <div style="font-size:12px;color:#6b7280;">${new Date().toLocaleDateString('es-PY', {weekday: 'long', day: 'numeric', month: 'long'})}</div>
+        </div>
+        
+        <!-- Meta del día -->
+        <div class="card" style="margin-bottom:12px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                <span style="font-weight:600;font-size:13px;">🎯 Meta del día</span>
+                <span style="font-size:13px;font-weight:700;color:${progresoColor};">${progreso}%</span>
+            </div>
+            <div style="background:#e5e7eb;border-radius:8px;height:10px;overflow:hidden;">
+                <div style="background:${progresoColor};height:100%;width:${progreso}%;border-radius:8px;transition:width 0.5s;"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:11px;color:#6b7280;">
+                <span>Gs. ${montoHoy.toLocaleString()}</span>
+                <span>Meta: Gs. ${META_VENTA_DIARIA.toLocaleString()}</span>
+            </div>
         </div>
         
         <div class="dash-grid">
-            <div class="dash-card blue">
-                <div class="dash-icon">📦</div>
-                <div class="dash-value">${pedidosHoy.length}</div>
-                <div class="dash-label">Pedidos hoy</div>
-            </div>
-            <div class="dash-card green">
-                <div class="dash-icon">💰</div>
-                <div class="dash-value">Gs. ${montoHoy > 999999 ? (montoHoy/1000000).toFixed(1)+'M' : montoHoy.toLocaleString()}</div>
-                <div class="dash-label">Venta del día</div>
-            </div>
-            <div class="dash-card orange">
-                <div class="dash-icon">👥</div>
-                <div class="dash-value">${clientesHoy}</div>
-                <div class="dash-label">Clientes hoy</div>
-            </div>
-            <div class="dash-card red">
-                <div class="dash-icon">⏳</div>
-                <div class="dash-value">${pendientes}</div>
-                <div class="dash-label">Pendientes sync</div>
-            </div>
+            <div class="dash-card blue"><div class="dash-icon">📦</div><div class="dash-value">${pedidosHoy.length}</div><div class="dash-label">Pedidos hoy</div></div>
+            <div class="dash-card green"><div class="dash-icon">👥</div><div class="dash-value">${clientesHoy}</div><div class="dash-label">Clientes hoy</div></div>
+            <div class="dash-card orange"><div class="dash-icon">💰</div><div class="dash-value">Gs. ${montoHoy > 999999 ? (montoHoy/1000000).toFixed(1)+'M' : montoHoy.toLocaleString()}</div><div class="dash-label">Vendido hoy</div></div>
+            <div class="dash-card red"><div class="dash-icon">⏳</div><div class="dash-value">${pendientes}</div><div class="dash-label">Pendientes sync</div></div>
         </div>
         
+        <!-- Comparativa semanal -->
         <div class="card">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">
-                <span style="font-weight:700;font-size:14px;">📊 Esta semana</span>
-                <span style="font-size:13px;color:#6b7280;">${pedidosSemana.length} pedidos</span>
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+                <div>
+                    <div style="font-weight:700;font-size:13px;">📊 Esta semana</div>
+                    <div style="font-size:20px;font-weight:700;color:#2563eb;">Gs. ${montoSemana.toLocaleString()}</div>
+                    <div style="font-size:12px;color:#6b7280;">${pedidosSemana.length} pedidos</div>
+                </div>
+                <div style="text-align:right;">
+                    <div style="font-size:24px;">${diffIcon}</div>
+                    <div style="font-size:14px;font-weight:700;color:${diffColor};">${diffSemanal > 0 ? '+' : ''}${diffSemanal}%</div>
+                    <div style="font-size:11px;color:#6b7280;">vs anterior</div>
+                </div>
             </div>
-            <div style="font-size:20px;font-weight:700;color:#10b981;">Gs. ${montoSemana.toLocaleString()}</div>
         </div>
         
-        <div style="font-size:15px;font-weight:700;margin:15px 0 10px;">📋 Últimos pedidos</div>
+        <!-- Atajos rápidos -->
+        ${atajosHTML ? `
+        <div style="font-size:14px;font-weight:700;margin:15px 0 8px;">⚡ Repetir pedido</div>
+        <div style="display:flex;gap:8px;overflow-x:auto;">${atajosHTML}</div>` : ''}
+        
+        <!-- Top productos -->
+        <div style="font-size:14px;font-weight:700;margin:15px 0 8px;">🏆 Top productos (semana)</div>
+        <div class="card" style="padding:10px 15px;">${topHTML}</div>
+        
+        <!-- Clientes inactivos -->
+        ${clientesInactivos.length > 0 ? `
+        <div style="font-size:14px;font-weight:700;margin:15px 0 8px;">⚠️ Clientes sin visitar</div>
+        <div class="card" style="padding:10px 15px;">${inactivosHTML}</div>` : ''}
+        
+        <!-- Últimos pedidos -->
+        <div style="font-size:14px;font-weight:700;margin:15px 0 8px;">📋 Últimos pedidos</div>
         <div class="card" style="padding:5px 15px;">${recentHTML}</div>
         
         <button onclick="cambiarTab('pedidos')" style="width:100%;padding:14px;margin-top:15px;background:#2563eb;color:white;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;">
             ➕ Nuevo Pedido
         </button>
     `;
+}
+
+// Repetir pedido rápido desde dashboard
+function repetirPedidoRapido(pedidoId) {
+    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    const pedido = pedidos.find(p => p.id === pedidoId);
+    if (!pedido) return;
+    
+    if (carrito.length > 0 && !confirm('Ya tenés productos en el carrito. ¿Reemplazar?')) return;
+    
+    // Seleccionar cliente
+    const cliente = clientes.find(c => c.id === pedido.cliente?.id);
+    if (cliente) {
+        clienteActual = cliente;
+        carritoAnteriorCliente = cliente.id;
+        const input = document.getElementById('clienteSearch');
+        const badge = document.getElementById('clienteSeleccionadoBadge');
+        if (input) input.value = cliente.razon_social || cliente.nombre;
+        if (badge) { badge.innerHTML = `✅ <strong>${cliente.razon_social || cliente.nombre}</strong>`; badge.style.display = 'block'; }
+        document.getElementById('searchInput').disabled = false;
+    }
+    
+    // Cargar items
+    carrito = [];
+    (pedido.items || []).forEach(item => {
+        const producto = productos.find(p => p.nombre === item.nombre);
+        if (producto) {
+            const pres = producto.presentaciones.find(pr => pr.tamano === item.presentacion);
+            if (pres) {
+                carrito.push({
+                    productoId: producto.id, nombre: producto.nombre,
+                    presentacion: pres.tamano, precio: obtenerPrecio(producto.id, pres),
+                    cantidad: item.cantidad
+                });
+            }
+        }
+    });
+    
+    actualizarCarrito();
+    cambiarTab('pedidos');
+    mostrarProductos();
+    mostrarExito(`Pedido repetido: ${carrito.length} productos`);
 }
 
 // ============================================
@@ -1545,13 +1861,84 @@ function verDetallePedido(pedidoId) {
         </div>
     `;
     
+    const esPendiente = !pedido.sincronizado;
+    
     actions.innerHTML = `
         <button class="modal-btn btn-cancel" onclick="document.getElementById('detallePedidoModal').classList.remove('show')">Cerrar</button>
-        <button class="modal-btn" style="background:#25d366;color:white;" onclick="compartirPorWhatsApp(JSON.parse(localStorage.getItem('hdv_pedidos')||'[]').find(p=>p.id==='${pedido.id}'))">📱 WhatsApp</button>
-        <button class="modal-btn" style="background:#ef4444;color:white;" onclick="exportarPedidoPDF('${pedido.id}')">📄 PDF</button>
+        ${esPendiente ? `<button class="modal-btn" style="background:#f59e0b;color:white;" onclick="editarPedido('${pedido.id}')">✏️ Editar</button>
+        <button class="modal-btn" style="background:#ef4444;color:white;" onclick="cancelarPedido('${pedido.id}')">🗑️ Cancelar</button>` : ''}
+        <button class="modal-btn" style="background:#25d366;color:white;" onclick="compartirPorWhatsApp(JSON.parse(localStorage.getItem('hdv_pedidos')||'[]').find(p=>p.id==='${pedido.id}'))">📱</button>
+        <button class="modal-btn" style="background:#2563eb;color:white;" onclick="exportarPedidoPDF('${pedido.id}')">📄</button>
     `;
     
     document.getElementById('detallePedidoModal').classList.add('show');
+}
+
+// Editar pedido no sincronizado: cargar en carrito
+function editarPedido(pedidoId) {
+    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    const pedido = pedidos.find(p => p.id === pedidoId);
+    if (!pedido || pedido.sincronizado) { alert('Este pedido ya fue sincronizado.'); return; }
+    
+    if (carrito.length > 0 && !confirm('Ya tenés productos en el carrito. ¿Reemplazar con este pedido?')) return;
+    
+    // Seleccionar cliente
+    const cliente = clientes.find(c => c.id === pedido.cliente?.id);
+    if (cliente) {
+        clienteActual = cliente;
+        carritoAnteriorCliente = cliente.id;
+        const input = document.getElementById('clienteSearch');
+        const badge = document.getElementById('clienteSeleccionadoBadge');
+        if (input) input.value = cliente.razon_social || cliente.nombre;
+        if (badge) { badge.innerHTML = `✅ <strong>${cliente.razon_social || cliente.nombre}</strong>`; badge.style.display = 'block'; }
+        document.getElementById('searchInput').disabled = false;
+    }
+    
+    // Cargar items al carrito
+    carrito = [];
+    (pedido.items || []).forEach(item => {
+        const producto = productos.find(p => p.nombre === item.nombre);
+        if (producto) {
+            const pres = producto.presentaciones.find(pr => pr.tamano === item.presentacion);
+            if (pres) {
+                carrito.push({
+                    productoId: producto.id, nombre: producto.nombre,
+                    presentacion: pres.tamano, precio: obtenerPrecio(producto.id, pres),
+                    cantidad: item.cantidad, nota: item.nota || ''
+                });
+            }
+        }
+    });
+    
+    // Eliminar el pedido original (se creará uno nuevo al confirmar)
+    const idx = pedidos.findIndex(p => p.id === pedidoId);
+    if (idx >= 0) {
+        pedidos.splice(idx, 1);
+        localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
+    }
+    
+    document.getElementById('detallePedidoModal').classList.remove('show');
+    actualizarCarrito();
+    cambiarTab('pedidos');
+    mostrarProductos();
+    mostrarExito(`Editando pedido #${pedidoId.slice(-6)} — ${carrito.length} productos`);
+}
+
+// Cancelar pedido no sincronizado
+function cancelarPedido(pedidoId) {
+    if (!confirm('⚠️ ¿Cancelar este pedido? Esta acción no se puede deshacer.')) return;
+    
+    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    const idx = pedidos.findIndex(p => p.id === pedidoId);
+    if (idx < 0) return;
+    if (pedidos[idx].sincronizado) { alert('Este pedido ya fue sincronizado, no se puede cancelar.'); return; }
+    
+    pedidos.splice(idx, 1);
+    localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
+    document.getElementById('detallePedidoModal').classList.remove('show');
+    renderHistorial();
+    renderDashboard();
+    mostrarExito('Pedido cancelado');
 }
 
 // ============================================

@@ -41,6 +41,51 @@ function construirHistorialCompras() {
     });
 }
 
+function mostrarUltimoPedidoCliente(clienteId) {
+    const banner = document.getElementById('ultimoPedidoBanner');
+    if (!banner) return;
+    
+    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    const pedidosCliente = pedidos.filter(p => p.cliente?.id === clienteId);
+    
+    if (pedidosCliente.length === 0) {
+        banner.style.display = 'none';
+        return;
+    }
+    
+    const ultimo = pedidosCliente[pedidosCliente.length - 1];
+    const fecha = new Date(ultimo.fecha).toLocaleDateString('es-PY');
+    const itemsResumen = ultimo.items.slice(0, 3).map(i => `${i.nombre} (${i.cantidad})`).join(', ');
+    const masItems = ultimo.items.length > 3 ? ` +${ultimo.items.length - 3} más` : '';
+    
+    banner.innerHTML = `📦 <strong>Último pedido (${fecha}):</strong> ${itemsResumen}${masItems} — <strong>Gs. ${(ultimo.total || 0).toLocaleString()}</strong> <span style="float:right;font-size:12px;">Tocar para repetir →</span>`;
+    banner.style.display = 'block';
+    
+    banner.onclick = () => {
+        if (!confirm(`¿Repetir el pedido del ${fecha}?\n\nSe agregarán ${ultimo.items.length} productos al carrito.`)) return;
+        
+        carrito = [];
+        ultimo.items.forEach(item => {
+            const producto = productos.find(p => p.nombre === item.nombre);
+            if (producto) {
+                const pres = producto.presentaciones.find(pr => pr.tamano === item.presentacion);
+                if (pres) {
+                    carrito.push({
+                        productoId: producto.id,
+                        nombre: producto.nombre,
+                        presentacion: pres.tamano,
+                        precio: obtenerPrecio(producto.id, pres),
+                        cantidad: item.cantidad
+                    });
+                }
+            }
+        });
+        actualizarCarrito();
+        mostrarProductos();
+        mostrarExito(`Pedido repetido: ${carrito.length} productos agregados`);
+    };
+}
+
 function verificarVendedor() {
     const vendedor = localStorage.getItem('vendedor_nombre');
     if (!vendedor) {
@@ -95,11 +140,53 @@ async function cargarDatos() {
         productos = data.productos;
         clientes = data.clientes;
         categorias = data.categorias;
+        
+        // Guardar timestamp de última actualización
+        localStorage.setItem('hdv_ultima_carga', new Date().toISOString());
+        
         cargarClientes();
         cargarCategorias();
-        mostrarProductos(); // Mostrar productos desde el inicio
+        mostrarProductos();
+        actualizarIndicadorDatos();
     } catch (error) {
         document.getElementById('productsContainer').innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚠️</div>Error al cargar los datos</div>';
+        actualizarIndicadorDatos();
+    }
+}
+
+function actualizarIndicadorDatos() {
+    const ultimaCarga = localStorage.getItem('hdv_ultima_carga');
+    const badge = document.getElementById('statusBadge');
+    if (!badge) return;
+    
+    if (ultimaCarga) {
+        const ahora = new Date();
+        const carga = new Date(ultimaCarga);
+        const diffMs = ahora - carga;
+        const diffMin = Math.floor(diffMs / 60000);
+        const diffHrs = Math.floor(diffMin / 60);
+        const diffDias = Math.floor(diffHrs / 24);
+        
+        let texto = '';
+        if (diffMin < 1) texto = 'ahora';
+        else if (diffMin < 60) texto = `hace ${diffMin}min`;
+        else if (diffHrs < 24) texto = `hace ${diffHrs}h`;
+        else texto = `hace ${diffDias}d`;
+        
+        // Agregar al badge de conexión
+        const dataInfo = document.getElementById('dataFreshness') || document.createElement('div');
+        dataInfo.id = 'dataFreshness';
+        dataInfo.style.cssText = 'font-size:11px;opacity:0.8;margin-top:2px;';
+        dataInfo.textContent = `📊 Datos: ${texto}`;
+        
+        if (diffHrs >= 24) {
+            dataInfo.style.color = '#fbbf24';
+            dataInfo.textContent += ' ⚠️';
+        }
+        
+        if (!dataInfo.parentElement) {
+            badge.parentElement.appendChild(dataInfo);
+        }
     }
 }
 
@@ -145,6 +232,12 @@ function cargarClientes() {
     badge.style.cssText = 'display:none;margin-top:8px;padding:8px 12px;background:#dcfce7;border:1px solid #86efac;border-radius:8px;font-size:14px;color:#166534;';
     container.appendChild(badge);
     
+    // Indicador de último pedido del cliente
+    const ultimoPedidoBanner = document.createElement('div');
+    ultimoPedidoBanner.id = 'ultimoPedidoBanner';
+    ultimoPedidoBanner.style.cssText = 'display:none;margin-top:8px;padding:10px 12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;font-size:13px;color:#1e40af;cursor:pointer;';
+    container.appendChild(ultimoPedidoBanner);
+    
     // Evento de búsqueda mejorado
     input.addEventListener('input', (e) => {
         const texto = e.target.value.toLowerCase().trim();
@@ -165,6 +258,15 @@ function cargarClientes() {
         });
         
         if (cliente) {
+            // Si hay carrito con items y se cambia de cliente, confirmar
+            if (carrito.length > 0 && clienteActual && clienteActual.id !== cliente.id) {
+                if (!confirm(`⚠️ Tenés ${carrito.length} producto(s) en el pedido actual.\n\n¿Cambiar de cliente y vaciar el carrito?`)) {
+                    // Restaurar texto del input al cliente anterior
+                    const razon = clienteActual.razon_social || clienteActual.nombre;
+                    input.value = razon;
+                    return;
+                }
+            }
             clienteActual = cliente;
             document.getElementById('searchInput').disabled = false;
             badge.innerHTML = `✅ <strong>${cliente.razon_social || cliente.nombre}</strong>`;
@@ -173,6 +275,7 @@ function cargarClientes() {
             carrito = [];
             actualizarCarrito();
             mostrarProductos();
+            mostrarUltimoPedidoCliente(cliente.id);
         } else {
             badge.style.display = 'none';
             input.style.borderColor = '#e5e7eb';
@@ -353,6 +456,13 @@ function agregarDesdeDetalle(productoId, presIdx) {
     actualizarCarrito();
     mostrarExito(`${cantidad}x ${producto.nombre} agregado al pedido`);
     
+    // Flash visual en modal
+    const detailContent = document.querySelector('.product-detail-content');
+    if (detailContent) {
+        detailContent.style.boxShadow = '0 0 0 3px rgba(34,197,94,0.5)';
+        setTimeout(() => detailContent.style.boxShadow = '', 500);
+    }
+    
     // Resetear cantidad a 1
     input.value = 1;
 }
@@ -523,6 +633,9 @@ function seleccionarVariante(producto, index) {
         carrito.push({ productoId: producto.id, nombre: producto.nombre, presentacion: pres.tamano, precio, cantidad: 1 });
         document.getElementById(`qty-${producto.id}`).value = 1;
         mostrarExito(`${producto.nombre} agregado al pedido`);
+        // Animación visual
+        const card = document.getElementById(`product-${producto.id}`);
+        if (card) { card.classList.add('added'); setTimeout(() => card.classList.remove('added'), 500); }
     }
     
     sel.classList.add('show');
@@ -579,7 +692,28 @@ function actualizarCarrito() {
     const total = carrito.reduce((s, i) => s + i.precio * i.cantidad, 0);
     document.getElementById('cartItems').textContent = `${cantidad} producto${cantidad !== 1 ? 's' : ''}`;
     document.getElementById('cartTotal').textContent = `Gs. ${total.toLocaleString()}`;
-    document.getElementById('viewCartBtn').disabled = cantidad === 0;
+    
+    const btn = document.getElementById('viewCartBtn');
+    btn.disabled = cantidad === 0;
+    
+    // Badge animado
+    let badge = btn.querySelector('.cart-badge');
+    if (cantidad > 0) {
+        if (!badge) {
+            badge = document.createElement('span');
+            badge.className = 'cart-badge';
+            btn.appendChild(badge);
+        }
+        badge.textContent = cantidad;
+        badge.classList.remove('pulse');
+        void badge.offsetWidth; // Force reflow
+        badge.classList.add('pulse');
+        btn.textContent = 'Ver Pedido ';
+        btn.appendChild(badge);
+    } else if (badge) {
+        badge.remove();
+        btn.textContent = 'Ver Pedido';
+    }
 }
 
 function mostrarModalCarrito() {
@@ -596,6 +730,11 @@ function mostrarModalCarrito() {
                 <div style="flex:1">
                     <strong>${item.nombre}</strong><br>
                     <span style="color:#6b7280;font-size:14px">${item.presentacion}</span>
+                    <div style="margin-top:6px;">
+                        <input type="text" id="nota-item-${index}" value="${item.nota || ''}" placeholder="📝 Nota (ej: entregar martes)" 
+                            onchange="actualizarNotaItem(${index}, this.value)"
+                            style="width:100%;padding:6px 8px;border:1px solid #e5e7eb;border-radius:6px;font-size:12px;color:#6b7280;">
+                    </div>
                 </div>
                 <div style="display:flex;align-items:center;gap:10px">
                     <button onclick="editarCantidadCarrito(${index}, -1)" style="width:32px;height:32px;border:2px solid #2563eb;background:white;color:#2563eb;border-radius:6px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center">−</button>
@@ -618,11 +757,24 @@ function mostrarModalCarrito() {
 }
 
 let descuentoAplicado = 0;
+const DESCUENTO_MAX = 50; // Máximo permitido
+const DESCUENTO_ALERTA = 15; // Pedir confirmación si supera esto
 
 function aplicarDescuento() {
-    descuentoAplicado = parseFloat(document.getElementById('descuento').value) || 0;
-    if (descuentoAplicado < 0) descuentoAplicado = 0;
-    if (descuentoAplicado > 100) descuentoAplicado = 100;
+    let valor = parseFloat(document.getElementById('descuento').value) || 0;
+    if (valor < 0) valor = 0;
+    
+    if (valor > DESCUENTO_MAX) {
+        alert(`⚠️ El descuento máximo permitido es ${DESCUENTO_MAX}%`);
+        valor = DESCUENTO_MAX;
+        document.getElementById('descuento').value = valor;
+    } else if (valor > DESCUENTO_ALERTA) {
+        if (!confirm(`⚠️ Estás aplicando un descuento de ${valor}%. ¿Confirmar?`)) {
+            return;
+        }
+    }
+    
+    descuentoAplicado = valor;
     document.getElementById('descuento').value = descuentoAplicado;
     calcularTotales();
 }
@@ -683,25 +835,36 @@ function eliminarDelCarrito(index) {
     }
 }
 
+function actualizarNotaItem(index, nota) {
+    if (carrito[index]) {
+        carrito[index].nota = nota.trim();
+    }
+}
+
 function closeCartModal() {
     document.getElementById('cartModal').classList.remove('show');
 }
 
 async function confirmarPedido() {
-    if (carrito.length === 0) {
-        alert('El carrito está vacío');
-        return;
+    try {
+        if (carrito.length === 0) {
+            alert('El carrito está vacío');
+            return;
+        }
+        
+        // Si no hay cliente seleccionado, pedir datos
+        if (!clienteActual) {
+            closeCartModal();
+            document.getElementById('clienteRapidoModal').classList.add('show');
+            return;
+        }
+        
+        // Proceder con el pedido normal
+        await procesarPedido();
+    } catch (error) {
+        console.error('Error al confirmar pedido:', error);
+        alert('Ocurrió un error al procesar el pedido. El pedido fue guardado localmente.');
     }
-    
-    // Si no hay cliente seleccionado, pedir datos
-    if (!clienteActual) {
-        closeCartModal();
-        document.getElementById('clienteRapidoModal').classList.add('show');
-        return;
-    }
-    
-    // Proceder con el pedido normal
-    procesarPedido();
 }
 
 function cerrarClienteRapido() {
@@ -721,10 +884,35 @@ function confirmarConClienteRapido() {
     const encargado = document.getElementById('clienteRapidoEncargado').value.trim();
     const guardar = document.getElementById('guardarClienteCheck').checked;
     
-    if (!razonSocial || !ruc || !telefono || !direccion) {
-        alert('Por favor completa todos los campos obligatorios (*)');
+    // Validación de campos obligatorios
+    let errores = [];
+    if (!razonSocial) errores.push('Razón Social es obligatorio');
+    if (!ruc) {
+        errores.push('RUC es obligatorio');
+    } else if (!/^\d{1,8}-?\d{1}$/.test(ruc.replace(/\./g, ''))) {
+        errores.push('RUC inválido (formato: 12345678-9 o 1234567-8)');
+    }
+    if (!telefono) {
+        errores.push('Teléfono es obligatorio');
+    } else if (!/^0\d{9,10}$/.test(telefono.replace(/[\s\-]/g, ''))) {
+        errores.push('Teléfono inválido (formato: 0981234567)');
+    }
+    if (!direccion) errores.push('Dirección es obligatoria');
+    
+    if (errores.length > 0) {
+        alert('⚠️ Por favor corrige:\n\n• ' + errores.join('\n• '));
+        // Marcar campos con error
+        if (!razonSocial) document.getElementById('clienteRapidoRazon').style.borderColor = '#ef4444';
+        if (!ruc || !/^\d{1,8}-?\d{1}$/.test(ruc.replace(/\./g, ''))) document.getElementById('clienteRapidoRUC').style.borderColor = '#ef4444';
+        if (!telefono || !/^0\d{9,10}$/.test(telefono.replace(/[\s\-]/g, ''))) document.getElementById('clienteRapidoTelefono').style.borderColor = '#ef4444';
+        if (!direccion) document.getElementById('clienteRapidoDireccion').style.borderColor = '#ef4444';
         return;
     }
+    
+    // Resetear bordes
+    ['clienteRapidoRazon','clienteRapidoRUC','clienteRapidoTelefono','clienteRapidoDireccion'].forEach(id => {
+        document.getElementById(id).style.borderColor = '#e5e7eb';
+    });
     
     // Crear cliente temporal con todos los datos
     const clienteTemporal = {
@@ -749,9 +937,10 @@ function confirmarConClienteRapido() {
 }
 
 async function procesarPedido() {
-    const tipoPago = document.getElementById('tipoPago').value;
-    const descuento = descuentoAplicado;
-    const notas = document.getElementById('notasPedido').value.trim();
+    try {
+        const tipoPago = document.getElementById('tipoPago').value;
+        const descuento = descuentoAplicado;
+        const notas = document.getElementById('notasPedido').value.trim();
     
     const subtotal = carrito.reduce((s, i) => s + i.precio * i.cantidad, 0);
     const montoDescuento = subtotal * (descuento / 100);
@@ -776,7 +965,8 @@ async function procesarPedido() {
             presentacion: i.presentacion,
             cantidad: i.cantidad,
             precio_unitario: i.precio,
-            subtotal: i.precio * i.cantidad 
+            subtotal: i.precio * i.cantidad,
+            nota: i.nota || ''
         })),
         subtotal: subtotal,
         descuento: descuento,
@@ -834,6 +1024,10 @@ async function procesarPedido() {
     actualizarCarrito();
     closeCartModal();
     mostrarProductos();
+    } catch (error) {
+        console.error('Error al procesar pedido:', error);
+        alert('Error al procesar el pedido. Se guardó localmente.');
+    }
 }
 
 function compartirPorWhatsApp(pedido) {
@@ -841,6 +1035,7 @@ function compartirPorWhatsApp(pedido) {
     mensaje += `📋 *Pedido #${pedido.id.slice(-6)}*\n`;
     mensaje += `📅 ${new Date(pedido.fecha).toLocaleString('es-PY')}\n`;
     mensaje += `👤 *Cliente:* ${pedido.cliente.nombre}\n`;
+    if (pedido.cliente.ruc) mensaje += `🆔 *RUC:* ${pedido.cliente.ruc}\n`;
     mensaje += `📍 *Zona:* ${pedido.zona}\n`;
     mensaje += `👨‍💼 *Vendedor:* ${pedido.vendedor}\n\n`;
     
@@ -848,6 +1043,7 @@ function compartirPorWhatsApp(pedido) {
     pedido.items.forEach(item => {
         mensaje += `• ${item.nombre} (${item.presentacion})\n`;
         mensaje += `  ${item.cantidad} × Gs. ${item.precio_unitario.toLocaleString()} = Gs. ${item.subtotal.toLocaleString()}\n`;
+        if (item.nota) mensaje += `  📝 _${item.nota}_\n`;
     });
     
     mensaje += `\n*TOTALES:*\n`;
@@ -862,7 +1058,38 @@ function compartirPorWhatsApp(pedido) {
         mensaje += `\n📝 *Notas:* ${pedido.notas}`;
     }
     
-    const url = `https://wa.me/?text=${encodeURIComponent(mensaje)}`;
+    const encoded = encodeURIComponent(mensaje);
+    
+    // Número del admin guardado o pedir
+    const numAdmin = localStorage.getItem('hdv_numero_admin') || '';
+    const numCliente = pedido.cliente.telefono || '';
+    
+    // Mostrar opciones de envío
+    const destino = numAdmin || numCliente ? 
+        prompt(`¿A quién enviar?\n\n1) Admin: ${numAdmin || '(no configurado)'}\n2) Cliente: ${numCliente || '(sin teléfono)'}\n3) Elegir otro número\n\nEscribe 1, 2, 3 o un número de teléfono:`, '1') 
+        : prompt('Número de WhatsApp (con código de país, ej: 595981234567):', '595');
+    
+    if (!destino) return;
+    
+    let numero = '';
+    if (destino === '1' && numAdmin) numero = numAdmin;
+    else if (destino === '2' && numCliente) numero = numCliente.replace(/\D/g, '');
+    else if (destino === '3' || (!numAdmin && !numCliente)) {
+        numero = prompt('Número de WhatsApp (con código de país):', '595') || '';
+    } else {
+        numero = destino.replace(/\D/g, '');
+    }
+    
+    // Guardar número admin si es primera vez
+    if (!numAdmin && numero) {
+        if (confirm('¿Guardar este número como el del administrador para futuros envíos?')) {
+            localStorage.setItem('hdv_numero_admin', numero);
+        }
+    }
+    
+    const url = numero ? 
+        `https://wa.me/${numero}?text=${encoded}` : 
+        `https://wa.me/?text=${encoded}`;
     window.open(url, '_blank');
 }
 
@@ -924,6 +1151,8 @@ function actualizarEstadoConexion() {
             '● Sin conexión';
         badge.className = 'status-badge offline';
     }
+    
+    actualizarIndicadorDatos();
 }
 
 let sincronizando = false;
@@ -1173,69 +1402,51 @@ function mostrarListaPrecios(termino = '') {
 }
 
 // ============================================
-// FUNCIONES SIDEBAR VENDEDORES
+// FUNCIONES SIDEBAR VENDEDORES (reservado para futura implementación)
 // ============================================
 function toggleVendorSidebar() {
     const sidebar = document.getElementById('vendorSidebar');
-    sidebar.classList.toggle('open');
+    if (sidebar) sidebar.classList.toggle('open');
 }
 
 function cambiarVistaVendedor(vista) {
-    // Remover active de todos los menu items
     document.querySelectorAll('.vendor-menu-item').forEach(item => item.classList.remove('active'));
-    
-    // Agregar active al item correspondiente
     document.querySelectorAll('.vendor-menu-item').forEach(item => {
         if (item.getAttribute('onclick')?.includes(vista)) {
             item.classList.add('active');
         }
     });
-    
-    // Cambiar contenido
     document.querySelectorAll('.vendor-view').forEach(v => v.classList.remove('active'));
     const vistaElement = document.getElementById(`vista-${vista}`);
-    if (vistaElement) {
-        vistaElement.classList.add('active');
-    }
-    
-    // Ejecutar funciones específicas según vista
-    if (vista === 'precios') {
-        cargarListaPrecios();
-    }
-    if (vista === 'pedidos') {
-        cargarPedidosOffline();
-    }
-    
-    // Cerrar sidebar en móvil
+    if (vistaElement) vistaElement.classList.add('active');
+    if (vista === 'precios') cargarListaPrecios();
+    if (vista === 'pedidos') cargarPedidosOffline();
     if (window.innerWidth < 768) {
         const sidebar = document.getElementById('vendorSidebar');
         if (sidebar) sidebar.classList.remove('open');
     }
 }
 
-// Mostrar nombre del vendedor en sidebar
+// Mostrar nombre del vendedor (funciona con o sin sidebar)
 function mostrarNombreVendedorSidebar() {
     const nombre = localStorage.getItem('vendedor_nombre');
     const display = document.getElementById('vendorNameDisplay');
-    if (display && nombre) {
-        display.textContent = `👤 ${nombre}`;
-    }
+    if (display && nombre) display.textContent = `👤 ${nombre}`;
 }
 
 // Cargar pedidos guardados localmente
 function cargarPedidosOffline() {
-    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
     const container = document.getElementById('vista-pedidos');
-    if (!container) return;
+    if (!container) return; // No existe el contenedor aún
+    
+    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
     
     if (pedidos.length === 0) {
         container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📋</div>No hay pedidos guardados</div>';
         return;
     }
     
-    // Mostrar pedidos más recientes primero
     const pedidosOrdenados = [...pedidos].reverse();
-    
     container.innerHTML = `<h3 style="margin-bottom:15px;">📋 Mis Pedidos (${pedidos.length})</h3>`;
     
     pedidosOrdenados.forEach(pedido => {

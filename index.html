@@ -9,211 +9,213 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f3f4f6; padding-bottom: 80px; }
-        .header { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); color: white; padding: 15px 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); position: sticky; top: 0; z-index: 100; display: flex; justify-content: space-between; align-items: center; }
-        .header-left h1 { font-size: 18px; margin-bottom: 2px; }
-        .header-left .subtitle { font-size: 12px; opacity: 0.8; }
-        .header-right { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
-        .status-badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; background: rgba(255,255,255,0.2); white-space: nowrap; }
+        .header { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); color: white; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); position: sticky; top: 0; z-index: 100; }
+        .header h1 { font-size: 20px; margin-bottom: 5px; }
+        .header .subtitle { font-size: 14px; opacity: 0.9; }
+        .status-badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 12px; margin-top: 8px; background: rgba(255,255,255,0.2); }
         .status-badge.online { background: rgba(34, 197, 94, 0.3); }
         .status-badge.offline { background: rgba(239, 68, 68, 0.3); }
-        .container { max-width: 800px; margin: 0 auto; padding: 15px; }
-        .tabs { display: flex; gap: 0; background: white; border-bottom: 2px solid #e5e7eb; overflow-x: auto; -webkit-overflow-scrolling: touch; position: sticky; top: 54px; z-index: 99; }
-        .tab { flex: 1; padding: 12px 6px; background: none; border: none; font-size: 13px; font-weight: 600; color: #6b7280; cursor: pointer; border-bottom: 3px solid transparent; white-space: nowrap; text-align: center; }
-        .tab.active { color: #2563eb; border-bottom-color: #2563eb; background: #eff6ff; }
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
-        .card { background: white; border-radius: 12px; padding: 15px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        .dash-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
-        .dash-card { background: white; border-radius: 12px; padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); text-align: center; }
-        .dash-card .dash-icon { font-size: 26px; margin-bottom: 4px; }
-        .dash-card .dash-value { font-size: 20px; font-weight: 700; color: #111827; }
-        .dash-card .dash-label { font-size: 11px; color: #6b7280; margin-top: 2px; }
-        .dash-card.blue { border-left: 4px solid #2563eb; }
-        .dash-card.green { border-left: 4px solid #10b981; }
-        .dash-card.orange { border-left: 4px solid #f59e0b; }
-        .dash-card.red { border-left: 4px solid #ef4444; }
-        .client-summary { background: linear-gradient(135deg, #eff6ff, #f0fdf4); border: 1px solid #bfdbfe; border-radius: 12px; padding: 15px; margin-bottom: 15px; }
-        .client-summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 10px; }
-        .client-stat { text-align: center; }
-        .client-stat-value { font-size: 18px; font-weight: 700; color: #2563eb; }
-        .client-stat-label { font-size: 11px; color: #6b7280; }
-        .cliente-selector { background: white; padding: 15px; border-radius: 12px; margin-bottom: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        .cliente-selector label { display: block; font-weight: 600; margin-bottom: 8px; color: #374151; font-size: 14px; }
-        .search-container { background: white; padding: 12px; border-radius: 12px; margin-bottom: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        .search-input { width: 100%; padding: 10px 15px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 15px; }
+        .container { max-width: 800px; margin: 0 auto; padding: 20px; }
+        .cliente-selector { background: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .cliente-selector label { display: block; font-weight: 600; margin-bottom: 10px; color: #374151; }
+        .cliente-selector select { width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 16px; background: white; }
+        .search-container { background: white; padding: 15px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .search-input { width: 100%; padding: 12px 15px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 16px; }
         .search-input:focus { outline: none; border-color: #2563eb; }
-        .category-filters { display: flex; gap: 8px; overflow-x: auto; padding: 8px 0; margin-bottom: 12px; -webkit-overflow-scrolling: touch; }
-        .category-btn { padding: 6px 14px; border: 2px solid #e5e7eb; background: white; border-radius: 20px; font-size: 13px; white-space: nowrap; cursor: pointer; transition: all 0.2s; }
+        .category-filters { display: flex; gap: 10px; overflow-x: auto; padding: 10px 0; margin-bottom: 20px; -webkit-overflow-scrolling: touch; }
+        .category-btn { padding: 8px 16px; border: 2px solid #e5e7eb; background: white; border-radius: 20px; font-size: 14px; white-space: nowrap; cursor: pointer; transition: all 0.3s; }
         .category-btn.active { background: #2563eb; color: white; border-color: #2563eb; }
-        .category-btn:active { transform: scale(0.95); }
-        .products-grid { display: grid; gap: 10px; }
-        .product-card { background: white; border-radius: 12px; padding: 12px 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); transition: transform 0.2s ease, box-shadow 0.2s ease; }
-        .product-card:active { transform: scale(0.98); }
-        .product-card.added { animation: cardAdded 0.5s ease; }
-        @keyframes cardAdded { 50% { box-shadow: 0 0 0 3px rgba(37,99,235,0.3); } }
-        .product-name { font-weight: 600; color: #111827; font-size: 15px; }
-        .product-cat { font-size: 11px; color: #6b7280; margin-top: 2px; }
-        .product-variants { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
-        .variant-chip { padding: 8px 12px; border: 2px solid #e5e7eb; background: white; border-radius: 8px; font-size: 13px; cursor: pointer; transition: all 0.2s; display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 80px; }
-        .variant-chip:hover { border-color: #2563eb; }
-        .variant-chip .v-size { font-weight: 600; font-size: 13px; }
-        .variant-chip .v-price { font-size: 12px; color: #2563eb; font-weight: 600; }
-        .variant-chip.in-cart { background: #eff6ff; border-color: #2563eb; }
+        .products-grid { display: grid; gap: 15px; }
+        .product-card { background: white; border-radius: 12px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .product-name { font-weight: 600; color: #111827; margin-bottom: 8px; }
+        .product-cat { font-size: 12px; color: #6b7280; margin-bottom: 10px; }
+        .product-variants { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+        .variant-btn { padding: 8px 12px; border: 2px solid #e5e7eb; background: white; border-radius: 8px; font-size: 13px; cursor: pointer; transition: all 0.2s; }
+        .variant-btn:hover { border-color: #2563eb; color: #2563eb; }
         .variant-selected { display: none; margin-top: 10px; padding-top: 10px; border-top: 1px solid #e5e7eb; }
         .variant-selected.show { display: flex; align-items: center; justify-content: space-between; }
-        .quantity-controls { display: flex; align-items: center; gap: 8px; }
-        .quantity-btn { width: 34px; height: 34px; border: 2px solid #2563eb; background: white; color: #2563eb; border-radius: 8px; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .quantity-controls { display: flex; align-items: center; gap: 10px; }
+        .quantity-btn { width: 36px; height: 36px; border: 2px solid #2563eb; background: white; color: #2563eb; border-radius: 8px; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
         .quantity-btn:active { background: #2563eb; color: white; }
-        .products-grid.grid-view { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
-        .product-card.grid-view { padding: 12px; text-align: center; cursor: pointer; }
-        .product-card.grid-view:active { transform: scale(0.95); }
-        .product-image { width: 100%; height: 100px; background: #f9fafb; border-radius: 8px; margin-bottom: 8px; display: flex; align-items: center; justify-content: center; font-size: 40px; }
-        .product-card.grid-view .product-name { font-size: 13px; }
-        .product-card.grid-view .product-price { color: #2563eb; font-weight: 700; font-size: 14px; }
-        .view-toggle { display: flex; gap: 5px; }
-        .view-toggle button { padding: 6px 14px; border: 2px solid #e5e7eb; background: white; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; color: #6b7280; }
-        .view-toggle button.active { background: #2563eb; color: white; border-color: #2563eb; }
-        .cart-summary { position: fixed; bottom: 0; left: 0; right: 0; background: white; padding: 12px 20px; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; z-index: 50; }
+        .quantity-display { font-size: 18px; font-weight: 600; min-width: 40px; text-align: center; }
+        .cart-summary { position: fixed; bottom: 0; left: 0; right: 0; background: white; padding: 15px 20px; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; }
         .cart-info { flex: 1; }
-        .cart-items { font-size: 13px; color: #6b7280; }
-        .cart-total { font-size: 18px; font-weight: 700; color: #111827; }
-        .cart-btn { padding: 10px 20px; background: #2563eb; color: white; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; }
+        .cart-items { font-size: 14px; color: #6b7280; }
+        .cart-total { font-size: 20px; font-weight: 700; color: #111827; }
+        .cart-btn { padding: 12px 24px; background: #2563eb; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; }
         .cart-btn:disabled { background: #9ca3af; cursor: not-allowed; }
-        .cart-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; padding: 0 5px; background: #ef4444; color: white; border-radius: 10px; font-size: 11px; font-weight: 700; margin-left: 6px; }
-        .cart-badge.pulse { animation: badgePulse 0.4s ease; }
-        @keyframes badgePulse { 50% { transform: scale(1.4); } }
+        .empty-state { text-align: center; padding: 60px 20px; color: #6b7280; }
+        .empty-state-icon { font-size: 48px; margin-bottom: 15px; }
         .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
         .modal.show { display: flex; }
-        .modal-content { background: white; border-radius: 16px; padding: 20px; max-width: 500px; width: 92%; max-height: 85vh; overflow-y: auto; animation: modalIn 0.3s ease; }
-        @keyframes modalIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
-        .modal-header { font-size: 18px; font-weight: 700; margin-bottom: 15px; }
-        .cart-item { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; padding: 12px 0; border-bottom: 1px solid #e5e7eb; animation: slideIn 0.3s ease; }
-        @keyframes slideIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
-        .form-group { margin-bottom: 12px; }
-        .form-group label { display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 4px; }
+        .modal-content { background: white; border-radius: 16px; padding: 24px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; }
+        .modal-header { font-size: 20px; font-weight: 700; margin-bottom: 20px; }
+        .cart-item { display: flex; justify-content: space-between; align-items: center; gap: 15px; padding: 15px 0; border-bottom: 1px solid #e5e7eb; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 5px; }
         .form-group select, .form-group input, .form-group textarea { width: 100%; padding: 10px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; font-family: inherit; }
-        .form-group textarea { resize: vertical; min-height: 50px; }
-        .discount-row { display: flex; gap: 8px; align-items: end; }
+        .form-group textarea { resize: vertical; min-height: 60px; }
+        .discount-row { display: flex; gap: 10px; align-items: end; }
         .discount-row input { flex: 1; }
-        .discount-row button { padding: 10px 14px; background: #2563eb; color: white; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
-        .total-section { background: #f9fafb; padding: 12px; border-radius: 8px; margin: 12px 0; }
-        .total-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 14px; }
-        .total-row.final { font-size: 18px; font-weight: 700; color: #2563eb; padding-top: 8px; border-top: 2px solid #e5e7eb; margin-top: 8px; }
-        .modal-actions { display: flex; gap: 10px; margin-top: 15px; }
-        .modal-btn { flex: 1; padding: 12px; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; }
+        .discount-row button { padding: 10px 16px; background: #2563eb; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+        .total-section { background: #f9fafb; padding: 15px; border-radius: 8px; margin: 15px 0; }
+        .total-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 14px; }
+        .total-row.final { font-size: 18px; font-weight: 700; color: #2563eb; padding-top: 10px; border-top: 2px solid #e5e7eb; margin-top: 10px; }
+        .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+        .modal-btn { flex: 1; padding: 12px; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; }
         .btn-cancel { background: #f3f4f6; color: #374151; }
         .btn-confirm { background: #2563eb; color: white; }
-        .product-detail-modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1001; align-items: center; justify-content: center; }
-        .product-detail-modal.show { display: flex; }
-        .product-detail-content { background: white; border-radius: 16px; padding: 0; max-width: 500px; width: 92%; max-height: 80vh; overflow-y: auto; animation: modalIn 0.3s ease; }
-        .product-detail-header { position: relative; }
-        .product-detail-image { width: 100%; height: 160px; background: #f9fafb; display: flex; align-items: center; justify-content: center; font-size: 64px; border-radius: 16px 16px 0 0; }
-        .close-detail { position: absolute; top: 10px; right: 10px; width: 34px; height: 34px; background: white; border: none; border-radius: 50%; font-size: 18px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
-        .product-detail-body { padding: 15px; }
-        .product-detail-title { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
-        .product-detail-category { font-size: 12px; color: #6b7280; margin-bottom: 12px; }
-        .product-detail-info { background: #f9fafb; padding: 12px; border-radius: 8px; margin-bottom: 12px; }
-        .product-suggestions { margin-top: 15px; padding-top: 15px; border-top: 2px solid #e5e7eb; }
-        .product-suggestions h3 { font-size: 15px; margin-bottom: 8px; }
-        .suggestion-item { display: flex; align-items: center; gap: 10px; padding: 8px; background: #f9fafb; border-radius: 8px; margin-bottom: 6px; }
-        .suggestion-icon { font-size: 28px; }
-        .precio-tabla { width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        .precio-tabla th { text-align: left; padding: 10px 12px; background: #f9fafb; font-size: 12px; color: #6b7280; font-weight: 600; }
-        .precio-tabla td { padding: 10px 12px; border-bottom: 1px solid #f3f4f6; font-size: 14px; }
-        .precio-tabla .pn { font-weight: 600; }
-        .precio-tabla .pc { font-size: 11px; color: #6b7280; }
-        .precio-tabla .pp { color: #2563eb; font-weight: 600; text-align: right; }
-        .pedido-card { background: white; border-radius: 12px; padding: 15px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); cursor: pointer; transition: transform 0.2s; }
-        .pedido-card:active { transform: scale(0.98); }
-        .pedido-badge { font-size: 11px; padding: 3px 8px; border-radius: 10px; font-weight: 600; }
-        .pedido-badge.sync { background: #dcfce7; color: #166534; }
-        .pedido-badge.pending { background: #fef3c7; color: #92400e; }
         .loading { text-align: center; padding: 40px; color: #6b7280; }
-        .spinner { border: 3px solid #f3f4f6; border-top: 3px solid #2563eb; border-radius: 50%; width: 36px; height: 36px; animation: spin 1s linear infinite; margin: 0 auto 12px; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .empty-state { text-align: center; padding: 50px 20px; color: #6b7280; }
-        .empty-state-icon { font-size: 44px; margin-bottom: 12px; }
-        .success-message { background: #10b981; color: white; padding: 12px 20px; border-radius: 8px; text-align: center; font-weight: 600; display: none; font-size: 14px; position: fixed; top: 60px; left: 15px; right: 15px; z-index: 200; }
+        .spinner { border: 3px solid #f3f4f6; border-top: 3px solid #2563eb; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 15px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .success-message { background: #10b981; color: white; padding: 15px 20px; border-radius: 8px; margin: 20px; text-align: center; font-weight: 600; display: none; }
         .success-message.show { display: block; animation: slideDown 0.3s ease; }
         @keyframes slideDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
-        .dark-mode-toggle { width: 34px; height: 34px; background: rgba(255,255,255,0.15); border: none; border-radius: 50%; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
-        .dark-mode-toggle:active { background: rgba(255,255,255,0.3); }
+        
+        /* Tabs */
+        .tabs { display: flex; gap: 5px; background: white; border-bottom: 2px solid #e5e7eb; padding: 0 20px; margin: 0 -20px 20px -20px; overflow-x: auto; }
+        .tab { padding: 15px 20px; background: none; border: none; font-size: 15px; font-weight: 600; color: #6b7280; cursor: pointer; border-bottom: 3px solid transparent; white-space: nowrap; }
+        .tab.active { color: #2563eb; border-bottom-color: #2563eb; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        
+        /* Vista de cuadrícula */
+        .view-toggle { display: flex; gap: 5px; margin-bottom: 15px; background: white; padding: 10px; border-radius: 8px; }
+        .view-toggle button { padding: 8px 16px; border: 2px solid #e5e7eb; background: white; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; color: #6b7280; }
+        .view-toggle button.active { background: #2563eb; color: white; border-color: #2563eb; }
+        
+        .products-grid { display: grid; gap: 15px; }
+        .products-grid.grid-view { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+        .product-card.grid-view { padding: 12px; text-align: center; cursor: pointer; transition: transform 0.2s; }
+        .product-card.grid-view:active { transform: scale(0.95); }
+        .product-image { width: 100%; height: 120px; object-fit: contain; background: #f9fafb; border-radius: 8px; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; font-size: 48px; overflow: hidden; }
+        .product-card.grid-view .product-name { font-size: 14px; margin-bottom: 5px; }
+        .product-card.grid-view .product-price { color: #2563eb; font-weight: 700; font-size: 16px; }
+        
+        /* Modal de detalles del producto */
+        .product-detail-modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1001; align-items: center; justify-content: center; }
+        .product-detail-modal.show { display: flex; }
+        .product-detail-content { background: white; border-radius: 16px; padding: 0; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; }
+        .product-detail-header { position: relative; }
+        .product-detail-image { width: 100%; height: 200px; object-fit: contain; background: #f9fafb; display: flex; align-items: center; justify-content: center; font-size: 80px; border-radius: 16px 16px 0 0; }
+        .close-detail { position: absolute; top: 10px; right: 10px; width: 36px; height: 36px; background: white; border: none; border-radius: 50%; font-size: 20px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+        .product-detail-body { padding: 20px; }
+        .product-detail-title { font-size: 20px; font-weight: 700; margin-bottom: 10px; }
+        .product-detail-category { font-size: 13px; color: #6b7280; margin-bottom: 15px; }
+        .product-detail-info { background: #f9fafb; padding: 15px; border-radius: 8px; margin-bottom: 15px; }
+        .product-detail-info-row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 14px; }
+        .product-detail-info-row:last-child { border-bottom: none; }
+        .product-suggestions { margin-top: 20px; padding-top: 20px; border-top: 2px solid #e5e7eb; }
+        .product-suggestions h3 { font-size: 16px; margin-bottom: 10px; color: #111827; }
+        .suggestion-item { display: flex; align-items: center; gap: 10px; padding: 10px; background: #f9fafb; border-radius: 8px; margin-bottom: 8px; }
+        .suggestion-icon { font-size: 32px; }
+        
+        /* Lista de precios */
+        .precio-lista-item { background: white; padding: 15px; border-radius: 12px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .precio-lista-item h3 { font-size: 16px; color: #111827; margin-bottom: 10px; }
+        .precio-lista-presentacion { display: flex; justify-content: space-between; padding: 8px 0; font-size: 14px; border-bottom: 1px solid #f3f4f6; }
+        .precio-lista-presentacion:last-child { border-bottom: none; }
+        .precio-lista-tamano { color: #6b7280; }
+        .precio-lista-precio { font-weight: 600; color: #2563eb; }
+        
+        /* Modo Oscuro */
         body.dark-mode { background: #1f2937; color: #f3f4f6; }
         body.dark-mode .header { background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%); }
-        body.dark-mode .card, body.dark-mode .product-card, body.dark-mode .cliente-selector, body.dark-mode .search-container, body.dark-mode .cart-summary, body.dark-mode .modal-content, body.dark-mode .product-detail-content, body.dark-mode .dash-card, body.dark-mode .pedido-card { background: #374151; color: #f3f4f6; }
+        body.dark-mode .container, body.dark-mode .card, body.dark-mode .product-card, body.dark-mode .cliente-selector, body.dark-mode .search-container, body.dark-mode .cart-summary, body.dark-mode .modal-content, body.dark-mode .precio-lista-item, body.dark-mode .product-detail-content { background: #374151; color: #f3f4f6; border-color: #4b5563; }
         body.dark-mode .search-input, body.dark-mode select, body.dark-mode input, body.dark-mode textarea { background: #4b5563; color: #f3f4f6; border-color: #6b7280; }
-        body.dark-mode .product-cat, body.dark-mode .dash-label { color: #9ca3af; }
+        body.dark-mode .product-cat, body.dark-mode .precio-lista-tamano { color: #9ca3af; }
         body.dark-mode .category-btn { background: #4b5563; border-color: #6b7280; color: #f3f4f6; }
         body.dark-mode .category-btn.active { background: #2563eb; border-color: #2563eb; }
         body.dark-mode .product-image, body.dark-mode .product-detail-image, body.dark-mode .product-detail-info, body.dark-mode .suggestion-item { background: #4b5563; }
-        body.dark-mode #ultimoPedidoBanner { background: #1e3a5f; border-color: #2563eb; color: #93c5fd; }
-        body.dark-mode #clienteSeleccionadoBadge { background: #14532d; border-color: #22c55e; color: #86efac; }
-        body.dark-mode .client-summary { background: linear-gradient(135deg, #1e3a5f, #14532d); border-color: #4b5563; color: #f3f4f6; }
         body.dark-mode .tabs { background: #374151; border-color: #4b5563; }
-        body.dark-mode .tab.active { background: #1e3a5f; }
-        body.dark-mode .view-toggle button { background: #4b5563; border-color: #6b7280; color: #f3f4f6; }
-        body.dark-mode .precio-tabla th { background: #4b5563; color: #9ca3af; }
-        body.dark-mode .precio-tabla td { border-color: #4b5563; }
-        body.dark-mode .precio-tabla { background: #374151; }
-        body.dark-mode .variant-chip { background: #4b5563; border-color: #6b7280; color: #f3f4f6; }
-        body.dark-mode .variant-chip.in-cart { background: #1e3a5f; border-color: #2563eb; }
+        body.dark-mode .view-toggle { background: #4b5563; }
+        .dark-mode-toggle { position: fixed; bottom: 100px; right: 20px; width: 50px; height: 50px; background: #2563eb; border: none; border-radius: 50%; font-size: 24px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 99; }
+/* Layout con Sidebar */
+.vendor-layout { display: flex; height: 100vh; overflow: hidden; }
+.vendor-sidebar { width: 260px; background: #1e293b; color: white; display: flex; flex-direction: column; transition: transform 0.3s; z-index: 1000; }
+.vendor-sidebar.collapsed { transform: translateX(-260px); }
+.vendor-sidebar-header { padding: 18px; border-bottom: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; }
+.vendor-sidebar-header h2 { margin: 0; font-size: 18px; font-weight: 700; }
+.vendor-sidebar-toggle, .vendor-mobile-menu-btn { background: none; border: none; color: white; font-size: 22px; cursor: pointer; padding: 4px; }
+.vendor-sidebar-menu { flex: 1; overflow-y: auto; padding: 8px 0; }
+.vendor-sidebar-footer { padding: 12px 18px; border-top: 1px solid #334155; font-size: 11px; color: #94a3b8; }
+.vendor-menu-item { width: 100%; padding: 12px 18px; background: none; border: none; color: #cbd5e1; text-align: left; cursor: pointer; display: flex; align-items: center; gap: 12px; font-size: 14px; transition: all 0.2s; border-left: 3px solid transparent; }
+.vendor-menu-item:hover { background: #334155; color: white; }
+.vendor-menu-item.active { background: #3b82f6; color: white; border-left-color: #60a5fa; }
+.vendor-menu-icon { font-size: 18px; width: 22px; text-align: center; }
+.vendor-menu-label { flex: 1; }
+.vendor-menu-divider { height: 1px; background: #334155; margin: 8px 0; }
+.vendor-main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: #f8fafc; }
+.vendor-mobile-menu-btn { display: none; }
+.vendor-view { display: none; height: 100%; overflow-y: auto; padding: 20px; }
+.vendor-view.active { display: block; }
+@media (max-width: 768px) {
+    .vendor-sidebar { position: fixed; left: 0; top: 0; bottom: 0; transform: translateX(-260px); box-shadow: 2px 0 10px rgba(0,0,0,0.3); }
+    .vendor-sidebar.open { transform: translateX(0); }
+    .vendor-mobile-menu-btn { display: block; }
+}
     </style>
 </head>
 <body>
     <div class="header">
-        <div class="header-left">
-            <h1>🚚 HDV Distribuciones</h1>
-            <div class="subtitle">Sistema de Pedidos</div>
-        </div>
-        <div class="header-right">
-            <button class="dark-mode-toggle" onclick="toggleDarkMode()" title="Modo oscuro/claro">🌙</button>
-            <span class="status-badge offline" id="statusBadge">Sin conexión</span>
-            <div id="dataFreshness" style="font-size:10px;opacity:0.7;"></div>
-        </div>
+        <h1>HDV Distribuciones</h1>
+        <div class="subtitle">Sistema de Pedidos</div>
+        <span class="status-badge offline" id="statusBadge">Sin conexión</span>
+        <button id="updateButton" style="display:none;position:absolute;top:15px;right:15px;padding:8px 16px;background:#10b981;color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;animation:pulse 2s infinite;" onclick="actualizarAhora()">
+            🔄 Nueva versión disponible
+        </button>
     </div>
-    <div class="success-message" id="successMessage">✓ OK</div>
-    <div class="tabs">
-        <button class="tab active" onclick="cambiarTab('dashboard')">🏠 Inicio</button>
-        <button class="tab" onclick="cambiarTab('pedidos')">📦 Pedido</button>
-        <button class="tab" onclick="cambiarTab('precios')">💰 Precios</button>
-        <button class="tab" onclick="cambiarTab('historial')">📋 Historial</button>
-    </div>
+    .vendor-sidebar.open { transform: translateX(0); }
+    .vendor-mobile-menu-btn { display: block; }
+}
+    </style>
+    <div class="success-message" id="successMessage">✓ Pedido guardado exitosamente</div>
+    
     <div class="container">
-        <div id="tab-dashboard" class="tab-content active">
-            <div id="dashboardContent"><div class="loading"><div class="spinner"></div>Cargando...</div></div>
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab active" onclick="cambiarTab('pedidos')">📦 Hacer Pedido</button>
+            <button class="tab" onclick="cambiarTab('precios')">💰 Lista de Precios</button>
         </div>
-        <div id="tab-pedidos" class="tab-content">
-            <div class="cliente-selector">
-                <label>👤 Seleccionar Cliente:</label>
-                <select id="clienteSelect" style="display:none;"><option value="">--</option></select>
-            </div>
-            <div id="clienteSummary" style="display:none;"></div>
-            <div class="search-container">
-                <input type="text" class="search-input" id="searchInput" placeholder="🔍 Buscar producto..." disabled>
-            </div>
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-                <div class="view-toggle">
-                    <button class="active" onclick="cambiarVista('lista')">📋 Lista</button>
-                    <button onclick="cambiarVista('cuadricula')">🎯 Grid</button>
-                </div>
-                <span id="productCount" style="font-size:12px;color:#6b7280;"></span>
-            </div>
-            <div class="category-filters" id="categoryFilters"></div>
-            <div id="productsContainer"><div class="loading"><div class="spinner"></div>Cargando productos...</div></div>
+        
+        <!-- TAB: HACER PEDIDO -->
+        <div id="tab-pedidos" class="tab-content active">
+        <div class="cliente-selector">
+        <div class="cliente-selector">
+            <label for="clienteSelect">Seleccionar Cliente:</label>
+            <select id="clienteSelect">
+                <option value="">-- Seleccione un cliente --</option>
+            </select>
         </div>
+        <div class="search-container">
+            <input type="text" class="search-input" id="searchInput" placeholder="🔍 Buscar producto por nombre..." disabled>
+        </div>
+        
+        <div class="view-toggle">
+            <button class="active" onclick="cambiarVista('lista')">📋 Lista</button>
+            <button onclick="cambiarVista('cuadricula')">🎯 Cuadrícula</button>
+        </div>
+        
+        <div class="category-filters" id="categoryFilters"></div>
+        <div id="productsContainer">
+            <div class="loading"><div class="spinner"></div>Cargando productos...</div>
+        </div>
+        </div>
+        
+        <!-- TAB: LISTA DE PRECIOS -->
         <div id="tab-precios" class="tab-content">
             <div class="search-container">
-                <input type="text" class="search-input" id="searchPrecios" placeholder="🔍 Buscar en precios...">
+                <input type="text" class="search-input" id="searchPrecios" placeholder="🔍 Buscar en lista de precios...">
             </div>
+            
             <div class="category-filters" id="categoryFiltersPrecio"></div>
-            <div id="preciosContainer"><div class="loading"><div class="spinner"></div>Cargando...</div></div>
-        </div>
-        <div id="tab-historial" class="tab-content">
-            <div id="historialFiltros" style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;"></div>
-            <div id="historialContent"><div class="empty-state"><div class="empty-state-icon">📋</div>No hay pedidos</div></div>
+            
+            <div id="preciosContainer">
+                <div class="loading"><div class="spinner"></div>Cargando lista de precios...</div>
+            </div>
         </div>
     </div>
-    <div class="cart-summary" id="cartSummaryBar">
+    <div class="cart-summary">
         <div class="cart-info">
             <div class="cart-items" id="cartItems">0 productos</div>
             <div class="cart-total" id="cartTotal">Gs. 0</div>
@@ -224,16 +226,37 @@
         <div class="modal-content">
             <div class="modal-header">Resumen del Pedido</div>
             <div id="cartItemsList"></div>
+            
             <div class="total-section" id="totalSection" style="display:none;"></div>
-            <div class="form-group"><label>💰 Tipo de Pago:</label><select id="tipoPago"><option value="contado">Contado</option><option value="credito">Crédito</option></select></div>
-            <div class="form-group"><label>🎁 Descuento (%):</label><div class="discount-row"><input type="number" id="descuento" value="0" min="0" max="50"><button onclick="aplicarDescuento()">Aplicar</button></div></div>
-            <div class="form-group"><label>📝 Notas:</label><textarea id="notasPedido" placeholder="Ej: Entregar después de las 3pm..."></textarea></div>
+            
+            <div class="form-group">
+                <label>💰 Tipo de Pago:</label>
+                <select id="tipoPago">
+                    <option value="contado">Contado</option>
+                    <option value="credito">Crédito</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>🎁 Descuento (%):</label>
+                <div class="discount-row">
+                    <input type="number" id="descuento" value="0" min="0" max="100" placeholder="0">
+                    <button onclick="aplicarDescuento()">Aplicar</button>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>📝 Notas/Observaciones:</label>
+                <textarea id="notasPedido" placeholder="Ej: Entregar después de las 3pm, cliente pidió factura, etc."></textarea>
+            </div>
+            
             <div class="modal-actions">
                 <button class="modal-btn btn-cancel" onclick="closeCartModal()">Cancelar</button>
                 <button class="modal-btn btn-confirm" onclick="confirmarPedido()">Confirmar Pedido</button>
             </div>
         </div>
     </div>
+    <!-- Modal Detalles del Producto -->
     <div class="product-detail-modal" id="productDetailModal">
         <div class="product-detail-content">
             <div class="product-detail-header">
@@ -243,37 +266,80 @@
             <div class="product-detail-body">
                 <div class="product-detail-title" id="detailTitle"></div>
                 <div class="product-detail-category" id="detailCategory"></div>
+                
                 <div class="product-detail-info" id="detailInfo"></div>
+                
                 <div id="detailSuggestions" class="product-suggestions" style="display:none;"></div>
-                <button class="btn-confirm" style="width:100%;padding:12px;margin-top:12px;" onclick="cerrarDetalleProducto()">Cerrar</button>
+                
+                <button class="btn-confirm" style="width:100%;padding:14px;margin-top:15px;" onclick="cerrarDetalleProducto()">Cerrar</button>
             </div>
         </div>
     </div>
+    
+    <!-- Modal Cliente Rápido -->
     <div class="modal" id="clienteRapidoModal">
         <div class="modal-content" style="max-width:600px;">
             <div class="modal-header">👤 Datos del Cliente</div>
-            <p style="color:#6b7280;font-size:13px;margin-bottom:12px;">Completa la información del cliente:</p>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-                <div class="form-group" style="grid-column:1/-1;"><label>Razón Social *</label><input type="text" id="clienteRapidoRazon" placeholder="Ej: Supermercado Central S.A."></div>
-                <div class="form-group"><label>RUC *</label><input type="text" id="clienteRapidoRUC" placeholder="80012345-6"></div>
-                <div class="form-group"><label>Teléfono *</label><input type="tel" id="clienteRapidoTelefono" placeholder="0981234567"></div>
-                <div class="form-group" style="grid-column:1/-1;"><label>Dirección *</label><input type="text" id="clienteRapidoDireccion" placeholder="Av. Central 1234"></div>
-                <div class="form-group" style="grid-column:1/-1;"><label>Encargado (opcional)</label><input type="text" id="clienteRapidoEncargado" placeholder="Juan Pérez"></div>
+            <p style="color:#6b7280;font-size:14px;margin-bottom:15px;">No has seleccionado un cliente. Completa la información:</p>
+            
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;">
+                <div class="form-group" style="grid-column:1/-1;">
+                    <label>Razón Social / Nombre Comercial *</label>
+                    <input type="text" id="clienteRapidoRazon" placeholder="Ej: Supermercado Central S.A." style="width:100%;padding:10px;border:2px solid #e5e7eb;border-radius:8px;">
+                </div>
+                
+                <div class="form-group">
+                    <label>RUC *</label>
+                    <input type="text" id="clienteRapidoRUC" placeholder="Ej: 80012345-6" style="width:100%;padding:10px;border:2px solid #e5e7eb;border-radius:8px;">
+                </div>
+                
+                <div class="form-group">
+                    <label>Teléfono *</label>
+                    <input type="tel" id="clienteRapidoTelefono" placeholder="Ej: 0981234567" style="width:100%;padding:10px;border:2px solid #e5e7eb;border-radius:8px;">
+                </div>
+                
+                <div class="form-group" style="grid-column:1/-1;">
+                    <label>Dirección *</label>
+                    <input type="text" id="clienteRapidoDireccion" placeholder="Ej: Av. Central 1234, Loma Plata" style="width:100%;padding:10px;border:2px solid #e5e7eb;border-radius:8px;">
+                </div>
+                
+                <div class="form-group" style="grid-column:1/-1;">
+                    <label>Nombre del Encargado (opcional)</label>
+                    <input type="text" id="clienteRapidoEncargado" placeholder="Ej: Juan Pérez" style="width:100%;padding:10px;border:2px solid #e5e7eb;border-radius:8px;">
+                </div>
             </div>
-            <div style="background:#f9fafb;padding:10px;border-radius:8px;margin:12px 0;"><label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;"><input type="checkbox" id="guardarClienteCheck" checked><span>Guardar para próximos pedidos</span></label></div>
+            
+            <div style="background:#f9fafb;padding:12px;border-radius:8px;margin:15px 0;">
+                <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer;">
+                    <input type="checkbox" id="guardarClienteCheck" checked>
+                    <span>Guardar este cliente en el sistema para próximos pedidos</span>
+                </label>
+            </div>
+            
             <div class="modal-actions">
                 <button class="modal-btn btn-cancel" onclick="cerrarClienteRapido()">Cancelar</button>
-                <button class="modal-btn btn-confirm" onclick="confirmarConClienteRapido()">Continuar</button>
+                <button class="modal-btn btn-confirm" onclick="confirmarConClienteRapido()">Continuar con Pedido</button>
             </div>
         </div>
     </div>
-    <div class="modal" id="detallePedidoModal">
-        <div class="modal-content" style="max-width:600px;">
-            <div class="modal-header" id="detallePedidoHeader">Detalle del Pedido</div>
-            <div id="detallePedidoContent"></div>
-            <div class="modal-actions" id="detallePedidoActions"></div>
-        </div>
+    
+    <!-- Botón Modo Oscuro con menú -->
+    <button class="dark-mode-toggle" onclick="toggleDarkMode()" oncontextmenu="mostrarMenuOpciones(event)" title="Modo Oscuro (mantén presionado para más opciones)">🌙</button>
+    
+    <!-- Menú de opciones -->
+    <div id="optionsMenu" style="display:none;position:fixed;bottom:110px;right:20px;background:white;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.3);padding:10px;z-index:100;min-width:200px;">
+        <div style="padding:10px;border-bottom:1px solid #e5e7eb;font-weight:600;font-size:14px;">Opciones</div>
+        <button onclick="forzarActualizacion()" style="width:100%;text-align:left;padding:12px;border:none;background:none;cursor:pointer;font-size:14px;border-radius:6px;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='none'">
+            🔄 Forzar Actualización
+        </button>
+        <button onclick="limpiarTodoElCache()" style="width:100%;text-align:left;padding:12px;border:none;background:none;cursor:pointer;font-size:14px;border-radius:6px;color:#ef4444;" onmouseover="this.style.background='#fee2e2'" onmouseout="this.style.background='none'">
+            🗑️ Limpiar Caché
+        </button>
+        <button onclick="cerrarMenuOpciones()" style="width:100%;text-align:left;padding:12px;border:none;background:none;cursor:pointer;font-size:14px;border-radius:6px;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='none'">
+            ❌ Cerrar
+        </button>
     </div>
+    
     <script src="app.js"></script>
 </body>
 </html>

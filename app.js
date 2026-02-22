@@ -1,6 +1,7 @@
 let productos = [], clientes = [], categorias = [], clienteActual = null, carrito = [], filtroCategoria = 'todas';
-let vistaActual = 'lista'; // lista o cuadricula
-let historialCompras = {}; // para productos sugeridos
+let vistaActual = 'lista';
+let historialCompras = {};
+let carritoAnteriorCliente = null; // Para detectar cambio de cliente vs primera selección
 
 document.addEventListener('DOMContentLoaded', async () => {
     verificarVendedor();
@@ -251,21 +252,22 @@ function cargarClientes() {
         });
         
         if (cliente) {
-            // Si hay carrito con items y se cambia de cliente, confirmar
-            if (carrito.length > 0 && clienteActual && clienteActual.id !== cliente.id) {
+            // Si hay carrito con items y se CAMBIA de cliente, pedir confirmación
+            const esCambioDeCliente = carritoAnteriorCliente && carritoAnteriorCliente !== cliente.id;
+            if (carrito.length > 0 && esCambioDeCliente) {
                 if (!confirm(`⚠️ Tenés ${carrito.length} producto(s) en el pedido actual.\n\n¿Cambiar de cliente y vaciar el carrito?`)) {
-                    // Restaurar texto del input al cliente anterior
                     const razon = clienteActual.razon_social || clienteActual.nombre;
                     input.value = razon;
                     return;
                 }
+                carrito = [];
             }
             clienteActual = cliente;
+            carritoAnteriorCliente = cliente.id;
             document.getElementById('searchInput').disabled = false;
             badge.innerHTML = `✅ <strong>${cliente.razon_social || cliente.nombre}</strong>`;
             badge.style.display = 'block';
             input.style.borderColor = '#22c55e';
-            carrito = [];
             actualizarCarrito();
             mostrarProductos();
             mostrarUltimoPedidoCliente(cliente.id);

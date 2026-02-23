@@ -1,674 +1,343 @@
-let productos = [], clientes = [], categorias = [], clienteActual = null, carrito = [], filtroCategoria = 'todas';
-let historialCompras = {}; 
-let vistaActualVendedor = 'lista'; 
+let todosLosPedidos = [];
+let productosData = { productos: [], categorias: [], clientes: [] };
+let productosDataOriginal = null; 
+let productosFiltrados = [];
+let clientesFiltrados = [];
+let cambiosSinGuardar = 0;
 
+// ============================================
+// 1. NAVEGACIÓN DEL MENÚ (¡CORREGIDO!)
+// ============================================
+function cambiarSeccion(seccionId) {
+    // Ocultar todas las pestañas
+    document.querySelectorAll('.tab-content').forEach(el => {
+        el.classList.remove('active');
+        el.style.display = 'none';
+    });
+    
+    // Quitar color a todos los botones del menú
+    document.querySelectorAll('.nav-item').forEach(el => {
+        el.classList.remove('active');
+    });
+    
+    // Mostrar la pestaña seleccionada
+    const seccionActiva = document.getElementById(`seccion-${seccionId}`);
+    if (seccionActiva) {
+        seccionActiva.classList.add('active');
+        seccionActiva.style.display = 'block';
+    }
+    
+    // Pintar el botón seleccionado
+    const botonMenu = document.querySelector(`button[onclick="cambiarSeccion('${seccionId}')"]`);
+    if (botonMenu) botonMenu.classList.add('active');
+
+    // Cambiar Título Superior
+    const titulos = {
+        'pedidos': 'Gestión de Pedidos', 'stock': 'Inventario', 'productos': 'Catálogo de Productos',
+        'clientes': 'Directorio de Clientes', 'herramientas': 'Mantenimiento'
+    };
+    const tituloHeader = document.getElementById('currentSectionTitle');
+    if (tituloHeader) tituloHeader.textContent = titulos[seccionId] || 'Panel Admin';
+
+    // Cargar datos al entrar a la sección
+    if (seccionId === 'pedidos') cargarPedidos();
+    if (seccionId === 'productos') mostrarProductosGestion();
+    if (seccionId === 'clientes') mostrarClientesGestion();
+}
+
+// ============================================
+// 2. INICIO Y CARGA DE DATOS
+// ============================================
 document.addEventListener('DOMContentLoaded', async () => {
-    verificarVendedor();
-    await cargarDatos();
-    inicializarEventListeners();
-    actualizarEstadoConexion();
-    registrarServiceWorker();
-    cargarModoOscuro();
-    construirHistorialCompras();
+    await cargarDatosIniciales();
+    cargarPedidos();
+    
+    // Iniciar en la pestaña de pedidos
+    cambiarSeccion('pedidos');
+    
+    setInterval(cargarPedidos, 30000);
+    if(document.getElementById('filtroFecha')) document.getElementById('filtroFecha').valueAsDate = new Date();
 });
 
-function cargarModoOscuro() {
-    const darkMode = localStorage.getItem('dark_mode') === 'true';
-    if (darkMode) {
-        document.body.classList.add('dark-mode');
-        const btnToggle = document.querySelector('.dark-mode-toggle');
-        if(btnToggle) btnToggle.textContent = '☀️';
-    }
-}
-
-function toggleDarkMode() {
-    document.body.classList.toggle('dark-mode');
-    const isDark = document.body.classList.contains('dark-mode');
-    localStorage.setItem('dark_mode', isDark);
-    const btnToggle = document.querySelector('.dark-mode-toggle');
-    if(btnToggle) btnToggle.textContent = isDark ? '☀️' : '🌙';
-}
-
-function construirHistorialCompras() {
-    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
-    historialCompras = {};
-    
-    pedidos.forEach(pedido => {
-        if (!pedido.cliente) return;
-        const clienteId = pedido.cliente.id;
-        if (!historialCompras[clienteId]) historialCompras[clienteId] = {};
-        
-        pedido.items.forEach(item => {
-            const productoId = item.nombre; 
-            if (!historialCompras[clienteId][productoId]) historialCompras[clienteId][productoId] = 0;
-            historialCompras[clienteId][productoId] += item.cantidad;
-        });
-    });
-}
-
-function verificarVendedor() {
-    const vendedor = localStorage.getItem('vendedor_nombre');
-    if (!vendedor) {
-        const nombre = prompt('Por favor, ingresa tu nombre (vendedor):');
-        if (nombre && nombre.trim()) {
-            localStorage.setItem('vendedor_nombre', nombre.trim());
-        } else {
-            verificarVendedor(); 
-        }
-    }
-}
-
-async function cargarDatos() {
+async function cargarDatosIniciales() {
     try {
-        const timestamp = new Date().getTime();
-        const response = await fetch(`productos.json?t=${timestamp}`);
-        const data = await response.json();
-        productos = data.productos;
-        clientes = data.clientes;
-        categorias = data.categorias;
-        cargarClientes();
-        cargarCategorias();
-        mostrarProductos(); 
-    } catch (error) {
-        console.error('Error al cargar datos:', error);
-        document.getElementById('productsContainer').innerHTML = '<div class="text-center text-red-500 py-10 font-bold">⚠️ Error al cargar los datos. Verifica tu conexión.</div>';
-    }
-}
-
-function cargarClientes() {
-    const select = document.getElementById('clienteSelect');
-    if(!select) return;
-    
-    select.innerHTML = '<option value="" class="text-black">-- Seleccione Cliente --</option>';
-    
-    clientes.filter(c => !c.oculto).forEach(c => {
-        const option = document.createElement('option');
-        const razonSocial = c.razon_social || c.nombre;
-        const direccion = c.direccion || c.zona || '';
-        option.value = c.id;
-        option.textContent = `${razonSocial} — ${direccion}`;
-        option.className = "text-black";
-        select.appendChild(option);
-    });
-}
-
-function cargarCategorias() {
-    const container = document.getElementById('categoryFilters');
-    if(!container) return;
-    container.innerHTML = '';
-    
-    const btnTodas = document.createElement('button');
-    btnTodas.className = 'px-4 py-2 bg-gray-900 text-white rounded-full text-xs font-bold whitespace-nowrap transition-colors active category-btn';
-    btnTodas.textContent = 'Todas';
-    btnTodas.onclick = (e) => filtrarPorCategoria('todas', e.target);
-    container.appendChild(btnTodas);
-    
-    categorias.forEach(cat => {
-        const btn = document.createElement('button');
-        btn.className = 'px-4 py-2 bg-gray-200 text-gray-700 rounded-full text-xs font-bold whitespace-nowrap transition-colors category-btn';
-        btn.textContent = cat.nombre;
-        btn.onclick = (e) => filtrarPorCategoria(cat.id, e.target);
-        container.appendChild(btn);
-    });
-}
-
-function inicializarEventListeners() {
-    const clienteSelectObj = document.getElementById('clienteSelect');
-    if(clienteSelectObj) {
-        clienteSelectObj.addEventListener('change', (e) => {
-            const clienteId = e.target.value;
-            if (clienteId) {
-                clienteActual = clientes.find(c => c.id === clienteId);
-                document.getElementById('searchInput').disabled = false;
-                document.getElementById('btnSeleccionarCliente').classList.replace('bg-gray-800', 'bg-blue-600');
-                document.getElementById('btnSeleccionarCliente').classList.replace('border-gray-700', 'border-blue-500');
-                carrito = [];
-                actualizarCarrito();
-                cambiarVistaVendedor('lista'); 
-            } else {
-                clienteActual = null;
-                document.getElementById('searchInput').disabled = true;
-                document.getElementById('btnSeleccionarCliente').classList.replace('bg-blue-600', 'bg-gray-800');
-                document.getElementById('btnSeleccionarCliente').classList.replace('border-blue-500', 'border-gray-700');
-                document.getElementById('productsContainer').innerHTML = '<div class="text-center py-10 text-gray-500 italic">👤 Seleccione un cliente para comenzar</div>';
-            }
-        });
-    }
-
-    const searchInputObj = document.getElementById('searchInput');
-    if(searchInputObj) {
-        searchInputObj.addEventListener('input', (e) => {
-            mostrarProductos(e.target.value.toLowerCase());
-        });
-    }
-    
-    window.addEventListener('online', actualizarEstadoConexion);
-    window.addEventListener('offline', actualizarEstadoConexion);
-}
-
-function filtrarPorCategoria(categoriaId, btn) {
-    filtroCategoria = categoriaId;
-    const container = document.getElementById('categoryFilters');
-    Array.from(container.children).forEach(b => {
-        b.className = 'px-4 py-2 bg-gray-200 text-gray-700 rounded-full text-xs font-bold whitespace-nowrap transition-colors category-btn';
-    });
-    btn.className = 'px-4 py-2 bg-gray-900 text-white rounded-full text-xs font-bold whitespace-nowrap transition-colors active category-btn';
-    mostrarProductos();
-}
-
-// ============================================
-// NAVEGACIÓN ENTRE VISTAS
-// ============================================
-
-function cambiarVistaVendedor(vista) {
-    vistaActualVendedor = vista;
-    
-    const btnLista = document.getElementById('btn-tab-lista');
-    const btnPedidos = document.getElementById('btn-tab-pedidos');
-    
-    if(btnLista) {
-        btnLista.classList.toggle('text-gray-900', vista === 'lista');
-        btnLista.classList.toggle('text-gray-400', vista !== 'lista');
-    }
-    if(btnPedidos) {
-        btnPedidos.classList.toggle('text-gray-900', vista === 'pedidos');
-        btnPedidos.classList.toggle('text-gray-400', vista !== 'pedidos');
-    }
-    
-    const categoryFilters = document.getElementById('categoryFilters');
-    const searchDiv = document.getElementById('searchContainer'); 
-    
-    if (vista === 'lista') {
-        if(categoryFilters) categoryFilters.style.display = 'flex';
-        if(searchDiv) searchDiv.style.display = 'block';
-        mostrarProductos();
-    } else if (vista === 'pedidos') {
-        if(categoryFilters) categoryFilters.style.display = 'none';
-        if(searchDiv) searchDiv.style.display = 'none';
-        mostrarMisPedidos();
-    }
-    window.scrollTo(0,0);
-}
-
-// ============================================
-// MOSTRAR PRODUCTOS Y SUGERIDOS
-// ============================================
-
-function mostrarProductos(termino = '') {
-    const container = document.getElementById('productsContainer');
-    if(!container || vistaActualVendedor !== 'lista') return;
-    
-    if (!clienteActual) {
-        container.innerHTML = '<div class="text-center py-10 text-gray-500 italic">👤 Seleccione un cliente para comenzar</div>';
-        return;
-    }
-    
-    let filtrados = productos.filter(p => !p.oculto);
-    if (filtroCategoria !== 'todas') filtrados = filtrados.filter(p => p.categoria === filtroCategoria);
-    if (termino) filtrados = filtrados.filter(p => p.nombre.toLowerCase().includes(termino));
-    
-    if (filtrados.length === 0) {
-        container.innerHTML = '<div class="text-center py-10 text-gray-500 italic">🔍 No se encontraron productos</div>';
-        return;
-    }
-    
-    container.innerHTML = '';
-    
-    // Generar Sugeridos si aplica
-    if (clienteActual && historialCompras[clienteActual.id] && !termino && filtroCategoria === 'todas') {
-        const sugeridosHtml = generarSugeridosHTML();
-        if (sugeridosHtml) {
-            const sugeridosDiv = document.createElement('div');
-            sugeridosDiv.innerHTML = `<h3 class="font-bold text-gray-800 mb-3 mt-2 px-2">✨ Comprados Recientemente</h3>${sugeridosHtml}<h3 class="font-bold text-gray-800 mb-3 mt-6 px-2">📦 Catálogo</h3>`;
-            container.appendChild(sugeridosDiv);
+        const response = await fetch('productos.json?t=' + new Date().getTime());
+        productosData = await response.json();
+        productosDataOriginal = JSON.parse(JSON.stringify(productosData));
+        productosFiltrados = [...productosData.productos];
+        
+        const filterCliente = document.getElementById('filtroCliente');
+        if (filterCliente) {
+            productosData.clientes.forEach(c => {
+                const opt1 = document.createElement('option');
+                opt1.value = c.id;
+                opt1.textContent = `${c.nombre} — ${c.zona || ''}`;
+                filterCliente.appendChild(opt1);
+            });
         }
-    }
-    
-    filtrados.forEach(p => container.appendChild(crearTarjetaProducto(p)));
-}
-
-function generarSugeridosHTML() {
-    const compras = historialCompras[clienteActual.id];
-    const sugeridosNombres = Object.entries(compras)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 3)
-        .map(entry => entry[0]);
-        
-    if (sugeridosNombres.length === 0) return null;
-    
-    let html = '';
-    sugeridosNombres.forEach(nombre => {
-        const prod = productos.find(p => p.nombre === nombre);
-        if (prod) {
-            html += `<div class="bg-blue-50 border border-blue-100 rounded-xl p-3 mb-2 flex items-center gap-3">
-                        <div class="text-2xl">${obtenerEmojiProducto(prod)}</div>
-                        <div class="flex-1">
-                            <div class="font-bold text-sm text-gray-900">${prod.nombre}</div>
-                            <div class="text-xs text-blue-600">Comprado anteriormente</div>
-                        </div>
-                     </div>`;
-        }
-    });
-    return html;
-}
-
-function obtenerEmojiProducto(producto) {
-    const nombre = producto.nombre.toLowerCase();
-    if (nombre.includes('jabón') || nombre.includes('jabon')) return '🧼';
-    if (nombre.includes('shampoo')) return '🧴';
-    if (nombre.includes('desodorante')) return '💨';
-    if (nombre.includes('pañal') || nombre.includes('panal')) return '🍼';
-    if (nombre.includes('toallita')) return '🧻';
-    if (nombre.includes('havaianas') || nombre.includes('ipanema')) return '🩴';
-    if (nombre.includes('aceite')) return '🫗';
-    if (nombre.includes('talco')) return '✨';
-    return '📦';
-}
-
-function crearTarjetaProducto(producto) {
-    const card = document.createElement('div');
-    card.className = 'bg-white rounded-2xl p-4 shadow-sm border border-gray-100 mb-4 transition-all hover:shadow-md';
-    card.id = `product-${producto.id}`;
-
-    const catNombre = categorias.find(c => c.id === producto.categoria)?.nombre || '';
-    
-    const variantesHTML = producto.presentaciones.map((pres, i) => {
-        const precio = obtenerPrecio(producto.id, pres);
-        const idxCarrito = carrito.findIndex(item => item.productoId === producto.id && item.presentacion === pres.tamano);
-        const cantidadEnCarrito = idxCarrito >= 0 ? carrito[idxCarrito].cantidad : 0;
-        
-        return `
-        <div class="flex items-center justify-between py-2 border-t border-gray-50 mt-2">
-            <div>
-                <div class="font-bold text-gray-800 text-sm">${pres.tamano}</div>
-                <div class="text-blue-600 font-bold text-xs">Gs. ${precio.toLocaleString()}</div>
-            </div>
-            ${cantidadEnCarrito > 0 ? `
-                <div class="flex items-center gap-3 bg-gray-50 rounded-lg p-1 border border-gray-200">
-                    <button onclick="cambiarCantidadVariante('${producto.id}', '${pres.tamano}', ${precio}, -1)" class="w-8 h-8 flex items-center justify-center bg-white text-blue-600 rounded-md shadow-sm font-bold text-lg">−</button>
-                    <span class="font-bold w-6 text-center">${cantidadEnCarrito}</span>
-                    <button onclick="cambiarCantidadVariante('${producto.id}', '${pres.tamano}', ${precio}, 1)" class="w-8 h-8 flex items-center justify-center bg-white text-blue-600 rounded-md shadow-sm font-bold text-lg">+</button>
-                </div>
-            ` : `
-                <button onclick="cambiarCantidadVariante('${producto.id}', '${pres.tamano}', ${precio}, 1, '${producto.nombre}')" class="bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold px-4 py-2 rounded-lg transition-colors">
-                    + Agregar
-                </button>
-            `}
-        </div>
-        `;
-    }).join('');
-
-    card.innerHTML = `
-        <div class="flex items-center gap-4 mb-2">
-            <div class="w-12 h-12 bg-gray-50 rounded-xl flex items-center justify-center text-2xl shrink-0">
-                ${obtenerEmojiProducto(producto)}
-            </div>
-            <div>
-                <h3 class="font-bold text-gray-900 leading-tight">${producto.nombre}</h3>
-                <span class="text-[10px] text-gray-500 uppercase tracking-wider">${catNombre}</span>
-            </div>
-        </div>
-        <div class="space-y-1">
-            ${variantesHTML}
-        </div>
-    `;
-
-    return card;
-}
-
-function cambiarCantidadVariante(productoId, presentacion, precio, cambio, nombreProd = '') {
-    if (!clienteActual) {
-        alert('Debes seleccionar un cliente primero.');
-        document.getElementById('clienteSelect').focus();
-        return;
-    }
-
-    const idx = carrito.findIndex(i => i.productoId === productoId && i.presentacion === presentacion);
-    
-    if (idx >= 0) {
-        carrito[idx].cantidad += cambio;
-        if (carrito[idx].cantidad <= 0) carrito.splice(idx, 1);
-    } else if (cambio > 0) {
-        carrito.push({ productoId, nombre: nombreProd, presentacion, precio, cantidad: 1 });
-        mostrarExito(`Agregado al pedido`);
-    }
-    
-    actualizarCarrito();
-    const tarjetaNueva = crearTarjetaProducto(productos.find(p => p.id === productoId));
-    document.getElementById(`product-${productoId}`).replaceWith(tarjetaNueva);
-}
-
-function obtenerPrecio(productoId, pres) {
-    if (!clienteActual) return pres.precio_base;
-    const custom = clienteActual.precios_personalizados?.[productoId]?.find(p => p.tamano === pres.tamano);
-    if (custom) return custom.precio;
-    return pres.precio_base;
+    } catch (error) { console.error('Error:', error); }
 }
 
 // ============================================
-// CARRITO Y CÁLCULOS
+// 3. CAMBIOS SIN GUARDAR (JSON)
 // ============================================
-
-function actualizarCarrito() {
-    const cantidad = carrito.reduce((s, i) => s + i.cantidad, 0);
-    const total = carrito.reduce((s, i) => s + i.precio * i.cantidad, 0);
-    
-    const badge = document.getElementById('cartItems');
-    if(badge) {
-        badge.textContent = cantidad;
-        badge.style.transform = 'scale(1.3)';
-        setTimeout(() => badge.style.transform = 'scale(1)', 200);
-    }
-    
-    const btn = document.getElementById('viewCartBtn');
-    if(btn) btn.disabled = cantidad === 0;
+function registrarCambio() {
+    cambiosSinGuardar++;
+    actualizarBarraCambios();
 }
 
-function mostrarModalCarrito() {
-    if (carrito.length === 0) return;
-    
-    const lista = document.getElementById('cartItemsList');
-    lista.innerHTML = '';
-    
-    carrito.forEach((item, index) => {
-        const div = document.createElement('div');
-        div.className = 'flex justify-between items-center bg-gray-50 p-3 rounded-xl border border-gray-100';
-        div.innerHTML = `
-            <div class="flex-1">
-                <div class="font-bold text-gray-900 text-sm">${item.nombre}</div>
-                <div class="text-gray-500 text-xs">${item.presentacion} • Gs. ${item.precio.toLocaleString()}</div>
-            </div>
-            <div class="flex items-center gap-3 bg-white rounded-lg p-1 shadow-sm">
-                <button onclick="editarCantidadCarrito(${index}, -1)" class="w-8 h-8 text-blue-600 font-bold text-lg">−</button>
-                <span class="font-bold text-sm w-4 text-center">${item.cantidad}</span>
-                <button onclick="editarCantidadCarrito(${index}, 1)" class="w-8 h-8 text-blue-600 font-bold text-lg">+</button>
-            </div>
-        `;
-        lista.appendChild(div);
-    });
-    
-    calcularTotales();
-    document.getElementById('totalSection').classList.remove('hidden');
-    document.getElementById('cartModal').classList.remove('hidden');
-}
-
-let descuentoAplicado = 0;
-
-function aplicarDescuento() {
-    descuentoAplicado = parseFloat(document.getElementById('descuento').value) || 0;
-    if (descuentoAplicado < 0) descuentoAplicado = 0;
-    if (descuentoAplicado > 100) descuentoAplicado = 100;
-    document.getElementById('descuento').value = descuentoAplicado;
-    calcularTotales();
-}
-
-function calcularTotales() {
-    const subtotal = carrito.reduce((s, i) => s + i.precio * i.cantidad, 0);
-    const montoDescuento = subtotal * (descuentoAplicado / 100);
-    const total = subtotal - montoDescuento;
-    
-    const totalSection = document.getElementById('totalSection');
-    totalSection.innerHTML = `
-        <div class="flex justify-between text-gray-500 text-sm">
-            <span>Subtotal:</span>
-            <span>Gs. ${subtotal.toLocaleString()}</span>
-        </div>
-        ${descuentoAplicado > 0 ? `
-        <div class="flex justify-between text-red-500 text-sm font-bold">
-            <span>Descuento (${descuentoAplicado}%):</span>
-            <span>- Gs. ${montoDescuento.toLocaleString()}</span>
-        </div>
-        ` : ''}
-        <div class="flex justify-between text-xl font-bold text-gray-900 pt-2 border-t border-gray-200 mt-2">
-            <span>TOTAL:</span>
-            <span class="text-blue-600">Gs. ${total.toLocaleString()}</span>
-        </div>
-    `;
-}
-
-function editarCantidadCarrito(index, cambio) {
-    if (carrito[index]) {
-        carrito[index].cantidad += cambio;
-        if (carrito[index].cantidad <= 0) carrito.splice(index, 1);
-        
-        actualizarCarrito();
-        if (carrito.length === 0) {
-            closeCartModal();
-            mostrarProductos(); 
+function actualizarBarraCambios() {
+    const bar = document.getElementById('unsavedBar');
+    const badge = document.getElementById('unsavedCount');
+    if (bar && badge) {
+        if (cambiosSinGuardar > 0) {
+            bar.classList.add('visible');
+            badge.textContent = cambiosSinGuardar;
         } else {
-            mostrarModalCarrito(); 
+            bar.classList.remove('visible');
         }
     }
 }
 
-function closeCartModal() {
-    document.getElementById('cartModal').classList.add('hidden');
-    mostrarProductos(); 
+function guardarTodosCambios() {
+    descargarJSON(productosData, 'productos.json');
+    cambiosSinGuardar = 0;
+    actualizarBarraCambios();
+    productosDataOriginal = JSON.parse(JSON.stringify(productosData));
 }
 
-// ============================================
-// PROCESAMIENTO DE PEDIDOS Y WHATSAPP
-// ============================================
+function descartarCambios() {
+    if (!confirm('¿Descartar todos los cambios sin guardar? Se perderán las modificaciones.')) return;
+    productosData = JSON.parse(JSON.stringify(productosDataOriginal));
+    productosFiltrados = [...productosData.productos];
+    cambiosSinGuardar = 0;
+    actualizarBarraCambios();
+    mostrarProductosGestion();
+}
 
-async function confirmarPedido() {
-    if (carrito.length === 0 || !clienteActual) return;
+window.addEventListener('beforeunload', (e) => {
+    if (cambiosSinGuardar > 0) { e.preventDefault(); e.returnValue = ''; }
+});
+
+// ============================================
+// 4. GESTIÓN DE PEDIDOS
+// ============================================
+function cargarPedidos() {
+    todosLosPedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    aplicarFiltrosPedidos();
+}
+
+function aplicarFiltrosPedidos() {
+    const fecha = document.getElementById('filtroFecha')?.value;
+    const cliente = document.getElementById('filtroCliente')?.value;
     
-    const tipoPago = document.getElementById('tipoPago').value;
-    const descuento = descuentoAplicado;
-    const notas = document.getElementById('notasPedido').value.trim();
+    let filtrados = todosLosPedidos;
     
-    const subtotal = carrito.reduce((s, i) => s + i.precio * i.cantidad, 0);
-    const montoDescuento = subtotal * (descuento / 100);
-    const total = subtotal - montoDescuento;
-    
-    const pedido = {
-        id: Date.now().toString(),
-        fecha: new Date().toISOString(),
-        cliente: { 
-            id: clienteActual.id, 
-            nombre: clienteActual.nombre,
-            razon_social: clienteActual.razon_social || clienteActual.nombre,
-            ruc: clienteActual.ruc || '',
-            telefono: clienteActual.telefono || '',
-            direccion: clienteActual.direccion || clienteActual.zona || '',
-            encargado: clienteActual.encargado || ''
-        },
-        zona: clienteActual.direccion || clienteActual.zona || '',
-        vendedor: localStorage.getItem('vendedor_nombre') || 'Vendedor',
-        items: carrito.map(i => ({ 
-            nombre: i.nombre,
-            presentacion: i.presentacion,
-            cantidad: i.cantidad,
-            precio_unitario: i.precio,
-            subtotal: i.precio * i.cantidad 
-        })),
-        subtotal: subtotal,
-        descuento: descuento,
-        monto_descuento: montoDescuento,
-        total: total,
-        tipo_pago: tipoPago,
-        notas: notas,
-        estado: tipoPago === 'credito' ? 'pendiente_pago' : 'pendiente',
-        sincronizado: false
-    };
-    
-    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
-    pedidos.push(pedido);
-    localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
-    
-    construirHistorialCompras();
-    await enviarAGoogleSheets(pedido);
-    
-    if (confirm('¿Deseas compartir este pedido por WhatsApp?')) {
-        compartirPorWhatsApp(pedido);
+    if (fecha) {
+        filtrados = filtrados.filter(p => {
+            const pFecha = new Date(p.fecha).toISOString().split('T')[0];
+            return pFecha === fecha;
+        });
     }
+    if (cliente) filtrados = filtrados.filter(p => p.cliente.id === cliente);
     
-    mostrarExito(`Pedido Guardado`);
-    
-    carrito = [];
-    descuentoAplicado = 0;
-    document.getElementById('descuento').value = 0;
-    document.getElementById('notasPedido').value = '';
-    document.getElementById('tipoPago').value = 'contado';
-    
-    actualizarCarrito();
-    closeCartModal();
+    mostrarPedidos(filtrados);
+    actualizarEstadisticasPedidos(filtrados);
 }
 
-function compartirPorWhatsApp(pedido) {
-    let mensaje = `*PEDIDO HDV DISTRIBUCIONES*\n\n`;
-    mensaje += `📋 *Pedido #${pedido.id.slice(-6)}*\n📅 ${new Date(pedido.fecha).toLocaleString('es-PY')}\n👤 *Cliente:* ${pedido.cliente.nombre}\n📍 *Zona:* ${pedido.zona}\n👨‍💼 *Vendedor:* ${pedido.vendedor}\n\n*PRODUCTOS:*\n`;
-    
-    pedido.items.forEach(item => {
-        mensaje += `• ${item.nombre} (${item.presentacion})\n  ${item.cantidad} × Gs. ${item.precio_unitario.toLocaleString()} = Gs. ${item.subtotal.toLocaleString()}\n`;
-    });
-    
-    mensaje += `\n*TOTAL: Gs. ${pedido.total.toLocaleString()}*\n💰 *Tipo:* ${pedido.tipo_pago === 'credito' ? 'CRÉDITO' : 'CONTADO'}\n`;
-    if (pedido.notas) mensaje += `\n📝 *Notas:* ${pedido.notas}`;
-    
-    window.open(`https://wa.me/?text=${encodeURIComponent(mensaje)}`, '_blank');
-}
-
-// ============================================
-// VISTA: MIS PEDIDOS 
-// ============================================
-
-function mostrarMisPedidos() {
-    const container = document.getElementById('productsContainer');
+function mostrarPedidos(pedidos) {
+    const container = document.getElementById('listaPedidos');
     if (!container) return;
-    
-    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
-    
     if (pedidos.length === 0) {
-        container.innerHTML = '<div class="text-center py-10 text-gray-500 italic">No tienes pedidos registrados aún</div>';
+        container.innerHTML = '<div class="p-8 text-center"><div style="font-size:48px;margin-bottom:15px;">📦</div><p class="text-gray-500">No hay pedidos</p></div>';
         return;
     }
     
+    container.innerHTML = '';
     pedidos.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
-    container.innerHTML = '<h2 class="text-lg font-bold text-gray-800 mb-4 px-2">Historial de Mis Pedidos</h2>';
     
     pedidos.forEach(p => {
-        const fecha = new Date(p.fecha).toLocaleString('es-PY', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-        const syncIcon = p.sincronizado ? '🟢' : '🔴';
-        const tipoPagoStr = p.tipo_pago === 'credito' ? 'Crédito' : 'Contado';
+        const estado = p.estado || 'pendiente';
+        const clienteInfo = productosData.clientes.find(c => c.id === p.cliente.id);
+        const zona = clienteInfo?.zona || '';
+        let colorEstado = estado === 'entregado' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800';
         
-        const card = document.createElement('div');
-        card.className = 'bg-white rounded-xl p-4 shadow-sm border border-gray-100 mb-3';
-        card.innerHTML = `
-            <div class="flex justify-between items-start mb-2 border-b border-gray-50 pb-2">
+        const div = document.createElement('div');
+        div.className = 'p-6 hover:bg-gray-50 transition-colors border-b border-gray-100';
+        div.innerHTML = `
+            <div class="flex justify-between items-start mb-4">
                 <div>
-                    <div class="font-bold text-gray-900">${p.cliente.nombre}</div>
-                    <div class="text-xs text-gray-500">${fecha} • ${tipoPagoStr}</div>
+                    <h3 class="text-lg font-bold text-gray-800">${p.cliente.nombre}</h3>
+                    <div class="text-sm text-gray-500 mt-1">📍 ${zona} • 🕐 ${new Date(p.fecha).toLocaleString('es-PY')}</div>
                 </div>
-                <div class="text-right">
-                    <div class="font-bold text-blue-600">Gs. ${p.total.toLocaleString()}</div>
-                    <div class="text-[10px] text-gray-400" title="${p.sincronizado ? 'Sincronizado' : 'Pendiente de sincronizar'}">${syncIcon} Sync</div>
-                </div>
+                <span class="px-3 py-1 rounded-full text-xs font-bold ${colorEstado}">${estado.toUpperCase()}</span>
             </div>
-            <div class="text-xs text-gray-600 line-clamp-2">
-                ${p.items.map(i => `${i.cantidad}x ${i.nombre}`).join(', ')}
+            <div class="mb-4 space-y-2">
+                ${p.items.map(i => `
+                <div class="flex justify-between items-center text-sm border-b border-gray-50 pb-2">
+                    <span>${i.nombre} <span class="text-gray-500">(${i.presentacion} × ${i.cantidad})</span></span>
+                    <strong class="text-gray-800">Gs. ${i.subtotal.toLocaleString()}</strong>
+                </div>`).join('')}
             </div>
-            <div class="mt-3 flex gap-2">
-                <button onclick="reimprimirWhatsApp('${p.id}')" class="flex-1 bg-green-50 text-green-700 font-bold text-xs py-2 rounded-lg border border-green-200">
-                    Compartir WA
-                </button>
+            <div class="flex justify-between items-center pt-4 mt-4 border-t border-gray-100">
+                <span class="text-gray-500 font-bold">TOTAL</span>
+                <span class="text-xl font-bold text-gray-900">Gs. ${p.total.toLocaleString()}</span>
+            </div>
+            <div class="flex gap-3 mt-4">
+                ${estado === 'pendiente' ? 
+                    `<button class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors" onclick="marcarEntregado('${p.id}')">✓ Marcar Entregado</button>` :
+                    `<button class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-lg text-sm font-semibold transition-colors" onclick="marcarPendiente('${p.id}')">↩ Marcar Pendiente</button>`
+                }
+                <button class="bg-red-50 hover:bg-red-100 text-red-600 px-4 py-2 rounded-lg text-sm font-semibold transition-colors" onclick="eliminarPedido('${p.id}')">🗑️ Eliminar</button>
             </div>
         `;
-        container.appendChild(card);
+        container.appendChild(div);
     });
 }
 
-function reimprimirWhatsApp(pedidoId) {
-    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
-    const pedido = pedidos.find(p => p.id === pedidoId);
-    if (pedido) compartirPorWhatsApp(pedido);
-}
-
-// ============================================
-// SISTEMA OFFLINE Y SYNC
-// ============================================
-
-async function enviarAGoogleSheets(pedido) {
-    const SHEET_URL = 'https://script.google.com/macros/s/AKfycbxowigrfPMtoVhSDklxpeSoIfaYxV56oHKB7oZYTGoGrShubG4BiLsOYW9FF4-eLij3/exec';
-    try {
-        await fetch(SHEET_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(pedido) });
-        const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
-        const pedidoLocal = pedidos.find(p => p.id === pedido.id);
-        if (pedidoLocal) {
-            pedidoLocal.sincronizado = true;
-            localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
-            if(vistaActualVendedor === 'pedidos') mostrarMisPedidos();
-        }
-    } catch (error) { console.error('Error sheets:', error); }
-}
-
-function actualizarEstadoConexion() {
-    const badge = document.getElementById('status-badge');
-    if (!badge) return;
-    const pendientes = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]').filter(p => !p.sincronizado).length;
+function actualizarEstadisticasPedidos(pedidos) {
+    const total = pedidos.length;
+    const pendientes = pedidos.filter(p => (p.estado || 'pendiente') === 'pendiente').length;
+    const entregados = pedidos.filter(p => p.estado === 'entregado').length;
+    const totalGs = pedidos.reduce((s, p) => s + p.total, 0);
     
-    if (navigator.onLine) {
-        badge.innerHTML = `<span class="w-2 h-2 bg-green-500 rounded-full mr-2"></span> En línea ${pendientes > 0 ? `(${pendientes} sync)` : ''}`;
-        if (pendientes > 0) sincronizarPedidosPendientes();
-    } else {
-        badge.innerHTML = `<span class="w-2 h-2 bg-red-500 rounded-full mr-2"></span> Offline ${pendientes > 0 ? `(${pendientes})` : ''}`;
-    }
+    if(document.getElementById('statTotalPedidos')) document.getElementById('statTotalPedidos').textContent = total;
+    if(document.getElementById('statPendientes')) document.getElementById('statPendientes').textContent = pendientes;
+    if(document.getElementById('statEntregados')) document.getElementById('statEntregados').textContent = entregados;
+    if(document.getElementById('statRecaudacion')) document.getElementById('statRecaudacion').textContent = `Gs. ${totalGs.toLocaleString()}`;
 }
 
-async function sincronizarPedidosPendientes() {
+function marcarEntregado(id) {
     const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
-    const pendientes = pedidos.filter(p => !p.sincronizado);
-    for (const pedido of pendientes) {
-        try {
-            await enviarAGoogleSheets(pedido);
-            pedido.sincronizado = true;
-        } catch (error) {}
-    }
+    const p = pedidos.find(x => x.id === id);
+    if (p) { p.estado = 'entregado'; localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos)); cargarPedidos(); }
+}
+
+function marcarPendiente(id) {
+    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    const p = pedidos.find(x => x.id === id);
+    if (p) { p.estado = 'pendiente'; localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos)); cargarPedidos(); }
+}
+
+function eliminarPedido(id) {
+    if (!confirm('¿Eliminar este pedido?')) return;
+    let pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    pedidos = pedidos.filter(p => p.id !== id);
     localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
-    actualizarEstadoConexion();
-}
-
-function mostrarExito(msg) {
-    const el = document.getElementById('successMessage');
-    if (el) {
-        el.textContent = '✓ ' + msg;
-        el.classList.add('show');
-        setTimeout(() => el.classList.remove('show'), 3000);
-    }
+    cargarPedidos();
 }
 
 // ============================================
-// SERVICE WORKER Y ACTUALIZACIONES
+// 5. GESTIÓN DE PRODUCTOS
 // ============================================
+function mostrarProductosGestion() {
+    const tbody = document.getElementById('tablaProductosCuerpo');
+    if(!tbody) return;
+    tbody.innerHTML = '';
+    
+    productosFiltrados.forEach(prod => {
+        const presHTML = prod.presentaciones.map((p, i) => `
+            <div class="flex items-center gap-2 mb-2">
+                <input type="text" value="${p.tamano}" onchange="actualizarPresentacion('${prod.id}', ${i}, 'tamano', this.value)" class="w-24 px-2 py-1 text-xs border border-gray-300 rounded" placeholder="Tamaño">
+                <input type="number" value="${p.precio_base}" onchange="actualizarPresentacion('${prod.id}', ${i}, 'precio', this.value)" class="w-24 px-2 py-1 text-xs border border-gray-300 rounded" placeholder="Precio">
+                <button onclick="eliminarPresentacion('${prod.id}', ${i})" class="text-red-500 font-bold px-2">×</button>
+            </div>
+        `).join('');
+        
+        const tr = document.createElement('tr');
+        tr.className = `border-b border-gray-50 hover:bg-gray-50`;
+        tr.innerHTML = `
+            <td class="px-6 py-4 font-medium text-gray-500">${prod.id}</td>
+            <td class="px-6 py-4 text-2xl text-center">📦</td>
+            <td class="px-6 py-4"><input type="text" value="${prod.nombre}" onchange="actualizarProducto('${prod.id}', 'nombre', this.value)" class="w-full px-2 py-1 border border-transparent hover:border-gray-300 rounded bg-transparent"></td>
+            <td class="px-6 py-4"><input type="text" value="${prod.subcategoria || ''}" onchange="actualizarProducto('${prod.id}', 'subcategoria', this.value)" class="w-full px-2 py-1 border border-transparent hover:border-gray-300 rounded bg-transparent text-xs text-gray-500" placeholder="Subcategoría"></td>
+            <td class="px-6 py-4">${presHTML}<button onclick="agregarPresentacion('${prod.id}')" class="text-xs text-blue-600 font-bold">+ Agregar</button></td>
+            <td class="px-6 py-4"><button onclick="eliminarProducto('${prod.id}')" class="p-2 rounded text-red-600 hover:bg-red-100">🗑️</button></td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
 
-async function registrarServiceWorker() {
-    if ('serviceWorker' in navigator) {
-        try {
-            const registration = await navigator.serviceWorker.register('service-worker.js');
-            registration.addEventListener('updatefound', () => {
-                const newWorker = registration.installing;
-                newWorker.addEventListener('statechange', () => {
-                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                        alert('🔄 ¡Nueva versión disponible! Pulsa el botón "Forzar" arriba para aplicarla.');
-                    }
-                });
-            });
-        } catch (e) { console.log('SW error:', e); }
+function actualizarProducto(id, campo, valor) {
+    const p = productosData.productos.find(x => x.id === id);
+    if (p) { p[campo] = valor; registrarCambio(); }
+}
+
+function actualizarPresentacion(id, idx, campo, valor) {
+    const p = productosData.productos.find(x => x.id === id);
+    if (p && p.presentaciones[idx]) {
+        if (campo === 'precio') p.presentaciones[idx].precio_base = parseInt(valor) || 0;
+        else p.presentaciones[idx].tamano = valor;
+        registrarCambio();
     }
 }
 
-function forzarActualizacion() {
-    if (confirm('¿Forzar actualización completa? (Esto limpiará el caché y traerá la última versión)')) {
-        (async () => {
-            if ('caches' in window) {
-                const cacheNames = await caches.keys();
-                await Promise.all(cacheNames.map(name => caches.delete(name)));
-            }
-            if ('serviceWorker' in navigator) {
-                const registrations = await navigator.serviceWorker.getRegistrations();
-                for (let reg of registrations) await reg.unregister();
-            }
-            window.location.href = window.location.href.split('?')[0] + '?t=' + new Date().getTime();
-        })();
-    }
+function eliminarPresentacion(id, idx) {
+    const p = productosData.productos.find(x => x.id === id);
+    if (p && p.presentaciones.length > 1) {
+        p.presentaciones.splice(idx, 1);
+        registrarCambio();
+        mostrarProductosGestion();
+    } else { alert('El producto debe tener al menos una presentación'); }
+}
+
+function agregarPresentacion(id) {
+    const p = productosData.productos.find(x => x.id === id);
+    if (p) { p.presentaciones.push({ tamano: '', precio_base: 0 }); registrarCambio(); mostrarProductosGestion(); }
+}
+
+function eliminarProducto(id) {
+    if (!confirm('¿Eliminar este producto?')) return;
+    productosData.productos = productosData.productos.filter(p => p.id !== id);
+    productosFiltrados = productosFiltrados.filter(p => p.id !== id);
+    registrarCambio();
+    mostrarProductosGestion();
+}
+
+// ============================================
+// 6. GESTIÓN DE CLIENTES
+// ============================================
+function mostrarClientesGestion() {
+    const container = document.getElementById('listaClientes');
+    if (!container) return;
+    container.innerHTML = '';
+    
+    productosData.clientes.forEach(cliente => {
+        const div = document.createElement('div');
+        div.className = 'bg-white p-5 rounded-xl border border-gray-200 shadow-sm';
+        div.innerHTML = `
+            <div class="font-bold text-gray-800 text-lg">${cliente.nombre}</div>
+            <div class="text-sm text-gray-500 mb-2">📍 ${cliente.zona || cliente.direccion || 'Sin zona'}</div>
+            <div class="text-xs text-gray-400 mb-3">RUC: ${cliente.ruc || 'N/A'} | Tel: ${cliente.telefono || 'N/A'}</div>
+            <button onclick="eliminarCliente('${cliente.id}')" class="text-xs text-red-600 bg-red-50 hover:bg-red-100 px-3 py-1 rounded-lg border border-red-100 font-bold transition-colors">🗑️ Eliminar Cliente</button>
+        `;
+        container.appendChild(div);
+    });
+}
+
+function eliminarCliente(id) {
+    if (!confirm('¿Eliminar este cliente?')) return;
+    productosData.clientes = productosData.clientes.filter(c => c.id !== id);
+    registrarCambio();
+    mostrarClientesGestion();
+}
+
+// ============================================
+// 7. HERRAMIENTAS Y EXTRAS
+// ============================================
+function limpiarPedidos() {
+    if (!confirm('¿ELIMINAR TODOS LOS PEDIDOS? Esta acción no se puede deshacer.')) return;
+    if (!confirm('¿Estás completamente seguro?')) return;
+    localStorage.removeItem('hdv_pedidos');
+    todosLosPedidos = [];
+    alert('Todos los pedidos han sido eliminados');
+    setTimeout(() => location.reload(), 1000);
+}
+
+function descargarJSON(data, nombreArchivo) {
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = nombreArchivo;
+    link.click();
 }

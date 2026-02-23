@@ -3,343 +3,159 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="theme-color" content="#2563eb">
-    <title>HDV Distribuciones - Pedidos</title>
+    <meta name="theme-color" content="#111827">
+    <title>HDV Pedidos - Vendedores</title>
     <link rel="manifest" href="manifest.json">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f3f4f6; padding-bottom: 80px; }
-        .header { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); color: white; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); position: sticky; top: 0; z-index: 100; }
-        .header h1 { font-size: 20px; margin-bottom: 5px; }
-        .header .subtitle { font-size: 14px; opacity: 0.9; }
-        .status-badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 12px; margin-top: 8px; background: rgba(255,255,255,0.2); }
-        .status-badge.online { background: rgba(34, 197, 94, 0.3); }
-        .status-badge.offline { background: rgba(239, 68, 68, 0.3); }
-        .container { max-width: 800px; margin: 0 auto; padding: 20px; }
-        .cliente-selector { background: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        .cliente-selector label { display: block; font-weight: 600; margin-bottom: 10px; color: #374151; }
-        .cliente-selector select { width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 16px; background: white; }
-        .search-container { background: white; padding: 15px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        .search-input { width: 100%; padding: 12px 15px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 16px; }
-        .search-input:focus { outline: none; border-color: #2563eb; }
-        .category-filters { display: flex; gap: 10px; overflow-x: auto; padding: 10px 0; margin-bottom: 20px; -webkit-overflow-scrolling: touch; }
-        .category-btn { padding: 8px 16px; border: 2px solid #e5e7eb; background: white; border-radius: 20px; font-size: 14px; white-space: nowrap; cursor: pointer; transition: all 0.3s; }
-        .category-btn.active { background: #2563eb; color: white; border-color: #2563eb; }
-        .products-grid { display: grid; gap: 15px; }
-        .product-card { background: white; border-radius: 12px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        .product-name { font-weight: 600; color: #111827; margin-bottom: 8px; }
-        .product-cat { font-size: 12px; color: #6b7280; margin-bottom: 10px; }
-        .product-variants { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-        .variant-btn { padding: 8px 12px; border: 2px solid #e5e7eb; background: white; border-radius: 8px; font-size: 13px; cursor: pointer; transition: all 0.2s; }
-        .variant-btn:hover { border-color: #2563eb; color: #2563eb; }
-        .variant-selected { display: none; margin-top: 10px; padding-top: 10px; border-top: 1px solid #e5e7eb; }
-        .variant-selected.show { display: flex; align-items: center; justify-content: space-between; }
-        .quantity-controls { display: flex; align-items: center; gap: 10px; }
-        .quantity-btn { width: 36px; height: 36px; border: 2px solid #2563eb; background: white; color: #2563eb; border-radius: 8px; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-        .quantity-btn:active { background: #2563eb; color: white; }
-        .quantity-display { font-size: 18px; font-weight: 600; min-width: 40px; text-align: center; }
-        .cart-summary { position: fixed; bottom: 0; left: 0; right: 0; background: white; padding: 15px 20px; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; }
-        .cart-info { flex: 1; }
-        .cart-items { font-size: 14px; color: #6b7280; }
-        .cart-total { font-size: 20px; font-weight: 700; color: #111827; }
-        .cart-btn { padding: 12px 24px; background: #2563eb; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; }
-        .cart-btn:disabled { background: #9ca3af; cursor: not-allowed; }
-        .empty-state { text-align: center; padding: 60px 20px; color: #6b7280; }
-        .empty-state-icon { font-size: 48px; margin-bottom: 15px; }
-        .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
-        .modal.show { display: flex; }
-        .modal-content { background: white; border-radius: 16px; padding: 24px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; }
-        .modal-header { font-size: 20px; font-weight: 700; margin-bottom: 20px; }
-        .cart-item { display: flex; justify-content: space-between; align-items: center; gap: 15px; padding: 15px 0; border-bottom: 1px solid #e5e7eb; }
-        .form-group { margin-bottom: 15px; }
-        .form-group label { display: block; font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 5px; }
-        .form-group select, .form-group input, .form-group textarea { width: 100%; padding: 10px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; font-family: inherit; }
-        .form-group textarea { resize: vertical; min-height: 60px; }
-        .discount-row { display: flex; gap: 10px; align-items: end; }
-        .discount-row input { flex: 1; }
-        .discount-row button { padding: 10px 16px; background: #2563eb; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap; }
-        .total-section { background: #f9fafb; padding: 15px; border-radius: 8px; margin: 15px 0; }
-        .total-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 14px; }
-        .total-row.final { font-size: 18px; font-weight: 700; color: #2563eb; padding-top: 10px; border-top: 2px solid #e5e7eb; margin-top: 10px; }
-        .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
-        .modal-btn { flex: 1; padding: 12px; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; }
-        .btn-cancel { background: #f3f4f6; color: #374151; }
-        .btn-confirm { background: #2563eb; color: white; }
-        .loading { text-align: center; padding: 40px; color: #6b7280; }
-        .spinner { border: 3px solid #f3f4f6; border-top: 3px solid #2563eb; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 15px; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .success-message { background: #10b981; color: white; padding: 15px 20px; border-radius: 8px; margin: 20px; text-align: center; font-weight: 600; display: none; }
-        .success-message.show { display: block; animation: slideDown 0.3s ease; }
-        @keyframes slideDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+        :root {
+            --grafito: #1f2937;
+            --grafito-oscuro: #111827;
+        }
         
-        /* Tabs */
-        .tabs { display: flex; gap: 5px; background: white; border-bottom: 2px solid #e5e7eb; padding: 0 20px; margin: 0 -20px 20px -20px; overflow-x: auto; }
-        .tab { padding: 15px 20px; background: none; border: none; font-size: 15px; font-weight: 600; color: #6b7280; cursor: pointer; border-bottom: 3px solid transparent; white-space: nowrap; }
-        .tab.active { color: #2563eb; border-bottom-color: #2563eb; }
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
+        body { background-color: #f3f4f6; -webkit-tap-highlight-color: transparent; }
         
-        /* Vista de cuadrícula */
-        .view-toggle { display: flex; gap: 5px; margin-bottom: 15px; background: white; padding: 10px; border-radius: 8px; }
-        .view-toggle button { padding: 8px 16px; border: 2px solid #e5e7eb; background: white; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; color: #6b7280; }
-        .view-toggle button.active { background: #2563eb; color: white; border-color: #2563eb; }
+        /* Personalización para Modo Oscuro actual */
+        .dark-mode { background-color: var(--grafito-oscuro) !important; color: white; }
+        .dark-mode .bg-white { background-color: var(--grafito) !important; color: white; border-color: #374151; }
+        .dark-mode .text-gray-800 { color: #f3f4f6 !important; }
+        .dark-mode .text-gray-500 { color: #9ca3af !important; }
+
+        /* Estilo para el Badge del carrito */
+        #cart-count {
+            animation: bounce 0.3s ease;
+        }
+        @keyframes bounce {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+        }
+
+        /* Ocultar scrollbar */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
         
-        .products-grid { display: grid; gap: 15px; }
-        .products-grid.grid-view { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
-        .product-card.grid-view { padding: 12px; text-align: center; cursor: pointer; transition: transform 0.2s; }
-        .product-card.grid-view:active { transform: scale(0.95); }
-        .product-image { width: 100%; height: 120px; object-fit: contain; background: #f9fafb; border-radius: 8px; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; font-size: 48px; overflow: hidden; }
-        .product-card.grid-view .product-name { font-size: 14px; margin-bottom: 5px; }
-        .product-card.grid-view .product-price { color: #2563eb; font-weight: 700; font-size: 16px; }
-        
-        /* Modal de detalles del producto */
-        .product-detail-modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1001; align-items: center; justify-content: center; }
-        .product-detail-modal.show { display: flex; }
-        .product-detail-content { background: white; border-radius: 16px; padding: 0; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; }
-        .product-detail-header { position: relative; }
-        .product-detail-image { width: 100%; height: 200px; object-fit: contain; background: #f9fafb; display: flex; align-items: center; justify-content: center; font-size: 80px; border-radius: 16px 16px 0 0; }
-        .close-detail { position: absolute; top: 10px; right: 10px; width: 36px; height: 36px; background: white; border: none; border-radius: 50%; font-size: 20px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
-        .product-detail-body { padding: 20px; }
-        .product-detail-title { font-size: 20px; font-weight: 700; margin-bottom: 10px; }
-        .product-detail-category { font-size: 13px; color: #6b7280; margin-bottom: 15px; }
-        .product-detail-info { background: #f9fafb; padding: 15px; border-radius: 8px; margin-bottom: 15px; }
-        .product-detail-info-row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 14px; }
-        .product-detail-info-row:last-child { border-bottom: none; }
-        .product-suggestions { margin-top: 20px; padding-top: 20px; border-top: 2px solid #e5e7eb; }
-        .product-suggestions h3 { font-size: 16px; margin-bottom: 10px; color: #111827; }
-        .suggestion-item { display: flex; align-items: center; gap: 10px; padding: 10px; background: #f9fafb; border-radius: 8px; margin-bottom: 8px; }
-        .suggestion-icon { font-size: 32px; }
-        
-        /* Lista de precios */
-        .precio-lista-item { background: white; padding: 15px; border-radius: 12px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        .precio-lista-item h3 { font-size: 16px; color: #111827; margin-bottom: 10px; }
-        .precio-lista-presentacion { display: flex; justify-content: space-between; padding: 8px 0; font-size: 14px; border-bottom: 1px solid #f3f4f6; }
-        .precio-lista-presentacion:last-child { border-bottom: none; }
-        .precio-lista-tamano { color: #6b7280; }
-        .precio-lista-precio { font-weight: 600; color: #2563eb; }
-        
-        /* Modo Oscuro */
-        body.dark-mode { background: #1f2937; color: #f3f4f6; }
-        body.dark-mode .header { background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%); }
-        body.dark-mode .container, body.dark-mode .card, body.dark-mode .product-card, body.dark-mode .cliente-selector, body.dark-mode .search-container, body.dark-mode .cart-summary, body.dark-mode .modal-content, body.dark-mode .precio-lista-item, body.dark-mode .product-detail-content { background: #374151; color: #f3f4f6; border-color: #4b5563; }
-        body.dark-mode .search-input, body.dark-mode select, body.dark-mode input, body.dark-mode textarea { background: #4b5563; color: #f3f4f6; border-color: #6b7280; }
-        body.dark-mode .product-cat, body.dark-mode .precio-lista-tamano { color: #9ca3af; }
-        body.dark-mode .category-btn { background: #4b5563; border-color: #6b7280; color: #f3f4f6; }
-        body.dark-mode .category-btn.active { background: #2563eb; border-color: #2563eb; }
-        body.dark-mode .product-image, body.dark-mode .product-detail-image, body.dark-mode .product-detail-info, body.dark-mode .suggestion-item { background: #4b5563; }
-        body.dark-mode .tabs { background: #374151; border-color: #4b5563; }
-        body.dark-mode .view-toggle { background: #4b5563; }
-        .dark-mode-toggle { position: fixed; bottom: 100px; right: 20px; width: 50px; height: 50px; background: #2563eb; border: none; border-radius: 50%; font-size: 24px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 99; }
-/* Layout con Sidebar */
-.vendor-layout { display: flex; height: 100vh; overflow: hidden; }
-.vendor-sidebar { width: 260px; background: #1e293b; color: white; display: flex; flex-direction: column; transition: transform 0.3s; z-index: 1000; }
-.vendor-sidebar.collapsed { transform: translateX(-260px); }
-.vendor-sidebar-header { padding: 18px; border-bottom: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; }
-.vendor-sidebar-header h2 { margin: 0; font-size: 18px; font-weight: 700; }
-.vendor-sidebar-toggle, .vendor-mobile-menu-btn { background: none; border: none; color: white; font-size: 22px; cursor: pointer; padding: 4px; }
-.vendor-sidebar-menu { flex: 1; overflow-y: auto; padding: 8px 0; }
-.vendor-sidebar-footer { padding: 12px 18px; border-top: 1px solid #334155; font-size: 11px; color: #94a3b8; }
-.vendor-menu-item { width: 100%; padding: 12px 18px; background: none; border: none; color: #cbd5e1; text-align: left; cursor: pointer; display: flex; align-items: center; gap: 12px; font-size: 14px; transition: all 0.2s; border-left: 3px solid transparent; }
-.vendor-menu-item:hover { background: #334155; color: white; }
-.vendor-menu-item.active { background: #3b82f6; color: white; border-left-color: #60a5fa; }
-.vendor-menu-icon { font-size: 18px; width: 22px; text-align: center; }
-.vendor-menu-label { flex: 1; }
-.vendor-menu-divider { height: 1px; background: #334155; margin: 8px 0; }
-.vendor-main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: #f8fafc; }
-.vendor-mobile-menu-btn { display: none; }
-.vendor-view { display: none; height: 100%; overflow-y: auto; padding: 20px; }
-.vendor-view.active { display: block; }
-@media (max-width: 768px) {
-    .vendor-sidebar { position: fixed; left: 0; top: 0; bottom: 0; transform: translateX(-260px); box-shadow: 2px 0 10px rgba(0,0,0,0.3); }
-    .vendor-sidebar.open { transform: translateX(0); }
-    .vendor-mobile-menu-btn { display: block; }
-}
+        /* Success Message */
+        .success-message {
+            position: fixed; top: 80px; left: 50%; transform: translateX(-50%);
+            background: #10b981; color: white; padding: 10px 20px; border-radius: 20px;
+            font-size: 14px; font-weight: bold; z-index: 1000; opacity: 0; pointer-events: none;
+            transition: all 0.3s ease;
+        }
+        .success-message.show { opacity: 1; top: 100px; }
     </style>
 </head>
-<body>
-    <div class="header">
-        <h1>HDV Distribuciones</h1>
-        <div class="subtitle">Sistema de Pedidos</div>
-        <span class="status-badge offline" id="statusBadge">Sin conexión</span>
-        <button id="updateButton" style="display:none;position:absolute;top:15px;right:15px;padding:8px 16px;background:#10b981;color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;animation:pulse 2s infinite;" onclick="actualizarAhora()">
-            🔄 Nueva versión disponible
-        </button>
-    </div>
-    .vendor-sidebar.open { transform: translateX(0); }
-    .vendor-mobile-menu-btn { display: block; }
-}
-    </style>
-    <div class="success-message" id="successMessage">✓ Pedido guardado exitosamente</div>
-    
-    <div class="container">
-        <!-- Tabs -->
-        <div class="tabs">
-            <button class="tab active" onclick="cambiarTab('pedidos')">📦 Hacer Pedido</button>
-            <button class="tab" onclick="cambiarTab('precios')">💰 Lista de Precios</button>
+<body class="pb-24 transition-colors duration-200">
+
+    <header class="bg-[#111827] text-white p-4 sticky top-0 z-50 shadow-lg">
+        <div class="flex justify-between items-center mb-3">
+            <div>
+                <h1 class="text-lg font-bold">HDV Pedidos</h1>
+                <div id="status-badge" class="text-[10px] uppercase tracking-wider font-bold opacity-80 flex items-center">
+                    <span class="w-2 h-2 bg-green-500 rounded-full mr-2"></span> En línea
+                </div>
+            </div>
+            <div class="flex gap-3">
+                <button onclick="forzarActualizacion()" class="p-2 bg-gray-800 rounded-full text-xs text-gray-300">🔄 Forzar</button>
+                <button onclick="toggleDarkMode()" class="p-2 bg-gray-800 rounded-full dark-mode-toggle">🌙</button>
+            </div>
         </div>
         
-        <!-- TAB: HACER PEDIDO -->
-        <div id="tab-pedidos" class="tab-content active">
-        <div class="cliente-selector">
-        <div class="cliente-selector">
-            <label for="clienteSelect">Seleccionar Cliente:</label>
-            <select id="clienteSelect">
-                <option value="">-- Seleccione un cliente --</option>
-            </select>
-        </div>
-        <div class="search-container">
-            <input type="text" class="search-input" id="searchInput" placeholder="🔍 Buscar producto por nombre..." disabled>
-        </div>
-        
-        <div class="view-toggle">
-            <button class="active" onclick="cambiarVista('lista')">📋 Lista</button>
-            <button onclick="cambiarVista('cuadricula')">🎯 Cuadrícula</button>
-        </div>
-        
-        <div class="category-filters" id="categoryFilters"></div>
-        <div id="productsContainer">
-            <div class="loading"><div class="spinner"></div>Cargando productos...</div>
-        </div>
-        </div>
-        
-        <!-- TAB: LISTA DE PRECIOS -->
-        <div id="tab-precios" class="tab-content">
-            <div class="search-container">
-                <input type="text" class="search-input" id="searchPrecios" placeholder="🔍 Buscar en lista de precios...">
+        <div class="bg-gray-800 rounded-xl p-3 flex items-center justify-between border border-gray-700" id="btnSeleccionarCliente">
+            <div class="flex items-center w-full">
+                <i data-lucide="user" class="w-4 h-4 mr-3 text-gray-400"></i>
+                <div class="w-full relative" id="clienteSelectContainer">
+                    <select id="clienteSelect" class="w-full bg-transparent text-sm font-medium outline-none text-white appearance-none">
+                        <option value="" class="text-black">-- Seleccione Cliente --</option>
+                    </select>
+                </div>
             </div>
-            
-            <div class="category-filters" id="categoryFiltersPrecio"></div>
-            
-            <div id="preciosContainer">
-                <div class="loading"><div class="spinner"></div>Cargando lista de precios...</div>
-            </div>
+            <i data-lucide="chevron-down" class="w-4 h-4 text-gray-500 ml-2 shrink-0"></i>
+        </div>
+    </header>
+
+    <div class="success-message" id="successMessage">✓ Acción completada</div>
+
+    <div class="bg-white border-b border-gray-200 sticky top-[125px] z-40 overflow-x-auto no-scrollbar flex p-3 gap-2" id="categoryFilters">
+        <button class="px-4 py-2 bg-gray-900 text-white rounded-full text-xs font-bold whitespace-nowrap active category-btn">Todas</button>
+    </div>
+
+    <div class="p-4">
+        <div class="relative">
+            <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"></i>
+            <input type="text" id="searchInput" placeholder="Buscar producto..." disabled
+                   class="w-full bg-white border border-gray-300 rounded-xl py-3 pl-10 pr-4 text-sm focus:ring-2 focus:ring-gray-800 outline-none transition-all shadow-sm">
         </div>
     </div>
-    <div class="cart-summary">
-        <div class="cart-info">
-            <div class="cart-items" id="cartItems">0 productos</div>
-            <div class="cart-total" id="cartTotal">Gs. 0</div>
-        </div>
-        <button class="cart-btn" id="viewCartBtn" disabled>Ver Pedido</button>
-    </div>
-    <div class="modal" id="cartModal">
-        <div class="modal-content">
-            <div class="modal-header">Resumen del Pedido</div>
-            <div id="cartItemsList"></div>
-            
-            <div class="total-section" id="totalSection" style="display:none;"></div>
-            
-            <div class="form-group">
-                <label>💰 Tipo de Pago:</label>
-                <select id="tipoPago">
-                    <option value="contado">Contado</option>
-                    <option value="credito">Crédito</option>
-                </select>
-            </div>
-            
-            <div class="form-group">
-                <label>🎁 Descuento (%):</label>
-                <div class="discount-row">
-                    <input type="number" id="descuento" value="0" min="0" max="100" placeholder="0">
-                    <button onclick="aplicarDescuento()">Aplicar</button>
-                </div>
-            </div>
-            
-            <div class="form-group">
-                <label>📝 Notas/Observaciones:</label>
-                <textarea id="notasPedido" placeholder="Ej: Entregar después de las 3pm, cliente pidió factura, etc."></textarea>
-            </div>
-            
-            <div class="modal-actions">
-                <button class="modal-btn btn-cancel" onclick="closeCartModal()">Cancelar</button>
-                <button class="modal-btn btn-confirm" onclick="confirmarPedido()">Confirmar Pedido</button>
-            </div>
-        </div>
-    </div>
-    <!-- Modal Detalles del Producto -->
-    <div class="product-detail-modal" id="productDetailModal">
-        <div class="product-detail-content">
-            <div class="product-detail-header">
-                <div class="product-detail-image" id="detailImage">📦</div>
-                <button class="close-detail" onclick="cerrarDetalleProducto()">×</button>
-            </div>
-            <div class="product-detail-body">
-                <div class="product-detail-title" id="detailTitle"></div>
-                <div class="product-detail-category" id="detailCategory"></div>
-                
-                <div class="product-detail-info" id="detailInfo"></div>
-                
-                <div id="detailSuggestions" class="product-suggestions" style="display:none;"></div>
-                
-                <button class="btn-confirm" style="width:100%;padding:14px;margin-top:15px;" onclick="cerrarDetalleProducto()">Cerrar</button>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Modal Cliente Rápido -->
-    <div class="modal" id="clienteRapidoModal">
-        <div class="modal-content" style="max-width:600px;">
-            <div class="modal-header">👤 Datos del Cliente</div>
-            <p style="color:#6b7280;font-size:14px;margin-bottom:15px;">No has seleccionado un cliente. Completa la información:</p>
-            
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;">
-                <div class="form-group" style="grid-column:1/-1;">
-                    <label>Razón Social / Nombre Comercial *</label>
-                    <input type="text" id="clienteRapidoRazon" placeholder="Ej: Supermercado Central S.A." style="width:100%;padding:10px;border:2px solid #e5e7eb;border-radius:8px;">
-                </div>
-                
-                <div class="form-group">
-                    <label>RUC *</label>
-                    <input type="text" id="clienteRapidoRUC" placeholder="Ej: 80012345-6" style="width:100%;padding:10px;border:2px solid #e5e7eb;border-radius:8px;">
-                </div>
-                
-                <div class="form-group">
-                    <label>Teléfono *</label>
-                    <input type="tel" id="clienteRapidoTelefono" placeholder="Ej: 0981234567" style="width:100%;padding:10px;border:2px solid #e5e7eb;border-radius:8px;">
-                </div>
-                
-                <div class="form-group" style="grid-column:1/-1;">
-                    <label>Dirección *</label>
-                    <input type="text" id="clienteRapidoDireccion" placeholder="Ej: Av. Central 1234, Loma Plata" style="width:100%;padding:10px;border:2px solid #e5e7eb;border-radius:8px;">
-                </div>
-                
-                <div class="form-group" style="grid-column:1/-1;">
-                    <label>Nombre del Encargado (opcional)</label>
-                    <input type="text" id="clienteRapidoEncargado" placeholder="Ej: Juan Pérez" style="width:100%;padding:10px;border:2px solid #e5e7eb;border-radius:8px;">
-                </div>
-            </div>
-            
-            <div style="background:#f9fafb;padding:12px;border-radius:8px;margin:15px 0;">
-                <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer;">
-                    <input type="checkbox" id="guardarClienteCheck" checked>
-                    <span>Guardar este cliente en el sistema para próximos pedidos</span>
-                </label>
-            </div>
-            
-            <div class="modal-actions">
-                <button class="modal-btn btn-cancel" onclick="cerrarClienteRapido()">Cancelar</button>
-                <button class="modal-btn btn-confirm" onclick="confirmarConClienteRapido()">Continuar con Pedido</button>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Botón Modo Oscuro con menú -->
-    <button class="dark-mode-toggle" onclick="toggleDarkMode()" oncontextmenu="mostrarMenuOpciones(event)" title="Modo Oscuro (mantén presionado para más opciones)">🌙</button>
-    
-    <!-- Menú de opciones -->
-    <div id="optionsMenu" style="display:none;position:fixed;bottom:110px;right:20px;background:white;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.3);padding:10px;z-index:100;min-width:200px;">
-        <div style="padding:10px;border-bottom:1px solid #e5e7eb;font-weight:600;font-size:14px;">Opciones</div>
-        <button onclick="forzarActualizacion()" style="width:100%;text-align:left;padding:12px;border:none;background:none;cursor:pointer;font-size:14px;border-radius:6px;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='none'">
-            🔄 Forzar Actualización
+
+    <main class="px-4 space-y-4 pb-10" id="productsContainer">
+        <div class="text-center text-gray-500 mt-10">Cargando catálogo...</div>
+    </main>
+
+    <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-6 py-3 flex justify-between items-center z-50 shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
+        <button onclick="window.scrollTo(0,0)" class="flex flex-col items-center gap-1 text-gray-900">
+            <i data-lucide="home" class="w-6 h-6"></i>
+            <span class="text-[10px] font-bold">Inicio</span>
         </button>
-        <button onclick="limpiarTodoElCache()" style="width:100%;text-align:left;padding:12px;border:none;background:none;cursor:pointer;font-size:14px;border-radius:6px;color:#ef4444;" onmouseover="this.style.background='#fee2e2'" onmouseout="this.style.background='none'">
-            🗑️ Limpiar Caché
+        
+        <button onclick="mostrarModalCarrito()" id="viewCartBtn" class="relative -mt-12 bg-[#111827] text-white p-4 rounded-full shadow-xl border-4 border-gray-100 disabled:opacity-50 disabled:bg-gray-400">
+            <i data-lucide="shopping-cart" class="w-6 h-6"></i>
+            <span id="cartItems" class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center border-2 border-white">0</span>
         </button>
-        <button onclick="cerrarMenuOpciones()" style="width:100%;text-align:left;padding:12px;border:none;background:none;cursor:pointer;font-size:14px;border-radius:6px;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='none'">
-            ❌ Cerrar
+
+        <button onclick="location.reload()" class="flex flex-col items-center gap-1 text-gray-400">
+            <i data-lucide="refresh-ccw" class="w-6 h-6"></i>
+            <span class="text-[10px] font-bold">Actualizar</span>
         </button>
+    </nav>
+
+    <div id="cartModal" class="fixed inset-0 bg-black/50 z-[100] hidden flex items-end">
+        <div class="bg-white w-full rounded-t-3xl max-h-[90vh] overflow-y-auto p-6 shadow-2xl pb-20">
+            <div class="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-6"></div>
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-bold">Tu Pedido</h3>
+                <button onclick="closeCartModal()" class="text-gray-400"><i data-lucide="x"></i></button>
+            </div>
+            
+            <div id="cartItemsList" class="space-y-4 mb-6">
+                </div>
+
+            <div id="totalSection" class="border-t border-gray-100 pt-4 space-y-3 mb-6 hidden">
+                </div>
+
+            <div class="space-y-4">
+                <div class="bg-gray-50 p-4 rounded-xl">
+                    <label class="block text-xs font-bold text-gray-500 mb-2">TIPO DE PAGO</label>
+                    <select id="tipoPago" class="w-full bg-white border border-gray-300 rounded-lg p-2 outline-none">
+                        <option value="contado">Al Contado</option>
+                        <option value="credito">A Crédito</option>
+                    </select>
+                </div>
+                
+                <div class="bg-gray-50 p-4 rounded-xl">
+                    <label class="block text-xs font-bold text-gray-500 mb-2">DESCUENTO (%)</label>
+                    <div class="flex gap-2">
+                        <input type="number" id="descuento" value="0" min="0" max="100" class="flex-1 bg-white border border-gray-300 rounded-lg p-2 outline-none">
+                        <button onclick="aplicarDescuento()" class="bg-blue-600 text-white px-4 rounded-lg font-bold">Aplicar</button>
+                    </div>
+                </div>
+
+                <div class="bg-gray-50 p-4 rounded-xl">
+                    <label class="block text-xs font-bold text-gray-500 mb-2">NOTAS / OBSERVACIONES</label>
+                    <textarea id="notasPedido" rows="2" class="w-full bg-white border border-gray-300 rounded-lg p-2 outline-none text-sm" placeholder="Ej. Entregar de tarde..."></textarea>
+                </div>
+            </div>
+
+            <div class="mt-8 flex gap-3">
+                <button onclick="closeCartModal()" class="flex-1 bg-gray-100 text-gray-700 py-4 rounded-xl font-bold">Volver</button>
+                <button onclick="confirmarPedido()" class="flex-1 bg-[#111827] text-white py-4 rounded-xl font-bold shadow-lg">Confirmar</button>
+            </div>
+        </div>
     </div>
-    
+
+    <script>
+        lucide.createIcons();
+    </script>
     <script src="app.js"></script>
 </body>
 </html>

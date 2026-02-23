@@ -111,7 +111,6 @@ function inicializarEventListeners() {
             if (clienteId) {
                 clienteActual = clientes.find(c => c.id === clienteId);
                 document.getElementById('searchInput').disabled = false;
-                // Actualizar UI
                 document.getElementById('btnSeleccionarCliente').classList.replace('bg-gray-800', 'bg-blue-600');
                 document.getElementById('btnSeleccionarCliente').classList.replace('border-gray-700', 'border-blue-500');
                 carrito = [];
@@ -247,7 +246,6 @@ function cambiarCantidadVariante(productoId, presentacion, precio, cambio, nombr
     }
     
     actualizarCarrito();
-    // Re-renderizar solo la tarjeta afectada para no perder el scroll
     const tarjetaNueva = crearTarjetaProducto(productos.find(p => p.id === productoId));
     document.getElementById(`product-${productoId}`).replaceWith(tarjetaNueva);
 }
@@ -266,7 +264,6 @@ function actualizarCarrito() {
     const badge = document.getElementById('cartItems');
     if(badge) {
         badge.textContent = cantidad;
-        // Animación simple
         badge.style.transform = 'scale(1.3)';
         setTimeout(() => badge.style.transform = 'scale(1)', 200);
     }
@@ -345,21 +342,20 @@ function editarCantidadCarrito(index, cambio) {
         actualizarCarrito();
         if (carrito.length === 0) {
             closeCartModal();
-            mostrarProductos(); // Re-renderizar para quitar los controles de cantidad
+            mostrarProductos(); 
         } else {
-            mostrarModalCarrito(); // Recargar modal
+            mostrarModalCarrito(); 
         }
     }
 }
 
 function closeCartModal() {
     document.getElementById('cartModal').classList.add('hidden');
-    mostrarProductos(); // Refrescar vista principal por si cambiaron cantidades
+    mostrarProductos(); 
 }
 
 async function confirmarPedido() {
-    if (carrito.length === 0) return;
-    if (!clienteActual) return;
+    if (carrito.length === 0 || !clienteActual) return;
     
     const tipoPago = document.getElementById('tipoPago').value;
     const descuento = descuentoAplicado;
@@ -412,7 +408,6 @@ async function confirmarPedido() {
     
     mostrarExito(`Pedido Guardado`);
     
-    // Resetear todo
     carrito = [];
     descuentoAplicado = 0;
     document.getElementById('descuento').value = 0;
@@ -466,4 +461,60 @@ function actualizarEstadoConexion() {
 async function sincronizarPedidosPendientes() {
     const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
     const pendientes = pedidos.filter(p => !p.sincronizado);
-    for (
+    for (const pedido of pendientes) {
+        try {
+            await enviarAGoogleSheets(pedido);
+            pedido.sincronizado = true;
+        } catch (error) {}
+    }
+    localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
+    actualizarEstadoConexion();
+}
+
+function mostrarExito(msg) {
+    const el = document.getElementById('successMessage');
+    if (el) {
+        el.textContent = '✓ ' + msg;
+        el.classList.add('show');
+        setTimeout(() => el.classList.remove('show'), 3000);
+    }
+}
+
+function toggleDarkMode() {
+    document.body.classList.toggle('dark-mode');
+    localStorage.setItem('dark_mode', document.body.classList.contains('dark-mode'));
+}
+
+async function registrarServiceWorker() {
+    if ('serviceWorker' in navigator) {
+        try {
+            // Ya no forzamos la recarga automática. Solo registramos.
+            const registration = await navigator.serviceWorker.register('service-worker.js');
+            registration.addEventListener('updatefound', () => {
+                const newWorker = registration.installing;
+                newWorker.addEventListener('statechange', () => {
+                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                        alert('🔄 ¡Nueva versión disponible! Pulsa el botón "Forzar" arriba para aplicarla.');
+                    }
+                });
+            });
+        } catch (e) { console.log('SW error:', e); }
+    }
+}
+
+function forzarActualizacion() {
+    if (confirm('¿Forzar actualización completa? (Esto limpiará el caché y traerá la última versión)')) {
+        (async () => {
+            if ('caches' in window) {
+                const cacheNames = await caches.keys();
+                await Promise.all(cacheNames.map(name => caches.delete(name)));
+            }
+            if ('serviceWorker' in navigator) {
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                for (let reg of registrations) await reg.unregister();
+            }
+            // Recargar saltando el caché
+            window.location.href = window.location.href.split('?')[0] + '?t=' + new Date().getTime();
+        })();
+    }
+}

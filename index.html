@@ -17,25 +17,20 @@
         
         body { background-color: #f3f4f6; -webkit-tap-highlight-color: transparent; }
         
-        /* Personalización para Modo Oscuro actual */
+        /* Modo Oscuro */
         .dark-mode { background-color: var(--grafito-oscuro) !important; color: white; }
         .dark-mode .bg-white { background-color: var(--grafito) !important; color: white; border-color: #374151; }
         .dark-mode .text-gray-800 { color: #f3f4f6 !important; }
         .dark-mode .text-gray-500 { color: #9ca3af !important; }
 
-        /* Estilo para el Badge del carrito */
-        #cart-count {
-            animation: bounce 0.3s ease;
-        }
+        #cart-count { animation: bounce 0.3s ease; }
         @keyframes bounce {
             0%, 100% { transform: scale(1); }
             50% { transform: scale(1.2); }
         }
 
-        /* Ocultar scrollbar */
         .no-scrollbar::-webkit-scrollbar { display: none; }
         
-        /* Success Message */
         .success-message {
             position: fixed; top: 80px; left: 50%; transform: translateX(-50%);
             background: #10b981; color: white; padding: 10px 20px; border-radius: 20px;
@@ -56,12 +51,12 @@
                 </div>
             </div>
             <div class="flex gap-3">
-                <button onclick="forzarActualizacion()" class="p-2 bg-gray-800 rounded-full text-xs text-gray-300">🔄 Forzar</button>
+                <button onclick="forzarActualizacion()" class="p-2 bg-gray-800 rounded-full text-xs text-gray-300 font-bold">🔄 Forzar</button>
                 <button onclick="toggleDarkMode()" class="p-2 bg-gray-800 rounded-full dark-mode-toggle">🌙</button>
             </div>
         </div>
         
-        <div class="bg-gray-800 rounded-xl p-3 flex items-center justify-between border border-gray-700" id="btnSeleccionarCliente">
+        <div class="bg-gray-800 rounded-xl p-3 flex items-center justify-between border border-gray-700 transition-colors" id="btnSeleccionarCliente">
             <div class="flex items-center w-full">
                 <i data-lucide="user" class="w-4 h-4 mr-3 text-gray-400"></i>
                 <div class="w-full relative" id="clienteSelectContainer">
@@ -89,7 +84,7 @@
     </div>
 
     <main class="px-4 space-y-4 pb-10" id="productsContainer">
-        <div class="text-center text-gray-500 mt-10">Cargando catálogo...</div>
+        <div class="text-center text-gray-500 mt-10 font-bold">Cargando catálogo...</div>
     </main>
 
     <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-6 py-3 flex justify-between items-center z-50 shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
@@ -113,20 +108,17 @@
         <div class="bg-white w-full rounded-t-3xl max-h-[90vh] overflow-y-auto p-6 shadow-2xl pb-20">
             <div class="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-6"></div>
             <div class="flex justify-between items-center mb-6">
-                <h3 class="text-xl font-bold">Tu Pedido</h3>
-                <button onclick="closeCartModal()" class="text-gray-400"><i data-lucide="x"></i></button>
+                <h3 class="text-xl font-bold text-gray-900">Tu Pedido</h3>
+                <button onclick="closeCartModal()" class="text-gray-400 p-2"><i data-lucide="x"></i></button>
             </div>
             
-            <div id="cartItemsList" class="space-y-4 mb-6">
-                </div>
-
-            <div id="totalSection" class="border-t border-gray-100 pt-4 space-y-3 mb-6 hidden">
-                </div>
+            <div id="cartItemsList" class="space-y-4 mb-6"></div>
+            <div id="totalSection" class="border-t border-gray-100 pt-4 space-y-3 mb-6 hidden"></div>
 
             <div class="space-y-4">
                 <div class="bg-gray-50 p-4 rounded-xl">
                     <label class="block text-xs font-bold text-gray-500 mb-2">TIPO DE PAGO</label>
-                    <select id="tipoPago" class="w-full bg-white border border-gray-300 rounded-lg p-2 outline-none">
+                    <select id="tipoPago" class="w-full bg-white border border-gray-300 rounded-lg p-2 outline-none font-medium">
                         <option value="contado">Al Contado</option>
                         <option value="credito">A Crédito</option>
                     </select>
@@ -135,7 +127,7 @@
                 <div class="bg-gray-50 p-4 rounded-xl">
                     <label class="block text-xs font-bold text-gray-500 mb-2">DESCUENTO (%)</label>
                     <div class="flex gap-2">
-                        <input type="number" id="descuento" value="0" min="0" max="100" class="flex-1 bg-white border border-gray-300 rounded-lg p-2 outline-none">
+                        <input type="number" id="descuento" value="0" min="0" max="100" class="flex-1 bg-white border border-gray-300 rounded-lg p-2 outline-none font-bold">
                         <button onclick="aplicarDescuento()" class="bg-blue-600 text-white px-4 rounded-lg font-bold">Aplicar</button>
                     </div>
                 </div>
@@ -153,9 +145,7 @@
         </div>
     </div>
 
-    <script>
-        lucide.createIcons();
-    </script>
+    <script>lucide.createIcons();</script>
     <script src="app.js"></script>
 </body>
 </html>

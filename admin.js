@@ -1,18 +1,12 @@
-// HDV Admin v2.8 - Updated 2026-02-23
-// CON SISTEMA DE FOTOS + EDICIÓN POR LOTES
-// Variables globales
 let todosLosPedidos = [];
 let productosData = { productos: [], categorias: [], clientes: [] };
-let productosDataOriginal = null; // Copia para descartar cambios
+let productosDataOriginal = null; 
 let productosFiltrados = [];
 let clientesFiltrados = [];
 let clienteActualPrecios = null;
 let tipoReporte = 'zona';
 let cambiosSinGuardar = 0;
 
-// ============================================
-// SISTEMA DE CAMBIOS SIN GUARDAR
-// ============================================
 function registrarCambio() {
     cambiosSinGuardar++;
     actualizarBarraCambios();
@@ -33,14 +27,7 @@ function guardarTodosCambios() {
     descargarJSON(productosData, 'productos.json');
     cambiosSinGuardar = 0;
     actualizarBarraCambios();
-    // Actualizar copia original
     productosDataOriginal = JSON.parse(JSON.stringify(productosData));
-    // Mostrar confirmación
-    const successIds = ['successProductos', 'successClientes', 'successPrecios'];
-    successIds.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) { el.style.display = 'block'; setTimeout(() => el.style.display = 'none', 3000); }
-    });
 }
 
 function descartarCambios() {
@@ -51,77 +38,38 @@ function descartarCambios() {
     cambiosSinGuardar = 0;
     actualizarBarraCambios();
     mostrarProductosGestion();
-    mostrarClientesGestion();
 }
 
-// Advertir al salir con cambios sin guardar
 window.addEventListener('beforeunload', (e) => {
-    if (cambiosSinGuardar > 0) {
-        e.preventDefault();
-        e.returnValue = '';
-    }
+    if (cambiosSinGuardar > 0) { e.preventDefault(); e.returnValue = ''; }
 });
 
-// ============================================
-// INICIALIZACIÓN
-// ============================================
 document.addEventListener('DOMContentLoaded', async () => {
     await cargarDatosIniciales();
     cargarPedidos();
     setInterval(cargarPedidos, 30000);
-    document.getElementById('filtroFecha').valueAsDate = new Date();
-    
-    const hoy = new Date();
-    const hace30 = new Date(hoy.getTime() - 30 * 24 * 60 * 60 * 1000);
-    const reporteFechaHasta = document.getElementById('reporteFechaHasta');
-    const reporteFechaDesde = document.getElementById('reporteFechaDesde');
-    if(reporteFechaHasta) reporteFechaHasta.valueAsDate = hoy;
-    if(reporteFechaDesde) reporteFechaDesde.valueAsDate = hace30;
+    if(document.getElementById('filtroFecha')) document.getElementById('filtroFecha').valueAsDate = new Date();
 });
 
 async function cargarDatosIniciales() {
     try {
         const response = await fetch('productos.json');
         productosData = await response.json();
-        productosDataOriginal = JSON.parse(JSON.stringify(productosData)); // Copia para descartar
+        productosDataOriginal = JSON.parse(JSON.stringify(productosData));
         productosFiltrados = [...productosData.productos];
         
         const filterCliente = document.getElementById('filtroCliente');
-        const filterZona = document.getElementById('filterZona');
-        const preciosCliente = document.getElementById('preciosCliente');
-        const nuevoCategoria = document.getElementById('nuevoCategoria');
         
         productosData.clientes.forEach(c => {
             const opt1 = document.createElement('option');
             opt1.value = c.id;
             opt1.textContent = `${c.nombre} — ${c.zona}`;
             if(filterCliente) filterCliente.appendChild(opt1.cloneNode(true));
-            if(preciosCliente) preciosCliente.appendChild(opt1);
         });
         
-        const zonas = [...new Set(productosData.clientes.map(c => c.zona))];
-        zonas.forEach(z => {
-            const opt = document.createElement('option');
-            opt.value = z;
-            opt.textContent = z;
-            if(filterZona) filterZona.appendChild(opt);
-        });
-        
-        productosData.categorias.forEach(c => {
-            const opt = document.createElement('option');
-            opt.value = c.id;
-            opt.textContent = c.nombre;
-            if(nuevoCategoria) nuevoCategoria.appendChild(opt);
-        });
-    } catch (error) {
-        console.error('Error:', error);
-    }
+    } catch (error) { console.error('Error:', error); }
 }
 
-
-// ============================================
-// SECCIÓN PEDIDOS
-// ============================================
 function cargarPedidos() {
     todosLosPedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
     aplicarFiltrosPedidos();
@@ -130,8 +78,6 @@ function cargarPedidos() {
 function aplicarFiltrosPedidos() {
     const fecha = document.getElementById('filtroFecha')?.value;
     const cliente = document.getElementById('filtroCliente')?.value;
-    const zona = document.getElementById('filterZona')?.value;
-    const estado = document.getElementById('filterEstado')?.value;
     
     let filtrados = todosLosPedidos;
     
@@ -142,29 +88,16 @@ function aplicarFiltrosPedidos() {
         });
     }
     if (cliente) filtrados = filtrados.filter(p => p.cliente.id === cliente);
-    if (zona) {
-        const clientesZona = productosData.clientes.filter(c => c.zona === zona).map(c => c.id);
-        filtrados = filtrados.filter(p => clientesZona.includes(p.cliente.id));
-    }
-    if (estado) filtrados = filtrados.filter(p => (p.estado || 'pendiente') === estado);
     
     mostrarPedidos(filtrados);
     actualizarEstadisticasPedidos(filtrados);
-}
-
-function limpiarFiltrosPedidos() {
-    if(document.getElementById('filtroFecha')) document.getElementById('filtroFecha').valueAsDate = new Date();
-    if(document.getElementById('filtroCliente')) document.getElementById('filtroCliente').value = '';
-    if(document.getElementById('filterZona')) document.getElementById('filterZona').value = '';
-    if(document.getElementById('filterEstado')) document.getElementById('filterEstado').value = '';
-    aplicarFiltrosPedidos();
 }
 
 function mostrarPedidos(pedidos) {
     const container = document.getElementById('listaPedidos');
     if (!container) return;
     if (pedidos.length === 0) {
-        container.innerHTML = '<div class="p-8 text-center"><div style="font-size:48px;margin-bottom:15px;">📦</div><p class="text-gray-500">No hay pedidos para esta fecha</p></div>';
+        container.innerHTML = '<div class="p-8 text-center"><div style="font-size:48px;margin-bottom:15px;">📦</div><p class="text-gray-500">No hay pedidos</p></div>';
         return;
     }
     
@@ -175,7 +108,6 @@ function mostrarPedidos(pedidos) {
         const estado = p.estado || 'pendiente';
         const clienteInfo = productosData.clientes.find(c => c.id === p.cliente.id);
         const zona = clienteInfo?.zona || '';
-        
         let colorEstado = estado === 'entregado' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800';
         
         const div = document.createElement('div');
@@ -226,21 +158,13 @@ function actualizarEstadisticasPedidos(pedidos) {
 function marcarEntregado(id) {
     const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
     const p = pedidos.find(x => x.id === id);
-    if (p) {
-        p.estado = 'entregado';
-        localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
-        cargarPedidos();
-    }
+    if (p) { p.estado = 'entregado'; localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos)); cargarPedidos(); }
 }
 
 function marcarPendiente(id) {
     const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
     const p = pedidos.find(x => x.id === id);
-    if (p) {
-        p.estado = 'pendiente';
-        localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
-        cargarPedidos();
-    }
+    if (p) { p.estado = 'pendiente'; localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos)); cargarPedidos(); }
 }
 
 function eliminarPedido(id) {
@@ -251,25 +175,6 @@ function eliminarPedido(id) {
     cargarPedidos();
 }
 
-function exportarExcelPedidos() {
-    const fecha = document.getElementById('filtroFecha')?.value || '';
-    let csv = 'Fecha,Cliente,Zona,Producto,Presentacion,Cantidad,Precio Unit,Subtotal,Total,Estado\n';
-    
-    todosLosPedidos.forEach(p => {
-        const c = productosData.clientes.find(x => x.id === p.cliente.id);
-        const zona = c?.zona || '';
-        const estado = p.estado || 'pendiente';
-        p.items.forEach((i, idx) => {
-            csv += `"${p.fecha}","${p.cliente.nombre}","${zona}","${i.nombre}","${i.presentacion}",${i.cantidad},${i.precio_unitario},${i.subtotal},${idx === 0 ? p.total : ''},${estado}\n`;
-        });
-    });
-    
-    descargarCSV(csv, `pedidos_${fecha || 'todos'}.csv`);
-}
-
-// ============================================
-// SECCIÓN GESTIONAR PRODUCTOS
-// ============================================
 function filtrarProductos() {
     const filtro = document.getElementById('buscarProducto')?.value.toLowerCase() || '';
     const mostrarOcultos = document.getElementById('mostrarOcultosProductos')?.checked || false;
@@ -288,7 +193,6 @@ function mostrarProductosGestion() {
     tbody.innerHTML = '';
     
     productosFiltrados.forEach(prod => {
-        const catNombre = productosData.categorias.find(c => c.id === prod.categoria)?.nombre || '';
         const presHTML = prod.presentaciones.map((p, i) => `
             <div class="flex items-center gap-2 mb-2">
                 <input type="text" value="${p.tamano}" onchange="actualizarPresentacion('${prod.id}', ${i}, 'tamano', this.value)" class="w-24 px-2 py-1 text-xs border border-gray-300 rounded" placeholder="Tamaño">
@@ -298,7 +202,7 @@ function mostrarProductosGestion() {
         `).join('');
         
         const imgHTML = prod.imagen 
-            ? `<img src="${prod.imagen}" class="w-12 h-12 object-cover rounded shadow-sm cursor-pointer" onclick="editarImagenProducto('${prod.id}')" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" title="Click para cambiar">
+            ? `<img src="${prod.imagen}" class="w-12 h-12 object-cover rounded shadow-sm cursor-pointer" onclick="editarImagenProducto('${prod.id}')" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
                <div class="w-12 h-12 bg-gray-100 rounded flex items-center justify-center cursor-pointer text-gray-400 hidden" onclick="editarImagenProducto('${prod.id}')">📷</div>`
             : `<div class="w-12 h-12 bg-gray-100 rounded flex items-center justify-center cursor-pointer text-gray-400" onclick="editarImagenProducto('${prod.id}')">📷</div>`;
         
@@ -320,7 +224,7 @@ function mostrarProductosGestion() {
                 <button onclick="agregarPresentacion('${prod.id}')" class="text-xs text-blue-600 hover:text-blue-800 font-bold mt-1">+ Agregar Presentación</button>
             </td>
             <td class="px-6 py-4 flex gap-2">
-                <button onclick="toggleOcultarProducto('${prod.id}')" class="p-2 rounded hover:bg-gray-200 text-gray-600" title="${estaOculto ? 'Mostrar' : 'Ocultar'}">${estaOculto ? '👁️' : '🙈'}</button>
+                <button onclick="toggleOcultarProducto('${prod.id}')" class="p-2 rounded hover:bg-gray-200 text-gray-600">${estaOculto ? '👁️' : '🙈'}</button>
                 <button onclick="eliminarProducto('${prod.id}')" class="p-2 rounded hover:bg-red-100 text-red-600">🗑️</button>
             </td>
         `;
@@ -345,15 +249,9 @@ function actualizarPresentacion(id, idx, campo, valor) {
 function editarImagenProducto(id) {
     const prod = productosData.productos.find(p => p.id === id);
     if (!prod) return;
-    
     const urlActual = prod.imagen || '';
-    const nuevaURL = prompt(
-        `📷 Imagen para: ${prod.nombre}\n\nPega la URL de la imagen (o déjalo vacío para quitar):`,
-        urlActual
-    );
-    
+    const nuevaURL = prompt(`📷 Imagen para: ${prod.nombre}\n\nPega la URL de la imagen (o déjalo vacío para quitar):`, urlActual);
     if (nuevaURL === null) return; 
-    
     prod.imagen = nuevaURL.trim() || undefined;
     if (!nuevaURL.trim()) delete prod.imagen;
     registrarCambio();
@@ -366,18 +264,12 @@ function eliminarPresentacion(id, idx) {
         p.presentaciones.splice(idx, 1);
         registrarCambio();
         mostrarProductosGestion();
-    } else {
-        alert('El producto debe tener al menos una presentación');
-    }
+    } else { alert('El producto debe tener al menos una presentación'); }
 }
 
 function agregarPresentacion(id) {
     const p = productosData.productos.find(x => x.id === id);
-    if (p) {
-        p.presentaciones.push({ tamano: '', precio_base: 0 });
-        registrarCambio();
-        mostrarProductosGestion();
-    }
+    if (p) { p.presentaciones.push({ tamano: '', precio_base: 0 }); registrarCambio(); mostrarProductosGestion(); }
 }
 
 function eliminarProducto(id) {
@@ -400,36 +292,25 @@ function cerrarModalProducto() {
 
 function agregarNuevoProducto() {
     const nombre = document.getElementById('nuevoProductoNombre')?.value;
-    
-    if (!nombre) {
-        alert('Por favor ingresa un nombre para el producto');
-        return;
-    }
+    if (!nombre) { alert('Por favor ingresa un nombre para el producto'); return; }
     
     const ultimoId = productosData.productos.length > 0 ? 
         parseInt(productosData.productos[productosData.productos.length - 1].id.replace('P', '')) : 0;
     const nuevoId = `P${String(ultimoId + 1).padStart(3, '0')}`;
     
-    const nuevoProducto = {
+    productosData.productos.push({
         id: nuevoId,
         nombre: nombre,
-        categoria: "cuidado_personal", // Default, luego se edita
+        categoria: "cuidado_personal",
         subcategoria: "General",
         presentaciones: [{tamano: "Unidad", precio_base: 0}]
-    };
-    
-    productosData.productos.push(nuevoProducto);
+    });
     productosFiltrados = [...productosData.productos];
     registrarCambio();
     mostrarProductosGestion();
     cerrarModalProducto();
-    
     if(document.getElementById('nuevoProductoNombre')) document.getElementById('nuevoProductoNombre').value = '';
 }
-
-// ============================================
-// UTILIDADES, HERRAMIENTAS Y EXTRAS
-// ============================================
 
 function limpiarPedidos() {
     if (!confirm('¿ELIMINAR TODOS LOS PEDIDOS? Esta acción no se puede deshacer.')) return;
@@ -459,18 +340,5 @@ function descargarCSV(contenido, nombreArchivo) {
 
 function toggleOcultarProducto(id) {
     const prod = productosData.productos.find(p => p.id === id);
-    if (prod) {
-        prod.oculto = !prod.oculto;
-        registrarCambio();
-        mostrarProductosGestion();
-    }
-}
-
-function toggleOcultarCliente(id) {
-    const cliente = productosData.clientes.find(c => c.id === id);
-    if (cliente) {
-        cliente.oculto = !cliente.oculto;
-        registrarCambio();
-        // mostrarClientesGestion(); // Descomentar si implementas la tabla de clientes en este JS
-    }
+    if (prod) { prod.oculto = !prod.oculto; registrarCambio(); mostrarProductosGestion(); }
 }

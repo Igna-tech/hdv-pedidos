@@ -3,677 +3,246 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel Admin - HDV</title>
+    <title>Panel Admin - HDV Distribuciones</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f3f4f6; }
-        .header { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); color: white; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); position: sticky; top: 0; z-index: 100; }
-        .header h1 { font-size: 24px; margin-bottom: 5px; }
-        
-        /* Tabs principales */
-        .main-tabs { background: white; border-bottom: 2px solid #e5e7eb; padding: 0 20px; display: flex; gap: 5px; overflow-x: auto; }
-        .main-tab { padding: 15px 24px; background: none; border: none; font-size: 15px; font-weight: 600; color: #6b7280; cursor: pointer; border-bottom: 3px solid transparent; white-space: nowrap; }
-        .main-tab.active { color: #2563eb; border-bottom-color: #2563eb; }
-        .main-tab:hover { color: #2563eb; background: #f9fafb; }
-        
-        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+        :root {
+            --grafito-oscuro: #111827;
+            --grafito-medio: #1f2937;
+            --grafito-claro: #374151;
+        }
+        body { background-color: #f9fafb; }
+        .sidebar { background-color: var(--grafito-oscuro); transition: all 0.3s; }
+        .nav-item:hover { background-color: var(--grafito-claro); }
+        .nav-item.active { background-color: var(--grafito-medio); border-left: 4px solid #ffffff; }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
         
-        .card { background: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        .card h2 { font-size: 18px; margin-bottom: 15px; color: #111827; }
-        
-        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 30px; }
-        .stat-card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        .stat-label { font-size: 14px; color: #6b7280; margin-bottom: 5px; }
-        .stat-value { font-size: 32px; font-weight: 700; color: #111827; }
-        .stat-value.money { color: #2563eb; }
-        
-        .btn { padding: 12px 24px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
-        .btn-primary { background: #2563eb; color: white; }
-        .btn-primary:hover { background: #1d4ed8; }
-        .btn-success { background: #10b981; color: white; }
-        .btn-danger { background: #ef4444; color: white; }
-        .btn-secondary { background: #e5e7eb; color: #374151; }
-        
-        .filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
-        .filter-group label { display: block; font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 5px; }
-        .filter-group select, .filter-group input { width: 100%; padding: 10px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; }
-        
-        .tabla { width: 100%; border-collapse: collapse; }
-        .tabla th { background: #f3f4f6; padding: 12px; text-align: left; font-size: 14px; font-weight: 600; color: #374151; position: sticky; top: 0; }
-        .tabla td { padding: 12px; border-bottom: 1px solid #e5e7eb; font-size: 14px; }
-        .tabla tr:hover { background: #f9fafb; }
-        .tabla input, .tabla select { width: 100%; padding: 8px; border: 2px solid #e5e7eb; border-radius: 6px; font-size: 14px; }
-        
-        .pedido-card { border-bottom: 1px solid #e5e7eb; padding: 20px; }
-        .pedido-card:hover { background: #f9fafb; }
-        .pedido-header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px; flex-wrap: wrap; gap: 10px; }
-        .pedido-status { padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
-        .status-pendiente { background: #fef3c7; color: #92400e; }
-        .status-entregado { background: #d1fae5; color: #065f46; }
-        
-        .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
-        .modal.show { display: flex; }
-        .modal-content { background: white; border-radius: 16px; padding: 24px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; }
-        .modal-header { font-size: 20px; font-weight: 700; margin-bottom: 20px; }
-        .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
-        
-        .success { background: #d1fae5; color: #065f46; padding: 12px; border-radius: 8px; margin-bottom: 20px; text-align: center; display: none; }
-        .empty-state { text-align: center; padding: 60px 20px; color: #6b7280; }
-        .loading { text-align: center; padding: 40px; }
-        .spinner { border: 3px solid #f3f4f6; border-top: 3px solid #2563eb; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        
-        @media (max-width: 768px) {
-            .pedido-header { flex-direction: column; }
-            .filters { grid-template-columns: 1fr; }
+        /* Estilos para la barra de cambios sin guardar */
+        .unsaved-bar {
+            position: fixed; bottom: -100px; left: 50%; transform: translateX(-50%);
+            background: var(--grafito-oscuro); color: white; padding: 1rem 2rem;
+            border-radius: 1rem; display: flex; align-items: center; gap: 2rem;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3); transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 1000; width: 90%; max-width: 600px;
         }
-        
-        /* Layout con Sidebar */
-        .admin-layout { display: flex; height: 100vh; overflow: hidden; }
-        .sidebar { width: 280px; background: #1e293b; color: white; display: flex; flex-direction: column; transition: transform 0.3s; z-index: 1000; }
-        .sidebar.collapsed { transform: translateX(-280px); }
-        .sidebar-header { padding: 20px; border-bottom: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; }
-        .sidebar-header h2 { margin: 0; font-size: 20px; font-weight: 700; }
-        .sidebar-toggle { background: none; border: none; color: white; font-size: 24px; cursor: pointer; padding: 5px; }
-        .sidebar-menu { flex: 1; overflow-y: auto; padding: 10px 0; }
-        .sidebar-footer { padding: 15px; border-top: 1px solid #334155; }
-        /* Barra de cambios sin guardar */
-        .unsaved-bar { position: fixed; bottom: 0; left: 0; right: 0; background: linear-gradient(135deg, #f59e0b, #d97706); color: white; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; z-index: 1000; transform: translateY(100%); transition: transform 0.3s ease; box-shadow: 0 -4px 12px rgba(0,0,0,0.2); }
-        .unsaved-bar.visible { transform: translateY(0); }
-        .unsaved-bar .unsaved-info { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 15px; }
-        .unsaved-bar .unsaved-badge { background: white; color: #d97706; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px; }
-        .unsaved-bar .unsaved-actions { display: flex; gap: 10px; }
-        .unsaved-bar .btn-save { background: white; color: #d97706; border: none; padding: 10px 24px; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 14px; }
-        .unsaved-bar .btn-save:hover { background: #fef3c7; }
-        .unsaved-bar .btn-discard { background: transparent; color: white; border: 2px solid white; padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 14px; }
-        .unsaved-bar .btn-discard:hover { background: rgba(255,255,255,0.15); }
-        
-        /* Thumbnails de productos */
-        .img-thumb { width: 48px; height: 48px; object-fit: contain; border-radius: 6px; background: #f9fafb; border: 2px solid #e5e7eb; }
-        .img-thumb-placeholder { width: 48px; height: 48px; border-radius: 6px; background: #f3f4f6; border: 2px dashed #d1d5db; display: flex; align-items: center; justify-content: center; font-size: 20px; color: #9ca3af; cursor: pointer; }
-        .img-input-group { display: flex; align-items: center; gap: 8px; }
-        .img-url-input { flex: 1; padding: 6px 8px; border: 2px solid #e5e7eb; border-radius: 6px; font-size: 12px; min-width: 150px; }
-        
-        .menu-section { margin-bottom: 10px; }
-        .menu-section-title { padding: 12px 20px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #94a3b8; cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none; }
-        .menu-section-title:hover { background: #334155; }
-        .menu-arrow { transition: transform 0.3s; }
-        .menu-section.collapsed .menu-arrow { transform: rotate(-90deg); }
-        .menu-section.collapsed .menu-items { display: none; }
-        .menu-items { padding: 5px 0; }
-        .menu-item { width: 100%; padding: 12px 20px; background: none; border: none; color: #cbd5e1; text-align: left; cursor: pointer; display: flex; align-items: center; gap: 12px; font-size: 14px; transition: all 0.2s; border-left: 3px solid transparent; }
-        .menu-item:hover { background: #334155; color: white; }
-        .menu-item.active { background: #3b82f6; color: white; border-left-color: #60a5fa; }
-        .menu-icon { font-size: 18px; width: 24px; text-align: center; }
-        .menu-label { flex: 1; }
-        .main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: #f8fafc; }
-        .mobile-menu-btn { display: none; background: none; border: none; color: white; font-size: 24px; cursor: pointer; padding: 5px; }
-        .container { flex: 1; overflow-y: auto; padding: 30px; }
-        @media (max-width: 768px) {
-            .sidebar { position: fixed; left: 0; top: 0; bottom: 0; transform: translateX(-280px); box-shadow: 2px 0 10px rgba(0,0,0,0.3); }
-            .sidebar.open { transform: translateX(0); }
-            .mobile-menu-btn { display: block; }
-        }
+        .unsaved-bar.visible { bottom: 20px; }
     </style>
-<body>
-    <div class="admin-layout">
-        <!-- Sidebar -->
-        <div class="sidebar" id="sidebar">
-            <div class="sidebar-header">
-                <h2>HDV Admin</h2>
-                <button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
-            </div>
-            
-            <div class="sidebar-menu">
-                <!-- DATOS -->
-                <div class="menu-section">
-                    <div class="menu-section-title" onclick="toggleMenuSection(this)">
-                        <span>📊 DATOS</span>
-                        <span class="menu-arrow">▼</span>
-                    </div>
-                    <div class="menu-items">
-                        <button class="menu-item active" onclick="cambiarSeccion('pedidos')">
-                            <span class="menu-icon">📦</span>
-                            <span class="menu-label">Pedidos</span>
-                        </button>
-                        <button class="menu-item" onclick="cambiarSeccion('creditos')">
-                            <span class="menu-icon">💳</span>
-                            <span class="menu-label">Créditos</span>
-                        </button>
-                        <button class="menu-item" onclick="cambiarSeccion('reportes')">
-                            <span class="menu-icon">📈</span>
-                            <span class="menu-label">Reportes</span>
-                        </button>
-                        <button class="menu-item" onclick="cambiarSeccion('stock')">
-                            <span class="menu-icon">📊</span>
-                            <span class="menu-label">Stock/Inventario</span>
-                        </button>
-                    </div>
-                </div>
-                
-                <!-- GESTIÓN -->
-                <div class="menu-section">
-                    <div class="menu-section-title" onclick="toggleMenuSection(this)">
-                        <span>⚙️ GESTIÓN</span>
-                        <span class="menu-arrow">▼</span>
-                    </div>
-                    <div class="menu-items">
-                        <button class="menu-item" onclick="cambiarSeccion('productos')">
-                            <span class="menu-icon">🏷️</span>
-                            <span class="menu-label">Gestionar Productos</span>
-                        </button>
-                        <button class="menu-item" onclick="cambiarSeccion('clientes')">
-                            <span class="menu-icon">👥</span>
-                            <span class="menu-label">Gestionar Clientes</span>
-                        </button>
-                        <button class="menu-item" onclick="cambiarSeccion('precios')">
-                            <span class="menu-icon">💰</span>
-                            <span class="menu-label">Precios por Cliente</span>
-                        </button>
-                    </div>
-                </div>
-                
-                <!-- OPCIONES -->
-                <div class="menu-section">
-                    <div class="menu-section-title" onclick="toggleMenuSection(this)">
-                        <span>🛠️ OPCIONES</span>
-                        <span class="menu-arrow">▼</span>
-                    </div>
-                    <div class="menu-items">
-                        <button class="menu-item" onclick="cambiarSeccion('herramientas')">
-                            <span class="menu-icon">🔧</span>
-                            <span class="menu-label">Herramientas</span>
-                        </button>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="sidebar-footer">
-                <div style="font-size:12px;color:#94a3b8;">Versión 2.7</div>
-            </div>
+</head>
+<body class="flex h-screen overflow-hidden text-gray-800">
+
+    <aside id="sidebar" class="sidebar w-64 flex-shrink-0 flex flex-col text-white shadow-2xl">
+        <div class="p-6 border-b border-gray-700">
+            <h1 class="text-xl font-bold tracking-tight">HDV Admin</h1>
+            <p class="text-xs text-gray-400 mt-1">Gestión de Negocio</p>
         </div>
         
-        <!-- Main Content -->
-        <div class="main-content" id="mainContent">
-            <div class="header">
-                <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
-                <div>
-                    <h1>Panel de Administración</h1>
-                    <div class="subtitle">HDV Distribuciones</div>
-                </div>
-                <button id="updateButton" style="display:none;padding:8px 16px;background:#10b981;color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;animation:pulse 2s infinite;" onclick="actualizarAhora()">
-                    🔄 Nueva versión
+        <nav class="flex-1 overflow-y-auto py-4">
+            <div class="px-4 mb-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Datos</div>
+            <button onclick="cambiarSeccion('pedidos')" class="menu-item nav-item w-full flex items-center px-6 py-3 text-sm transition-colors active">
+                <i data-lucide="package" class="w-4 h-4 mr-3 text-gray-400"></i> Pedidos
+            </button>
+            <button onclick="cambiarSeccion('creditos')" class="menu-item nav-item w-full flex items-center px-6 py-3 text-sm transition-colors">
+                <i data-lucide="credit-card" class="w-4 h-4 mr-3 text-gray-400"></i> Créditos
+            </button>
+            <button onclick="cambiarSeccion('reportes')" class="menu-item nav-item w-full flex items-center px-6 py-3 text-sm transition-colors">
+                <i data-lucide="bar-chart-3" class="w-4 h-4 mr-3 text-gray-400"></i> Reportes
+            </button>
+            <button onclick="cambiarSeccion('stock')" class="menu-item nav-item w-full flex items-center px-6 py-3 text-sm transition-colors">
+                <i data-lucide="database" class="w-4 h-4 mr-3 text-gray-400"></i> Stock
+            </button>
+
+            <div class="px-4 mt-6 mb-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Gestión</div>
+            <button onclick="cambiarSeccion('productos')" class="menu-item nav-item w-full flex items-center px-6 py-3 text-sm transition-colors">
+                <i data-lucide="tag" class="w-4 h-4 mr-3 text-gray-400"></i> Productos
+            </button>
+            <button onclick="cambiarSeccion('clientes')" class="menu-item nav-item w-full flex items-center px-6 py-3 text-sm transition-colors">
+                <i data-lucide="users" class="w-4 h-4 mr-3 text-gray-400"></i> Clientes
+            </button>
+            <button onclick="cambiarSeccion('precios')" class="menu-item nav-item w-full flex items-center px-6 py-3 text-sm transition-colors">
+                <i data-lucide="dollar-sign" class="w-4 h-4 mr-3 text-gray-400"></i> Precios/Cliente
+            </button>
+
+            <div class="px-4 mt-6 mb-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Opciones</div>
+            <button onclick="cambiarSeccion('herramientas')" class="menu-item nav-item w-full flex items-center px-6 py-3 text-sm transition-colors">
+                <i data-lucide="settings" class="w-4 h-4 mr-3 text-gray-400"></i> Herramientas
+            </button>
+        </nav>
+
+        <div class="p-4 border-t border-gray-700 text-center">
+            <span class="text-xs text-gray-500">Versión 2.8 - 2026</span>
+        </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col overflow-hidden">
+        <header class="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-8 shrink-0">
+            <h2 class="text-lg font-bold text-gray-800" id="currentSectionTitle">Panel de Administración</h2>
+            <div class="flex items-center gap-4">
+                <button onclick="location.reload()" class="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500" title="Actualizar">
+                    <i data-lucide="refresh-cw" class="w-5 h-5"></i>
                 </button>
+                <div class="h-8 w-px bg-gray-200"></div>
+                <span class="text-sm font-medium text-gray-600">HDV Distribuciones</span>
             </div>
-    
-    <div class="container">
+        </header>
 
-        <!-- SECCIÓN: PEDIDOS -->
-        <div id="seccion-pedidos" class="tab-content active">
-            <div class="stats">
-                <div class="stat-card">
-                    <div class="stat-label">Total Pedidos Hoy</div>
-                    <div class="stat-value" id="totalPedidos">0</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">Pendientes</div>
-                    <div class="stat-value" id="pedidosPendientes">0</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">Entregados</div>
-                    <div class="stat-value" id="pedidosEntregados">0</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">Total Gs.</div>
-                    <div class="stat-value money" id="totalGuaranies">0</div>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="filters">
-                    <div class="filter-group">
-                        <label>Fecha</label>
-                        <input type="date" id="filterFecha" />
-                    </div>
-                    <div class="filter-group">
-                        <label>Cliente</label>
-                        <select id="filterCliente"><option value="">Todos</option></select>
-                    </div>
-                    <div class="filter-group">
-                        <label>Zona</label>
-                        <select id="filterZona"><option value="">Todas</option></select>
-                    </div>
-                    <div class="filter-group">
-                        <label>Estado</label>
-                        <select id="filterEstado">
-                            <option value="">Todos</option>
-                            <option value="pendiente">Pendiente</option>
-                            <option value="entregado">Entregado</option>
-                        </select>
-                    </div>
-                </div>
-                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                    <button class="btn btn-primary" onclick="aplicarFiltrosPedidos()">Aplicar Filtros</button>
-                    <button class="btn btn-secondary" onclick="limpiarFiltrosPedidos()">Limpiar</button>
-                    <button class="btn btn-secondary" onclick="exportarPedidosExcel()" style="margin-left: auto;">📊 Exportar Excel</button>
-                </div>
-            </div>
-
-            <div class="card" id="pedidosList">
-                <div class="loading"><div class="spinner"></div><p style="margin-top: 15px;">Cargando pedidos...</p></div>
-            </div>
-        </div>
-
-        <!-- SECCIÓN: CRÉDITOS -->
-        <div id="seccion-creditos" class="tab-content">
-            <div class="stats">
-                <div class="stat-card">
-                    <div class="stat-label">Total Créditos Pendientes</div>
-                    <div class="stat-value money" id="totalCreditosPendientes">Gs. 0</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">Cantidad de Créditos</div>
-                    <div class="stat-value" id="cantidadCreditos">0</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">Clientes con Crédito</div>
-                    <div class="stat-value" id="clientesConCredito">0</div>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="filters">
-                    <div class="filter-group">
-                        <label>Cliente</label>
-                        <select id="filterClienteCredito"><option value="">Todos</option></select>
-                    </div>
-                    <div class="filter-group">
-                        <label>Estado</label>
-                        <select id="filterEstadoCredito">
-                            <option value="pendiente_pago">Pendiente Pago</option>
-                            <option value="pagado">Pagado</option>
-                            <option value="todos">Todos</option>
-                        </select>
-                    </div>
-                </div>
-                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                    <button class="btn btn-primary" onclick="aplicarFiltrosCreditos()">Aplicar Filtros</button>
-                    <button class="btn btn-secondary" onclick="exportarCreditosExcel()" style="margin-left: auto;">📊 Exportar Excel</button>
-                </div>
-            </div>
-
-            <div class="card" id="creditosList">
-                <div class="loading"><div class="spinner"></div><p style="margin-top: 15px;">Cargando créditos...</p></div>
-            </div>
-        </div>
-
-        <!-- SECCIÓN: STOCK/INVENTARIO -->
-        <div id="seccion-stock" class="tab-content">
-            <div class="success" id="successStock">✓ Stock actualizado</div>
+        <div class="flex-1 overflow-y-auto p-8">
             
-            <div class="card">
-                <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center;">
-                    <h2 style="margin:0;flex:1;">Control de Inventario</h2>
-                    <button class="btn btn-success" onclick="guardarStock()">💾 Guardar Stock</button>
-                    <button class="btn btn-secondary" onclick="exportarStockExcel()">📊 Exportar Excel</button>
+            <section id="seccion-pedidos" class="tab-content active space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                        <p class="text-sm text-gray-500 font-medium">Total Hoy</p>
+                        <p class="text-2xl font-bold mt-1" id="statTotalPedidos">0</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                        <p class="text-sm text-yellow-600 font-medium">Pendientes</p>
+                        <p class="text-2xl font-bold mt-1 text-yellow-700" id="statPendientes">0</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                        <p class="text-sm text-green-600 font-medium">Entregados</p>
+                        <p class="text-2xl font-bold mt-1 text-green-700" id="statEntregados">0</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                        <p class="text-sm text-blue-600 font-medium">Recaudación</p>
+                        <p class="text-2xl font-bold mt-1 text-blue-700" id="statRecaudacion">Gs. 0</p>
+                    </div>
                 </div>
-                <div style="margin-bottom:15px;">
-                    <input type="text" id="buscarStock" placeholder="🔍 Buscar productos..." oninput="filtrarStock()" style="width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px;">
-                </div>
-            </div>
 
-            <div class="card">
-                <div style="overflow-x:auto;">
-                    <table class="tabla">
-                        <thead>
+                <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-wrap gap-4 items-end">
+                    <div class="flex-1 min-w-[150px]">
+                        <label class="block text-xs font-bold text-gray-500 mb-1">FECHA</label>
+                        <input type="date" id="filtroFecha" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-gray-400 outline-none">
+                    </div>
+                    <div class="flex-1 min-w-[150px]">
+                        <label class="block text-xs font-bold text-gray-500 mb-1">CLIENTE</label>
+                        <select id="filtroCliente" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none"></select>
+                    </div>
+                    <button onclick="filtrarPedidos()" class="bg-gray-800 text-white px-6 py-2 rounded-lg text-sm font-semibold hover:bg-gray-700 transition-colors">
+                        Aplicar
+                    </button>
+                    <button onclick="exportarExcelPedidos()" class="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-50">
+                        Excel
+                    </button>
+                </div>
+
+                <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                    <div id="listaPedidos" class="divide-y divide-gray-100">
+                        <p class="p-8 text-center text-gray-400 italic">Cargando pedidos...</p>
+                    </div>
+                </div>
+            </section>
+
+            <section id="seccion-productos" class="tab-content space-y-6">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-xl font-bold">Gestión de Catálogo</h3>
+                    <div class="flex gap-2">
+                        <button onclick="abrirModalProducto()" class="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-700 flex items-center">
+                            <i data-lucide="plus" class="w-4 h-4 mr-2"></i> Nuevo Producto
+                        </button>
+                    </div>
+                </div>
+                <div id="gestionProductos" class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-x-auto">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-gray-50 border-b border-gray-200 text-gray-500 font-bold uppercase text-[11px] tracking-wider">
                             <tr>
-                                <th>Producto</th>
-                                <th>Presentación</th>
-                                <th>Stock Actual</th>
-                                <th>Stock Mínimo</th>
-                                <th>Estado</th>
-                                <th>Acciones</th>
+                                <th class="px-6 py-3">Imagen</th>
+                                <th class="px-6 py-3">Nombre</th>
+                                <th class="px-6 py-3">Categoría</th>
+                                <th class="px-6 py-3">Presentaciones/Precios</th>
+                                <th class="px-6 py-3">Acciones</th>
                             </tr>
                         </thead>
-                        <tbody id="stockBody"></tbody>
+                        <tbody id="tablaProductosCuerpo" class="divide-y divide-gray-100"></tbody>
                     </table>
                 </div>
-            </div>
-        </div>
+            </section>
 
-        <!-- SECCIÓN: REPORTES -->
-        <div id="seccion-reportes" class="tab-content">
-            <div class="card">
-                <h2 style="margin-bottom:15px;">Período de Análisis</h2>
-                <div class="filters">
-                    <div class="filter-group">
-                        <label>Desde:</label>
-                        <input type="date" id="reporteFechaDesde">
-                    </div>
-                    <div class="filter-group">
-                        <label>Hasta:</label>
-                        <input type="date" id="reporteFechaHasta">
-                    </div>
-                    <div class="filter-group">
-                        <label>Comparar con:</label>
-                        <select id="comparacionPeriodo">
-                            <option value="ninguno">Sin comparar</option>
-                            <option value="anterior">Período Anterior</option>
-                            <option value="mesanterior">Mes Anterior</option>
-                        </select>
-                    </div>
+            <section id="seccion-clientes" class="tab-content">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-xl font-bold text-gray-800">Directorio de Clientes</h3>
+                    <button onclick="abrirModalCliente()" class="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-bold">
+                        + Nuevo Cliente
+                    </button>
                 </div>
-                <div style="display: flex; gap: 10px; margin-top:15px; flex-wrap: wrap;">
-                    <button class="btn btn-primary" onclick="tipoReporte='zona';generarReporte()">Por Zona</button>
-                    <button class="btn btn-primary" onclick="tipoReporte='vendedor';generarReporte()">Por Vendedor</button>
-                    <button class="btn btn-primary" onclick="tipoReporte='producto';generarReporte()">Por Producto</button>
-                    <button class="btn btn-primary" onclick="tipoReporte='cliente';generarReporte()">Por Cliente</button>
-                    <button class="btn btn-success" onclick="tipoReporte='margen';generarReporte()">💰 Análisis Margen</button>
-                </div>
-            </div>
+                <div id="listaClientes" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+            </section>
             
-            <!-- Comparación de Períodos -->
-            <div class="card" id="comparacionCard" style="display:none;">
-                <h2>📊 Comparación de Períodos</h2>
-                <div class="stats" id="statsComparacion"></div>
-            </div>
-
-            <div class="card" id="statsReporte" style="display:none;">
-                <h2>Resumen General</h2>
-                <div class="stats">
-                    <div class="stat-card">
-                        <div class="stat-label">Total Ventas</div>
-                        <div class="stat-value money" id="rTotalVentas">Gs. 0</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-label">Total Pedidos</div>
-                        <div class="stat-value" id="rTotalPedidos">0</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-label">Ticket Promedio</div>
-                        <div class="stat-value money" id="rTicketPromedio">Gs. 0</div>
+            <section id="seccion-herramientas" class="tab-content">
+                <div class="max-w-2xl bg-white p-8 rounded-2xl border border-gray-200 shadow-sm">
+                    <h3 class="text-lg font-bold mb-4">Mantenimiento de Sistema</h3>
+                    <div class="space-y-4">
+                        <div class="p-4 border border-gray-100 rounded-lg flex items-center justify-between">
+                            <div>
+                                <p class="font-bold">Copia de Seguridad</p>
+                                <p class="text-sm text-gray-500">Descarga todos tus productos y clientes en un archivo .json</p>
+                            </div>
+                            <button onclick="descargarJSON(productosData, 'backup_hdv.json')" class="bg-gray-100 text-gray-800 px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-200">
+                                Descargar
+                            </button>
+                        </div>
                     </div>
                 </div>
-            </div>
-            
-            <!-- Gráfico -->
-            <div class="card" id="graficoReporte" style="display:none;">
-                <h2>Visualización</h2>
-                <canvas id="chartReporte" style="max-height: 400px;"></canvas>
-            </div>
+            </section>
 
-            <div class="card" id="resultadosReporte" style="display:none;">
-                <div style="display:flex;justify-content:space-between;margin-bottom:15px;flex-wrap:wrap;gap:10px;">
-                    <h2 id="tituloReporte">Reporte</h2>
-                    <button class="btn btn-primary" onclick="exportarReporteExcel()">📥 Exportar</button>
-                </div>
-                <div style="overflow-x:auto;">
-                    <table class="tabla" id="tablaReporte">
-                        <thead id="reporteHeader"></thead>
-                        <tbody id="reporteBody"></tbody>
-                    </table>
-                </div>
-            </div>
         </div>
+    </main>
 
-        <!-- SECCIÓN: PRECIOS POR CLIENTE -->
-        <div id="seccion-precios" class="tab-content">
-            <div class="success" id="successPrecios">✓ Precios guardados</div>
-            <div class="card">
-                <h2>Configurar Precios Personalizados</h2>
-                <div class="filter-group" style="max-width: 400px;">
-                    <label>Seleccionar Cliente:</label>
-                    <select id="preciosCliente" onchange="cargarPreciosCliente()">
-                        <option value="">-- Seleccione --</option>
-                    </select>
-                </div>
-            </div>
-
-            <div class="card" id="preciosCard" style="display:none;">
-                <div style="margin-bottom: 15px;">
-                    <input type="text" id="buscarProductoPrecio" placeholder="🔍 Buscar producto..." style="width: 100%; padding: 10px; border: 2px solid #e5e7eb; border-radius: 8px;">
-                </div>
-                <div style="overflow-x:auto;">
-                    <table class="tabla">
-                        <thead>
-                            <tr>
-                                <th>Producto</th>
-                                <th>Presentación</th>
-                                <th>Precio Base</th>
-                                <th>Precio Personalizado</th>
-                            </tr>
-                        </thead>
-                        <tbody id="preciosBody"></tbody>
-                    </table>
-                </div>
-                <div style="margin-top: 20px;">
-                    <button class="btn btn-success" onclick="guardarPreciosPersonalizados()">💾 Guardar y Descargar</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- SECCIÓN: GESTIONAR PRODUCTOS -->
-        <div id="seccion-productos" class="tab-content">
-            <div class="success" id="successProductos">✓ Productos guardados</div>
-            <div class="card">
-                <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
-                    <button class="btn btn-primary" onclick="mostrarModalNuevoProducto()">+ Nuevo Producto</button>
-                    <button class="btn btn-success" onclick="guardarProductos()">💾 Guardar y Descargar</button>
-                    <div style="flex:1;min-width:250px;">
-                        <input type="text" id="buscarProducto" placeholder="🔍 Buscar productos..." oninput="filtrarProductos()" style="width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px;">
-                        <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:14px;"><input type="checkbox" id="mostrarOcultosProductos" onchange="filtrarProductos()"> Mostrar productos ocultos</label>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card">
-                <div style="overflow-x:auto;">
-                    <table class="tabla">
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Imagen</th>
-                                <th>Producto</th>
-                                <th>Categoría</th>
-                                <th>Subcategoría</th>
-                                <th>Presentaciones</th>
-                                <th style="width:80px;">Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody id="productosBody"></tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <!-- SECCIÓN: GESTIONAR CLIENTES -->
-        <div id="seccion-clientes" class="tab-content">
-            <div class="success" id="successClientes">✓ Clientes guardados</div>
-            <div class="card">
-                <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
-                    <button class="btn btn-primary" onclick="mostrarModalNuevoCliente()">+ Nuevo Cliente</button>
-                    <button class="btn btn-success" onclick="guardarClientes()">💾 Guardar y Descargar</button>
-                    <div style="flex:1;min-width:250px;">
-                        <input type="text" id="buscarCliente" placeholder="🔍 Buscar clientes..." oninput="filtrarClientes()" style="width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px;">
-                        <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:14px;"><input type="checkbox" id="mostrarOcultosClientes" onchange="filtrarClientes()"> Mostrar clientes ocultos</label>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card">
-                <div style="overflow-x:auto;">
-                    <table class="tabla">
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Razón Social</th>
-                                <th>RUC</th>
-                                <th>Teléfono</th>
-                                <th>Dirección</th>
-                                <th>Encargado</th>
-                                <th>Precios</th>
-                                <th style="width:120px;">Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody id="clientesBody"></tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-        
-        <!-- SECCIÓN: HERRAMIENTAS -->
-        <div id="seccion-herramientas" class="tab-content">
-            <div class="success" id="successHerramientas">✓ Operación completada</div>
-            
-            <!-- Backup y Restaurar -->
-            <div class="card">
-                <h2>💾 Backup y Restauración</h2>
-                <p style="color:#6b7280;margin-bottom:20px;">Guarda una copia de seguridad de todos tus datos o restaura desde un backup anterior.</p>
-                <div style="display:flex;gap:10px;flex-wrap:wrap;">
-                    <button class="btn btn-success" onclick="crearBackup()">📥 Descargar Backup Completo</button>
-                    <button class="btn btn-primary" onclick="document.getElementById('restaurarFile').click()">📤 Restaurar desde Backup</button>
-                    <input type="file" id="restaurarFile" accept=".json" style="display:none;" onchange="restaurarBackup(event)">
-                </div>
-            </div>
-            
-            <!-- Importar Productos desde Excel -->
-            <div class="card">
-                <h2>📊 Importar Productos desde Excel</h2>
-                <p style="color:#6b7280;margin-bottom:15px;">Importa múltiples productos desde un archivo Excel (.xlsx o .csv)</p>
-                
-                <div style="background:#f9fafb;padding:15px;border-radius:8px;margin-bottom:15px;">
-                    <strong style="display:block;margin-bottom:10px;">Formato requerido (columnas):</strong>
-                    <code style="background:white;padding:10px;display:block;border-radius:4px;font-size:13px;">
-                        Nombre | Categoría | Subcategoría | Presentación | Precio
-                    </code>
-                    <p style="font-size:13px;color:#6b7280;margin-top:10px;">Ejemplo: Jabón Dove | cuidado_personal | Jabones | 125g | 5000</p>
-                </div>
-                
-                <div style="display:flex;gap:10px;flex-wrap:wrap;">
-                    <button class="btn btn-secondary" onclick="descargarPlantillaExcel()">📄 Descargar Plantilla</button>
-                    <button class="btn btn-primary" onclick="document.getElementById('importarFile').click()">📤 Importar Excel/CSV</button>
-            </div>
-
-                    <input type="file" id="importarFile" accept=".xlsx,.xls,.csv" style="display:none;" onchange="importarProductosExcel(event)">
-                </div>
-            </div>
-
-            <!-- Importar Clientes desde Excel -->
-            <div class="card">
-                <h2>👥 Importar Clientes Masivamente</h2>
-                <p style="color:#6b7280;margin-bottom:15px;">Importa múltiples clientes desde un archivo Excel (.xlsx o .csv)</p>
-                
-                <div style="background:#f9fafb;padding:15px;border-radius:8px;margin-bottom:15px;">
-                    <strong style="display:block;margin-bottom:10px;">Formato requerido (columnas):</strong>
-                    <code style="background:white;padding:10px;display:block;border-radius:4px;font-size:13px;">
-                        Razon Social | RUC | Telefono | Direccion | Encargado
-                    </code>
-                    <p style="font-size:13px;color:#6b7280;margin-top:10px;">Ejemplo: Supermercado Central S.A. | 80012345-6 | 0981234567 | Av. Central 1234, Loma Plata | Juan Pérez</p>
-                </div>
-                
-                <div style="display:flex;gap:10px;flex-wrap:wrap;">
-                    <button class="btn btn-secondary" onclick="descargarPlantillaClientes()">📄 Descargar Plantilla</button>
-                    <button class="btn btn-primary" onclick="document.getElementById('importarClientesFile').click()">📤 Importar Excel/CSV</button>
-                    <input type="file" id="importarClientesFile" accept=".xlsx,.xls,.csv" style="display:none;" onchange="importarClientesExcel(event)">
-                </div>
-            </div>
-            
-            <!-- Limpiar Datos -->
-            <div class="card">
-                <h2 style="color:#ef4444;">🗑️ Limpieza de Datos</h2>
-                <p style="color:#6b7280;margin-bottom:20px;">⚠️ Estas acciones son irreversibles. Crea un backup antes de continuar.</p>
-                <div style="display:flex;gap:10px;flex-wrap:wrap;">
-                    <button class="btn btn-danger" onclick="limpiarPedidos()">Borrar Todos los Pedidos</button>
-                    <button class="btn btn-danger" onclick="limpiarStockLocal()">Resetear Stock Local</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal Nuevo Producto -->
-    <div class="modal" id="modalNuevoProducto">
-        <div class="modal-content">
-            <div class="modal-header">Nuevo Producto</div>
-            <div class="filter-group">
-                <label>Nombre:</label>
-                <input type="text" id="nuevoNombre" placeholder="Ej: Jabón Dove">
-            </div>
-            <div class="filter-group">
-                <label>URL de Imagen (opcional):</label>
-                <input type="url" id="nuevoImagen" placeholder="https://ejemplo.com/imagen.jpg" oninput="previsualizarNuevaImagen(this.value)">
-                <div id="previewNuevaImagen" style="margin-top:8px;"></div>
-            </div>
-            <div class="filter-group">
-                <label>Categoría:</label>
-                <select id="nuevoCategoria"></select>
-            </div>
-            <div class="filter-group">
-                <label>Subcategoría:</label>
-                <input type="text" id="nuevoSubcategoria" placeholder="Ej: Jabones">
-            </div>
-            <div class="filter-group">
-                <label>Presentaciones (separadas por coma):</label>
-                <input type="text" id="nuevoPresentaciones" placeholder="Ej: 125g, 90g">
-            </div>
-            <div class="filter-group">
-                <label>Precio Base:</label>
-                <input type="number" id="nuevoPrecio" placeholder="1000">
-            </div>
-            <div class="modal-actions">
-                <button class="btn btn-secondary" onclick="cerrarModal()">Cancelar</button>
-                <button class="btn btn-primary" onclick="agregarNuevoProducto()">Agregar</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal Nuevo Cliente -->
-    <div class="modal" id="modalNuevoCliente">
-        <div class="modal-content" style="max-width:700px;">
-            <div class="modal-header">Nuevo Cliente</div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;">
-                <div class="filter-group" style="grid-column:1/-1;">
-                    <label>Razón Social / Nombre Comercial:</label>
-                    <input type="text" id="nuevoClienteRazon" placeholder="Ej: Supermercado Central S.A.">
-                </div>
-                <div class="filter-group">
-                    <label>RUC:</label>
-                    <input type="text" id="nuevoClienteRUC" placeholder="Ej: 80012345-6">
-                </div>
-                <div class="filter-group">
-                    <label>Teléfono:</label>
-                    <input type="tel" id="nuevoClienteTelefono" placeholder="Ej: 0981234567">
-                </div>
-                <div class="filter-group" style="grid-column:1/-1;">
-                    <label>Dirección:</label>
-                    <input type="text" id="nuevoClienteDireccion" placeholder="Ej: Av. Central 1234, Loma Plata">
-                </div>
-                <div class="filter-group" style="grid-column:1/-1;">
-                    <label>Nombre del Encargado (opcional):</label>
-                    <input type="text" id="nuevoClienteEncargado" placeholder="Ej: Juan Pérez">
-                </div>
-            </div>
-            <div class="modal-actions">
-                <button class="btn btn-secondary" onclick="cerrarModalCliente()">Cancelar</button>
-                <button class="btn btn-primary" onclick="agregarNuevoCliente()">Agregar</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Barra de cambios sin guardar -->
     <div class="unsaved-bar" id="unsavedBar">
-        <div class="unsaved-info">
-            <div class="unsaved-badge" id="unsavedCount">0</div>
-            <span>cambios sin guardar</span>
+        <div class="flex items-center gap-3">
+            <div class="bg-white text-gray-900 w-8 h-8 rounded-full flex items-center justify-center font-bold" id="unsavedCount">0</div>
+            <span class="font-medium">Cambios pendientes de guardar localmente</span>
         </div>
-        <div class="unsaved-actions">
-            <button class="btn-discard" onclick="descartarCambios()">Descartar</button>
-            <button class="btn-save" onclick="guardarTodosCambios()">💾 Guardar y Descargar</button>
+        <div class="flex gap-2">
+            <button class="px-4 py-2 text-sm font-bold text-gray-400 hover:text-white" onclick="descartarCambios()">Descartar</button>
+            <button class="bg-white text-gray-900 px-6 py-2 rounded-lg text-sm font-bold hover:bg-gray-100" onclick="guardarTodosCambios()">
+                💾 Guardar y Descargar JSON
+            </button>
+        </div>
+    </div>
+
+    <div id="modalProducto" class="fixed inset-0 bg-black/50 hidden z-[2000] flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden">
+            <div class="p-6 border-b border-gray-100">
+                <h3 class="text-xl font-bold text-gray-800">Configurar Producto</h3>
+            </div>
+            <div class="p-6 space-y-4" id="formProducto">
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-1">NOMBRE DEL PRODUCTO</label>
+                    <input type="text" id="nuevoProductoNombre" class="w-full border border-gray-300 rounded-lg px-4 py-2">
+                </div>
+                </div>
+            <div class="p-6 bg-gray-50 flex justify-end gap-3">
+                <button onclick="cerrarModalProducto()" class="px-4 py-2 text-gray-500 font-bold">Cancelar</button>
+                <button onclick="agregarNuevoProducto()" class="bg-gray-800 text-white px-6 py-2 rounded-lg font-bold">Guardar Producto</button>
+            </div>
         </div>
     </div>
 
     <script src="admin.js"></script>
+    <script>
+        // Inicializar iconos
+        lucide.createIcons();
+        
+        // Pequeño ajuste para actualizar el título en el header
+        const originalCambiarSeccion = cambiarSeccion;
+        cambiarSeccion = function(seccion) {
+            originalCambiarSeccion(seccion);
+            const titulos = {
+                'pedidos': 'Gestión de Pedidos',
+                'creditos': 'Control de Créditos',
+                'reportes': 'Análisis y Reportes',
+                'stock': 'Inventario en Tiempo Real',
+                'productos': 'Catálogo de Productos',
+                'clientes': 'Base de Datos de Clientes',
+                'precios': 'Configuración de Precios',
+                'herramientas': 'Sistema y Herramientas'
+            };
+            document.getElementById('currentSectionTitle').textContent = titulos[seccion] || 'Panel Admin';
+            lucide.createIcons(); // Re-renderizar iconos si es necesario
+        };
+    </script>
 </body>
 </html>

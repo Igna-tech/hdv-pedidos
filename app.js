@@ -55,7 +55,9 @@ function verificarVendedor() {
 
 async function cargarDatos() {
     try {
-        const response = await fetch('productos.json');
+        // Añadimos un parámetro de caché para forzar la descarga en cada carga para evitar el caché agresivo del navegador.
+        const timestamp = new Date().getTime();
+        const response = await fetch(`productos.json?t=${timestamp}`);
         const data = await response.json();
         productos = data.productos;
         clientes = data.clientes;
@@ -64,7 +66,8 @@ async function cargarDatos() {
         cargarCategorias();
         mostrarProductos(); // Mostrar productos desde el inicio
     } catch (error) {
-        document.getElementById('productsContainer').innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚠️</div>Error al cargar los datos</div>';
+        console.error('Error al cargar datos:', error);
+        document.getElementById('productsContainer').innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚠️</div>Error al cargar los datos. Verifica tu conexión.</div>';
     }
 }
 
@@ -114,7 +117,8 @@ function cargarClientes() {
         
         if (cliente) {
             clienteActual = cliente;
-            document.getElementById('searchInput').disabled = false;
+            const searchInputObj = document.getElementById('searchInput');
+            if(searchInputObj) searchInputObj.disabled = false;
             carrito = [];
             actualizarCarrito();
             mostrarProductos();
@@ -147,24 +151,35 @@ function cargarCategorias() {
 }
 
 function inicializarEventListeners() {
-    document.getElementById('clienteSelect').addEventListener('change', (e) => {
-        const clienteId = e.target.value;
-        if (clienteId) {
-            clienteActual = clientes.find(c => c.id === clienteId);
-            document.getElementById('searchInput').disabled = false;
-            carrito = [];
-            actualizarCarrito();
-            mostrarProductos();
-        } else {
-            clienteActual = null;
-            document.getElementById('searchInput').disabled = true;
-            document.getElementById('productsContainer').innerHTML = '<div class="empty-state"><div class="empty-state-icon">👤</div>Seleccione un cliente para comenzar</div>';
-        }
-    });
-    document.getElementById('searchInput').addEventListener('input', (e) => {
-        mostrarProductos(e.target.value.toLowerCase());
-    });
-    document.getElementById('viewCartBtn').addEventListener('click', mostrarModalCarrito);
+    const clienteSelectObj = document.getElementById('clienteSelect');
+    if(clienteSelectObj) {
+        clienteSelectObj.addEventListener('change', (e) => {
+            const clienteId = e.target.value;
+            if (clienteId) {
+                clienteActual = clientes.find(c => c.id === clienteId);
+                document.getElementById('searchInput').disabled = false;
+                carrito = [];
+                actualizarCarrito();
+                mostrarProductos();
+            } else {
+                clienteActual = null;
+                document.getElementById('searchInput').disabled = true;
+                document.getElementById('productsContainer').innerHTML = '<div class="empty-state"><div class="empty-state-icon">👤</div>Seleccione un cliente para comenzar</div>';
+            }
+        });
+    }
+
+    const searchInputObj = document.getElementById('searchInput');
+    if(searchInputObj) {
+        searchInputObj.addEventListener('input', (e) => {
+            mostrarProductos(e.target.value.toLowerCase());
+        });
+    }
+    
+    const viewCartBtnObj = document.getElementById('viewCartBtn');
+    if(viewCartBtnObj){
+        viewCartBtnObj.addEventListener('click', mostrarModalCarrito);
+    }
     window.addEventListener('online', actualizarEstadoConexion);
     window.addEventListener('offline', actualizarEstadoConexion);
 }
@@ -380,36 +395,37 @@ function cerrarMenuOpciones() {
 }
 
 function forzarActualizacion() {
-    if (confirm('¿Forzar recarga completa? Esto limpiará el caché y recargará la app.')) {
+    if (confirm('¿Forzar recarga completa? Esto limpiará el caché y recargará la app con la última versión de GitHub.')) {
         cerrarMenuOpciones();
         
-        // Limpiar caché
-        if ('caches' in window) {
-            caches.keys().then(names => {
-                names.forEach(name => caches.delete(name));
-            });
-        }
-        
-        // Desregistrar service worker
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.getRegistrations().then(registrations => {
-                registrations.forEach(reg => reg.unregister());
-            });
-        }
-        
-        // Limpiar localStorage de sync
-        const keysToKeep = ['vendedor_nombre', 'dark_mode'];
-        const allKeys = Object.keys(localStorage);
-        allKeys.forEach(key => {
-            if (!keysToKeep.includes(key)) {
-                // No borrar, solo marcar para re-sync
+        // Función asíncrona para limpiar TODO y recargar
+        (async () => {
+            try {
+                // 1. Limpiar todos los cachés del navegador
+                if ('caches' in window) {
+                    const cacheNames = await caches.keys();
+                    await Promise.all(cacheNames.map(name => caches.delete(name)));
+                    console.log('Todos los cachés eliminados.');
+                }
+                
+                // 2. Desregistrar el Service Worker
+                if ('serviceWorker' in navigator) {
+                    const registrations = await navigator.serviceWorker.getRegistrations();
+                    for (let registration of registrations) {
+                        await registration.unregister();
+                        console.log('Service Worker desregistrado.');
+                    }
+                }
+                
+                // 3. Forzar recarga ignorando el caché del navegador (bypassing cache)
+                window.location.href = window.location.href.split('?')[0] + '?t=' + new Date().getTime();
+                
+            } catch (error) {
+                console.error('Error durante la actualización forzada:', error);
+                // Fallback a recarga normal si algo falla
+                window.location.reload(true);
             }
-        });
-        
-        // Recargar forzado
-        setTimeout(() => {
-            window.location.reload(true);
-        }, 500);
+        })();
     }
 }
 
@@ -484,7 +500,8 @@ function seleccionarVariante(producto, index) {
             return;
         }
         carrito.push({ productoId: producto.id, nombre: producto.nombre, presentacion: pres.tamano, precio, cantidad: 1 });
-        document.getElementById(`qty-${producto.id}`).value = 1;
+        const qtyObj = document.getElementById(`qty-${producto.id}`);
+        if(qtyObj) qtyObj.value = 1;
         mostrarExito(`${producto.nombre} agregado al pedido`);
     }
     
@@ -493,7 +510,8 @@ function seleccionarVariante(producto, index) {
     document.getElementById(`sel-price-${producto.id}`).textContent = precio > 0 ? `Gs. ${precio.toLocaleString()}` : 'Sin precio cargado';
     
     if (idx >= 0) {
-        document.getElementById(`qty-${producto.id}`).value = carrito[idx].cantidad;
+        const qtyObj = document.getElementById(`qty-${producto.id}`);
+        if(qtyObj) qtyObj.value = carrito[idx].cantidad;
     }
     
     actualizarCarrito();
@@ -542,7 +560,8 @@ function actualizarCarrito() {
     const total = carrito.reduce((s, i) => s + i.precio * i.cantidad, 0);
     document.getElementById('cartItems').textContent = `${cantidad} producto${cantidad !== 1 ? 's' : ''}`;
     document.getElementById('cartTotal').textContent = `Gs. ${total.toLocaleString()}`;
-    document.getElementById('viewCartBtn').disabled = cantidad === 0;
+    const viewCartBtnObj = document.getElementById('viewCartBtn');
+    if(viewCartBtnObj) viewCartBtnObj.disabled = cantidad === 0;
 }
 
 function mostrarModalCarrito() {
@@ -791,7 +810,8 @@ async function procesarPedido() {
     // Si era cliente temporal, limpiar selección
     if (clienteActual.esTemporalNuevo) {
         clienteActual = null;
-        document.getElementById('clienteSelect').value = '';
+        const clienteSelectObj = document.getElementById('clienteSelect');
+        if(clienteSelectObj) clienteSelectObj.value = '';
     }
     
     actualizarCarrito();
@@ -859,6 +879,8 @@ async function enviarAGoogleSheets(pedido) {
 
 function actualizarEstadoConexion() {
     const badge = document.getElementById('statusBadge');
+    if (!badge) return;
+
     const pedidosPendientes = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]')
         .filter(p => !p.sincronizado).length;
     
@@ -899,15 +921,18 @@ async function sincronizarPedidosPendientes() {
 
 function mostrarExito(msg) {
     const el = document.getElementById('successMessage');
-    el.textContent = '✓ ' + msg;
-    el.classList.add('show');
-    setTimeout(() => el.classList.remove('show'), 3000);
+    if (el) {
+        el.textContent = '✓ ' + msg;
+        el.classList.add('show');
+        setTimeout(() => el.classList.remove('show'), 3000);
+    }
 }
 
 async function registrarServiceWorker() {
     if ('serviceWorker' in navigator) {
         try {
-            const registration = await navigator.serviceWorker.register('service-worker.js');
+            // Añadimos un timestamp para forzar al navegador a verificar el service worker
+            const registration = await navigator.serviceWorker.register(`service-worker.js?v=${new Date().getTime()}`);
             console.log('Service Worker registrado');
             
             // Detectar cuando hay una actualización disponible
@@ -921,10 +946,10 @@ async function registrarServiceWorker() {
                 });
             });
             
-            // Revisar updates cada 30 segundos
+            // Revisar updates más frecuentemente durante el desarrollo
             setInterval(() => {
                 registration.update();
-            }, 30000);
+            }, 10000); // Revisar cada 10 segundos
             
         } catch (e) {
             console.log('SW no disponible:', e);
@@ -955,16 +980,16 @@ function actualizarAhora() {
             }
         });
         
-        // Limpiar caché y recargar
+        // Limpiar caché y recargar agresivamente
         if ('caches' in window) {
             caches.keys().then(names => {
                 names.forEach(name => caches.delete(name));
             });
         }
         
-        // Esperar un momento y recargar
+        // Esperar un momento y recargar ignorando caché
         setTimeout(() => {
-            window.location.reload(true);
+            window.location.href = window.location.href.split('?')[0] + '?t=' + new Date().getTime();
         }, 500);
     }
 }
@@ -972,7 +997,7 @@ function actualizarAhora() {
 // Detectar cuando el SW se activa y recargar
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.addEventListener('controllerchange', () => {
-        window.location.reload();
+        window.location.href = window.location.href.split('?')[0] + '?t=' + new Date().getTime();
     });
 }
 
@@ -986,7 +1011,8 @@ function cambiarTab(tab) {
     document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
     
     event.target.classList.add('active');
-    document.getElementById(`tab-${tab}`).classList.add('active');
+    const tabElement = document.getElementById(`tab-${tab}`);
+    if (tabElement) tabElement.classList.add('active');
     
     if (tab === 'precios') {
         cargarListaPrecios();
@@ -1041,6 +1067,8 @@ function cargarListaPrecios() {
 
 function mostrarListaPrecios(termino = '') {
     const container = document.getElementById('preciosContainer');
+    if (!container) return;
+    
     let filtrados = productos;
     
     if (filtroCategoriaPrecio !== 'todas') {
@@ -1098,7 +1126,7 @@ function mostrarListaPrecios(termino = '') {
 // ============================================
 function toggleVendorSidebar() {
     const sidebar = document.getElementById('vendorSidebar');
-    sidebar.classList.toggle('open');
+    if(sidebar) sidebar.classList.toggle('open');
 }
 
 function cambiarVistaVendedor(vista) {
@@ -1106,7 +1134,10 @@ function cambiarVistaVendedor(vista) {
     document.querySelectorAll('.vendor-menu-item').forEach(item => item.classList.remove('active'));
     
     // Agregar active al item clickeado
-    event.target.closest('.vendor-menu-item')?.classList.add('active');
+    if (event && event.target) {
+        const closestItem = event.target.closest('.vendor-menu-item');
+        if (closestItem) closestItem.classList.add('active');
+    }
     
     // Cambiar contenido
     document.querySelectorAll('.vendor-view').forEach(v => v.classList.remove('active'));
@@ -1120,12 +1151,13 @@ function cambiarVistaVendedor(vista) {
         cargarListaPrecios();
     }
     if (vista === 'pedidos') {
-        cargarPedidosOffline();
+        if(typeof cargarPedidosOffline === 'function') cargarPedidosOffline();
     }
     
     // Cerrar sidebar en móvil
-    if (window.innerWidth < 768) {
-        document.getElementById('vendorSidebar').classList.remove('open');
+    const vendorSidebar = document.getElementById('vendorSidebar');
+    if (window.innerWidth < 768 && vendorSidebar) {
+        vendorSidebar.classList.remove('open');
     }
 }
 

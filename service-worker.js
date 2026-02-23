@@ -1,4 +1,4 @@
-const VERSION = '6.0'; // INCREMENTA ESTE NÚMERO CADA VEZ QUE ACTUALICES
+const VERSION = '6.1';
 const CACHE_NAME = `hdv-pedidos-v${VERSION}`;
 
 const urlsToCache = [
@@ -39,7 +39,6 @@ self.addEventListener('activate', event => {
     return self.clients.claim();
 });
 
-// Estrategia "Cache First" segura (Evita recargas infinitas)
 self.addEventListener('fetch', event => {
     event.respondWith(
         caches.match(event.request).then(cachedResponse => {

@@ -1,5 +1,6 @@
 let productos = [], clientes = [], categorias = [], clienteActual = null, carrito = [], filtroCategoria = 'todas';
 let historialCompras = {}; 
+let vistaActualVendedor = 'lista'; 
 
 document.addEventListener('DOMContentLoaded', async () => {
     verificarVendedor();
@@ -20,6 +21,14 @@ function cargarModoOscuro() {
     }
 }
 
+function toggleDarkMode() {
+    document.body.classList.toggle('dark-mode');
+    const isDark = document.body.classList.contains('dark-mode');
+    localStorage.setItem('dark_mode', isDark);
+    const btnToggle = document.querySelector('.dark-mode-toggle');
+    if(btnToggle) btnToggle.textContent = isDark ? '☀️' : '🌙';
+}
+
 function construirHistorialCompras() {
     const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
     historialCompras = {};
@@ -30,7 +39,7 @@ function construirHistorialCompras() {
         if (!historialCompras[clienteId]) historialCompras[clienteId] = {};
         
         pedido.items.forEach(item => {
-            const productoId = item.nombre;
+            const productoId = item.nombre; 
             if (!historialCompras[clienteId][productoId]) historialCompras[clienteId][productoId] = 0;
             historialCompras[clienteId][productoId] += item.cantidad;
         });
@@ -89,14 +98,14 @@ function cargarCategorias() {
     container.innerHTML = '';
     
     const btnTodas = document.createElement('button');
-    btnTodas.className = 'px-4 py-2 bg-gray-900 text-white rounded-full text-xs font-bold whitespace-nowrap transition-colors';
+    btnTodas.className = 'px-4 py-2 bg-gray-900 text-white rounded-full text-xs font-bold whitespace-nowrap transition-colors active category-btn';
     btnTodas.textContent = 'Todas';
     btnTodas.onclick = (e) => filtrarPorCategoria('todas', e.target);
     container.appendChild(btnTodas);
     
     categorias.forEach(cat => {
         const btn = document.createElement('button');
-        btn.className = 'px-4 py-2 bg-gray-200 text-gray-700 rounded-full text-xs font-bold whitespace-nowrap transition-colors';
+        btn.className = 'px-4 py-2 bg-gray-200 text-gray-700 rounded-full text-xs font-bold whitespace-nowrap transition-colors category-btn';
         btn.textContent = cat.nombre;
         btn.onclick = (e) => filtrarPorCategoria(cat.id, e.target);
         container.appendChild(btn);
@@ -115,7 +124,7 @@ function inicializarEventListeners() {
                 document.getElementById('btnSeleccionarCliente').classList.replace('border-gray-700', 'border-blue-500');
                 carrito = [];
                 actualizarCarrito();
-                mostrarProductos();
+                cambiarVistaVendedor('lista'); 
             } else {
                 clienteActual = null;
                 document.getElementById('searchInput').disabled = true;
@@ -141,15 +150,58 @@ function filtrarPorCategoria(categoriaId, btn) {
     filtroCategoria = categoriaId;
     const container = document.getElementById('categoryFilters');
     Array.from(container.children).forEach(b => {
-        b.className = 'px-4 py-2 bg-gray-200 text-gray-700 rounded-full text-xs font-bold whitespace-nowrap transition-colors';
+        b.className = 'px-4 py-2 bg-gray-200 text-gray-700 rounded-full text-xs font-bold whitespace-nowrap transition-colors category-btn';
     });
-    btn.className = 'px-4 py-2 bg-gray-900 text-white rounded-full text-xs font-bold whitespace-nowrap transition-colors';
+    btn.className = 'px-4 py-2 bg-gray-900 text-white rounded-full text-xs font-bold whitespace-nowrap transition-colors active category-btn';
     mostrarProductos();
 }
 
+// ============================================
+// NAVEGACIÓN ENTRE VISTAS
+// ============================================
+
+function cambiarVistaVendedor(vista) {
+    vistaActualVendedor = vista;
+    
+    const btnLista = document.getElementById('btn-tab-lista');
+    const btnPedidos = document.getElementById('btn-tab-pedidos');
+    
+    if(btnLista) {
+        btnLista.classList.toggle('text-gray-900', vista === 'lista');
+        btnLista.classList.toggle('text-gray-400', vista !== 'lista');
+    }
+    if(btnPedidos) {
+        btnPedidos.classList.toggle('text-gray-900', vista === 'pedidos');
+        btnPedidos.classList.toggle('text-gray-400', vista !== 'pedidos');
+    }
+    
+    const categoryFilters = document.getElementById('categoryFilters');
+    const searchDiv = document.getElementById('searchContainer'); 
+    
+    if (vista === 'lista') {
+        if(categoryFilters) categoryFilters.style.display = 'flex';
+        if(searchDiv) searchDiv.style.display = 'block';
+        mostrarProductos();
+    } else if (vista === 'pedidos') {
+        if(categoryFilters) categoryFilters.style.display = 'none';
+        if(searchDiv) searchDiv.style.display = 'none';
+        mostrarMisPedidos();
+    }
+    window.scrollTo(0,0);
+}
+
+// ============================================
+// MOSTRAR PRODUCTOS Y SUGERIDOS
+// ============================================
+
 function mostrarProductos(termino = '') {
     const container = document.getElementById('productsContainer');
-    if(!container) return;
+    if(!container || vistaActualVendedor !== 'lista') return;
+    
+    if (!clienteActual) {
+        container.innerHTML = '<div class="text-center py-10 text-gray-500 italic">👤 Seleccione un cliente para comenzar</div>';
+        return;
+    }
     
     let filtrados = productos.filter(p => !p.oculto);
     if (filtroCategoria !== 'todas') filtrados = filtrados.filter(p => p.categoria === filtroCategoria);
@@ -161,7 +213,43 @@ function mostrarProductos(termino = '') {
     }
     
     container.innerHTML = '';
+    
+    // Generar Sugeridos si aplica
+    if (clienteActual && historialCompras[clienteActual.id] && !termino && filtroCategoria === 'todas') {
+        const sugeridosHtml = generarSugeridosHTML();
+        if (sugeridosHtml) {
+            const sugeridosDiv = document.createElement('div');
+            sugeridosDiv.innerHTML = `<h3 class="font-bold text-gray-800 mb-3 mt-2 px-2">✨ Comprados Recientemente</h3>${sugeridosHtml}<h3 class="font-bold text-gray-800 mb-3 mt-6 px-2">📦 Catálogo</h3>`;
+            container.appendChild(sugeridosDiv);
+        }
+    }
+    
     filtrados.forEach(p => container.appendChild(crearTarjetaProducto(p)));
+}
+
+function generarSugeridosHTML() {
+    const compras = historialCompras[clienteActual.id];
+    const sugeridosNombres = Object.entries(compras)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(entry => entry[0]);
+        
+    if (sugeridosNombres.length === 0) return null;
+    
+    let html = '';
+    sugeridosNombres.forEach(nombre => {
+        const prod = productos.find(p => p.nombre === nombre);
+        if (prod) {
+            html += `<div class="bg-blue-50 border border-blue-100 rounded-xl p-3 mb-2 flex items-center gap-3">
+                        <div class="text-2xl">${obtenerEmojiProducto(prod)}</div>
+                        <div class="flex-1">
+                            <div class="font-bold text-sm text-gray-900">${prod.nombre}</div>
+                            <div class="text-xs text-blue-600">Comprado anteriormente</div>
+                        </div>
+                     </div>`;
+        }
+    });
+    return html;
 }
 
 function obtenerEmojiProducto(producto) {
@@ -256,6 +344,10 @@ function obtenerPrecio(productoId, pres) {
     if (custom) return custom.precio;
     return pres.precio_base;
 }
+
+// ============================================
+// CARRITO Y CÁLCULOS
+// ============================================
 
 function actualizarCarrito() {
     const cantidad = carrito.reduce((s, i) => s + i.cantidad, 0);
@@ -354,6 +446,10 @@ function closeCartModal() {
     mostrarProductos(); 
 }
 
+// ============================================
+// PROCESAMIENTO DE PEDIDOS Y WHATSAPP
+// ============================================
+
 async function confirmarPedido() {
     if (carrito.length === 0 || !clienteActual) return;
     
@@ -400,6 +496,7 @@ async function confirmarPedido() {
     pedidos.push(pedido);
     localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
     
+    construirHistorialCompras();
     await enviarAGoogleSheets(pedido);
     
     if (confirm('¿Deseas compartir este pedido por WhatsApp?')) {
@@ -432,6 +529,65 @@ function compartirPorWhatsApp(pedido) {
     window.open(`https://wa.me/?text=${encodeURIComponent(mensaje)}`, '_blank');
 }
 
+// ============================================
+// VISTA: MIS PEDIDOS 
+// ============================================
+
+function mostrarMisPedidos() {
+    const container = document.getElementById('productsContainer');
+    if (!container) return;
+    
+    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    
+    if (pedidos.length === 0) {
+        container.innerHTML = '<div class="text-center py-10 text-gray-500 italic">No tienes pedidos registrados aún</div>';
+        return;
+    }
+    
+    pedidos.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+    container.innerHTML = '<h2 class="text-lg font-bold text-gray-800 mb-4 px-2">Historial de Mis Pedidos</h2>';
+    
+    pedidos.forEach(p => {
+        const fecha = new Date(p.fecha).toLocaleString('es-PY', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+        const syncIcon = p.sincronizado ? '🟢' : '🔴';
+        const tipoPagoStr = p.tipo_pago === 'credito' ? 'Crédito' : 'Contado';
+        
+        const card = document.createElement('div');
+        card.className = 'bg-white rounded-xl p-4 shadow-sm border border-gray-100 mb-3';
+        card.innerHTML = `
+            <div class="flex justify-between items-start mb-2 border-b border-gray-50 pb-2">
+                <div>
+                    <div class="font-bold text-gray-900">${p.cliente.nombre}</div>
+                    <div class="text-xs text-gray-500">${fecha} • ${tipoPagoStr}</div>
+                </div>
+                <div class="text-right">
+                    <div class="font-bold text-blue-600">Gs. ${p.total.toLocaleString()}</div>
+                    <div class="text-[10px] text-gray-400" title="${p.sincronizado ? 'Sincronizado' : 'Pendiente de sincronizar'}">${syncIcon} Sync</div>
+                </div>
+            </div>
+            <div class="text-xs text-gray-600 line-clamp-2">
+                ${p.items.map(i => `${i.cantidad}x ${i.nombre}`).join(', ')}
+            </div>
+            <div class="mt-3 flex gap-2">
+                <button onclick="reimprimirWhatsApp('${p.id}')" class="flex-1 bg-green-50 text-green-700 font-bold text-xs py-2 rounded-lg border border-green-200">
+                    Compartir WA
+                </button>
+            </div>
+        `;
+        container.appendChild(card);
+    });
+}
+
+function reimprimirWhatsApp(pedidoId) {
+    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    const pedido = pedidos.find(p => p.id === pedidoId);
+    if (pedido) compartirPorWhatsApp(pedido);
+}
+
+// ============================================
+// SISTEMA OFFLINE Y SYNC
+// ============================================
+
 async function enviarAGoogleSheets(pedido) {
     const SHEET_URL = 'https://script.google.com/macros/s/AKfycbxowigrfPMtoVhSDklxpeSoIfaYxV56oHKB7oZYTGoGrShubG4BiLsOYW9FF4-eLij3/exec';
     try {
@@ -441,6 +597,7 @@ async function enviarAGoogleSheets(pedido) {
         if (pedidoLocal) {
             pedidoLocal.sincronizado = true;
             localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
+            if(vistaActualVendedor === 'pedidos') mostrarMisPedidos();
         }
     } catch (error) { console.error('Error sheets:', error); }
 }
@@ -480,15 +637,13 @@ function mostrarExito(msg) {
     }
 }
 
-function toggleDarkMode() {
-    document.body.classList.toggle('dark-mode');
-    localStorage.setItem('dark_mode', document.body.classList.contains('dark-mode'));
-}
+// ============================================
+// SERVICE WORKER Y ACTUALIZACIONES
+// ============================================
 
 async function registrarServiceWorker() {
     if ('serviceWorker' in navigator) {
         try {
-            // Ya no forzamos la recarga automática. Solo registramos.
             const registration = await navigator.serviceWorker.register('service-worker.js');
             registration.addEventListener('updatefound', () => {
                 const newWorker = registration.installing;
@@ -513,7 +668,6 @@ function forzarActualizacion() {
                 const registrations = await navigator.serviceWorker.getRegistrations();
                 for (let reg of registrations) await reg.unregister();
             }
-            // Recargar saltando el caché
             window.location.href = window.location.href.split('?')[0] + '?t=' + new Date().getTime();
         })();
     }

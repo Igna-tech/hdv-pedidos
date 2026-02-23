@@ -17,7 +17,6 @@
         
         body { background-color: #f3f4f6; -webkit-tap-highlight-color: transparent; }
         
-        /* Modo Oscuro */
         .dark-mode { background-color: var(--grafito-oscuro) !important; color: white; }
         .dark-mode .bg-white { background-color: var(--grafito) !important; color: white; border-color: #374151; }
         .dark-mode .text-gray-800 { color: #f3f4f6 !important; }
@@ -75,7 +74,7 @@
         <button class="px-4 py-2 bg-gray-900 text-white rounded-full text-xs font-bold whitespace-nowrap active category-btn">Todas</button>
     </div>
 
-    <div class="p-4">
+    <div class="p-4" id="searchContainer">
         <div class="relative">
             <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"></i>
             <input type="text" id="searchInput" placeholder="Buscar producto..." disabled
@@ -88,7 +87,7 @@
     </main>
 
     <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-6 py-3 flex justify-between items-center z-50 shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
-        <button onclick="window.scrollTo(0,0)" class="flex flex-col items-center gap-1 text-gray-900">
+        <button onclick="cambiarVistaVendedor('lista')" id="btn-tab-lista" class="flex flex-col items-center gap-1 text-gray-900 transition-colors">
             <i data-lucide="home" class="w-6 h-6"></i>
             <span class="text-[10px] font-bold">Inicio</span>
         </button>
@@ -98,9 +97,9 @@
             <span id="cartItems" class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center border-2 border-white">0</span>
         </button>
 
-        <button onclick="location.reload()" class="flex flex-col items-center gap-1 text-gray-400">
-            <i data-lucide="refresh-ccw" class="w-6 h-6"></i>
-            <span class="text-[10px] font-bold">Actualizar</span>
+        <button onclick="cambiarVistaVendedor('pedidos')" id="btn-tab-pedidos" class="flex flex-col items-center gap-1 text-gray-400 transition-colors">
+            <i data-lucide="file-text" class="w-6 h-6"></i>
+            <span class="text-[10px] font-bold">Mis Pedidos</span>
         </button>
     </nav>
 

@@ -9,19 +9,13 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     
     <style>
-        :root {
-            --grafito-oscuro: #111827;
-            --grafito-medio: #1f2937;
-            --grafito-claro: #374151;
-        }
+        :root { --grafito-oscuro: #111827; --grafito-medio: #1f2937; --grafito-claro: #374151; }
         body { background-color: #f9fafb; }
         .sidebar { background-color: var(--grafito-oscuro); transition: all 0.3s; }
         .nav-item:hover { background-color: var(--grafito-claro); }
         .nav-item.active { background-color: var(--grafito-medio); border-left: 4px solid #ffffff; }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
-        
-        /* Estilos para la barra de cambios sin guardar */
         .unsaved-bar {
             position: fixed; bottom: -100px; left: 50%; transform: translateX(-50%);
             background: var(--grafito-oscuro); color: white; padding: 1rem 2rem;
@@ -30,10 +24,13 @@
             z-index: 1000; width: 90%; max-width: 600px;
         }
         .unsaved-bar.visible { bottom: 20px; }
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 2000; display: none; align-items: center; justify-content: center; padding: 1rem; }
+        .modal-overlay.show { display: flex; }
     </style>
 </head>
 <body class="flex h-screen overflow-hidden text-gray-800">
 
+    <!-- SIDEBAR -->
     <aside id="sidebar" class="sidebar w-64 flex-shrink-0 flex flex-col text-white shadow-2xl">
         <div class="p-6 border-b border-gray-700">
             <h1 class="text-xl font-bold tracking-tight">HDV Admin</h1>
@@ -42,44 +39,45 @@
         
         <nav class="flex-1 overflow-y-auto py-4">
             <div class="px-4 mb-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Datos</div>
-            <button onclick="cambiarSeccion('pedidos')" class="menu-item nav-item w-full flex items-center px-6 py-3 text-sm transition-colors active">
+            <button onclick="cambiarSeccion('pedidos')" class="nav-item w-full flex items-center px-6 py-3 text-sm transition-colors active">
                 <i data-lucide="package" class="w-4 h-4 mr-3 text-gray-400"></i> Pedidos
             </button>
-            <button onclick="cambiarSeccion('creditos')" class="menu-item nav-item w-full flex items-center px-6 py-3 text-sm transition-colors">
+            <button onclick="cambiarSeccion('creditos')" class="nav-item w-full flex items-center px-6 py-3 text-sm transition-colors">
                 <i data-lucide="credit-card" class="w-4 h-4 mr-3 text-gray-400"></i> Créditos
             </button>
-            <button onclick="cambiarSeccion('reportes')" class="menu-item nav-item w-full flex items-center px-6 py-3 text-sm transition-colors">
+            <button onclick="cambiarSeccion('reportes')" class="nav-item w-full flex items-center px-6 py-3 text-sm transition-colors">
                 <i data-lucide="bar-chart-3" class="w-4 h-4 mr-3 text-gray-400"></i> Reportes
             </button>
-            <button onclick="cambiarSeccion('stock')" class="menu-item nav-item w-full flex items-center px-6 py-3 text-sm transition-colors">
+            <button onclick="cambiarSeccion('stock')" class="nav-item w-full flex items-center px-6 py-3 text-sm transition-colors">
                 <i data-lucide="database" class="w-4 h-4 mr-3 text-gray-400"></i> Stock
             </button>
 
             <div class="px-4 mt-6 mb-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Gestión</div>
-            <button onclick="cambiarSeccion('productos')" class="menu-item nav-item w-full flex items-center px-6 py-3 text-sm transition-colors">
+            <button onclick="cambiarSeccion('productos')" class="nav-item w-full flex items-center px-6 py-3 text-sm transition-colors">
                 <i data-lucide="tag" class="w-4 h-4 mr-3 text-gray-400"></i> Productos
             </button>
-            <button onclick="cambiarSeccion('clientes')" class="menu-item nav-item w-full flex items-center px-6 py-3 text-sm transition-colors">
+            <button onclick="cambiarSeccion('clientes')" class="nav-item w-full flex items-center px-6 py-3 text-sm transition-colors">
                 <i data-lucide="users" class="w-4 h-4 mr-3 text-gray-400"></i> Clientes
             </button>
-            <button onclick="cambiarSeccion('precios')" class="menu-item nav-item w-full flex items-center px-6 py-3 text-sm transition-colors">
+            <button onclick="cambiarSeccion('precios')" class="nav-item w-full flex items-center px-6 py-3 text-sm transition-colors">
                 <i data-lucide="dollar-sign" class="w-4 h-4 mr-3 text-gray-400"></i> Precios/Cliente
             </button>
 
             <div class="px-4 mt-6 mb-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Opciones</div>
-            <button onclick="cambiarSeccion('herramientas')" class="menu-item nav-item w-full flex items-center px-6 py-3 text-sm transition-colors">
+            <button onclick="cambiarSeccion('herramientas')" class="nav-item w-full flex items-center px-6 py-3 text-sm transition-colors">
                 <i data-lucide="settings" class="w-4 h-4 mr-3 text-gray-400"></i> Herramientas
             </button>
         </nav>
 
         <div class="p-4 border-t border-gray-700 text-center">
-            <span class="text-xs text-gray-500">Versión 2.8 - 2026</span>
+            <span class="text-xs text-gray-500">Versión 2.9 - 2026</span>
         </div>
     </aside>
 
+    <!-- MAIN CONTENT -->
     <main class="flex-1 flex flex-col overflow-hidden">
         <header class="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-8 shrink-0">
-            <h2 class="text-lg font-bold text-gray-800" id="currentSectionTitle">Panel de Administración</h2>
+            <h2 class="text-lg font-bold text-gray-800" id="currentSectionTitle">Gestión de Pedidos</h2>
             <div class="flex items-center gap-4">
                 <button onclick="location.reload()" class="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500" title="Actualizar">
                     <i data-lucide="refresh-cw" class="w-5 h-5"></i>
@@ -91,6 +89,7 @@
 
         <div class="flex-1 overflow-y-auto p-8">
             
+            <!-- PEDIDOS -->
             <section id="seccion-pedidos" class="tab-content active space-y-6">
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
@@ -114,18 +113,16 @@
                 <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-wrap gap-4 items-end">
                     <div class="flex-1 min-w-[150px]">
                         <label class="block text-xs font-bold text-gray-500 mb-1">FECHA</label>
-                        <input type="date" id="filtroFecha" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-gray-400 outline-none">
+                        <input type="date" id="filtroFecha" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none">
                     </div>
                     <div class="flex-1 min-w-[150px]">
                         <label class="block text-xs font-bold text-gray-500 mb-1">CLIENTE</label>
-                        <select id="filtroCliente" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none"></select>
+                        <select id="filtroCliente" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none">
+                            <option value="">Todos</option>
+                        </select>
                     </div>
-                    <button onclick="filtrarPedidos()" class="bg-gray-800 text-white px-6 py-2 rounded-lg text-sm font-semibold hover:bg-gray-700 transition-colors">
-                        Aplicar
-                    </button>
-                    <button onclick="exportarExcelPedidos()" class="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-50">
-                        Excel
-                    </button>
+                    <button onclick="filtrarPedidos()" class="bg-gray-800 text-white px-6 py-2 rounded-lg text-sm font-semibold hover:bg-gray-700">Aplicar</button>
+                    <button onclick="exportarExcelPedidos()" class="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-50">Excel</button>
                 </div>
 
                 <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
@@ -135,24 +132,98 @@
                 </div>
             </section>
 
-            <section id="seccion-productos" class="tab-content space-y-6">
-                <div class="flex justify-between items-center">
-                    <h3 class="text-xl font-bold">Gestión de Catálogo</h3>
-                    <div class="flex gap-2">
-                        <button onclick="abrirModalProducto()" class="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-700 flex items-center">
-                            <i data-lucide="plus" class="w-4 h-4 mr-2"></i> Nuevo Producto
-                        </button>
+            <!-- CRÉDITOS -->
+            <section id="seccion-creditos" class="tab-content space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                        <p class="text-sm text-gray-500">Total Créditos Activos</p>
+                        <p class="text-2xl font-bold mt-1 text-red-600" id="totalCreditos">Gs. 0</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                        <p class="text-sm text-gray-500">Clientes con Crédito</p>
+                        <p class="text-2xl font-bold mt-1" id="clientesConCredito">0</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                        <p class="text-sm text-gray-500">Pedidos a Crédito</p>
+                        <p class="text-2xl font-bold mt-1" id="pedidosCredito">0</p>
                     </div>
                 </div>
-                <div id="gestionProductos" class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-x-auto">
+                <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                    <div id="listaCreditos" class="divide-y divide-gray-100">
+                        <p class="p-8 text-center text-gray-400 italic">Sin créditos pendientes</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- REPORTES -->
+            <section id="seccion-reportes" class="tab-content space-y-6">
+                <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                    <h3 class="font-bold text-gray-800 mb-4">Generar Reporte</h3>
+                    <div class="flex flex-wrap gap-4 items-end">
+                        <div class="flex-1 min-w-[150px]">
+                            <label class="block text-xs font-bold text-gray-500 mb-1">DESDE</label>
+                            <input type="date" id="reporteFechaDesde" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none">
+                        </div>
+                        <div class="flex-1 min-w-[150px]">
+                            <label class="block text-xs font-bold text-gray-500 mb-1">HASTA</label>
+                            <input type="date" id="reporteFechaHasta" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none">
+                        </div>
+                        <button onclick="generarReporte('cliente')" class="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-bold">Por Cliente</button>
+                        <button onclick="generarReporte('producto')" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold">Por Producto</button>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                    <div id="contenidoReporte" class="p-6">
+                        <p class="text-center text-gray-400 italic">Selecciona un rango de fechas y tipo de reporte</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- STOCK -->
+            <section id="seccion-stock" class="tab-content space-y-6">
+                <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-wrap gap-4 items-end">
+                    <div class="flex-1 min-w-[200px]">
+                        <input type="text" id="buscarStock" placeholder="🔍 Buscar producto..." oninput="filtrarStock()" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none">
+                    </div>
+                    <button onclick="guardarStock()" class="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-bold">💾 Guardar Stock</button>
+                </div>
+                <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-x-auto">
                     <table class="w-full text-left text-sm">
                         <thead class="bg-gray-50 border-b border-gray-200 text-gray-500 font-bold uppercase text-[11px] tracking-wider">
                             <tr>
-                                <th class="px-6 py-3">Imagen</th>
-                                <th class="px-6 py-3">Nombre</th>
-                                <th class="px-6 py-3">Categoría</th>
-                                <th class="px-6 py-3">Presentaciones/Precios</th>
-                                <th class="px-6 py-3">Acciones</th>
+                                <th class="px-6 py-3">Producto</th>
+                                <th class="px-6 py-3">Presentación</th>
+                                <th class="px-6 py-3">Stock</th>
+                                <th class="px-6 py-3">Ajustar</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaStock" class="divide-y divide-gray-100"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- PRODUCTOS -->
+            <section id="seccion-productos" class="tab-content space-y-6">
+                <div class="flex justify-between items-center flex-wrap gap-4">
+                    <h3 class="text-xl font-bold">Gestión de Catálogo</h3>
+                    <div class="flex gap-2 flex-wrap">
+                        <input type="text" id="buscarProducto" oninput="filtrarProductos()" placeholder="🔍 Buscar..." class="border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none w-48">
+                        <label class="flex items-center gap-2 text-sm text-gray-600">
+                            <input type="checkbox" id="mostrarOcultosProductos" onchange="filtrarProductos()"> Ocultos
+                        </label>
+                        <button onclick="abrirModalProducto()" class="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-700">+ Nuevo Producto</button>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-x-auto">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-gray-50 border-b border-gray-200 text-gray-500 font-bold uppercase text-[11px] tracking-wider">
+                            <tr>
+                                <th class="px-4 py-3">ID</th>
+                                <th class="px-4 py-3">Imagen</th>
+                                <th class="px-4 py-3">Nombre</th>
+                                <th class="px-4 py-3">Categoría</th>
+                                <th class="px-4 py-3">Presentaciones / Precios</th>
+                                <th class="px-4 py-3">Acciones</th>
                             </tr>
                         </thead>
                         <tbody id="tablaProductosCuerpo" class="divide-y divide-gray-100"></tbody>
@@ -160,29 +231,76 @@
                 </div>
             </section>
 
-            <section id="seccion-clientes" class="tab-content">
-                <div class="flex justify-between items-center mb-6">
+            <!-- CLIENTES -->
+            <section id="seccion-clientes" class="tab-content space-y-6">
+                <div class="flex justify-between items-center flex-wrap gap-4">
                     <h3 class="text-xl font-bold text-gray-800">Directorio de Clientes</h3>
-                    <button onclick="abrirModalCliente()" class="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-bold">
-                        + Nuevo Cliente
-                    </button>
+                    <div class="flex gap-2 flex-wrap">
+                        <input type="text" id="buscarCliente" oninput="filtrarClientes()" placeholder="🔍 Buscar..." class="border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none w-48">
+                        <label class="flex items-center gap-2 text-sm text-gray-600">
+                            <input type="checkbox" id="mostrarOcultosClientes" onchange="filtrarClientes()"> Ocultos
+                        </label>
+                        <button onclick="abrirModalCliente()" class="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-bold">+ Nuevo Cliente</button>
+                    </div>
                 </div>
                 <div id="listaClientes" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
             </section>
-            
-            <section id="seccion-herramientas" class="tab-content">
-                <div class="max-w-2xl bg-white p-8 rounded-2xl border border-gray-200 shadow-sm">
-                    <h3 class="text-lg font-bold mb-4">Mantenimiento de Sistema</h3>
-                    <div class="space-y-4">
-                        <div class="p-4 border border-gray-100 rounded-lg flex items-center justify-between">
-                            <div>
-                                <p class="font-bold">Copia de Seguridad</p>
-                                <p class="text-sm text-gray-500">Descarga todos tus productos y clientes en un archivo .json</p>
-                            </div>
-                            <button onclick="descargarJSON(productosData, 'backup_hdv.json')" class="bg-gray-100 text-gray-800 px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-200">
-                                Descargar
-                            </button>
+
+            <!-- PRECIOS POR CLIENTE -->
+            <section id="seccion-precios" class="tab-content space-y-6">
+                <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                    <h3 class="font-bold text-gray-800 mb-4">Configurar Precios Personalizados</h3>
+                    <select id="preciosCliente" onchange="cargarPreciosCliente()" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none max-w-md">
+                        <option value="">-- Seleccione un cliente --</option>
+                    </select>
+                </div>
+                <div id="preciosCard" class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden" style="display:none;">
+                    <div class="p-4 border-b border-gray-200">
+                        <input type="text" id="buscarProductoPrecio" placeholder="🔍 Buscar producto..." class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none">
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm">
+                            <thead class="bg-gray-50 border-b border-gray-200 text-gray-500 font-bold uppercase text-[11px] tracking-wider">
+                                <tr>
+                                    <th class="px-6 py-3">Producto</th>
+                                    <th class="px-6 py-3">Presentación</th>
+                                    <th class="px-6 py-3">Precio Base</th>
+                                    <th class="px-6 py-3">Precio Cliente</th>
+                                </tr>
+                            </thead>
+                            <tbody id="preciosBody" class="divide-y divide-gray-100"></tbody>
+                        </table>
+                    </div>
+                    <div class="p-4 bg-gray-50 border-t border-gray-200">
+                        <button onclick="guardarPreciosPersonalizados()" class="bg-gray-800 text-white px-6 py-2 rounded-lg text-sm font-bold">💾 Guardar Precios</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- HERRAMIENTAS -->
+            <section id="seccion-herramientas" class="tab-content space-y-6">
+                <div class="max-w-2xl space-y-4">
+                    <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                        <h3 class="font-bold text-gray-800 mb-4">💾 Backup y Restauración</h3>
+                        <div class="flex gap-3 flex-wrap">
+                            <button onclick="crearBackup()" class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold">📥 Descargar Backup</button>
+                            <button onclick="document.getElementById('restaurarFile').click()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold">📤 Restaurar Backup</button>
+                            <input type="file" id="restaurarFile" accept=".json" style="display:none;" onchange="restaurarBackup(event)">
                         </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                        <h3 class="font-bold text-gray-800 mb-4">📊 Importar desde Excel/CSV</h3>
+                        <div class="flex gap-3 flex-wrap">
+                            <button onclick="document.getElementById('importarFile').click()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold">📤 Importar Productos</button>
+                            <input type="file" id="importarFile" accept=".xlsx,.xls,.csv" style="display:none;" onchange="importarProductosExcel(event)">
+                            <button onclick="document.getElementById('importarClientesFile').click()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold">👥 Importar Clientes</button>
+                            <input type="file" id="importarClientesFile" accept=".xlsx,.xls,.csv" style="display:none;" onchange="importarClientesExcel(event)">
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl border border-red-200 shadow-sm">
+                        <h3 class="font-bold text-red-600 mb-4">🗑️ Limpieza de Datos</h3>
+                        <p class="text-sm text-gray-500 mb-4">⚠️ Estas acciones son irreversibles. Crea un backup antes.</p>
+                        <button onclick="limpiarPedidos()" class="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-bold">Borrar Todos los Pedidos</button>
                     </div>
                 </div>
             </section>
@@ -190,59 +308,95 @@
         </div>
     </main>
 
+    <!-- BARRA CAMBIOS SIN GUARDAR -->
     <div class="unsaved-bar" id="unsavedBar">
         <div class="flex items-center gap-3">
             <div class="bg-white text-gray-900 w-8 h-8 rounded-full flex items-center justify-center font-bold" id="unsavedCount">0</div>
-            <span class="font-medium">Cambios pendientes de guardar localmente</span>
+            <span class="font-medium">Cambios pendientes</span>
         </div>
         <div class="flex gap-2">
             <button class="px-4 py-2 text-sm font-bold text-gray-400 hover:text-white" onclick="descartarCambios()">Descartar</button>
-            <button class="bg-white text-gray-900 px-6 py-2 rounded-lg text-sm font-bold hover:bg-gray-100" onclick="guardarTodosCambios()">
-                💾 Guardar y Descargar JSON
-            </button>
+            <button class="bg-white text-gray-900 px-6 py-2 rounded-lg text-sm font-bold hover:bg-gray-100" onclick="guardarTodosCambios()">💾 Guardar y Descargar JSON</button>
         </div>
     </div>
 
-    <div id="modalProducto" class="fixed inset-0 bg-black/50 hidden z-[2000] flex items-center justify-center p-4">
+    <!-- MODAL NUEVO PRODUCTO -->
+    <div id="modalProducto" class="modal-overlay">
         <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden">
             <div class="p-6 border-b border-gray-100">
-                <h3 class="text-xl font-bold text-gray-800">Configurar Producto</h3>
+                <h3 class="text-xl font-bold text-gray-800">Nuevo Producto</h3>
             </div>
-            <div class="p-6 space-y-4" id="formProducto">
+            <div class="p-6 space-y-4">
                 <div>
-                    <label class="block text-xs font-bold text-gray-500 mb-1">NOMBRE DEL PRODUCTO</label>
-                    <input type="text" id="nuevoProductoNombre" class="w-full border border-gray-300 rounded-lg px-4 py-2">
+                    <label class="block text-xs font-bold text-gray-500 mb-1">NOMBRE</label>
+                    <input type="text" id="nuevoProductoNombre" class="w-full border border-gray-300 rounded-lg px-4 py-2" placeholder="Ej: Jabón Dove">
                 </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-1">IMAGEN URL (opcional)</label>
+                    <input type="url" id="nuevoProductoImagen" class="w-full border border-gray-300 rounded-lg px-4 py-2" placeholder="https://...">
                 </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-1">CATEGORÍA</label>
+                    <select id="nuevoProductoCategoria" class="w-full border border-gray-300 rounded-lg px-4 py-2"></select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-1">SUBCATEGORÍA</label>
+                    <input type="text" id="nuevoProductoSubcategoria" class="w-full border border-gray-300 rounded-lg px-4 py-2" placeholder="Ej: Jabones">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-1">PRESENTACIONES (separadas por coma)</label>
+                    <input type="text" id="nuevoProductoPresentaciones" class="w-full border border-gray-300 rounded-lg px-4 py-2" placeholder="Ej: 125g, 90g">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-1">PRECIO BASE</label>
+                    <input type="number" id="nuevoProductoPrecio" class="w-full border border-gray-300 rounded-lg px-4 py-2" placeholder="1000">
+                </div>
+            </div>
             <div class="p-6 bg-gray-50 flex justify-end gap-3">
                 <button onclick="cerrarModalProducto()" class="px-4 py-2 text-gray-500 font-bold">Cancelar</button>
-                <button onclick="agregarNuevoProducto()" class="bg-gray-800 text-white px-6 py-2 rounded-lg font-bold">Guardar Producto</button>
+                <button onclick="agregarNuevoProducto()" class="bg-gray-800 text-white px-6 py-2 rounded-lg font-bold">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL NUEVO CLIENTE -->
+    <div id="modalCliente" class="modal-overlay">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden">
+            <div class="p-6 border-b border-gray-100">
+                <h3 class="text-xl font-bold text-gray-800">Nuevo Cliente</h3>
+            </div>
+            <div class="p-6 space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-1">RAZÓN SOCIAL / NOMBRE</label>
+                    <input type="text" id="nuevoClienteRazon" class="w-full border border-gray-300 rounded-lg px-4 py-2" placeholder="Ej: Supermercado Central S.A.">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">RUC</label>
+                        <input type="text" id="nuevoClienteRUC" class="w-full border border-gray-300 rounded-lg px-4 py-2" placeholder="80012345-6">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">TELÉFONO</label>
+                        <input type="tel" id="nuevoClienteTelefono" class="w-full border border-gray-300 rounded-lg px-4 py-2" placeholder="0981234567">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-1">DIRECCIÓN</label>
+                    <input type="text" id="nuevoClienteDireccion" class="w-full border border-gray-300 rounded-lg px-4 py-2" placeholder="Av. Central 1234">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-1">ENCARGADO (opcional)</label>
+                    <input type="text" id="nuevoClienteEncargado" class="w-full border border-gray-300 rounded-lg px-4 py-2" placeholder="Juan Pérez">
+                </div>
+            </div>
+            <div class="p-6 bg-gray-50 flex justify-end gap-3">
+                <button onclick="cerrarModalCliente()" class="px-4 py-2 text-gray-500 font-bold">Cancelar</button>
+                <button onclick="agregarNuevoCliente()" class="bg-gray-800 text-white px-6 py-2 rounded-lg font-bold">Guardar</button>
             </div>
         </div>
     </div>
 
     <script src="admin.js"></script>
-    <script>
-        // Inicializar iconos
-        lucide.createIcons();
-        
-        // Pequeño ajuste para actualizar el título en el header
-        const originalCambiarSeccion = cambiarSeccion;
-        cambiarSeccion = function(seccion) {
-            originalCambiarSeccion(seccion);
-            const titulos = {
-                'pedidos': 'Gestión de Pedidos',
-                'creditos': 'Control de Créditos',
-                'reportes': 'Análisis y Reportes',
-                'stock': 'Inventario en Tiempo Real',
-                'productos': 'Catálogo de Productos',
-                'clientes': 'Base de Datos de Clientes',
-                'precios': 'Configuración de Precios',
-                'herramientas': 'Sistema y Herramientas'
-            };
-            document.getElementById('currentSectionTitle').textContent = titulos[seccion] || 'Panel Admin';
-            lucide.createIcons(); // Re-renderizar iconos si es necesario
-        };
-    </script>
+    <script>lucide.createIcons();</script>
 </body>
 </html>

@@ -1,343 +1,554 @@
-let todosLosPedidos = [];
-let productosData = { productos: [], categorias: [], clientes: [] };
-let productosDataOriginal = null; 
-let productosFiltrados = [];
-let clientesFiltrados = [];
-let cambiosSinGuardar = 0;
+// ============================================
+// HDV Pedidos - App Vendedor v2.8
+// ============================================
+let productos = [];
+let categorias = [];
+let clientes = [];
+let clienteActual = null;
+let carrito = [];
+let categoriaActual = 'todas';
+let vistaActual = 'lista'; // 'lista' o 'pedidos'
 
 // ============================================
-// 1. NAVEGACIÓN DEL MENÚ (¡CORREGIDO!)
-// ============================================
-function cambiarSeccion(seccionId) {
-    // Ocultar todas las pestañas
-    document.querySelectorAll('.tab-content').forEach(el => {
-        el.classList.remove('active');
-        el.style.display = 'none';
-    });
-    
-    // Quitar color a todos los botones del menú
-    document.querySelectorAll('.nav-item').forEach(el => {
-        el.classList.remove('active');
-    });
-    
-    // Mostrar la pestaña seleccionada
-    const seccionActiva = document.getElementById(`seccion-${seccionId}`);
-    if (seccionActiva) {
-        seccionActiva.classList.add('active');
-        seccionActiva.style.display = 'block';
-    }
-    
-    // Pintar el botón seleccionado
-    const botonMenu = document.querySelector(`button[onclick="cambiarSeccion('${seccionId}')"]`);
-    if (botonMenu) botonMenu.classList.add('active');
-
-    // Cambiar Título Superior
-    const titulos = {
-        'pedidos': 'Gestión de Pedidos', 'stock': 'Inventario', 'productos': 'Catálogo de Productos',
-        'clientes': 'Directorio de Clientes', 'herramientas': 'Mantenimiento'
-    };
-    const tituloHeader = document.getElementById('currentSectionTitle');
-    if (tituloHeader) tituloHeader.textContent = titulos[seccionId] || 'Panel Admin';
-
-    // Cargar datos al entrar a la sección
-    if (seccionId === 'pedidos') cargarPedidos();
-    if (seccionId === 'productos') mostrarProductosGestion();
-    if (seccionId === 'clientes') mostrarClientesGestion();
-}
-
-// ============================================
-// 2. INICIO Y CARGA DE DATOS
+// INICIALIZACIÓN
 // ============================================
 document.addEventListener('DOMContentLoaded', async () => {
-    await cargarDatosIniciales();
-    cargarPedidos();
-    
-    // Iniciar en la pestaña de pedidos
-    cambiarSeccion('pedidos');
-    
-    setInterval(cargarPedidos, 30000);
-    if(document.getElementById('filtroFecha')) document.getElementById('filtroFecha').valueAsDate = new Date();
+    await cargarDatos();
+    configurarEventos();
+    cargarCarritoGuardado();
+    registrarSW();
 });
 
-async function cargarDatosIniciales() {
+async function cargarDatos() {
     try {
-        const response = await fetch('productos.json?t=' + new Date().getTime());
-        productosData = await response.json();
-        productosDataOriginal = JSON.parse(JSON.stringify(productosData));
-        productosFiltrados = [...productosData.productos];
+        const response = await fetch('productos.json?t=' + Date.now());
+        const data = await response.json();
+        categorias = data.categorias || [];
+        productos = (data.productos || []).filter(p => !p.oculto);
+        clientes = (data.clientes || []).filter(c => !c.oculto);
         
-        const filterCliente = document.getElementById('filtroCliente');
-        if (filterCliente) {
-            productosData.clientes.forEach(c => {
-                const opt1 = document.createElement('option');
-                opt1.value = c.id;
-                opt1.textContent = `${c.nombre} — ${c.zona || ''}`;
-                filterCliente.appendChild(opt1);
-            });
-        }
-    } catch (error) { console.error('Error:', error); }
+        poblarClientes();
+        crearFiltrosCategorias();
+        mostrarProductos();
+        
+        document.getElementById('searchInput').disabled = false;
+    } catch (e) {
+        console.error('Error cargando datos:', e);
+        document.getElementById('productsContainer').innerHTML = '<div class="text-center text-red-500 mt-10 font-bold">Error al cargar catálogo. Verifica tu conexión.</div>';
+    }
 }
 
-// ============================================
-// 3. CAMBIOS SIN GUARDAR (JSON)
-// ============================================
-function registrarCambio() {
-    cambiosSinGuardar++;
-    actualizarBarraCambios();
-}
-
-function actualizarBarraCambios() {
-    const bar = document.getElementById('unsavedBar');
-    const badge = document.getElementById('unsavedCount');
-    if (bar && badge) {
-        if (cambiosSinGuardar > 0) {
-            bar.classList.add('visible');
-            badge.textContent = cambiosSinGuardar;
+function configurarEventos() {
+    const searchInput = document.getElementById('searchInput');
+    searchInput.addEventListener('input', () => mostrarProductos());
+    
+    document.getElementById('clienteSelect').addEventListener('change', (e) => {
+        const id = e.target.value;
+        if (id) {
+            const nuevoCliente = clientes.find(c => c.id === id);
+            if (clienteActual && clienteActual.id !== id && carrito.length > 0) {
+                if (!confirm('Cambiar de cliente vaciará el carrito actual. ¿Continuar?')) {
+                    e.target.value = clienteActual.id;
+                    return;
+                }
+                carrito = [];
+                actualizarContadorCarrito();
+                guardarCarrito();
+            }
+            clienteActual = nuevoCliente;
+            mostrarProductos();
         } else {
-            bar.classList.remove('visible');
+            clienteActual = null;
         }
-    }
+    });
 }
-
-function guardarTodosCambios() {
-    descargarJSON(productosData, 'productos.json');
-    cambiosSinGuardar = 0;
-    actualizarBarraCambios();
-    productosDataOriginal = JSON.parse(JSON.stringify(productosData));
-}
-
-function descartarCambios() {
-    if (!confirm('¿Descartar todos los cambios sin guardar? Se perderán las modificaciones.')) return;
-    productosData = JSON.parse(JSON.stringify(productosDataOriginal));
-    productosFiltrados = [...productosData.productos];
-    cambiosSinGuardar = 0;
-    actualizarBarraCambios();
-    mostrarProductosGestion();
-}
-
-window.addEventListener('beforeunload', (e) => {
-    if (cambiosSinGuardar > 0) { e.preventDefault(); e.returnValue = ''; }
-});
 
 // ============================================
-// 4. GESTIÓN DE PEDIDOS
+// CLIENTES
 // ============================================
-function cargarPedidos() {
-    todosLosPedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
-    aplicarFiltrosPedidos();
+function poblarClientes() {
+    const select = document.getElementById('clienteSelect');
+    select.innerHTML = '<option value="" class="text-black">-- Seleccione Cliente --</option>';
+    clientes.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.id;
+        opt.textContent = c.razon_social || c.nombre || c.id;
+        opt.className = 'text-black';
+        select.appendChild(opt);
+    });
 }
 
-function aplicarFiltrosPedidos() {
-    const fecha = document.getElementById('filtroFecha')?.value;
-    const cliente = document.getElementById('filtroCliente')?.value;
+// ============================================
+// CATEGORÍAS
+// ============================================
+function crearFiltrosCategorias() {
+    const container = document.getElementById('categoryFilters');
+    container.innerHTML = '<button class="px-4 py-2 bg-gray-900 text-white rounded-full text-xs font-bold whitespace-nowrap category-btn" onclick="filtrarCategoria(\'todas\')">Todas</button>';
     
-    let filtrados = todosLosPedidos;
+    categorias.forEach(cat => {
+        const btn = document.createElement('button');
+        btn.className = 'px-4 py-2 bg-gray-100 text-gray-700 rounded-full text-xs font-bold whitespace-nowrap category-btn';
+        btn.textContent = cat.nombre;
+        btn.onclick = () => filtrarCategoria(cat.id);
+        container.appendChild(btn);
+    });
+}
+
+function filtrarCategoria(catId) {
+    categoriaActual = catId;
+    document.querySelectorAll('.category-btn').forEach((btn, i) => {
+        if ((catId === 'todas' && i === 0) || btn.textContent === categorias.find(c => c.id === catId)?.nombre) {
+            btn.className = 'px-4 py-2 bg-gray-900 text-white rounded-full text-xs font-bold whitespace-nowrap category-btn';
+        } else {
+            btn.className = 'px-4 py-2 bg-gray-100 text-gray-700 rounded-full text-xs font-bold whitespace-nowrap category-btn';
+        }
+    });
+    mostrarProductos();
+}
+
+// ============================================
+// PRODUCTOS
+// ============================================
+function mostrarProductos() {
+    const container = document.getElementById('productsContainer');
+    const busqueda = document.getElementById('searchInput').value.toLowerCase().trim();
     
-    if (fecha) {
-        filtrados = filtrados.filter(p => {
-            const pFecha = new Date(p.fecha).toISOString().split('T')[0];
-            return pFecha === fecha;
-        });
+    let filtrados = productos;
+    
+    if (categoriaActual !== 'todas') {
+        filtrados = filtrados.filter(p => p.categoria === categoriaActual);
     }
-    if (cliente) filtrados = filtrados.filter(p => p.cliente.id === cliente);
+    if (busqueda) {
+        filtrados = filtrados.filter(p => p.nombre.toLowerCase().includes(busqueda));
+    }
     
-    mostrarPedidos(filtrados);
-    actualizarEstadisticasPedidos(filtrados);
-}
-
-function mostrarPedidos(pedidos) {
-    const container = document.getElementById('listaPedidos');
-    if (!container) return;
-    if (pedidos.length === 0) {
-        container.innerHTML = '<div class="p-8 text-center"><div style="font-size:48px;margin-bottom:15px;">📦</div><p class="text-gray-500">No hay pedidos</p></div>';
+    if (filtrados.length === 0) {
+        container.innerHTML = '<div class="text-center text-gray-400 mt-10"><div class="text-4xl mb-3">🔍</div><p class="font-bold">No se encontraron productos</p></div>';
         return;
     }
     
     container.innerHTML = '';
-    pedidos.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+    const grid = document.createElement('div');
+    grid.className = 'grid grid-cols-2 sm:grid-cols-3 gap-3';
     
-    pedidos.forEach(p => {
-        const estado = p.estado || 'pendiente';
-        const clienteInfo = productosData.clientes.find(c => c.id === p.cliente.id);
-        const zona = clienteInfo?.zona || '';
-        let colorEstado = estado === 'entregado' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800';
+    filtrados.forEach(prod => {
+        const card = document.createElement('div');
+        card.className = 'bg-white rounded-xl p-3 shadow-sm border border-gray-100 active:scale-95 transition-transform cursor-pointer';
+        card.onclick = () => mostrarDetalleProducto(prod);
         
-        const div = document.createElement('div');
-        div.className = 'p-6 hover:bg-gray-50 transition-colors border-b border-gray-100';
-        div.innerHTML = `
-            <div class="flex justify-between items-start mb-4">
+        const imgContent = prod.imagen
+            ? `<img src="${prod.imagen}" class="w-full h-full object-contain" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+               <span class="text-4xl hidden items-center justify-center w-full h-full">${obtenerEmoji(prod)}</span>`
+            : `<span class="text-4xl">${obtenerEmoji(prod)}</span>`;
+        
+        card.innerHTML = `
+            <div class="w-full h-28 bg-gray-50 rounded-lg mb-2 flex items-center justify-center overflow-hidden">${imgContent}</div>
+            <p class="text-sm font-bold text-gray-800 leading-tight">${prod.nombre}</p>
+        `;
+        grid.appendChild(card);
+    });
+    
+    container.appendChild(grid);
+}
+
+function obtenerEmoji(producto) {
+    const n = producto.nombre.toLowerCase();
+    if (n.includes('jabón') || n.includes('jabon')) return '🧼';
+    if (n.includes('shampoo')) return '🧴';
+    if (n.includes('desodorante')) return '💨';
+    if (n.includes('pañal') || n.includes('panal')) return '🍼';
+    if (n.includes('toallita')) return '🧻';
+    if (n.includes('havaianas') || n.includes('ipanema')) return '🩴';
+    if (n.includes('aceite')) return '🫗';
+    if (n.includes('talco')) return '✨';
+    return '📦';
+}
+
+function obtenerPrecio(productoId, presentacion) {
+    if (clienteActual && clienteActual.precios_personalizados) {
+        const preciosProd = clienteActual.precios_personalizados[productoId];
+        if (preciosProd) {
+            const precioCustom = preciosProd.find(p => p.tamano === presentacion.tamano);
+            if (precioCustom) return precioCustom.precio;
+        }
+    }
+    return presentacion.precio_base;
+}
+
+// ============================================
+// DETALLE DE PRODUCTO (Modal inline)
+// ============================================
+function mostrarDetalleProducto(producto) {
+    // Remover modal existente si hay
+    const existing = document.getElementById('productDetailModal');
+    if (existing) existing.remove();
+    
+    const catNombre = categorias.find(c => c.id === producto.categoria)?.nombre || '';
+    const emoji = obtenerEmoji(producto);
+    
+    const imgContent = producto.imagen
+        ? `<img src="${producto.imagen}" class="w-full h-full object-contain" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+           <span class="text-6xl hidden items-center justify-center w-full h-full">${emoji}</span>`
+        : `<span class="text-6xl">${emoji}</span>`;
+    
+    const presHTML = producto.presentaciones.map((pres, idx) => {
+        const precio = obtenerPrecio(producto.id, pres);
+        return `
+            <div class="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
                 <div>
-                    <h3 class="text-lg font-bold text-gray-800">${p.cliente.nombre}</h3>
-                    <div class="text-sm text-gray-500 mt-1">📍 ${zona} • 🕐 ${new Date(p.fecha).toLocaleString('es-PY')}</div>
+                    <p class="font-bold text-gray-800">${pres.tamano}</p>
+                    <p class="text-blue-600 font-bold">Gs. ${precio.toLocaleString()}</p>
                 </div>
-                <span class="px-3 py-1 rounded-full text-xs font-bold ${colorEstado}">${estado.toUpperCase()}</span>
-            </div>
-            <div class="mb-4 space-y-2">
-                ${p.items.map(i => `
-                <div class="flex justify-between items-center text-sm border-b border-gray-50 pb-2">
-                    <span>${i.nombre} <span class="text-gray-500">(${i.presentacion} × ${i.cantidad})</span></span>
-                    <strong class="text-gray-800">Gs. ${i.subtotal.toLocaleString()}</strong>
-                </div>`).join('')}
-            </div>
-            <div class="flex justify-between items-center pt-4 mt-4 border-t border-gray-100">
-                <span class="text-gray-500 font-bold">TOTAL</span>
-                <span class="text-xl font-bold text-gray-900">Gs. ${p.total.toLocaleString()}</span>
-            </div>
-            <div class="flex gap-3 mt-4">
-                ${estado === 'pendiente' ? 
-                    `<button class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors" onclick="marcarEntregado('${p.id}')">✓ Marcar Entregado</button>` :
-                    `<button class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-lg text-sm font-semibold transition-colors" onclick="marcarPendiente('${p.id}')">↩ Marcar Pendiente</button>`
-                }
-                <button class="bg-red-50 hover:bg-red-100 text-red-600 px-4 py-2 rounded-lg text-sm font-semibold transition-colors" onclick="eliminarPedido('${p.id}')">🗑️ Eliminar</button>
-            </div>
-        `;
-        container.appendChild(div);
-    });
-}
-
-function actualizarEstadisticasPedidos(pedidos) {
-    const total = pedidos.length;
-    const pendientes = pedidos.filter(p => (p.estado || 'pendiente') === 'pendiente').length;
-    const entregados = pedidos.filter(p => p.estado === 'entregado').length;
-    const totalGs = pedidos.reduce((s, p) => s + p.total, 0);
+                <div class="flex items-center gap-2">
+                    <button onclick="ajustarQty('${producto.id}',${idx},-1)" class="w-8 h-8 rounded-lg border-2 border-gray-300 flex items-center justify-center font-bold text-lg">−</button>
+                    <input type="number" id="qty-${producto.id}-${idx}" value="1" min="1" class="w-12 text-center border border-gray-300 rounded-lg py-1 font-bold">
+                    <button onclick="ajustarQty('${producto.id}',${idx},1)" class="w-8 h-8 rounded-lg border-2 border-gray-300 flex items-center justify-center font-bold text-lg">+</button>
+                    <button onclick="agregarAlCarrito('${producto.id}',${idx})" class="ml-2 bg-[#111827] text-white px-4 py-2 rounded-lg font-bold text-sm">Agregar</button>
+                </div>
+            </div>`;
+    }).join('');
     
-    if(document.getElementById('statTotalPedidos')) document.getElementById('statTotalPedidos').textContent = total;
-    if(document.getElementById('statPendientes')) document.getElementById('statPendientes').textContent = pendientes;
-    if(document.getElementById('statEntregados')) document.getElementById('statEntregados').textContent = entregados;
-    if(document.getElementById('statRecaudacion')) document.getElementById('statRecaudacion').textContent = `Gs. ${totalGs.toLocaleString()}`;
+    const modal = document.createElement('div');
+    modal.id = 'productDetailModal';
+    modal.className = 'fixed inset-0 bg-black/50 z-[100] flex items-end';
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+    modal.innerHTML = `
+        <div class="bg-white w-full rounded-t-3xl max-h-[85vh] overflow-y-auto p-6 shadow-2xl">
+            <div class="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-4"></div>
+            <div class="w-full h-40 bg-gray-50 rounded-xl mb-4 flex items-center justify-center overflow-hidden">${imgContent}</div>
+            <h3 class="text-xl font-bold text-gray-900">${producto.nombre}</h3>
+            <p class="text-sm text-gray-500 mb-4">${catNombre} › ${producto.subcategoria}</p>
+            <div class="space-y-1">${presHTML}</div>
+            <button onclick="document.getElementById('productDetailModal').remove()" class="w-full mt-6 bg-gray-100 text-gray-700 py-3 rounded-xl font-bold">Cerrar</button>
+        </div>`;
+    document.body.appendChild(modal);
 }
 
-function marcarEntregado(id) {
-    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
-    const p = pedidos.find(x => x.id === id);
-    if (p) { p.estado = 'entregado'; localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos)); cargarPedidos(); }
-}
-
-function marcarPendiente(id) {
-    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
-    const p = pedidos.find(x => x.id === id);
-    if (p) { p.estado = 'pendiente'; localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos)); cargarPedidos(); }
-}
-
-function eliminarPedido(id) {
-    if (!confirm('¿Eliminar este pedido?')) return;
-    let pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
-    pedidos = pedidos.filter(p => p.id !== id);
-    localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
-    cargarPedidos();
-}
-
-// ============================================
-// 5. GESTIÓN DE PRODUCTOS
-// ============================================
-function mostrarProductosGestion() {
-    const tbody = document.getElementById('tablaProductosCuerpo');
-    if(!tbody) return;
-    tbody.innerHTML = '';
-    
-    productosFiltrados.forEach(prod => {
-        const presHTML = prod.presentaciones.map((p, i) => `
-            <div class="flex items-center gap-2 mb-2">
-                <input type="text" value="${p.tamano}" onchange="actualizarPresentacion('${prod.id}', ${i}, 'tamano', this.value)" class="w-24 px-2 py-1 text-xs border border-gray-300 rounded" placeholder="Tamaño">
-                <input type="number" value="${p.precio_base}" onchange="actualizarPresentacion('${prod.id}', ${i}, 'precio', this.value)" class="w-24 px-2 py-1 text-xs border border-gray-300 rounded" placeholder="Precio">
-                <button onclick="eliminarPresentacion('${prod.id}', ${i})" class="text-red-500 font-bold px-2">×</button>
-            </div>
-        `).join('');
-        
-        const tr = document.createElement('tr');
-        tr.className = `border-b border-gray-50 hover:bg-gray-50`;
-        tr.innerHTML = `
-            <td class="px-6 py-4 font-medium text-gray-500">${prod.id}</td>
-            <td class="px-6 py-4 text-2xl text-center">📦</td>
-            <td class="px-6 py-4"><input type="text" value="${prod.nombre}" onchange="actualizarProducto('${prod.id}', 'nombre', this.value)" class="w-full px-2 py-1 border border-transparent hover:border-gray-300 rounded bg-transparent"></td>
-            <td class="px-6 py-4"><input type="text" value="${prod.subcategoria || ''}" onchange="actualizarProducto('${prod.id}', 'subcategoria', this.value)" class="w-full px-2 py-1 border border-transparent hover:border-gray-300 rounded bg-transparent text-xs text-gray-500" placeholder="Subcategoría"></td>
-            <td class="px-6 py-4">${presHTML}<button onclick="agregarPresentacion('${prod.id}')" class="text-xs text-blue-600 font-bold">+ Agregar</button></td>
-            <td class="px-6 py-4"><button onclick="eliminarProducto('${prod.id}')" class="p-2 rounded text-red-600 hover:bg-red-100">🗑️</button></td>
-        `;
-        tbody.appendChild(tr);
-    });
-}
-
-function actualizarProducto(id, campo, valor) {
-    const p = productosData.productos.find(x => x.id === id);
-    if (p) { p[campo] = valor; registrarCambio(); }
-}
-
-function actualizarPresentacion(id, idx, campo, valor) {
-    const p = productosData.productos.find(x => x.id === id);
-    if (p && p.presentaciones[idx]) {
-        if (campo === 'precio') p.presentaciones[idx].precio_base = parseInt(valor) || 0;
-        else p.presentaciones[idx].tamano = valor;
-        registrarCambio();
+function ajustarQty(prodId, idx, delta) {
+    const input = document.getElementById(`qty-${prodId}-${idx}`);
+    if (input) {
+        let val = parseInt(input.value) || 1;
+        val = Math.max(1, val + delta);
+        input.value = val;
     }
 }
 
-function eliminarPresentacion(id, idx) {
-    const p = productosData.productos.find(x => x.id === id);
-    if (p && p.presentaciones.length > 1) {
-        p.presentaciones.splice(idx, 1);
-        registrarCambio();
-        mostrarProductosGestion();
-    } else { alert('El producto debe tener al menos una presentación'); }
+// ============================================
+// CARRITO
+// ============================================
+function agregarAlCarrito(productoId, presIdx) {
+    if (!clienteActual) {
+        alert('Selecciona un cliente primero');
+        return;
+    }
+    
+    const producto = productos.find(p => p.id === productoId);
+    if (!producto) return;
+    
+    const pres = producto.presentaciones[presIdx];
+    const precio = obtenerPrecio(productoId, pres);
+    const qtyInput = document.getElementById(`qty-${productoId}-${presIdx}`);
+    const cantidad = parseInt(qtyInput?.value) || 1;
+    
+    const existente = carrito.findIndex(item => item.productoId === productoId && item.presentacion === pres.tamano);
+    
+    if (existente >= 0) {
+        carrito[existente].cantidad += cantidad;
+        carrito[existente].subtotal = carrito[existente].cantidad * carrito[existente].precio;
+    } else {
+        carrito.push({
+            productoId,
+            nombre: producto.nombre,
+            presentacion: pres.tamano,
+            precio,
+            cantidad,
+            subtotal: precio * cantidad
+        });
+    }
+    
+    actualizarContadorCarrito();
+    guardarCarrito();
+    mostrarExito(`${producto.nombre} agregado al carrito`);
+    
+    const modal = document.getElementById('productDetailModal');
+    if (modal) modal.remove();
 }
 
-function agregarPresentacion(id) {
-    const p = productosData.productos.find(x => x.id === id);
-    if (p) { p.presentaciones.push({ tamano: '', precio_base: 0 }); registrarCambio(); mostrarProductosGestion(); }
+function actualizarContadorCarrito() {
+    const badge = document.getElementById('cartItems');
+    const totalItems = carrito.reduce((sum, item) => sum + item.cantidad, 0);
+    badge.textContent = totalItems;
+    badge.style.display = totalItems > 0 ? 'flex' : 'none';
 }
 
-function eliminarProducto(id) {
-    if (!confirm('¿Eliminar este producto?')) return;
-    productosData.productos = productosData.productos.filter(p => p.id !== id);
-    productosFiltrados = productosFiltrados.filter(p => p.id !== id);
-    registrarCambio();
-    mostrarProductosGestion();
+function guardarCarrito() {
+    if (clienteActual) {
+        localStorage.setItem(`hdv_carrito_${clienteActual.id}`, JSON.stringify(carrito));
+    }
+}
+
+function cargarCarritoGuardado() {
+    const selectEl = document.getElementById('clienteSelect');
+    if (selectEl.value) {
+        clienteActual = clientes.find(c => c.id === selectEl.value);
+        if (clienteActual) {
+            const saved = localStorage.getItem(`hdv_carrito_${clienteActual.id}`);
+            if (saved) carrito = JSON.parse(saved);
+            actualizarContadorCarrito();
+        }
+    }
 }
 
 // ============================================
-// 6. GESTIÓN DE CLIENTES
+// MODAL CARRITO
 // ============================================
-function mostrarClientesGestion() {
-    const container = document.getElementById('listaClientes');
-    if (!container) return;
+function mostrarModalCarrito() {
+    if (carrito.length === 0) {
+        alert('El carrito está vacío');
+        return;
+    }
+    
+    const modal = document.getElementById('cartModal');
+    modal.classList.remove('hidden');
+    renderizarCarrito();
+}
+
+function closeCartModal() {
+    document.getElementById('cartModal').classList.add('hidden');
+}
+
+function renderizarCarrito() {
+    const container = document.getElementById('cartItemsList');
     container.innerHTML = '';
     
-    productosData.clientes.forEach(cliente => {
+    carrito.forEach((item, idx) => {
         const div = document.createElement('div');
-        div.className = 'bg-white p-5 rounded-xl border border-gray-200 shadow-sm';
+        div.className = 'flex justify-between items-center p-3 bg-gray-50 rounded-xl';
         div.innerHTML = `
-            <div class="font-bold text-gray-800 text-lg">${cliente.nombre}</div>
-            <div class="text-sm text-gray-500 mb-2">📍 ${cliente.zona || cliente.direccion || 'Sin zona'}</div>
-            <div class="text-xs text-gray-400 mb-3">RUC: ${cliente.ruc || 'N/A'} | Tel: ${cliente.telefono || 'N/A'}</div>
-            <button onclick="eliminarCliente('${cliente.id}')" class="text-xs text-red-600 bg-red-50 hover:bg-red-100 px-3 py-1 rounded-lg border border-red-100 font-bold transition-colors">🗑️ Eliminar Cliente</button>
+            <div class="flex-1">
+                <p class="font-bold text-gray-800 text-sm">${item.nombre}</p>
+                <p class="text-xs text-gray-500">${item.presentacion} × ${item.cantidad}</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <p class="font-bold text-gray-900">Gs. ${item.subtotal.toLocaleString()}</p>
+                <button onclick="eliminarDelCarrito(${idx})" class="text-red-500 text-lg font-bold">×</button>
+            </div>
+        `;
+        container.appendChild(div);
+    });
+    
+    // Total
+    const total = carrito.reduce((s, i) => s + i.subtotal, 0);
+    const totalSection = document.getElementById('totalSection');
+    totalSection.classList.remove('hidden');
+    totalSection.innerHTML = `
+        <div class="flex justify-between items-center">
+            <span class="text-gray-500 font-bold">SUBTOTAL</span>
+            <span class="text-xl font-bold text-gray-900" id="cartSubtotal">Gs. ${total.toLocaleString()}</span>
+        </div>
+        <div class="flex justify-between items-center" id="cartTotalFinal">
+            <span class="text-gray-500 font-bold">TOTAL</span>
+            <span class="text-2xl font-bold text-gray-900">Gs. ${total.toLocaleString()}</span>
+        </div>
+    `;
+}
+
+function eliminarDelCarrito(idx) {
+    carrito.splice(idx, 1);
+    actualizarContadorCarrito();
+    guardarCarrito();
+    if (carrito.length === 0) {
+        closeCartModal();
+    } else {
+        renderizarCarrito();
+    }
+}
+
+function aplicarDescuento() {
+    const desc = parseFloat(document.getElementById('descuento').value) || 0;
+    if (desc < 0 || desc > 100) { alert('Descuento inválido'); return; }
+    
+    const subtotal = carrito.reduce((s, i) => s + i.subtotal, 0);
+    const totalConDesc = Math.round(subtotal * (1 - desc / 100));
+    
+    const totalFinal = document.getElementById('cartTotalFinal');
+    if (totalFinal) {
+        totalFinal.innerHTML = `
+            <span class="text-gray-500 font-bold">TOTAL (${desc}% desc.)</span>
+            <span class="text-2xl font-bold text-green-600">Gs. ${totalConDesc.toLocaleString()}</span>
+        `;
+    }
+}
+
+// ============================================
+// CONFIRMAR PEDIDO
+// ============================================
+function confirmarPedido() {
+    if (!clienteActual) { alert('Selecciona un cliente'); return; }
+    if (carrito.length === 0) { alert('El carrito está vacío'); return; }
+    
+    const descuento = parseFloat(document.getElementById('descuento').value) || 0;
+    const tipoPago = document.getElementById('tipoPago').value;
+    const notas = document.getElementById('notasPedido').value.trim();
+    
+    const subtotal = carrito.reduce((s, i) => s + i.subtotal, 0);
+    const total = Math.round(subtotal * (1 - descuento / 100));
+    
+    const pedido = {
+        id: 'PED-' + Date.now(),
+        fecha: new Date().toISOString(),
+        cliente: { id: clienteActual.id, nombre: clienteActual.razon_social || clienteActual.nombre },
+        items: carrito.map(i => ({...i})),
+        subtotal,
+        descuento,
+        total,
+        tipoPago,
+        notas,
+        estado: 'pendiente',
+        sincronizado: false
+    };
+    
+    // Guardar en localStorage
+    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    pedidos.push(pedido);
+    localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
+    
+    // Limpiar carrito
+    carrito = [];
+    actualizarContadorCarrito();
+    guardarCarrito();
+    closeCartModal();
+    
+    // Reset form
+    document.getElementById('descuento').value = '0';
+    document.getElementById('notasPedido').value = '';
+    document.getElementById('tipoPago').value = 'contado';
+    
+    mostrarExito('Pedido confirmado correctamente');
+}
+
+// ============================================
+// VISTA MIS PEDIDOS
+// ============================================
+function cambiarVistaVendedor(vista) {
+    vistaActual = vista;
+    
+    const btnLista = document.getElementById('btn-tab-lista');
+    const btnPedidos = document.getElementById('btn-tab-pedidos');
+    const container = document.getElementById('productsContainer');
+    const catFilters = document.getElementById('categoryFilters');
+    const searchBox = document.getElementById('searchContainer');
+    
+    if (vista === 'lista') {
+        btnLista.className = 'flex flex-col items-center gap-1 text-gray-900 transition-colors';
+        btnPedidos.className = 'flex flex-col items-center gap-1 text-gray-400 transition-colors';
+        catFilters.style.display = '';
+        searchBox.style.display = '';
+        mostrarProductos();
+    } else {
+        btnLista.className = 'flex flex-col items-center gap-1 text-gray-400 transition-colors';
+        btnPedidos.className = 'flex flex-col items-center gap-1 text-gray-900 transition-colors';
+        catFilters.style.display = 'none';
+        searchBox.style.display = 'none';
+        mostrarMisPedidos();
+    }
+}
+
+function mostrarMisPedidos() {
+    const container = document.getElementById('productsContainer');
+    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    
+    // Filtrar pedidos del cliente actual o mostrar todos
+    let misPedidos = pedidos.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+    
+    if (misPedidos.length === 0) {
+        container.innerHTML = '<div class="text-center text-gray-400 mt-10"><div class="text-4xl mb-3">📋</div><p class="font-bold">No hay pedidos registrados</p></div>';
+        return;
+    }
+    
+    container.innerHTML = '<h3 class="text-lg font-bold text-gray-800 mb-4">Mis Pedidos</h3>';
+    
+    misPedidos.forEach(p => {
+        const estado = p.estado || 'pendiente';
+        const colorEstado = estado === 'entregado' 
+            ? 'bg-green-100 text-green-700' 
+            : 'bg-yellow-100 text-yellow-700';
+        
+        const div = document.createElement('div');
+        div.className = 'bg-white rounded-xl p-4 shadow-sm border border-gray-100 mb-3';
+        div.innerHTML = `
+            <div class="flex justify-between items-start mb-2">
+                <div>
+                    <p class="font-bold text-gray-800">${p.cliente.nombre}</p>
+                    <p class="text-xs text-gray-500">${new Date(p.fecha).toLocaleString('es-PY')}</p>
+                </div>
+                <span class="px-2 py-1 rounded-full text-[10px] font-bold ${colorEstado}">${estado.toUpperCase()}</span>
+            </div>
+            <div class="text-sm text-gray-600 mb-2">
+                ${p.items.map(i => `${i.nombre} (${i.presentacion} ×${i.cantidad})`).join(', ')}
+            </div>
+            <div class="flex justify-between items-center pt-2 border-t border-gray-100">
+                <span class="text-xs text-gray-500">${p.tipoPago || 'contado'} ${p.descuento > 0 ? `| ${p.descuento}% desc.` : ''}</span>
+                <span class="font-bold text-gray-900">Gs. ${p.total.toLocaleString()}</span>
+            </div>
         `;
         container.appendChild(div);
     });
 }
 
-function eliminarCliente(id) {
-    if (!confirm('¿Eliminar este cliente?')) return;
-    productosData.clientes = productosData.clientes.filter(c => c.id !== id);
-    registrarCambio();
-    mostrarClientesGestion();
+// ============================================
+// UTILIDADES
+// ============================================
+function mostrarExito(msg) {
+    const el = document.getElementById('successMessage');
+    el.textContent = '✓ ' + msg;
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 2500);
 }
 
-// ============================================
-// 7. HERRAMIENTAS Y EXTRAS
-// ============================================
-function limpiarPedidos() {
-    if (!confirm('¿ELIMINAR TODOS LOS PEDIDOS? Esta acción no se puede deshacer.')) return;
-    if (!confirm('¿Estás completamente seguro?')) return;
-    localStorage.removeItem('hdv_pedidos');
-    todosLosPedidos = [];
-    alert('Todos los pedidos han sido eliminados');
-    setTimeout(() => location.reload(), 1000);
+function toggleDarkMode() {
+    document.body.classList.toggle('dark-mode');
+    localStorage.setItem('hdv_darkmode', document.body.classList.contains('dark-mode'));
 }
 
-function descargarJSON(data, nombreArchivo) {
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = nombreArchivo;
-    link.click();
+// Cargar dark mode guardado
+if (localStorage.getItem('hdv_darkmode') === 'true') {
+    document.body.classList.add('dark-mode');
+}
+
+function forzarActualizacion() {
+    if ('caches' in window) {
+        caches.keys().then(names => names.forEach(name => caches.delete(name)));
+    }
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(regs => {
+            regs.forEach(r => r.unregister());
+        });
+    }
+    setTimeout(() => location.reload(true), 500);
+}
+
+function registrarSW() {
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('service-worker.js')
+            .then(reg => {
+                console.log('SW registrado');
+                reg.addEventListener('updatefound', () => {
+                    const newWorker = reg.installing;
+                    newWorker.addEventListener('statechange', () => {
+                        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                            if (confirm('Hay una actualización disponible. ¿Actualizar ahora?')) {
+                                location.reload(true);
+                            }
+                        }
+                    });
+                });
+            })
+            .catch(err => console.log('SW error:', err));
+    }
+}
+
+// Filtrar pedidos (alias for admin compatibility)
+function filtrarPedidos() {
+    aplicarFiltrosPedidos && aplicarFiltrosPedidos();
 }

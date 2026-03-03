@@ -1,5 +1,5 @@
 // ============================================
-// HDV Admin Panel v3.0 - Con Backup Avanzado
+// HDV Admin Panel v4.0 - Dashboard, PDF, Edición de Pedidos
 // ============================================
 let todosLosPedidos = [];
 let productosData = { productos: [], categorias: [], clientes: [] };
@@ -27,7 +27,7 @@ function cambiarSeccion(seccionId) {
     if (btn) btn.classList.add('active');
     
     const titulos = {
-        'pedidos': 'Gestión de Pedidos', 'creditos': 'Control de Créditos',
+        'dashboard': 'Dashboard', 'pedidos': 'Gestión de Pedidos', 'creditos': 'Control de Créditos',
         'reportes': 'Análisis y Reportes', 'stock': 'Inventario',
         'productos': 'Catálogo de Productos', 'clientes': 'Base de Datos de Clientes',
         'precios': 'Configuración de Precios', 'herramientas': 'Sistema y Herramientas'
@@ -43,7 +43,8 @@ function cambiarSeccion(seccionId) {
     if (seccionId === 'stock') cargarStock();
     if (seccionId === 'precios') cargarSelectPreciosCliente();
     if (seccionId === 'herramientas') actualizarInfoBackupAdmin();
-    
+    if (seccionId === 'dashboard') cargarDashboard();
+
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
@@ -226,11 +227,14 @@ function mostrarPedidos(pedidos) {
                 <span class="text-sm text-gray-500">${p.tipoPago || 'contado'}${p.descuento > 0 ? ` | ${p.descuento}% desc.` : ''}</span>
                 <span class="text-xl font-bold text-gray-900">Gs. ${(p.total || 0).toLocaleString()}</span>
             </div>
-            <div class="flex gap-2 mt-4">
-                ${estado === 'pendiente' ? 
+            <div class="flex gap-2 mt-4 flex-wrap">
+                ${estado === 'pendiente' ?
                     `<button class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-green-700" onclick="marcarEntregado('${p.id}')">✓ Entregado</button>` :
                     `<button class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-300" onclick="marcarPendiente('${p.id}')">↩ Pendiente</button>`}
-                <button class="bg-red-50 text-red-600 px-4 py-2 rounded-lg text-sm font-bold hover:bg-red-100" onclick="eliminarPedido('${p.id}')">🗑️</button>
+                <button class="bg-blue-50 text-blue-600 px-3 py-2 rounded-lg text-sm font-bold hover:bg-blue-100" onclick="abrirModalEditarPedido('${p.id}')">✏️ Editar</button>
+                <button class="bg-red-50 text-red-700 px-3 py-2 rounded-lg text-sm font-bold hover:bg-red-100" onclick="generarPDFRemision('${p.id}')">📄 PDF</button>
+                <button class="bg-purple-50 text-purple-700 px-3 py-2 rounded-lg text-sm font-bold hover:bg-purple-100" onclick="generarTicketTermico('${p.id}')">🖨️ Ticket</button>
+                <button class="bg-red-50 text-red-600 px-3 py-2 rounded-lg text-sm font-bold hover:bg-red-100" onclick="eliminarPedido('${p.id}')">🗑️</button>
             </div>`;
         container.appendChild(div);
     });
@@ -1086,4 +1090,667 @@ function descargarCSV(contenido, nombreArchivo) {
     link.href = URL.createObjectURL(blob);
     link.download = nombreArchivo;
     link.click();
+}
+
+// ============================================
+// EDICIÓN DE PEDIDOS, PDF, DASHBOARD, REPORTES
+// ============================================
+// ===== 1. EDIT PEDIDO FUNCTIONS =====
+
+let pedidoEditandoId = null;
+
+function abrirModalEditarPedido(pedidoId) {
+    const pedido = todosLosPedidos.find(p => p.id === pedidoId);
+    if (!pedido) { alert('Pedido no encontrado'); return; }
+    pedidoEditandoId = pedidoId;
+    
+    document.getElementById('editPedidoId').textContent = pedidoId;
+    document.getElementById('editPedidoCliente').textContent = pedido.cliente?.nombre || 'N/A';
+    document.getElementById('editPedidoTipoPago').value = pedido.tipoPago || 'contado';
+    document.getElementById('editPedidoDescuento').value = pedido.descuento || 0;
+    document.getElementById('editPedidoNotas').value = pedido.notas || '';
+    
+    renderizarItemsEdicion(pedido.items || []);
+    recalcularTotalEdicion();
+    document.getElementById('modalEditarPedido')?.classList.add('show');
+}
+
+function cerrarModalEditarPedido() {
+    pedidoEditandoId = null;
+    document.getElementById('modalEditarPedido')?.classList.remove('show');
+}
+
+function renderizarItemsEdicion(items) {
+    const container = document.getElementById('editPedidoItems');
+    container.innerHTML = '';
+    items.forEach((item, idx) => {
+        const div = document.createElement('div');
+        div.className = 'flex items-center gap-2 bg-gray-50 p-3 rounded-lg';
+        div.innerHTML = `
+            <select onchange="actualizarItemEdicion(${idx},'producto',this.value);recalcularTotalEdicion()" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm edit-item-producto">
+                <option value="">-- Producto --</option>
+                ${productosData.productos.map(p => 
+                    p.presentaciones.map(pres => 
+                        `<option value="${p.id}|${pres.tamano}|${pres.precio_base}" ${p.nombre === item.nombre && pres.tamano === item.presentacion ? 'selected' : ''}>${p.nombre} - ${pres.tamano} (Gs.${pres.precio_base.toLocaleString()})</option>`
+                    ).join('')
+                ).join('')}
+            </select>
+            <input type="number" value="${item.cantidad}" min="1" onchange="actualizarItemEdicion(${idx},'cantidad',this.value);recalcularTotalEdicion()" class="w-16 border border-gray-300 rounded px-2 py-1 text-sm text-center font-bold edit-item-cantidad">
+            <span class="text-sm font-bold text-gray-700 w-32 text-right edit-item-subtotal">Gs. ${(item.subtotal || 0).toLocaleString()}</span>
+            <button onclick="eliminarItemEdicion(${idx})" class="text-red-500 font-bold text-lg">×</button>
+        `;
+        container.appendChild(div);
+    });
+}
+
+function actualizarItemEdicion(idx, campo, valor) {
+    // This gets called when editing items, will be processed in guardarEdicionPedido
+}
+
+function agregarItemEditPedido() {
+    const container = document.getElementById('editPedidoItems');
+    const idx = container.children.length;
+    const div = document.createElement('div');
+    div.className = 'flex items-center gap-2 bg-green-50 p-3 rounded-lg';
+    div.innerHTML = `
+        <select onchange="recalcularTotalEdicion()" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm edit-item-producto">
+            <option value="">-- Seleccionar Producto --</option>
+            ${productosData.productos.map(p => 
+                p.presentaciones.map(pres => 
+                    `<option value="${p.id}|${pres.tamano}|${pres.precio_base}">${p.nombre} - ${pres.tamano} (Gs.${pres.precio_base.toLocaleString()})</option>`
+                ).join('')
+            ).join('')}
+        </select>
+        <input type="number" value="1" min="1" onchange="recalcularTotalEdicion()" class="w-16 border border-gray-300 rounded px-2 py-1 text-sm text-center font-bold edit-item-cantidad">
+        <span class="text-sm font-bold text-gray-700 w-32 text-right edit-item-subtotal">Gs. 0</span>
+        <button onclick="this.parentElement.remove();recalcularTotalEdicion()" class="text-red-500 font-bold text-lg">×</button>
+    `;
+    container.appendChild(div);
+}
+
+function eliminarItemEdicion(idx) {
+    const container = document.getElementById('editPedidoItems');
+    if (container.children.length <= 1) { alert('Debe haber al menos un producto'); return; }
+    container.children[idx].remove();
+    recalcularTotalEdicion();
+}
+
+function recalcularTotalEdicion() {
+    const container = document.getElementById('editPedidoItems');
+    let subtotal = 0;
+    Array.from(container.children).forEach(div => {
+        const select = div.querySelector('.edit-item-producto');
+        const cantInput = div.querySelector('.edit-item-cantidad');
+        const subtotalSpan = div.querySelector('.edit-item-subtotal');
+        if (select && select.value && cantInput) {
+            const parts = select.value.split('|');
+            const precio = parseInt(parts[2]) || 0;
+            const cant = parseInt(cantInput.value) || 1;
+            const sub = precio * cant;
+            subtotal += sub;
+            if (subtotalSpan) subtotalSpan.textContent = `Gs. ${sub.toLocaleString()}`;
+        }
+    });
+    const desc = parseFloat(document.getElementById('editPedidoDescuento')?.value) || 0;
+    const total = Math.round(subtotal * (1 - desc / 100));
+    document.getElementById('editPedidoTotal').textContent = `Gs. ${total.toLocaleString()}`;
+}
+
+function guardarEdicionPedido() {
+    if (!pedidoEditandoId) return;
+    const container = document.getElementById('editPedidoItems');
+    const items = [];
+    Array.from(container.children).forEach(div => {
+        const select = div.querySelector('.edit-item-producto');
+        const cantInput = div.querySelector('.edit-item-cantidad');
+        if (select && select.value) {
+            const parts = select.value.split('|');
+            const prodId = parts[0];
+            const tamano = parts[1];
+            const precio = parseInt(parts[2]) || 0;
+            const cantidad = parseInt(cantInput.value) || 1;
+            const prod = productosData.productos.find(p => p.id === prodId);
+            items.push({
+                productoId: prodId,
+                nombre: prod?.nombre || 'Producto',
+                presentacion: tamano,
+                precio,
+                cantidad,
+                subtotal: precio * cantidad
+            });
+        }
+    });
+    if (items.length === 0) { alert('Agrega al menos un producto'); return; }
+    
+    const descuento = parseFloat(document.getElementById('editPedidoDescuento')?.value) || 0;
+    const subtotal = items.reduce((s, i) => s + i.subtotal, 0);
+    const total = Math.round(subtotal * (1 - descuento / 100));
+    
+    // Update in localStorage
+    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    const idx = pedidos.findIndex(p => p.id === pedidoEditandoId);
+    if (idx >= 0) {
+        pedidos[idx].items = items;
+        pedidos[idx].subtotal = subtotal;
+        pedidos[idx].descuento = descuento;
+        pedidos[idx].total = total;
+        pedidos[idx].tipoPago = document.getElementById('editPedidoTipoPago')?.value || 'contado';
+        pedidos[idx].notas = document.getElementById('editPedidoNotas')?.value.trim() || '';
+        pedidos[idx].editado = true;
+        pedidos[idx].fechaEdicion = new Date().toISOString();
+        localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
+        
+        // Sync with Firebase
+        if (typeof guardarPedidoFirebase === 'function') {
+            guardarPedidoFirebase(pedidos[idx]);
+        }
+    }
+    
+    cerrarModalEditarPedido();
+    if (typeof cargarPedidos === 'function' && !unsubscribePedidos) cargarPedidos();
+    else aplicarFiltrosPedidos();
+}
+
+
+// ===== 2. PDF GENERATION (A4 Remission Note) =====
+
+function generarPDFRemision(pedidoId) {
+    const pedido = todosLosPedidos.find(p => p.id === (pedidoId || pedidoEditandoId));
+    if (!pedido) { alert('Pedido no encontrado'); return; }
+    
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    const clienteInfo = productosData.clientes.find(c => c.id === pedido.cliente?.id);
+    
+    // Header
+    doc.setFillColor(17, 24, 39);
+    doc.rect(0, 0, 210, 35, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(22);
+    doc.setFont('helvetica', 'bold');
+    doc.text('HDV Distribuciones', 15, 18);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text('EAS - Nota de Remisión', 15, 26);
+    
+    // Pedido info right
+    doc.setFontSize(10);
+    doc.text(`N°: ${pedido.id}`, 195, 14, { align: 'right' });
+    doc.text(`Fecha: ${new Date(pedido.fecha).toLocaleDateString('es-PY')}`, 195, 20, { align: 'right' });
+    doc.text(`Estado: ${(pedido.estado || 'pendiente').toUpperCase()}`, 195, 26, { align: 'right' });
+    
+    // Client info
+    doc.setTextColor(0, 0, 0);
+    doc.setFillColor(249, 250, 251);
+    doc.rect(10, 42, 190, 28, 'F');
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text('DATOS DEL CLIENTE', 15, 50);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.text(`Razón Social: ${pedido.cliente?.nombre || 'N/A'}`, 15, 57);
+    doc.text(`RUC: ${clienteInfo?.ruc || 'N/A'}`, 110, 57);
+    doc.text(`Dirección: ${clienteInfo?.direccion || clienteInfo?.zona || 'N/A'}`, 15, 63);
+    doc.text(`Tel: ${clienteInfo?.telefono || 'N/A'}`, 110, 63);
+    
+    // Table header
+    let y = 80;
+    doc.setFillColor(17, 24, 39);
+    doc.rect(10, y - 6, 190, 10, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'bold');
+    doc.text('PRODUCTO', 15, y);
+    doc.text('PRESENTACIÓN', 80, y);
+    doc.text('CANT.', 125, y);
+    doc.text('P. UNIT.', 145, y);
+    doc.text('SUBTOTAL', 175, y, { align: 'right' });
+    
+    // Table rows
+    y += 10;
+    doc.setTextColor(0, 0, 0);
+    doc.setFont('helvetica', 'normal');
+    (pedido.items || []).forEach((item, i) => {
+        if (i % 2 === 0) {
+            doc.setFillColor(249, 250, 251);
+            doc.rect(10, y - 5, 190, 8, 'F');
+        }
+        doc.setFontSize(9);
+        doc.text(item.nombre || '', 15, y);
+        doc.text(item.presentacion || '', 80, y);
+        doc.text(String(item.cantidad || 0), 130, y);
+        doc.text(`Gs. ${(item.precio || 0).toLocaleString()}`, 145, y);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`Gs. ${(item.subtotal || 0).toLocaleString()}`, 195, y, { align: 'right' });
+        doc.setFont('helvetica', 'normal');
+        y += 8;
+    });
+    
+    // Totals
+    y += 5;
+    doc.setDrawColor(200, 200, 200);
+    doc.line(120, y, 200, y);
+    y += 8;
+    doc.setFontSize(9);
+    doc.text('Subtotal:', 140, y);
+    doc.text(`Gs. ${(pedido.subtotal || 0).toLocaleString()}`, 195, y, { align: 'right' });
+    if (pedido.descuento > 0) {
+        y += 7;
+        doc.text(`Descuento (${pedido.descuento}%):`, 140, y);
+        doc.text(`-Gs. ${Math.round((pedido.subtotal || 0) * pedido.descuento / 100).toLocaleString()}`, 195, y, { align: 'right' });
+    }
+    y += 7;
+    doc.setFillColor(17, 24, 39);
+    doc.rect(130, y - 5, 70, 10, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.text('TOTAL:', 135, y + 1);
+    doc.text(`Gs. ${(pedido.total || 0).toLocaleString()}`, 195, y + 1, { align: 'right' });
+    
+    // Footer
+    y += 20;
+    doc.setTextColor(150, 150, 150);
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Tipo de pago: ${pedido.tipoPago || 'contado'}`, 15, y);
+    if (pedido.notas) doc.text(`Notas: ${pedido.notas}`, 15, y + 5);
+    
+    y = 270;
+    doc.setDrawColor(200, 200, 200);
+    doc.line(15, y, 80, y);
+    doc.line(130, y, 195, y);
+    doc.setFontSize(7);
+    doc.text('Firma del Cliente', 35, y + 5);
+    doc.text('Firma del Vendedor', 150, y + 5);
+    
+    doc.setTextColor(180, 180, 180);
+    doc.text('HDV Distribuciones EAS - Documento generado automáticamente', 105, 290, { align: 'center' });
+    
+    doc.save(`remision_${pedido.id}_${pedido.cliente?.nombre || 'cliente'}.pdf`);
+}
+
+
+// ===== 3. THERMAL TICKET =====
+
+function generarTicketTermico(pedidoId) {
+    const pedido = todosLosPedidos.find(p => p.id === (pedidoId || pedidoEditandoId));
+    if (!pedido) { alert('Pedido no encontrado'); return; }
+    
+    const clienteInfo = productosData.clientes.find(c => c.id === pedido.cliente?.id);
+    
+    const ticketHTML = `<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<style>
+    @page { margin: 0; size: 80mm auto; }
+    body { font-family: 'Courier New', monospace; width: 72mm; margin: 4mm; font-size: 11px; color: #000; }
+    .center { text-align: center; }
+    .bold { font-weight: bold; }
+    .line { border-top: 1px dashed #000; margin: 4px 0; }
+    .right { text-align: right; }
+    .row { display: flex; justify-content: space-between; }
+    .big { font-size: 16px; }
+    .small { font-size: 9px; }
+    table { width: 100%; border-collapse: collapse; }
+    td { padding: 2px 0; vertical-align: top; }
+    .total-row { font-size: 14px; font-weight: bold; }
+</style></head><body>
+<div class="center bold big">HDV DISTRIBUCIONES</div>
+<div class="center small">EAS - Nota de Remisión</div>
+<div class="line"></div>
+<div class="row"><span>N°: ${pedido.id}</span></div>
+<div class="row"><span>Fecha: ${new Date(pedido.fecha).toLocaleDateString('es-PY')}</span></div>
+<div class="row"><span>Hora: ${new Date(pedido.fecha).toLocaleTimeString('es-PY')}</span></div>
+<div class="line"></div>
+<div class="bold">Cliente: ${pedido.cliente?.nombre || 'N/A'}</div>
+<div>RUC: ${clienteInfo?.ruc || 'N/A'}</div>
+<div>Dir: ${clienteInfo?.direccion || clienteInfo?.zona || ''}</div>
+<div class="line"></div>
+<table>
+${(pedido.items || []).map(i => `<tr>
+    <td>${i.nombre}<br><span class="small">${i.presentacion} x${i.cantidad}</span></td>
+    <td class="right bold">Gs.${(i.subtotal || 0).toLocaleString()}</td>
+</tr>`).join('')}
+</table>
+<div class="line"></div>
+<div class="row"><span>Subtotal:</span><span>Gs. ${(pedido.subtotal || 0).toLocaleString()}</span></div>
+${pedido.descuento > 0 ? `<div class="row"><span>Desc. ${pedido.descuento}%:</span><span>-Gs. ${Math.round((pedido.subtotal||0)*pedido.descuento/100).toLocaleString()}</span></div>` : ''}
+<div class="line"></div>
+<div class="row total-row"><span>TOTAL:</span><span>Gs. ${(pedido.total || 0).toLocaleString()}</span></div>
+<div class="line"></div>
+<div class="row"><span>Pago: ${pedido.tipoPago || 'contado'}</span><span>Estado: ${(pedido.estado||'pendiente').toUpperCase()}</span></div>
+${pedido.notas ? `<div class="small">Notas: ${pedido.notas}</div>` : ''}
+<div class="line"></div>
+<div class="center small">Gracias por su compra</div>
+<div class="center small">HDV Distribuciones EAS</div>
+<div style="margin-bottom:10mm"></div>
+</body></html>`;
+
+    const printFrame = document.getElementById('printFrame');
+    printFrame.srcdoc = ticketHTML;
+    printFrame.onload = () => {
+        printFrame.contentWindow.print();
+    };
+}
+
+
+// ===== 4. DASHBOARD FUNCTIONS =====
+
+let chartVentas7d = null;
+let chartTopProd = null;
+
+function cargarDashboard() {
+    const pedidos = todosLosPedidos;
+    const hoy = new Date();
+    
+    // Stats del mes
+    const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+    const pedidosMes = pedidos.filter(p => new Date(p.fecha) >= inicioMes);
+    const ventasMes = pedidosMes.reduce((s, p) => s + (p.total || 0), 0);
+    const clientesActivosMes = new Set(pedidosMes.map(p => p.cliente?.id)).size;
+    const ticketPromedio = pedidosMes.length > 0 ? Math.round(ventasMes / pedidosMes.length) : 0;
+    
+    const el = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
+    el('dashVentasMes', `Gs. ${ventasMes.toLocaleString()}`);
+    el('dashPedidosMes', pedidosMes.length);
+    el('dashClientesActivos', clientesActivosMes);
+    el('dashTicketPromedio', `Gs. ${ticketPromedio.toLocaleString()}`);
+    
+    // Chart: ventas últimos 7 días
+    const labels7d = [];
+    const datos7d = [];
+    for (let i = 6; i >= 0; i--) {
+        const d = new Date(hoy);
+        d.setDate(d.getDate() - i);
+        const fechaStr = d.toISOString().split('T')[0];
+        const diaNombre = d.toLocaleDateString('es-PY', { weekday: 'short' });
+        labels7d.push(diaNombre);
+        const ventasDia = pedidos.filter(p => new Date(p.fecha).toISOString().split('T')[0] === fechaStr).reduce((s, p) => s + (p.total || 0), 0);
+        datos7d.push(ventasDia);
+    }
+    
+    const ctx7d = document.getElementById('chartVentas7Dias');
+    if (ctx7d) {
+        if (chartVentas7d) chartVentas7d.destroy();
+        chartVentas7d = new Chart(ctx7d, {
+            type: 'bar',
+            data: {
+                labels: labels7d,
+                datasets: [{
+                    label: 'Ventas (Gs.)',
+                    data: datos7d,
+                    backgroundColor: 'rgba(17, 24, 39, 0.8)',
+                    borderRadius: 8,
+                    borderSkipped: false
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { beginAtZero: true, ticks: { callback: v => 'Gs.' + (v/1000).toFixed(0) + 'k' } },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+    }
+    
+    // Chart: top 5 productos del mes
+    const prodCount = {};
+    pedidosMes.forEach(p => {
+        (p.items || []).forEach(i => {
+            const key = i.nombre || 'N/A';
+            prodCount[key] = (prodCount[key] || 0) + (i.cantidad || 1);
+        });
+    });
+    const top5 = Object.entries(prodCount).sort((a,b) => b[1]-a[1]).slice(0, 5);
+    const colores = ['#111827', '#374151', '#6b7280', '#9ca3af', '#d1d5db'];
+    
+    const ctxTop = document.getElementById('chartTopProductos');
+    if (ctxTop) {
+        if (chartTopProd) chartTopProd.destroy();
+        chartTopProd = new Chart(ctxTop, {
+            type: 'doughnut',
+            data: {
+                labels: top5.map(t => t[0]),
+                datasets: [{
+                    data: top5.map(t => t[1]),
+                    backgroundColor: colores,
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } }
+            }
+        });
+    }
+    
+    // Ranking clientes semana
+    const hace7d = new Date(hoy.getTime() - 7*24*60*60*1000);
+    const pedidosSemana = pedidos.filter(p => new Date(p.fecha) >= hace7d);
+    const clienteRanking = {};
+    pedidosSemana.forEach(p => {
+        const nombre = p.cliente?.nombre || 'N/A';
+        if (!clienteRanking[nombre]) clienteRanking[nombre] = { total: 0, pedidos: 0 };
+        clienteRanking[nombre].total += p.total || 0;
+        clienteRanking[nombre].pedidos++;
+    });
+    
+    const rankDiv = document.getElementById('rankingClientes');
+    if (rankDiv) {
+        const sorted = Object.entries(clienteRanking).sort((a,b) => b[1].total - a[1].total).slice(0, 10);
+        if (sorted.length === 0) {
+            rankDiv.innerHTML = '<p class="text-gray-400 text-sm italic">Sin pedidos esta semana</p>';
+        } else {
+            const maxTotal = sorted[0][1].total;
+            rankDiv.innerHTML = sorted.map(([nombre, data], i) => {
+                const pct = maxTotal > 0 ? (data.total / maxTotal * 100) : 0;
+                const medallas = ['🥇','🥈','🥉'];
+                const medal = i < 3 ? medallas[i] : `<span class="text-gray-400 text-xs">#${i+1}</span>`;
+                return `<div class="flex items-center gap-3">
+                    <span class="text-xl w-8 text-center">${medal}</span>
+                    <div class="flex-1">
+                        <div class="flex justify-between mb-1">
+                            <span class="text-sm font-bold text-gray-800">${nombre}</span>
+                            <span class="text-sm font-bold text-gray-600">Gs. ${data.total.toLocaleString()} (${data.pedidos})</span>
+                        </div>
+                        <div class="w-full bg-gray-100 rounded-full h-2"><div class="bg-gray-800 h-2 rounded-full" style="width:${pct}%"></div></div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+    }
+    
+    // Cargar selector de meses
+    cargarSelectorMeses();
+}
+
+function cargarSelectorMeses() {
+    const select = document.getElementById('dashMesSelect');
+    if (!select) return;
+    select.innerHTML = '';
+    const hoy = new Date();
+    for (let i = 0; i < 12; i++) {
+        const d = new Date(hoy.getFullYear(), hoy.getMonth() - i, 1);
+        const opt = document.createElement('option');
+        opt.value = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+        opt.textContent = d.toLocaleDateString('es-PY', { month: 'long', year: 'numeric' });
+        select.appendChild(opt);
+    }
+    cargarResumenMensual();
+}
+
+function cargarResumenMensual() {
+    const mesStr = document.getElementById('dashMesSelect')?.value;
+    if (!mesStr) return;
+    const [anio, mes] = mesStr.split('-').map(Number);
+    const inicio = new Date(anio, mes - 1, 1);
+    const fin = new Date(anio, mes, 0, 23, 59, 59);
+    
+    const pedidosMes = todosLosPedidos.filter(p => {
+        const f = new Date(p.fecha);
+        return f >= inicio && f <= fin;
+    });
+    
+    const totalVentas = pedidosMes.reduce((s, p) => s + (p.total || 0), 0);
+    const totalPedidos = pedidosMes.length;
+    const contado = pedidosMes.filter(p => (p.tipoPago || 'contado') === 'contado').reduce((s,p) => s + (p.total||0), 0);
+    const credito = pedidosMes.filter(p => p.tipoPago === 'credito').reduce((s,p) => s + (p.total||0), 0);
+    const entregados = pedidosMes.filter(p => p.estado === 'entregado').length;
+    const clientesUnicos = new Set(pedidosMes.map(p => p.cliente?.id)).size;
+    
+    const container = document.getElementById('resumenMensualContenido');
+    if (container) {
+        container.innerHTML = `
+            <div class="grid grid-cols-2 gap-3">
+                <div class="bg-green-50 p-3 rounded-lg"><p class="text-xs text-gray-500">Total Ventas</p><p class="font-bold text-green-700">Gs. ${totalVentas.toLocaleString()}</p></div>
+                <div class="bg-blue-50 p-3 rounded-lg"><p class="text-xs text-gray-500">Pedidos</p><p class="font-bold text-blue-700">${totalPedidos}</p></div>
+                <div class="bg-gray-50 p-3 rounded-lg"><p class="text-xs text-gray-500">Contado</p><p class="font-bold">Gs. ${contado.toLocaleString()}</p></div>
+                <div class="bg-red-50 p-3 rounded-lg"><p class="text-xs text-gray-500">Crédito</p><p class="font-bold text-red-600">Gs. ${credito.toLocaleString()}</p></div>
+                <div class="bg-purple-50 p-3 rounded-lg"><p class="text-xs text-gray-500">Entregados</p><p class="font-bold text-purple-700">${entregados} / ${totalPedidos}</p></div>
+                <div class="bg-yellow-50 p-3 rounded-lg"><p class="text-xs text-gray-500">Clientes</p><p class="font-bold text-yellow-700">${clientesUnicos}</p></div>
+            </div>
+        `;
+    }
+}
+
+function exportarResumenMensualPDF() {
+    const mesStr = document.getElementById('dashMesSelect')?.value;
+    if (!mesStr) return;
+    const [anio, mes] = mesStr.split('-').map(Number);
+    const inicio = new Date(anio, mes - 1, 1);
+    const fin = new Date(anio, mes, 0, 23, 59, 59);
+    const mesNombre = inicio.toLocaleDateString('es-PY', { month: 'long', year: 'numeric' });
+    
+    const pedidosMes = todosLosPedidos.filter(p => {
+        const f = new Date(p.fecha);
+        return f >= inicio && f <= fin;
+    });
+    
+    const totalVentas = pedidosMes.reduce((s, p) => s + (p.total || 0), 0);
+    const contado = pedidosMes.filter(p => (p.tipoPago || 'contado') === 'contado').reduce((s,p) => s + (p.total||0), 0);
+    const credito = pedidosMes.filter(p => p.tipoPago === 'credito').reduce((s,p) => s + (p.total||0), 0);
+    
+    // Por cliente
+    const porCliente = {};
+    pedidosMes.forEach(p => {
+        const n = p.cliente?.nombre || 'N/A';
+        if (!porCliente[n]) porCliente[n] = { total: 0, pedidos: 0 };
+        porCliente[n].total += p.total || 0;
+        porCliente[n].pedidos++;
+    });
+    
+    // Por producto
+    const porProducto = {};
+    pedidosMes.forEach(p => {
+        (p.items || []).forEach(i => {
+            const k = i.nombre;
+            if (!porProducto[k]) porProducto[k] = { cantidad: 0, total: 0 };
+            porProducto[k].cantidad += i.cantidad || 1;
+            porProducto[k].total += i.subtotal || 0;
+        });
+    });
+    
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    
+    // Header
+    doc.setFillColor(17, 24, 39);
+    doc.rect(0, 0, 210, 30, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.text('HDV Distribuciones - Reporte Mensual', 15, 15);
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    doc.text(mesNombre.charAt(0).toUpperCase() + mesNombre.slice(1), 15, 23);
+    
+    let y = 42;
+    doc.setTextColor(0, 0, 0);
+    
+    // Resumen
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Resumen General', 15, y); y += 8;
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Total Ventas: Gs. ${totalVentas.toLocaleString()}`, 15, y); y += 6;
+    doc.text(`Total Pedidos: ${pedidosMes.length}`, 15, y); y += 6;
+    doc.text(`Ventas Contado: Gs. ${contado.toLocaleString()}`, 15, y); y += 6;
+    doc.text(`Ventas Crédito: Gs. ${credito.toLocaleString()}`, 15, y); y += 6;
+    doc.text(`Clientes Activos: ${Object.keys(porCliente).length}`, 15, y); y += 12;
+    
+    // Top clientes
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Top Clientes', 15, y); y += 8;
+    doc.setFontSize(9);
+    const topClientes = Object.entries(porCliente).sort((a,b) => b[1].total - a[1].total).slice(0, 10);
+    topClientes.forEach(([nombre, data]) => {
+        doc.setFont('helvetica', 'normal');
+        doc.text(`${nombre}`, 15, y);
+        doc.text(`${data.pedidos} pedidos`, 120, y);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`Gs. ${data.total.toLocaleString()}`, 195, y, { align: 'right' });
+        y += 6;
+    });
+    
+    y += 8;
+    // Top productos
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Top Productos', 15, y); y += 8;
+    doc.setFontSize(9);
+    const topProductos = Object.entries(porProducto).sort((a,b) => b[1].total - a[1].total).slice(0, 10);
+    topProductos.forEach(([nombre, data]) => {
+        doc.setFont('helvetica', 'normal');
+        doc.text(`${nombre}`, 15, y);
+        doc.text(`${data.cantidad} unid.`, 120, y);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`Gs. ${data.total.toLocaleString()}`, 195, y, { align: 'right' });
+        y += 6;
+    });
+    
+    // Footer
+    doc.setTextColor(180, 180, 180);
+    doc.setFontSize(7);
+    doc.text(`Generado: ${new Date().toLocaleString('es-PY')} - HDV Distribuciones EAS`, 105, 290, { align: 'center' });
+    
+    doc.save(`hdv_reporte_${mesStr}.pdf`);
+}
+
+async function guardarResumenMensualFirebase() {
+    const mesStr = document.getElementById('dashMesSelect')?.value;
+    if (!mesStr) return;
+    const [anio, mes] = mesStr.split('-').map(Number);
+    const inicio = new Date(anio, mes - 1, 1);
+    const fin = new Date(anio, mes, 0, 23, 59, 59);
+    
+    const pedidosMes = todosLosPedidos.filter(p => {
+        const f = new Date(p.fecha);
+        return f >= inicio && f <= fin;
+    });
+    
+    const resumen = {
+        mes: mesStr,
+        fechaGeneracion: new Date().toISOString(),
+        totalVentas: pedidosMes.reduce((s, p) => s + (p.total || 0), 0),
+        totalPedidos: pedidosMes.length,
+        contado: pedidosMes.filter(p => (p.tipoPago||'contado') === 'contado').reduce((s,p) => s + (p.total||0), 0),
+        credito: pedidosMes.filter(p => p.tipoPago === 'credito').reduce((s,p) => s + (p.total||0), 0),
+        clientesActivos: new Set(pedidosMes.map(p => p.cliente?.id)).size,
+        entregados: pedidosMes.filter(p => p.estado === 'entregado').length
+    };
+    
+    if (typeof db !== 'undefined') {
+        try {
+            await db.collection('reportes_mensuales').doc(mesStr).set(resumen);
+            alert(`Resumen de ${mesStr} guardado en Firebase`);
+        } catch(e) {
+            alert('Error guardando: ' + e.message);
+        }
+    } else {
+        alert('Firebase no disponible');
+    }
 }

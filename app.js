@@ -502,7 +502,6 @@ function mostrarMisPedidos() {
     const container = document.getElementById('productsContainer');
     const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
     
-    // Filtrar pedidos del cliente actual o mostrar todos
     let misPedidos = pedidos.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
     
     if (misPedidos.length === 0) {
@@ -535,14 +534,15 @@ function mostrarMisPedidos() {
                 <span class="text-xs text-gray-500">${p.tipoPago || 'contado'} ${p.descuento > 0 ? `| ${p.descuento}% desc.` : ''}</span>
                 <span class="font-bold text-gray-900">Gs. ${p.total.toLocaleString()}</span>
             </div>
+            <div class="flex gap-2 mt-3 pt-2 border-t border-gray-50">
+                <button onclick="imprimirTicketVendedor('${p.id}')" class="flex-1 bg-purple-50 text-purple-700 py-2 rounded-lg text-xs font-bold active:scale-95 transition-transform">🖨️ Ticket</button>
+                <button onclick="generarPDFVendedor('${p.id}')" class="flex-1 bg-red-50 text-red-700 py-2 rounded-lg text-xs font-bold active:scale-95 transition-transform">📄 PDF</button>
+                <button onclick="enviarPedidoWhatsApp('${p.id}')" class="flex-1 bg-green-50 text-green-700 py-2 rounded-lg text-xs font-bold active:scale-95 transition-transform">📲 WhatsApp</button>
+            </div>
         `;
         container.appendChild(div);
     });
 }
-
-// ============================================
-// UTILIDADES
-// ============================================
 function mostrarExito(msg) {
     const el = document.getElementById('successMessage');
     el.textContent = '✓ ' + msg;
@@ -956,4 +956,158 @@ function descargarArchivoJSON(data, nombre) {
 function formatearFechaArchivo() {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}_${String(d.getHours()).padStart(2,'0')}${String(d.getMinutes()).padStart(2,'0')}`;
+}
+
+// ============================================
+// IMPRESIÓN Y COMPARTIR POR PEDIDO
+// ============================================
+function imprimirTicketVendedor(pedidoId) {
+    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    const pedido = pedidos.find(p => p.id === pedidoId);
+    if (!pedido) return;
+    
+    const ticketHTML = `<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<style>
+    @page { margin: 0; size: 80mm auto; }
+    body { font-family: 'Courier New', monospace; width: 72mm; margin: 4mm; font-size: 11px; color: #000; }
+    .center { text-align: center; }
+    .bold { font-weight: bold; }
+    .line { border-top: 1px dashed #000; margin: 4px 0; }
+    .right { text-align: right; }
+    .row { display: flex; justify-content: space-between; }
+    .big { font-size: 16px; }
+    .small { font-size: 9px; }
+    table { width: 100%; border-collapse: collapse; }
+    td { padding: 2px 0; vertical-align: top; }
+    .total-row { font-size: 14px; font-weight: bold; }
+</style></head><body>
+<div class="center bold big">HDV DISTRIBUCIONES</div>
+<div class="center small">EAS - Comprobante de Pedido</div>
+<div class="line"></div>
+<div class="row"><span>N°: ${pedido.id}</span></div>
+<div class="row"><span>Fecha: ${new Date(pedido.fecha).toLocaleDateString('es-PY')}</span></div>
+<div class="row"><span>Hora: ${new Date(pedido.fecha).toLocaleTimeString('es-PY')}</span></div>
+<div class="line"></div>
+<div class="bold">Cliente: ${pedido.cliente?.nombre || 'N/A'}</div>
+<div class="line"></div>
+<table>
+${(pedido.items || []).map(i => `<tr>
+    <td>${i.nombre}<br><span class="small">${i.presentacion} x${i.cantidad}</span></td>
+    <td class="right bold">Gs.${(i.subtotal || 0).toLocaleString()}</td>
+</tr>`).join('')}
+</table>
+<div class="line"></div>
+${pedido.descuento > 0 ? `<div class="row"><span>Desc. ${pedido.descuento}%:</span><span>-Gs. ${Math.round((pedido.subtotal||0)*pedido.descuento/100).toLocaleString()}</span></div>` : ''}
+<div class="row total-row"><span>TOTAL:</span><span>Gs. ${(pedido.total || 0).toLocaleString()}</span></div>
+<div class="line"></div>
+<div class="row"><span>Pago: ${pedido.tipoPago || 'contado'}</span></div>
+${pedido.notas ? `<div class="small">Notas: ${pedido.notas}</div>` : ''}
+<div class="line"></div>
+<div class="center small">Gracias por su compra</div>
+<div class="center small">HDV Distribuciones EAS</div>
+<div style="margin-bottom:10mm"></div>
+</body></html>`;
+
+    const printFrame = document.getElementById('printFrameVendedor');
+    if (printFrame) {
+        printFrame.srcdoc = ticketHTML;
+        printFrame.onload = () => printFrame.contentWindow.print();
+    }
+}
+
+function generarPDFVendedor(pedidoId) {
+    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    const pedido = pedidos.find(p => p.id === pedidoId);
+    if (!pedido) return;
+    
+    if (typeof window.jspdf === 'undefined') {
+        alert('Cargando generador de PDF...');
+        return;
+    }
+    
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    
+    // Header
+    doc.setFillColor(17, 24, 39);
+    doc.rect(0, 0, 210, 32, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(20);
+    doc.setFont('helvetica', 'bold');
+    doc.text('HDV Distribuciones', 15, 16);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text('EAS - Comprobante de Pedido', 15, 24);
+    doc.text(`N°: ${pedido.id}`, 195, 14, { align: 'right' });
+    doc.text(`${new Date(pedido.fecha).toLocaleDateString('es-PY')}`, 195, 21, { align: 'right' });
+    
+    // Client
+    let y = 45;
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Cliente: ${pedido.cliente?.nombre || 'N/A'}`, 15, y);
+    y += 10;
+    
+    // Items
+    doc.setFillColor(17, 24, 39);
+    doc.rect(10, y - 5, 190, 8, 'F');
+    doc.setTextColor(255);
+    doc.setFontSize(8);
+    doc.text('PRODUCTO', 15, y);
+    doc.text('PRES.', 90, y);
+    doc.text('CANT.', 125, y);
+    doc.text('SUBTOTAL', 190, y, { align: 'right' });
+    y += 8;
+    
+    doc.setTextColor(0);
+    doc.setFontSize(9);
+    (pedido.items || []).forEach((item, i) => {
+        if (i % 2 === 0) { doc.setFillColor(249,250,251); doc.rect(10, y-4, 190, 7, 'F'); }
+        doc.setFont('helvetica', 'normal');
+        doc.text(item.nombre, 15, y);
+        doc.text(item.presentacion, 90, y);
+        doc.text(String(item.cantidad), 130, y);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`Gs. ${(item.subtotal||0).toLocaleString()}`, 190, y, { align: 'right' });
+        y += 7;
+    });
+    
+    y += 8;
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`TOTAL: Gs. ${(pedido.total||0).toLocaleString()}`, 190, y, { align: 'right' });
+    
+    y += 10;
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(150);
+    doc.text(`Pago: ${pedido.tipoPago || 'contado'}${pedido.descuento > 0 ? ` | Desc: ${pedido.descuento}%` : ''}`, 15, y);
+    if (pedido.notas) { y += 5; doc.text(`Notas: ${pedido.notas}`, 15, y); }
+    
+    doc.save(`pedido_${pedido.id}.pdf`);
+    mostrarExito('PDF generado');
+}
+
+function enviarPedidoWhatsApp(pedidoId) {
+    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    const pedido = pedidos.find(p => p.id === pedidoId);
+    if (!pedido) return;
+    
+    let msg = `*HDV Distribuciones - Pedido*\n`;
+    msg += `N°: ${pedido.id}\n`;
+    msg += `Fecha: ${new Date(pedido.fecha).toLocaleDateString('es-PY')}\n`;
+    msg += `Cliente: ${pedido.cliente?.nombre || 'N/A'}\n\n`;
+    msg += `*Detalle:*\n`;
+    (pedido.items || []).forEach(i => {
+        msg += `• ${i.nombre} (${i.presentacion}) x${i.cantidad} = Gs.${(i.subtotal||0).toLocaleString()}\n`;
+    });
+    msg += `\n*TOTAL: Gs. ${(pedido.total||0).toLocaleString()}*\n`;
+    msg += `Pago: ${pedido.tipoPago || 'contado'}`;
+    if (pedido.descuento > 0) msg += ` | Desc: ${pedido.descuento}%`;
+    if (pedido.notas) msg += `\nNotas: ${pedido.notas}`;
+    
+    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+    mostrarExito('Abriendo WhatsApp...');
 }

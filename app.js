@@ -1,5 +1,5 @@
 // ============================================
-// HDV Pedidos - App Vendedor v2.8
+// HDV Pedidos - App Vendedor v3.0 (con Backup)
 // ============================================
 let productos = [];
 let categorias = [];
@@ -7,7 +7,8 @@ let clientes = [];
 let clienteActual = null;
 let carrito = [];
 let categoriaActual = 'todas';
-let vistaActual = 'lista'; // 'lista' o 'pedidos'
+let vistaActual = 'lista'; // 'lista', 'pedidos' o 'config'
+let autoBackupInterval = null;
 
 // ============================================
 // INICIALIZACIÓN
@@ -17,6 +18,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     configurarEventos();
     cargarCarritoGuardado();
     registrarSW();
+    iniciarAutoBackup();
+    actualizarInfoBackup();
 });
 
 async function cargarDatos() {
@@ -432,25 +435,35 @@ function confirmarPedido() {
 // ============================================
 function cambiarVistaVendedor(vista) {
     vistaActual = vista;
-    
+
     const btnLista = document.getElementById('btn-tab-lista');
     const btnPedidos = document.getElementById('btn-tab-pedidos');
+    const btnBackup = document.getElementById('btn-tab-backup');
+    const btnConfig = document.getElementById('btn-tab-config');
     const container = document.getElementById('productsContainer');
     const catFilters = document.getElementById('categoryFilters');
     const searchBox = document.getElementById('searchContainer');
-    
+
+    // Reset all tabs
+    [btnLista, btnPedidos, btnBackup, btnConfig].forEach(btn => {
+        if (btn) btn.className = 'flex flex-col items-center gap-1 text-gray-400 transition-colors';
+    });
+
     if (vista === 'lista') {
         btnLista.className = 'flex flex-col items-center gap-1 text-gray-900 transition-colors';
-        btnPedidos.className = 'flex flex-col items-center gap-1 text-gray-400 transition-colors';
         catFilters.style.display = '';
         searchBox.style.display = '';
         mostrarProductos();
-    } else {
-        btnLista.className = 'flex flex-col items-center gap-1 text-gray-400 transition-colors';
+    } else if (vista === 'pedidos') {
         btnPedidos.className = 'flex flex-col items-center gap-1 text-gray-900 transition-colors';
         catFilters.style.display = 'none';
         searchBox.style.display = 'none';
         mostrarMisPedidos();
+    } else if (vista === 'config') {
+        btnConfig.className = 'flex flex-col items-center gap-1 text-gray-900 transition-colors';
+        catFilters.style.display = 'none';
+        searchBox.style.display = 'none';
+        mostrarConfiguracion();
     }
 }
 
@@ -551,4 +564,365 @@ function registrarSW() {
 // Filtrar pedidos (alias for admin compatibility)
 function filtrarPedidos() {
     aplicarFiltrosPedidos && aplicarFiltrosPedidos();
+}
+
+// ============================================
+// VISTA CONFIGURACIÓN
+// ============================================
+function mostrarConfiguracion() {
+    const container = document.getElementById('productsContainer');
+    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    const autoBackups = JSON.parse(localStorage.getItem('hdv_auto_backups_meta') || '[]');
+    const ultimoBackup = localStorage.getItem('hdv_ultimo_backup_fecha');
+
+    const totalPedidos = pedidos.length;
+    const pendientes = pedidos.filter(p => (p.estado || 'pendiente') === 'pendiente').length;
+    const totalGs = pedidos.reduce((s, p) => s + (p.total || 0), 0);
+
+    container.innerHTML = `
+        <h3 class="text-lg font-bold text-gray-800 mb-4">Configuración</h3>
+
+        <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100 mb-3">
+            <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Resumen de Datos</p>
+            <div class="grid grid-cols-3 gap-3 text-center">
+                <div class="bg-gray-50 rounded-lg p-3">
+                    <p class="text-xl font-bold text-gray-800">${totalPedidos}</p>
+                    <p class="text-[10px] text-gray-500 font-bold">PEDIDOS</p>
+                </div>
+                <div class="bg-yellow-50 rounded-lg p-3">
+                    <p class="text-xl font-bold text-yellow-700">${pendientes}</p>
+                    <p class="text-[10px] text-gray-500 font-bold">PENDIENTES</p>
+                </div>
+                <div class="bg-green-50 rounded-lg p-3">
+                    <p class="text-lg font-bold text-green-700">Gs.${(totalGs/1000).toFixed(0)}k</p>
+                    <p class="text-[10px] text-gray-500 font-bold">TOTAL</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100 mb-3">
+            <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Estado de Backups</p>
+            <p class="text-sm text-gray-700">${ultimoBackup ? 'Último backup: ' + new Date(ultimoBackup).toLocaleString('es-PY') : 'Sin backups realizados'}</p>
+            <p class="text-sm text-gray-500 mt-1">Auto-backups guardados: ${autoBackups.length}/10</p>
+        </div>
+
+        <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100 mb-3">
+            <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Almacenamiento</p>
+            <p class="text-sm text-gray-700" id="storageInfo">Calculando...</p>
+        </div>
+
+        <div class="bg-white rounded-xl p-4 shadow-sm border border-red-200 mb-3">
+            <p class="text-xs font-bold text-red-500 uppercase tracking-wider mb-3">Zona de Peligro</p>
+            <button onclick="limpiarTodosDatos()" class="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-bold w-full">Borrar Todos Mis Pedidos</button>
+        </div>
+
+        <p class="text-center text-xs text-gray-400 mt-4">HDV Pedidos v3.0 - 2026</p>
+    `;
+
+    // Calcular almacenamiento
+    calcularAlmacenamiento();
+}
+
+function calcularAlmacenamiento() {
+    let totalBytes = 0;
+    for (let key in localStorage) {
+        if (key.startsWith('hdv_')) {
+            totalBytes += (localStorage[key] || '').length * 2; // UTF-16
+        }
+    }
+    const kb = (totalBytes / 1024).toFixed(1);
+    const el = document.getElementById('storageInfo');
+    if (el) el.textContent = `Usando ${kb} KB de localStorage`;
+}
+
+function limpiarTodosDatos() {
+    if (!confirm('¿BORRAR TODOS los pedidos? Esta acción no se puede deshacer.')) return;
+    if (!confirm('¿Estás completamente seguro?')) return;
+    localStorage.removeItem('hdv_pedidos');
+    // Limpiar carritos
+    for (let key in localStorage) {
+        if (key.startsWith('hdv_carrito_')) localStorage.removeItem(key);
+    }
+    carrito = [];
+    actualizarContadorCarrito();
+    mostrarExito('Datos eliminados');
+    mostrarConfiguracion();
+}
+
+// ============================================
+// SISTEMA DE BACKUP - VENDEDOR
+// ============================================
+function mostrarModalBackup() {
+    const modal = document.getElementById('backupModal');
+    modal.classList.remove('hidden');
+    actualizarInfoBackup();
+    mostrarHistorialBackups();
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function cerrarModalBackup() {
+    document.getElementById('backupModal').classList.add('hidden');
+}
+
+function actualizarInfoBackup() {
+    const ultimaFecha = localStorage.getItem('hdv_ultimo_backup_fecha');
+    const infoText = document.getElementById('backupInfoText');
+    const infoDate = document.getElementById('backupInfoDate');
+    if (!infoText || !infoDate) return;
+
+    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    infoText.textContent = `${pedidos.length} pedidos en el dispositivo`;
+
+    if (ultimaFecha) {
+        infoDate.textContent = `Último backup: ${new Date(ultimaFecha).toLocaleString('es-PY')}`;
+    } else {
+        infoDate.textContent = 'Nunca se ha hecho backup';
+    }
+}
+
+// Exportar backup completo (pedidos + carritos + config)
+function exportarBackupVendedor() {
+    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    const carritos = {};
+    for (let key in localStorage) {
+        if (key.startsWith('hdv_carrito_')) {
+            carritos[key] = JSON.parse(localStorage.getItem(key));
+        }
+    }
+
+    const backup = {
+        tipo: 'backup_vendedor_completo',
+        fecha: new Date().toISOString(),
+        version: '3.0',
+        dispositivo: navigator.userAgent.substring(0, 50),
+        datos: {
+            pedidos,
+            carritos,
+            configuracion: {
+                darkmode: localStorage.getItem('hdv_darkmode'),
+                autoBackup: localStorage.getItem('hdv_auto_backup') !== 'false'
+            }
+        },
+        resumen: {
+            totalPedidos: pedidos.length,
+            pedidosPendientes: pedidos.filter(p => (p.estado || 'pendiente') === 'pendiente').length,
+            totalGuaranies: pedidos.reduce((s, p) => s + (p.total || 0), 0)
+        }
+    };
+
+    descargarArchivoJSON(backup, `hdv_backup_completo_${formatearFechaArchivo()}.json`);
+    localStorage.setItem('hdv_ultimo_backup_fecha', new Date().toISOString());
+    actualizarInfoBackup();
+    mostrarExito('Backup descargado');
+}
+
+// Exportar solo pedidos
+function exportarSoloPedidos() {
+    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    if (pedidos.length === 0) { alert('No hay pedidos para exportar'); return; }
+
+    const backup = {
+        tipo: 'backup_pedidos',
+        fecha: new Date().toISOString(),
+        version: '3.0',
+        pedidos
+    };
+
+    descargarArchivoJSON(backup, `hdv_pedidos_${formatearFechaArchivo()}.json`);
+    mostrarExito('Pedidos descargados');
+}
+
+// Compartir resumen por WhatsApp
+function compartirBackupWhatsApp() {
+    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    const hoy = new Date().toLocaleDateString('es-PY');
+    const pedidosHoy = pedidos.filter(p => new Date(p.fecha).toLocaleDateString('es-PY') === hoy);
+
+    let mensaje = `*HDV Pedidos - Resumen ${hoy}*\n\n`;
+    mensaje += `Total pedidos hoy: ${pedidosHoy.length}\n`;
+    mensaje += `Total general: Gs. ${pedidosHoy.reduce((s, p) => s + (p.total || 0), 0).toLocaleString()}\n\n`;
+
+    if (pedidosHoy.length > 0) {
+        pedidosHoy.forEach((p, i) => {
+            mensaje += `${i + 1}. ${p.cliente?.nombre || 'N/A'}\n`;
+            mensaje += `   ${p.items.map(it => `${it.nombre} x${it.cantidad}`).join(', ')}\n`;
+            mensaje += `   Total: Gs. ${(p.total || 0).toLocaleString()} (${p.tipoPago || 'contado'})\n\n`;
+        });
+    } else {
+        mensaje += 'Sin pedidos registrados hoy.\n';
+    }
+
+    mensaje += `\n_Total pedidos en sistema: ${pedidos.length}_`;
+
+    const url = `https://wa.me/?text=${encodeURIComponent(mensaje)}`;
+    window.open(url, '_blank');
+    mostrarExito('Abriendo WhatsApp...');
+}
+
+// Restaurar backup
+function restaurarBackupVendedor(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    if (!confirm('¿Restaurar datos desde este backup? Los datos actuales serán reemplazados.')) {
+        event.target.value = '';
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const data = JSON.parse(e.target.result);
+
+            if (data.tipo === 'backup_vendedor_completo' && data.datos) {
+                // Backup completo
+                if (data.datos.pedidos) {
+                    localStorage.setItem('hdv_pedidos', JSON.stringify(data.datos.pedidos));
+                }
+                if (data.datos.carritos) {
+                    Object.entries(data.datos.carritos).forEach(([key, val]) => {
+                        localStorage.setItem(key, JSON.stringify(val));
+                    });
+                }
+                mostrarExito(`Backup restaurado: ${data.datos.pedidos?.length || 0} pedidos`);
+            } else if (data.tipo === 'backup_pedidos' && data.pedidos) {
+                // Solo pedidos
+                localStorage.setItem('hdv_pedidos', JSON.stringify(data.pedidos));
+                mostrarExito(`${data.pedidos.length} pedidos restaurados`);
+            } else if (data.datos?.pedidos) {
+                // Backup del admin
+                localStorage.setItem('hdv_pedidos', JSON.stringify(data.datos.pedidos));
+                mostrarExito('Backup admin restaurado');
+            } else {
+                alert('Formato de backup no reconocido');
+                event.target.value = '';
+                return;
+            }
+
+            cerrarModalBackup();
+            if (vistaActual === 'pedidos') mostrarMisPedidos();
+        } catch (err) {
+            alert('Error: El archivo no es válido');
+        }
+        event.target.value = '';
+    };
+    reader.readAsText(file);
+}
+
+// ============================================
+// AUTO-BACKUP
+// ============================================
+function iniciarAutoBackup() {
+    const enabled = localStorage.getItem('hdv_auto_backup') !== 'false';
+    const toggle = document.getElementById('autoBackupToggle');
+    if (toggle) toggle.checked = enabled;
+
+    if (enabled) {
+        autoBackupInterval = setInterval(realizarAutoBackup, 5 * 60 * 1000); // cada 5 min
+        // Hacer un auto-backup inmediato si no hay ninguno reciente
+        const ultimo = localStorage.getItem('hdv_auto_backup_ultimo');
+        if (!ultimo || (Date.now() - new Date(ultimo).getTime() > 5 * 60 * 1000)) {
+            setTimeout(realizarAutoBackup, 3000);
+        }
+    }
+}
+
+function toggleAutoBackup() {
+    const toggle = document.getElementById('autoBackupToggle');
+    const enabled = toggle?.checked ?? true;
+    localStorage.setItem('hdv_auto_backup', enabled ? 'true' : 'false');
+
+    if (enabled) {
+        iniciarAutoBackup();
+        mostrarExito('Auto-backup activado');
+    } else {
+        if (autoBackupInterval) clearInterval(autoBackupInterval);
+        mostrarExito('Auto-backup desactivado');
+    }
+}
+
+function realizarAutoBackup() {
+    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    if (pedidos.length === 0) return; // No guardar backup vacío
+
+    const backup = {
+        fecha: new Date().toISOString(),
+        pedidos,
+        totalPedidos: pedidos.length
+    };
+
+    // Guardar en localStorage con rotación (máximo 10 backups)
+    let backups = JSON.parse(localStorage.getItem('hdv_auto_backups') || '[]');
+    backups.unshift(backup);
+    if (backups.length > 10) backups = backups.slice(0, 10);
+
+    try {
+        localStorage.setItem('hdv_auto_backups', JSON.stringify(backups));
+        localStorage.setItem('hdv_auto_backup_ultimo', new Date().toISOString());
+
+        // Guardar metadata (sin los datos pesados)
+        const meta = backups.map(b => ({ fecha: b.fecha, totalPedidos: b.totalPedidos }));
+        localStorage.setItem('hdv_auto_backups_meta', JSON.stringify(meta));
+    } catch (e) {
+        // Si se llena localStorage, eliminar backups viejos
+        console.warn('Auto-backup: espacio insuficiente, reduciendo historial');
+        backups = backups.slice(0, 3);
+        localStorage.setItem('hdv_auto_backups', JSON.stringify(backups));
+    }
+}
+
+function mostrarHistorialBackups() {
+    const container = document.getElementById('historialBackups');
+    if (!container) return;
+
+    const meta = JSON.parse(localStorage.getItem('hdv_auto_backups_meta') || '[]');
+    if (meta.length === 0) {
+        container.innerHTML = '<p class="text-xs text-gray-400 italic">Sin auto-backups aún</p>';
+        return;
+    }
+
+    container.innerHTML = '';
+    meta.forEach((b, idx) => {
+        const div = document.createElement('div');
+        div.className = 'flex justify-between items-center bg-gray-50 rounded-lg p-2';
+        div.innerHTML = `
+            <div>
+                <p class="text-xs font-medium text-gray-700">${new Date(b.fecha).toLocaleString('es-PY')}</p>
+                <p class="text-[10px] text-gray-500">${b.totalPedidos} pedidos</p>
+            </div>
+            <button onclick="restaurarAutoBackup(${idx})" class="text-xs text-blue-600 font-bold px-2 py-1 bg-blue-50 rounded">Restaurar</button>
+        `;
+        container.appendChild(div);
+    });
+}
+
+function restaurarAutoBackup(idx) {
+    if (!confirm('¿Restaurar este auto-backup? Los pedidos actuales serán reemplazados.')) return;
+
+    const backups = JSON.parse(localStorage.getItem('hdv_auto_backups') || '[]');
+    if (backups[idx] && backups[idx].pedidos) {
+        localStorage.setItem('hdv_pedidos', JSON.stringify(backups[idx].pedidos));
+        mostrarExito(`Restaurado: ${backups[idx].pedidos.length} pedidos`);
+        cerrarModalBackup();
+        if (vistaActual === 'pedidos') mostrarMisPedidos();
+    } else {
+        alert('Error al restaurar este backup');
+    }
+}
+
+// ============================================
+// UTILIDADES BACKUP
+// ============================================
+function descargarArchivoJSON(data, nombre) {
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = nombre;
+    link.click();
+    URL.revokeObjectURL(link.href);
+}
+
+function formatearFechaArchivo() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}_${String(d.getHours()).padStart(2,'0')}${String(d.getMinutes()).padStart(2,'0')}`;
 }

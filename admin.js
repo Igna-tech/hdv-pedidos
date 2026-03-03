@@ -1,5 +1,5 @@
 // ============================================
-// HDV Admin Panel v2.9 - Completo
+// HDV Admin Panel v3.0 - Con Backup Avanzado
 // ============================================
 let todosLosPedidos = [];
 let productosData = { productos: [], categorias: [], clientes: [] };
@@ -42,6 +42,7 @@ function cambiarSeccion(seccionId) {
     if (seccionId === 'creditos') cargarCreditos();
     if (seccionId === 'stock') cargarStock();
     if (seccionId === 'precios') cargarSelectPreciosCliente();
+    if (seccionId === 'herramientas') actualizarInfoBackupAdmin();
     
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
@@ -50,6 +51,10 @@ function cambiarSeccion(seccionId) {
 // CAMBIOS SIN GUARDAR
 // ============================================
 function registrarCambio() {
+    // Auto-backup en el primer cambio de la sesión
+    if (cambiosSinGuardar === 0) {
+        crearAutoBackupAdmin('Antes de ediciones');
+    }
     cambiosSinGuardar++;
     actualizarBarraCambios();
 }
@@ -104,6 +109,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (hasta) hasta.valueAsDate = hoy;
     
     cambiarSeccion('pedidos');
+
+    // Inicializar auto-backup admin
+    const autoBackupToggle = document.getElementById('adminAutoBackupToggle');
+    if (autoBackupToggle) autoBackupToggle.checked = localStorage.getItem('hdv_admin_auto_backup') !== 'false';
 });
 
 async function cargarDatosIniciales() {
@@ -726,28 +735,92 @@ function guardarPreciosPersonalizados() {
 // HERRAMIENTAS
 // ============================================
 function crearBackup() {
+    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
     const backup = {
+        tipo: 'backup_admin_completo',
         fecha: new Date().toISOString(),
-        version: '2.9',
-        datos: { productos: productosData, pedidos: JSON.parse(localStorage.getItem('hdv_pedidos') || '[]') }
+        version: '3.0',
+        datos: { productos: productosData, pedidos },
+        resumen: {
+            totalProductos: productosData.productos?.length || 0,
+            totalClientes: productosData.clientes?.length || 0,
+            totalPedidos: pedidos.length,
+            totalGuaranies: pedidos.reduce((s, p) => s + (p.total || 0), 0)
+        }
     };
-    descargarJSON(backup, `hdv_backup_${new Date().toISOString().split('T')[0]}.json`);
+    const fecha = new Date().toISOString().split('T')[0];
+    descargarJSON(backup, `hdv_backup_completo_${fecha}.json`);
+    localStorage.setItem('hdv_admin_ultimo_backup', new Date().toISOString());
+    actualizarInfoBackupAdmin();
+}
+
+function crearBackupSoloProductos() {
+    const backup = {
+        tipo: 'backup_catalogo',
+        fecha: new Date().toISOString(),
+        version: '3.0',
+        datos: {
+            categorias: productosData.categorias,
+            productos: productosData.productos,
+            clientes: productosData.clientes
+        }
+    };
+    descargarJSON(backup, `hdv_catalogo_${new Date().toISOString().split('T')[0]}.json`);
+}
+
+function crearBackupSoloPedidos() {
+    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    if (pedidos.length === 0) { alert('No hay pedidos'); return; }
+    const backup = {
+        tipo: 'backup_pedidos',
+        fecha: new Date().toISOString(),
+        version: '3.0',
+        pedidos
+    };
+    descargarJSON(backup, `hdv_pedidos_${new Date().toISOString().split('T')[0]}.json`);
 }
 
 function restaurarBackup(event) {
     const file = event.target.files[0];
     if (!file) return;
     if (!confirm('¿Reemplazar todos los datos actuales con el backup?')) { event.target.value = ''; return; }
-    
+
+    // Auto-backup antes de restaurar
+    crearAutoBackupAdmin('Pre-restauración');
+
     const reader = new FileReader();
     reader.onload = (e) => {
         try {
             const backup = JSON.parse(e.target.result);
-            if (backup.datos) {
+
+            if (backup.tipo === 'backup_admin_completo' && backup.datos) {
                 productosData = backup.datos.productos;
                 if (backup.datos.pedidos) localStorage.setItem('hdv_pedidos', JSON.stringify(backup.datos.pedidos));
                 productosDataOriginal = JSON.parse(JSON.stringify(productosData));
-                alert('Backup restaurado. La página se recargará.');
+                alert(`Backup completo restaurado.\n${backup.resumen?.totalProductos || '?'} productos, ${backup.resumen?.totalPedidos || '?'} pedidos`);
+                setTimeout(() => location.reload(), 1000);
+            } else if (backup.tipo === 'backup_catalogo' && backup.datos) {
+                productosData.categorias = backup.datos.categorias || productosData.categorias;
+                productosData.productos = backup.datos.productos || productosData.productos;
+                productosData.clientes = backup.datos.clientes || productosData.clientes;
+                productosDataOriginal = JSON.parse(JSON.stringify(productosData));
+                alert('Catálogo restaurado.');
+                setTimeout(() => location.reload(), 1000);
+            } else if (backup.tipo === 'backup_pedidos' && backup.pedidos) {
+                localStorage.setItem('hdv_pedidos', JSON.stringify(backup.pedidos));
+                alert(`${backup.pedidos.length} pedidos restaurados.`);
+                cargarPedidos();
+            } else if (backup.tipo === 'backup_vendedor_completo' && backup.datos?.pedidos) {
+                // Compatible con backups del vendedor
+                localStorage.setItem('hdv_pedidos', JSON.stringify(backup.datos.pedidos));
+                alert(`Pedidos del vendedor restaurados: ${backup.datos.pedidos.length}`);
+                cargarPedidos();
+            } else if (backup.datos) {
+                // Formato legacy v2.9
+                productosData = backup.datos.productos;
+                if (backup.datos.pedidos) localStorage.setItem('hdv_pedidos', JSON.stringify(backup.datos.pedidos));
+                productosDataOriginal = JSON.parse(JSON.stringify(productosData));
+                alert('Backup restaurado (formato anterior).');
                 setTimeout(() => location.reload(), 1000);
             } else {
                 alert('Formato de backup no reconocido');
@@ -756,6 +829,104 @@ function restaurarBackup(event) {
         event.target.value = '';
     };
     reader.readAsText(file);
+}
+
+// ============================================
+// AUTO-BACKUP ADMIN
+// ============================================
+function toggleAdminAutoBackup() {
+    const toggle = document.getElementById('adminAutoBackupToggle');
+    localStorage.setItem('hdv_admin_auto_backup', toggle?.checked ? 'true' : 'false');
+}
+
+function crearAutoBackupAdmin(motivo) {
+    const enabled = localStorage.getItem('hdv_admin_auto_backup') !== 'false';
+    if (!enabled) return;
+
+    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    const backup = {
+        motivo: motivo || 'Auto-backup',
+        fecha: new Date().toISOString(),
+        datos: { productos: JSON.parse(JSON.stringify(productosData)), pedidos },
+        resumen: {
+            totalProductos: productosData.productos?.length || 0,
+            totalClientes: productosData.clientes?.length || 0,
+            totalPedidos: pedidos.length
+        }
+    };
+
+    let historial = JSON.parse(localStorage.getItem('hdv_admin_auto_backups') || '[]');
+    historial.unshift(backup);
+    if (historial.length > 5) historial = historial.slice(0, 5);
+
+    try {
+        localStorage.setItem('hdv_admin_auto_backups', JSON.stringify(historial));
+    } catch (e) {
+        console.warn('Auto-backup admin: espacio insuficiente');
+        historial = historial.slice(0, 2);
+        localStorage.setItem('hdv_admin_auto_backups', JSON.stringify(historial));
+    }
+}
+
+function actualizarInfoBackupAdmin() {
+    const ultimo = localStorage.getItem('hdv_admin_ultimo_backup');
+    const el = document.getElementById('adminUltimoBackup');
+    if (el) el.textContent = ultimo ? `Último: ${new Date(ultimo).toLocaleString('es-PY')}` : 'Sin backups';
+
+    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    const setEl = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
+    setEl('adminBackupProductos', productosData.productos?.length || 0);
+    setEl('adminBackupClientes', productosData.clientes?.length || 0);
+    setEl('adminBackupPedidos', pedidos.length);
+
+    mostrarHistorialBackupsAdmin();
+}
+
+function mostrarHistorialBackupsAdmin() {
+    const container = document.getElementById('adminHistorialBackups');
+    if (!container) return;
+
+    const historial = JSON.parse(localStorage.getItem('hdv_admin_auto_backups') || '[]');
+    if (historial.length === 0) {
+        container.innerHTML = '<p class="text-xs text-gray-400 italic">Sin auto-backups</p>';
+        return;
+    }
+
+    container.innerHTML = '';
+    historial.forEach((b, idx) => {
+        const div = document.createElement('div');
+        div.className = 'flex justify-between items-center bg-gray-50 rounded-lg p-3 hover:bg-gray-100';
+        div.innerHTML = `
+            <div>
+                <p class="text-sm font-medium text-gray-700">${b.motivo || 'Auto-backup'}</p>
+                <p class="text-xs text-gray-500">${new Date(b.fecha).toLocaleString('es-PY')} - ${b.resumen?.totalProductos || '?'} prod, ${b.resumen?.totalPedidos || '?'} ped</p>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="restaurarAutoBackupAdmin(${idx})" class="text-xs text-blue-600 font-bold px-3 py-1 bg-blue-50 rounded hover:bg-blue-100">Restaurar</button>
+                <button onclick="descargarAutoBackupAdmin(${idx})" class="text-xs text-green-600 font-bold px-3 py-1 bg-green-50 rounded hover:bg-green-100">Descargar</button>
+            </div>
+        `;
+        container.appendChild(div);
+    });
+}
+
+function restaurarAutoBackupAdmin(idx) {
+    if (!confirm('¿Restaurar este auto-backup? Los datos actuales serán reemplazados.')) return;
+    const historial = JSON.parse(localStorage.getItem('hdv_admin_auto_backups') || '[]');
+    if (historial[idx]?.datos) {
+        productosData = historial[idx].datos.productos;
+        if (historial[idx].datos.pedidos) localStorage.setItem('hdv_pedidos', JSON.stringify(historial[idx].datos.pedidos));
+        productosDataOriginal = JSON.parse(JSON.stringify(productosData));
+        alert('Auto-backup restaurado. La página se recargará.');
+        setTimeout(() => location.reload(), 1000);
+    }
+}
+
+function descargarAutoBackupAdmin(idx) {
+    const historial = JSON.parse(localStorage.getItem('hdv_admin_auto_backups') || '[]');
+    if (historial[idx]) {
+        descargarJSON(historial[idx], `hdv_autobackup_${new Date(historial[idx].fecha).toISOString().split('T')[0]}.json`);
+    }
 }
 
 function importarProductosExcel(event) {
@@ -839,9 +1010,10 @@ function importarClientesExcel(event) {
 function limpiarPedidos() {
     if (!confirm('¿ELIMINAR TODOS LOS PEDIDOS? Esto no se puede deshacer.')) return;
     if (!confirm('¿Estás seguro? Todos los datos de pedidos se perderán.')) return;
+    crearAutoBackupAdmin('Pre-limpieza de pedidos');
     localStorage.removeItem('hdv_pedidos');
     todosLosPedidos = [];
-    alert('Pedidos eliminados.');
+    alert('Pedidos eliminados. Se guardó un auto-backup por seguridad.');
     cargarPedidos();
 }
 

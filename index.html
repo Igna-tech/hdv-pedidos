@@ -86,22 +86,83 @@
         <div class="text-center text-gray-500 mt-10 font-bold">Cargando catálogo...</div>
     </main>
 
-    <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-6 py-3 flex justify-between items-center z-50 shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
+    <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-3 flex justify-between items-center z-50 shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
         <button onclick="cambiarVistaVendedor('lista')" id="btn-tab-lista" class="flex flex-col items-center gap-1 text-gray-900 transition-colors">
-            <i data-lucide="home" class="w-6 h-6"></i>
+            <i data-lucide="home" class="w-5 h-5"></i>
             <span class="text-[10px] font-bold">Inicio</span>
         </button>
-        
+
+        <button onclick="mostrarModalBackup()" id="btn-tab-backup" class="flex flex-col items-center gap-1 text-gray-400 transition-colors">
+            <i data-lucide="hard-drive" class="w-5 h-5"></i>
+            <span class="text-[10px] font-bold">Backup</span>
+        </button>
+
         <button onclick="mostrarModalCarrito()" id="viewCartBtn" class="relative -mt-12 bg-[#111827] text-white p-4 rounded-full shadow-xl border-4 border-gray-100 disabled:opacity-50 disabled:bg-gray-400">
             <i data-lucide="shopping-cart" class="w-6 h-6"></i>
             <span id="cartItems" class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center border-2 border-white">0</span>
         </button>
 
         <button onclick="cambiarVistaVendedor('pedidos')" id="btn-tab-pedidos" class="flex flex-col items-center gap-1 text-gray-400 transition-colors">
-            <i data-lucide="file-text" class="w-6 h-6"></i>
-            <span class="text-[10px] font-bold">Mis Pedidos</span>
+            <i data-lucide="file-text" class="w-5 h-5"></i>
+            <span class="text-[10px] font-bold">Pedidos</span>
+        </button>
+
+        <button onclick="cambiarVistaVendedor('config')" id="btn-tab-config" class="flex flex-col items-center gap-1 text-gray-400 transition-colors">
+            <i data-lucide="settings" class="w-5 h-5"></i>
+            <span class="text-[10px] font-bold">Config</span>
         </button>
     </nav>
+
+    <!-- MODAL BACKUP VENDEDOR -->
+    <div id="backupModal" class="fixed inset-0 bg-black/50 z-[100] hidden flex items-end">
+        <div class="bg-white w-full rounded-t-3xl max-h-[85vh] overflow-y-auto p-6 shadow-2xl pb-10">
+            <div class="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-6"></div>
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-bold text-gray-900">Copia de Seguridad</h3>
+                <button onclick="cerrarModalBackup()" class="text-gray-400 p-2"><i data-lucide="x"></i></button>
+            </div>
+
+            <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
+                <p class="text-sm text-blue-800 font-medium" id="backupInfoText">Gestiona tus copias de seguridad</p>
+                <p class="text-xs text-blue-600 mt-1" id="backupInfoDate"></p>
+            </div>
+
+            <div class="bg-gray-50 rounded-xl p-4 mb-4 flex items-center justify-between">
+                <div>
+                    <p class="font-bold text-gray-800 text-sm">Auto-backup</p>
+                    <p class="text-xs text-gray-500">Guarda cada 5 min en el dispositivo</p>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" id="autoBackupToggle" class="sr-only peer" onchange="toggleAutoBackup()" checked>
+                    <div class="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
+                </label>
+            </div>
+
+            <div class="space-y-3">
+                <button onclick="exportarBackupVendedor()" class="w-full bg-green-600 text-white py-4 rounded-xl font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-transform">
+                    📥 Descargar Backup Completo
+                </button>
+                <button onclick="exportarSoloPedidos()" class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-transform">
+                    📋 Descargar Solo Pedidos
+                </button>
+                <button onclick="compartirBackupWhatsApp()" class="w-full bg-[#25D366] text-white py-4 rounded-xl font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-transform">
+                    📲 Enviar Resumen por WhatsApp
+                </button>
+                <button onclick="document.getElementById('restaurarFileVendedor').click()" class="w-full bg-yellow-500 text-white py-4 rounded-xl font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-transform">
+                    📤 Restaurar desde Backup
+                </button>
+                <input type="file" id="restaurarFileVendedor" accept=".json" style="display:none;" onchange="restaurarBackupVendedor(event)">
+
+                <div class="mt-4">
+                    <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Auto-Backups Guardados</p>
+                    <div id="historialBackups" class="space-y-2 max-h-40 overflow-y-auto">
+                        <p class="text-xs text-gray-400 italic">Sin historial</p>
+                    </div>
+                </div>
+            </div>
+            <button onclick="cerrarModalBackup()" class="w-full mt-6 bg-gray-100 text-gray-700 py-3 rounded-xl font-bold">Cerrar</button>
+        </div>
+    </div>
 
     <div id="cartModal" class="fixed inset-0 bg-black/50 z-[100] hidden flex items-end">
         <div class="bg-white w-full rounded-t-3xl max-h-[90vh] overflow-y-auto p-6 shadow-2xl pb-20">

@@ -73,6 +73,13 @@ function guardarTodosCambios() {
     cambiosSinGuardar = 0;
     actualizarBarraCambios();
     productosDataOriginal = JSON.parse(JSON.stringify(productosData));
+
+    // Sincronizar catálogo con Firebase (para que vendedores lo reciban en tiempo real)
+    if (typeof guardarCatalogoFirebase === 'function') {
+        guardarCatalogoFirebase(productosData).then(ok => {
+            if (ok) console.log('[Admin] Catálogo sincronizado con Firebase');
+        });
+    }
 }
 
 function descartarCambios() {
@@ -93,21 +100,47 @@ window.addEventListener('beforeunload', (e) => {
 // ============================================
 // INICIALIZACIÓN
 // ============================================
+let unsubscribePedidos = null; // Listener de Firebase
+
 document.addEventListener('DOMContentLoaded', async () => {
     await cargarDatosIniciales();
-    cargarPedidos();
-    setInterval(cargarPedidos, 30000);
-    
+
+    // Intentar escuchar pedidos en tiempo real desde Firebase
+    if (typeof escucharPedidosRealtime === 'function') {
+        unsubscribePedidos = escucharPedidosRealtime((pedidos, cambios) => {
+            todosLosPedidos = pedidos;
+            aplicarFiltrosPedidos();
+
+            // Notificar pedidos nuevos
+            const nuevos = cambios.filter(c => c.type === 'added');
+            if (nuevos.length > 0 && todosLosPedidos.length > 0) {
+                const badge = document.getElementById('currentSectionTitle');
+                if (badge && badge.textContent.includes('Pedidos')) {
+                    // Flash sutil para indicar actualización
+                    badge.style.transition = 'color 0.3s';
+                    badge.style.color = '#059669';
+                    setTimeout(() => badge.style.color = '', 1500);
+                }
+            }
+            console.log(`[Admin] Pedidos actualizados en tiempo real: ${pedidos.length}`);
+        });
+        console.log('[Admin] Escuchando pedidos en tiempo real desde Firebase');
+    } else {
+        // Fallback sin Firebase
+        cargarPedidos();
+        setInterval(cargarPedidos, 30000);
+    }
+
     const filtroFecha = document.getElementById('filtroFecha');
     if (filtroFecha) filtroFecha.valueAsDate = new Date();
-    
+
     const hoy = new Date();
     const hace30 = new Date(hoy.getTime() - 30 * 24 * 60 * 60 * 1000);
     const desde = document.getElementById('reporteFechaDesde');
     const hasta = document.getElementById('reporteFechaHasta');
     if (desde) desde.valueAsDate = hace30;
     if (hasta) hasta.valueAsDate = hoy;
-    
+
     cambiarSeccion('pedidos');
 
     // Inicializar auto-backup admin
@@ -214,13 +247,28 @@ function actualizarEstadisticasPedidos(pedidos) {
 function marcarEntregado(id) {
     const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
     const p = pedidos.find(x => x.id === id);
-    if (p) { p.estado = 'entregado'; localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos)); cargarPedidos(); }
+    if (p) {
+        p.estado = 'entregado';
+        localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
+        // Sincronizar con Firebase
+        if (typeof actualizarEstadoPedidoFirebase === 'function') {
+            actualizarEstadoPedidoFirebase(id, 'entregado');
+        }
+        if (!unsubscribePedidos) cargarPedidos(); // Solo recargar manual si no hay listener
+    }
 }
 
 function marcarPendiente(id) {
     const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
     const p = pedidos.find(x => x.id === id);
-    if (p) { p.estado = 'pendiente'; localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos)); cargarPedidos(); }
+    if (p) {
+        p.estado = 'pendiente';
+        localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
+        if (typeof actualizarEstadoPedidoFirebase === 'function') {
+            actualizarEstadoPedidoFirebase(id, 'pendiente');
+        }
+        if (!unsubscribePedidos) cargarPedidos();
+    }
 }
 
 function eliminarPedido(id) {
@@ -228,7 +276,11 @@ function eliminarPedido(id) {
     let pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
     pedidos = pedidos.filter(p => p.id !== id);
     localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
-    cargarPedidos();
+    // Eliminar de Firebase
+    if (typeof eliminarPedidoFirebase === 'function') {
+        eliminarPedidoFirebase(id);
+    }
+    if (!unsubscribePedidos) cargarPedidos();
 }
 
 function exportarExcelPedidos() {

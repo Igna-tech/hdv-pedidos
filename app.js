@@ -20,6 +20,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     registrarSW();
     iniciarAutoBackup();
     actualizarInfoBackup();
+
+    // Sincronizar pedidos pendientes con Firebase
+    if (typeof sincronizarPedidosLocales === 'function') {
+        setTimeout(() => sincronizarPedidosLocales(), 2000);
+    }
+
+    // Escuchar catálogo en tiempo real desde Firebase
+    if (typeof escucharCatalogoRealtime === 'function') {
+        escucharCatalogoRealtime((data) => {
+            if (data && data.categorias && data.productos) {
+                categorias = data.categorias || [];
+                productos = (data.productos || []).filter(p => !p.oculto);
+                clientes = (data.clientes || []).filter(c => !c.oculto);
+                poblarClientes();
+                crearFiltrosCategorias();
+                if (vistaActual === 'lista') mostrarProductos();
+                console.log('[Vendedor] Catálogo actualizado desde Firebase');
+            }
+        });
+    }
 });
 
 async function cargarDatos() {
@@ -389,14 +409,14 @@ function aplicarDescuento() {
 function confirmarPedido() {
     if (!clienteActual) { alert('Selecciona un cliente'); return; }
     if (carrito.length === 0) { alert('El carrito está vacío'); return; }
-    
+
     const descuento = parseFloat(document.getElementById('descuento').value) || 0;
     const tipoPago = document.getElementById('tipoPago').value;
     const notas = document.getElementById('notasPedido').value.trim();
-    
+
     const subtotal = carrito.reduce((s, i) => s + i.subtotal, 0);
     const total = Math.round(subtotal * (1 - descuento / 100));
-    
+
     const pedido = {
         id: 'PED-' + Date.now(),
         fecha: new Date().toISOString(),
@@ -410,23 +430,34 @@ function confirmarPedido() {
         estado: 'pendiente',
         sincronizado: false
     };
-    
-    // Guardar en localStorage
+
+    // Guardar en localStorage (backup local)
     const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
     pedidos.push(pedido);
     localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
-    
+
+    // Guardar en Firebase (sincronización en tiempo real)
+    if (typeof guardarPedidoFirebase === 'function') {
+        guardarPedidoFirebase(pedido).then(ok => {
+            if (ok) {
+                pedido.sincronizado = true;
+                localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
+                console.log('[Vendedor] Pedido sincronizado con Firebase');
+            }
+        });
+    }
+
     // Limpiar carrito
     carrito = [];
     actualizarContadorCarrito();
     guardarCarrito();
     closeCartModal();
-    
+
     // Reset form
     document.getElementById('descuento').value = '0';
     document.getElementById('notasPedido').value = '';
     document.getElementById('tipoPago').value = 'contado';
-    
+
     mostrarExito('Pedido confirmado correctamente');
 }
 

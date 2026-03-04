@@ -77,20 +77,33 @@ function guardarTodosCambios() {
     actualizarBarraCambios();
     productosDataOriginal = JSON.parse(JSON.stringify(productosData));
 
-    // Sincronizar catalogo con Firebase (vendedores lo reciben en tiempo real)
+    // PASO 1: Siempre guardar en localStorage como respaldo inmediato
+    try {
+        const dataLimpia = { categorias: productosData.categorias, productos: productosData.productos, clientes: productosData.clientes };
+        localStorage.setItem('hdv_catalogo_local', JSON.stringify(dataLimpia));
+        console.log('[Admin] Catalogo guardado en localStorage');
+    } catch (e) {
+        console.error('[Admin] Error guardando en localStorage:', e);
+    }
+
+    // PASO 2: Sincronizar con Firebase
     if (typeof guardarCatalogoFirebase === 'function') {
-        guardarCatalogoFirebase(productosData).then(ok => {
+        const dataParaFirebase = { categorias: productosData.categorias, productos: productosData.productos, clientes: productosData.clientes };
+        guardarCatalogoFirebase(dataParaFirebase).then(ok => {
             if (ok) {
                 alert('Cambios guardados y sincronizados. Los vendedores ya ven los cambios.');
             } else {
-                alert('Error al sincronizar con Firebase. Descargando JSON como respaldo...');
+                alert('Error al sincronizar con Firebase. Los cambios se guardaron localmente. Tambien se descarga el JSON como respaldo.');
                 descargarJSON(productosData, 'productos.json');
             }
+        }).catch(err => {
+            console.error('[Admin] Error Firebase:', err);
+            alert('Error de Firebase: ' + err.message + '\nLos cambios estan guardados localmente.');
+            descargarJSON(productosData, 'productos.json');
         });
     } else {
-        // Sin Firebase: descargar JSON como antes
         descargarJSON(productosData, 'productos.json');
-        alert('JSON descargado. Subi el archivo a GitHub para que los vendedores lo vean.');
+        alert('Firebase no disponible. JSON descargado como respaldo.');
     }
 }
 
@@ -162,19 +175,40 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function cargarDatosIniciales() {
     try {
-        // Intentar cargar desde Firebase primero
         let data = null;
+
+        // PRIORIDAD 1: Firebase (datos mas frescos, sincronizados)
         if (typeof obtenerCatalogoFirebase === 'function') {
             try {
                 data = await obtenerCatalogoFirebase();
-                if (data) console.log('[Admin] Catalogo cargado desde Firebase');
-            } catch (e) { console.warn('[Admin] Firebase no disponible'); }
+                if (data && data.productos) {
+                    console.log('[Admin] Catalogo cargado desde Firebase (' + data.productos.length + ' productos)');
+                } else {
+                    data = null;
+                }
+            } catch (e) { console.warn('[Admin] Firebase no disponible:', e.message); data = null; }
         }
+
+        // PRIORIDAD 2: localStorage (cambios guardados localmente)
+        if (!data || !data.productos) {
+            try {
+                const local = localStorage.getItem('hdv_catalogo_local');
+                if (local) {
+                    data = JSON.parse(local);
+                    if (data && data.productos) {
+                        console.log('[Admin] Catalogo cargado desde localStorage (' + data.productos.length + ' productos)');
+                    } else { data = null; }
+                }
+            } catch (e) { data = null; }
+        }
+
+        // PRIORIDAD 3: JSON local (archivo en GitHub Pages, fallback)
         if (!data || !data.productos) {
             const response = await fetch('productos.json?t=' + Date.now());
             data = await response.json();
-            console.log('[Admin] Catalogo cargado desde JSON local');
+            console.log('[Admin] Catalogo cargado desde JSON local (' + (data.productos?.length || 0) + ' productos)');
         }
+
         productosData = data;
         productosDataOriginal = JSON.parse(JSON.stringify(productosData));
         productosFiltrados = [...productosData.productos];

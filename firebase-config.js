@@ -203,7 +203,160 @@ function escucharCatalogoRealtime(callback) {
 }
 
 // ============================================
+// FUNCIONES PARA DATOS DE NEGOCIO
+// (creditos, promociones, plantilla WhatsApp)
+// ============================================
+
+// Guardar datos genericos en coleccion 'configuracion'
+async function guardarConfigFirebase(docId, datos) {
+    try {
+        await db.collection('configuracion').doc(docId).set({
+            datos: datos,
+            actualizadoEn: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        console.log('[Firebase] Config guardada:', docId);
+        return true;
+    } catch (error) {
+        console.error('[Firebase] Error guardando config ' + docId + ':', error);
+        return false;
+    }
+}
+
+// Obtener datos de configuracion
+async function obtenerConfigFirebase(docId) {
+    try {
+        const doc = await db.collection('configuracion').doc(docId).get();
+        if (doc.exists) {
+            return doc.data().datos;
+        }
+        return null;
+    } catch (error) {
+        console.error('[Firebase] Error obteniendo config ' + docId + ':', error);
+        return null;
+    }
+}
+
+// Escuchar cambios en configuracion en tiempo real
+function escucharConfigRealtime(docId, localStorageKey) {
+    return db.collection('configuracion').doc(docId)
+        .onSnapshot((doc) => {
+            if (doc.exists) {
+                const datos = doc.data().datos;
+                try {
+                    if (typeof datos === 'string') {
+                        localStorage.setItem(localStorageKey, datos);
+                    } else {
+                        localStorage.setItem(localStorageKey, JSON.stringify(datos));
+                    }
+                    console.log('[Firebase] Config actualizada en tiempo real:', docId);
+                } catch(e) {}
+            }
+        }, (error) => {
+            console.warn('[Firebase] Error listener config ' + docId + ':', error.code);
+        });
+}
+
+// --- Funciones especificas por tipo de dato ---
+
+// PAGOS DE CREDITO
+function guardarPagosCreditoFirebase(pagos) {
+    return guardarConfigFirebase('pagos_credito', pagos);
+}
+async function obtenerPagosCreditoFirebase() {
+    return await obtenerConfigFirebase('pagos_credito');
+}
+
+// CREDITOS MANUALES
+function guardarCreditosManualesFirebase(creditos) {
+    return guardarConfigFirebase('creditos_manuales', creditos);
+}
+async function obtenerCreditosManualesFirebase() {
+    return await obtenerConfigFirebase('creditos_manuales');
+}
+
+// PROMOCIONES
+function guardarPromocionesFirebase(promos) {
+    return guardarConfigFirebase('promociones', promos);
+}
+async function obtenerPromocionesFirebase() {
+    return await obtenerConfigFirebase('promociones');
+}
+
+// PLANTILLA WHATSAPP
+function guardarPlantillaWhatsAppFirebase(plantilla) {
+    return guardarConfigFirebase('whatsapp_plantilla', plantilla);
+}
+async function obtenerPlantillaWhatsAppFirebase() {
+    return await obtenerConfigFirebase('whatsapp_plantilla');
+}
+
+// Sincronizar todos los datos de negocio localStorage -> Firebase
+async function sincronizarDatosNegocio() {
+    const mapeo = [
+        { key: 'hdv_pagos_credito', doc: 'pagos_credito' },
+        { key: 'hdv_creditos_manuales', doc: 'creditos_manuales' },
+        { key: 'hdv_promociones', doc: 'promociones' },
+        { key: 'hdv_whatsapp_mensaje_credito', doc: 'whatsapp_plantilla' }
+    ];
+    for (const item of mapeo) {
+        const local = localStorage.getItem(item.key);
+        if (local) {
+            try {
+                const datos = JSON.parse(local);
+                if (datos && (Array.isArray(datos) ? datos.length > 0 : true)) {
+                    await guardarConfigFirebase(item.doc, datos);
+                }
+            } catch(e) {
+                // Es string (plantilla WhatsApp)
+                if (local.length > 0) {
+                    await guardarConfigFirebase(item.doc, local);
+                }
+            }
+        }
+    }
+    console.log('[Firebase] Datos de negocio sincronizados');
+}
+
+// Cargar datos de negocio Firebase -> localStorage (al iniciar)
+async function cargarDatosNegocioDesdeFirebase() {
+    const mapeo = [
+        { key: 'hdv_pagos_credito', doc: 'pagos_credito' },
+        { key: 'hdv_creditos_manuales', doc: 'creditos_manuales' },
+        { key: 'hdv_promociones', doc: 'promociones' },
+        { key: 'hdv_whatsapp_mensaje_credito', doc: 'whatsapp_plantilla' }
+    ];
+    for (const item of mapeo) {
+        try {
+            const datos = await obtenerConfigFirebase(item.doc);
+            if (datos !== null) {
+                if (typeof datos === 'string') {
+                    localStorage.setItem(item.key, datos);
+                } else {
+                    localStorage.setItem(item.key, JSON.stringify(datos));
+                }
+                console.log('[Firebase] Cargado:', item.doc);
+            }
+        } catch(e) {
+            console.warn('[Firebase] Error cargando:', item.doc);
+        }
+    }
+}
+
+// Iniciar listeners en tiempo real para datos de negocio
+function iniciarListenersDatosNegocio() {
+    escucharConfigRealtime('pagos_credito', 'hdv_pagos_credito');
+    escucharConfigRealtime('creditos_manuales', 'hdv_creditos_manuales');
+    escucharConfigRealtime('promociones', 'hdv_promociones');
+    escucharConfigRealtime('whatsapp_plantilla', 'hdv_whatsapp_mensaje_credito');
+}
+
+// ============================================
 // INICIAR
 // ============================================
 monitorearConexion();
-console.log('[Firebase] HDV Distribuciones - Inicializado');
+// Cargar datos de negocio desde Firebase y activar listeners
+setTimeout(() => {
+    cargarDatosNegocioDesdeFirebase();
+    iniciarListenersDatosNegocio();
+}, 1500);
+console.log('[Firebase] HDV Distribuciones - Inicializado v7.0');

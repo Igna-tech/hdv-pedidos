@@ -1939,14 +1939,14 @@ function registrarPagoCredito(pedidoId) {
     pagos.push(pago);
     localStorage.setItem('hdv_pagos_credito', JSON.stringify(pagos));
 
+    // Sincronizar pagos con Firebase
+    if (typeof guardarPagosCreditoFirebase === 'function') {
+        guardarPagosCreditoFirebase(pagos).catch(e => console.error(e));
+    }
+
     // Si saldo = 0, marcar pagado
     if (saldo - monto <= 0) {
         marcarPagado(pedidoId);
-    }
-
-    // Firebase
-    if (typeof db !== 'undefined') {
-        db.collection('pagos_credito').doc(pago.id).set(pago).catch(e => console.error(e));
     }
 
     alert(`Pago de Gs. ${monto.toLocaleString()} registrado exitosamente`);
@@ -1968,6 +1968,10 @@ function registrarPagoManual(creditoId) {
     credito.pagos.push({ monto, fecha: new Date().toISOString(), nota });
     if (saldo - monto <= 0) credito.pagado = true;
     localStorage.setItem('hdv_creditos_manuales', JSON.stringify(creditos));
+    // Sincronizar con Firebase
+    if (typeof guardarCreditosManualesFirebase === 'function') {
+        guardarCreditosManualesFirebase(creditos).catch(e => console.error(e));
+    }
     alert(`Pago de Gs. ${monto.toLocaleString()} registrado`);
     cargarCreditos();
 }
@@ -2052,6 +2056,10 @@ function editarMensajeRecordatorio() {
     const nueva = prompt('Editar mensaje de recordatorio WhatsApp:\nPlaceholders: {cliente}, {monto}, {saldo}, {dias}, {fecha}', plantilla);
     if (nueva) {
         localStorage.setItem('hdv_whatsapp_mensaje_credito', nueva);
+        // Sincronizar con Firebase
+        if (typeof guardarPlantillaWhatsAppFirebase === 'function') {
+            guardarPlantillaWhatsAppFirebase(nueva).catch(e => console.error(e));
+        }
         alert('Mensaje actualizado');
     }
 }
@@ -2079,8 +2087,9 @@ function agregarCreditoManual() {
     creditos.push(nuevo);
     localStorage.setItem('hdv_creditos_manuales', JSON.stringify(creditos));
 
-    if (typeof db !== 'undefined') {
-        db.collection('creditos_manuales').doc(nuevo.id).set(nuevo).catch(e => console.error(e));
+    // Sincronizar con Firebase
+    if (typeof guardarCreditosManualesFirebase === 'function') {
+        guardarCreditosManualesFirebase(creditos).catch(e => console.error(e));
     }
     alert('Credito manual agregado');
     cargarCreditos();
@@ -2198,6 +2207,10 @@ function cargarPromocionesDesdeStorage() {
 
 function guardarPromocionesEnStorage(promos) {
     localStorage.setItem('hdv_promociones', JSON.stringify(promos));
+    // Sincronizar con Firebase
+    if (typeof guardarPromocionesFirebase === 'function') {
+        guardarPromocionesFirebase(promos).catch(e => console.error(e));
+    }
 }
 
 function esPromocionActiva(promo) {

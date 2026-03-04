@@ -73,16 +73,24 @@ function actualizarBarraCambios() {
 }
 
 function guardarTodosCambios() {
-    descargarJSON(productosData, 'productos.json');
     cambiosSinGuardar = 0;
     actualizarBarraCambios();
     productosDataOriginal = JSON.parse(JSON.stringify(productosData));
 
-    // Sincronizar catalogo con Firebase (para que vendedores lo reciban en tiempo real)
+    // Sincronizar catalogo con Firebase (vendedores lo reciben en tiempo real)
     if (typeof guardarCatalogoFirebase === 'function') {
         guardarCatalogoFirebase(productosData).then(ok => {
-            if (ok) console.log('[Admin] Catalogo sincronizado con Firebase');
+            if (ok) {
+                alert('Cambios guardados y sincronizados. Los vendedores ya ven los cambios.');
+            } else {
+                alert('Error al sincronizar con Firebase. Descargando JSON como respaldo...');
+                descargarJSON(productosData, 'productos.json');
+            }
         });
+    } else {
+        // Sin Firebase: descargar JSON como antes
+        descargarJSON(productosData, 'productos.json');
+        alert('JSON descargado. Subi el archivo a GitHub para que los vendedores lo vean.');
     }
 }
 
@@ -154,8 +162,20 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function cargarDatosIniciales() {
     try {
-        const response = await fetch('productos.json?t=' + Date.now());
-        productosData = await response.json();
+        // Intentar cargar desde Firebase primero
+        let data = null;
+        if (typeof obtenerCatalogoFirebase === 'function') {
+            try {
+                data = await obtenerCatalogoFirebase();
+                if (data) console.log('[Admin] Catalogo cargado desde Firebase');
+            } catch (e) { console.warn('[Admin] Firebase no disponible'); }
+        }
+        if (!data || !data.productos) {
+            const response = await fetch('productos.json?t=' + Date.now());
+            data = await response.json();
+            console.log('[Admin] Catalogo cargado desde JSON local');
+        }
+        productosData = data;
         productosDataOriginal = JSON.parse(JSON.stringify(productosData));
         productosFiltrados = [...productosData.productos];
         clientesFiltrados = [...productosData.clientes];

@@ -44,16 +44,32 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function cargarDatos() {
     try {
-        const response = await fetch('productos.json?t=' + Date.now());
-        const data = await response.json();
+        // Intentar cargar desde Firebase primero (datos mas recientes)
+        let data = null;
+        if (typeof obtenerCatalogoFirebase === 'function') {
+            try {
+                data = await obtenerCatalogoFirebase();
+                if (data) console.log('[Vendedor] Catalogo cargado desde Firebase');
+            } catch (fbErr) {
+                console.warn('[Vendedor] Firebase no disponible, usando JSON local');
+            }
+        }
+
+        // Fallback: cargar desde JSON local (GitHub Pages)
+        if (!data || !data.productos) {
+            const response = await fetch('productos.json?t=' + Date.now());
+            data = await response.json();
+            console.log('[Vendedor] Catalogo cargado desde JSON local');
+        }
+
         categorias = data.categorias || [];
         productos = (data.productos || []).filter(p => !p.oculto);
         clientes = (data.clientes || []).filter(c => !c.oculto);
-        
+
         poblarClientes();
         crearFiltrosCategorias();
         mostrarProductos();
-        
+
         document.getElementById('searchInput').disabled = false;
     } catch (e) {
         console.error('Error cargando datos:', e);

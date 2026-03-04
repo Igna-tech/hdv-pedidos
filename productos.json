@@ -1,4 +1,4 @@
-﻿{
+{
   "categorias": [
     {
       "id": "cuidado_personal",
@@ -7,16 +7,16 @@
         "Jabones",
         "Desodorantes",
         "Higiene Femenina",
-        "Pañales Adultos"
+        "Panales Adultos"
       ]
     },
     {
       "id": "bebe",
-      "nombre": "Cuidado Bebé",
+      "nombre": "Cuidado Bebe",
       "subcategorias": [
-        "Jabones Bebé",
-        "Shampoo y Baño",
-        "Pañales",
+        "Jabones Bebe",
+        "Shampoo y Bano",
+        "Panales",
         "Accesorios"
       ]
     },
@@ -32,7 +32,7 @@
   "productos": [
     {
       "id": "P001",
-      "nombre": "Jabón Plusbelle",
+      "nombre": "Jabon Plusbelle",
       "categoria": "cuidado_personal",
       "subcategoria": "Jabones",
       "presentaciones": [
@@ -48,7 +48,7 @@
     },
     {
       "id": "P002",
-      "nombre": "Jabón LUX",
+      "nombre": "Jabon LUX",
       "categoria": "cuidado_personal",
       "subcategoria": "Jabones",
       "presentaciones": [
@@ -64,7 +64,7 @@
     },
     {
       "id": "P003",
-      "nombre": "Jabón Rexona",
+      "nombre": "Jabon Rexona",
       "categoria": "cuidado_personal",
       "subcategoria": "Jabones",
       "presentaciones": [
@@ -76,7 +76,7 @@
     },
     {
       "id": "P004",
-      "nombre": "Jabón Palmolive",
+      "nombre": "Jabon Palmolive",
       "categoria": "cuidado_personal",
       "subcategoria": "Jabones",
       "presentaciones": [
@@ -92,7 +92,7 @@
     },
     {
       "id": "P005",
-      "nombre": "Jabón Mar",
+      "nombre": "Jabon Mar",
       "categoria": "cuidado_personal",
       "subcategoria": "Jabones",
       "presentaciones": [
@@ -108,7 +108,7 @@
     },
     {
       "id": "P006",
-      "nombre": "Jabón Protex",
+      "nombre": "Jabon Protex",
       "categoria": "cuidado_personal",
       "subcategoria": "Jabones",
       "presentaciones": [
@@ -120,7 +120,7 @@
     },
     {
       "id": "P007",
-      "nombre": "Jabón Dove",
+      "nombre": "Jabon Dove",
       "categoria": "cuidado_personal",
       "subcategoria": "Jabones",
       "presentaciones": [
@@ -137,7 +137,7 @@
     },
     {
       "id": "P008",
-      "nombre": "Jabón C2",
+      "nombre": "Jabon C2",
       "categoria": "cuidado_personal",
       "subcategoria": "Jabones",
       "presentaciones": [
@@ -153,7 +153,7 @@
     },
     {
       "id": "P009",
-      "nombre": "Jabón Heno de Pravia",
+      "nombre": "Jabon Heno de Pravia",
       "categoria": "cuidado_personal",
       "subcategoria": "Jabones",
       "presentaciones": [
@@ -169,7 +169,7 @@
     },
     {
       "id": "P010",
-      "nombre": "Jabón Tocador Hotel",
+      "nombre": "Jabon Tocador Hotel",
       "categoria": "cuidado_personal",
       "subcategoria": "Jabones",
       "presentaciones": [
@@ -181,7 +181,7 @@
     },
     {
       "id": "P011",
-      "nombre": "Jabón Lucero Coco y Glicerina",
+      "nombre": "Jabon Lucero Coco y Glicerina",
       "categoria": "cuidado_personal",
       "subcategoria": "Jabones",
       "presentaciones": [
@@ -197,7 +197,7 @@
     },
     {
       "id": "P012",
-      "nombre": "Jabón Johnson's Baby",
+      "nombre": "Jabon Johnson's Baby",
       "categoria": "cuidado_personal",
       "subcategoria": "Jabones",
       "presentaciones": [
@@ -213,7 +213,7 @@
     },
     {
       "id": "P013",
-      "nombre": "Jabón Tocador Cavallaro",
+      "nombre": "Jabon Tocador Cavallaro",
       "categoria": "cuidado_personal",
       "subcategoria": "Jabones",
       "presentaciones": [
@@ -225,7 +225,7 @@
     },
     {
       "id": "P014",
-      "nombre": "Jabón Susi",
+      "nombre": "Jabon Susi",
       "categoria": "cuidado_personal",
       "subcategoria": "Jabones",
       "presentaciones": [
@@ -373,9 +373,9 @@
     },
     {
       "id": "P026",
-      "nombre": "Pañal Adultos Comodin",
+      "nombre": "Panal Adultos Comodin",
       "categoria": "cuidado_personal",
-      "subcategoria": "Pañales Adultos",
+      "subcategoria": "Panales Adultos",
       "presentaciones": [
         {
           "tamano": "G x20",
@@ -385,9 +385,9 @@
     },
     {
       "id": "P027",
-      "nombre": "Pañal Adultos Plenitud Protect Plus",
+      "nombre": "Panal Adultos Plenitud Protect Plus",
       "categoria": "cuidado_personal",
-      "subcategoria": "Pañales Adultos",
+      "subcategoria": "Panales Adultos",
       "presentaciones": [
         {
           "tamano": "G/XG x8",
@@ -399,7 +399,7 @@
       "id": "P028",
       "nombre": "Shampoo Johnson's Baby",
       "categoria": "bebe",
-      "subcategoria": "Shampoo y Baño",
+      "subcategoria": "Shampoo y Bano",
       "presentaciones": [
         {
           "tamano": "200ml",
@@ -411,7 +411,7 @@
       "id": "P029",
       "nombre": "Talco Johnson's Baby",
       "categoria": "bebe",
-      "subcategoria": "Shampoo y Baño",
+      "subcategoria": "Shampoo y Bano",
       "presentaciones": [
         {
           "tamano": "200g",
@@ -421,9 +421,9 @@
     },
     {
       "id": "P030",
-      "nombre": "Baño Liquido Johnson's Baby",
+      "nombre": "Bano Liquido Johnson's Baby",
       "categoria": "bebe",
-      "subcategoria": "Shampoo y Baño",
+      "subcategoria": "Shampoo y Bano",
       "presentaciones": [
         {
           "tamano": "200ml",
@@ -435,7 +435,7 @@
       "id": "P031",
       "nombre": "Aceite de Bebe Johnson's",
       "categoria": "bebe",
-      "subcategoria": "Shampoo y Baño",
+      "subcategoria": "Shampoo y Bano",
       "presentaciones": [
         {
           "tamano": "200ml",
@@ -517,9 +517,9 @@
     },
     {
       "id": "P037",
-      "nombre": "Pañal Natural Baby Premium",
+      "nombre": "Panal Natural Baby Premium",
       "categoria": "bebe",
-      "subcategoria": "Pañales",
+      "subcategoria": "Panales",
       "presentaciones": [
         {
           "tamano": "P x96",
@@ -547,7 +547,7 @@
       "id": "P038",
       "nombre": "Toallitas Natural Baby",
       "categoria": "bebe",
-      "subcategoria": "Pañales",
+      "subcategoria": "Panales",
       "presentaciones": [
         {
           "tamano": "50 unidades",
@@ -557,9 +557,9 @@
     },
     {
       "id": "P039",
-      "nombre": "Pañal Huggies Flexi Comfort",
+      "nombre": "Panal Huggies Flexi Comfort",
       "categoria": "bebe",
-      "subcategoria": "Pañales",
+      "subcategoria": "Panales",
       "presentaciones": [
         {
           "tamano": "P x50",
@@ -581,9 +581,9 @@
     },
     {
       "id": "P040",
-      "nombre": "Pañal Huggies Protect Plus",
+      "nombre": "Panal Huggies Protect Plus",
       "categoria": "bebe",
-      "subcategoria": "Pañales",
+      "subcategoria": "Panales",
       "presentaciones": [
         {
           "tamano": "G",
@@ -1089,7 +1089,7 @@
     },
     {
       "id": "P075",
-      "nombre": "�\u001e����S(֌�\u0001�d?�+PZ1&�\u0016�)�Zz��F-�\bx���cM'\u0002~�s��r\u0018C��v\u0017!�6$\u0002B-\u0018\u0012\u0001!߻�zkn�\u0006I����d\u000b+�\u00166}:hrs`�Z�Lw7�@�ñ��`��\u0002\u0019Z�6l\u000e\b�`\f���w��\u0010�U\u001c#�f�]G\u000b\u000b�*y���=�q�-�l)Q���\rj�N�",
+      "nombre": "�\u001e����S(֌�\u0001�d?�+PZ1&�\u0016�)�Zz��F-�\bx���cM'\u0002~�s��r\u0018C��v\u0017!�6$\u0002B-\u0018\u0012\u0001!߻�zkn�\u0006I����d\u000b+�\u00166}:hrs`�Z�Lw7�@�n��`��\u0002\u0019Z�6l\u000e\b�`\f���w��\u0010�U\u001c#�f�]G\u000b\u000b�*y���=�q�-�l)Q���\rj�N�",
       "categoria": "�\u001cBϷ1Q��\u0003V!��X�U�\u001d\u0010��Ԕ�6c7�\u0019��\rM_P\u0001�Pې\u0019�\u0011��3\u0005&h�\u0002:]��SVٗ�L5&���\r��L���&Cܗv\u001f���A�7��x�y�\u0010�5�)!�",
       "subcategoria": "Y=jY�_�%mO^֤��Z7\f3�j��bC��\u0016\u0001�\r��\u0018\u0013&����h\u0007\u001b�U���f�~I��J���\u0001�t�Yc]x4�~i�\u0012�ڐ\u0011\bqa��B��:#�\u0006�\r0�\u001aY�_�mO���Я\u0007K˸��T\"\u0000B�Ѫ�\b\bua\u0004+�\u0014�n�\u0014r�V\u0005(+�����`�\u001d\u0001/�����>�t\u0019�S���{�*c��",
       "presentaciones": [
@@ -1270,7 +1270,7 @@
     {
       "id": "P090",
       "nombre": "\u001a����N\"�r\u0003Kʙ�%�\u0012�x\b��C3�v�\u0005��2N!x�~��l",
-      "categoria": "�/3%�\u0015�6�%\u0015R\r��2�����'��\b�h����oÁ%&�d�:�t��B��~i��붗�bAf���҈�tv\u000b)>K\u0016�_��ۃ�$_��Ϣ�%���x�!�\u001a�@{wN%\u001c\u001f\u0004���\u0014�ö����k",
+      "categoria": "�/3%�\u0015�6�%\u0015R\r��2�����'��\b�h����oA%&�d�:�t��B��~i��붗�bAf���҈�tv\u000b)>K\u0016�_��ۃ�$_��Ϣ�%���x�!�\u001a�@{wN%\u001c\u001f\u0004���\u0014�ö����k",
       "subcategoria": "S���C�\"\u001fc�F8�R��<��\reK��mmP�˟\u0019\f�k��R����~�֖+��N�iZiEo��l��v�\u0012�b\u0017�Xe��z��l�\u001d\u0004�s�x���D��̢�\u0019��a���Q��{�\bJ�Os�ݶ���\u0012o�������",
       "presentaciones": [
         {
@@ -1547,32 +1547,32 @@
     },
     {
       "id": "C003",
-      "nombre": "Ferretería Rapai",
+      "nombre": "Ferreteria Rapai",
       "zona": "Pozo Colorado",
       "precios_personalizados": {}
     },
     {
       "id": "C004",
       "nombre": "Chaco Poty S.A.C.I",
-      "zona": "Villa Boquerón",
+      "zona": "Villa Boqueron",
       "precios_personalizados": {}
     },
     {
       "id": "C005",
       "nombre": "Comercial La Fortuna",
-      "zona": "Villa Boquerón",
+      "zona": "Villa Boqueron",
       "precios_personalizados": {}
     },
     {
       "id": "C006",
       "nombre": "Hilagro SA",
-      "zona": "Villa Boquerón",
+      "zona": "Villa Boqueron",
       "precios_personalizados": {}
     },
     {
       "id": "C007",
       "nombre": "Comercial La Familia",
-      "zona": "Villa Boquerón",
+      "zona": "Villa Boqueron",
       "precios_personalizados": {}
     },
     {
@@ -1649,7 +1649,7 @@
     },
     {
       "id": "C020",
-      "nombre": "Panadería Gerbrand",
+      "nombre": "Panaderia Gerbrand",
       "zona": "Loma Plata",
       "precios_personalizados": {}
     },
@@ -1673,7 +1673,7 @@
     },
     {
       "id": "C024",
-      "nombre": "La Hacienda Chaqueña SRL",
+      "nombre": "La Hacienda Chaquena SRL",
       "zona": "Loma Plata",
       "precios_personalizados": {}
     },

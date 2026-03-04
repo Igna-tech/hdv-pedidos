@@ -1,5 +1,5 @@
 // ============================================
-// HDV Admin Panel v4.0 - Dashboard, PDF, Edición de Pedidos
+// HDV Admin Panel v4.0 - Dashboard, PDF, Edicion de Pedidos
 // ============================================
 let todosLosPedidos = [];
 let productosData = { productos: [], categorias: [], clientes: [] };
@@ -11,7 +11,7 @@ let cambiosSinGuardar = 0;
 let stockFiltrado = [];
 
 // ============================================
-// NAVEGACIÓN
+// NAVEGACION
 // ============================================
 function cambiarSeccion(seccionId) {
     document.querySelectorAll('.tab-content').forEach(el => {
@@ -27,10 +27,10 @@ function cambiarSeccion(seccionId) {
     if (btn) btn.classList.add('active');
     
     const titulos = {
-        'dashboard': 'Dashboard', 'pedidos': 'Gestión de Pedidos', 'creditos': 'Control de Créditos',
-        'reportes': 'Análisis y Reportes', 'stock': 'Inventario',
-        'productos': 'Catálogo de Productos', 'clientes': 'Base de Datos de Clientes',
-        'precios': 'Configuración de Precios', 'herramientas': 'Sistema y Herramientas'
+        'dashboard': 'Dashboard', 'pedidos': 'Gestion de Pedidos', 'creditos': 'Control de Creditos',
+        'reportes': 'Analisis y Reportes', 'stock': 'Inventario',
+        'productos': 'Catalogo de Productos', 'clientes': 'Base de Datos de Clientes',
+        'precios': 'Configuracion de Precios', 'herramientas': 'Sistema y Herramientas'
     };
     const titleEl = document.getElementById('currentSectionTitle');
     if (titleEl) titleEl.textContent = titulos[seccionId] || 'Panel Admin';
@@ -52,7 +52,7 @@ function cambiarSeccion(seccionId) {
 // CAMBIOS SIN GUARDAR
 // ============================================
 function registrarCambio() {
-    // Auto-backup en el primer cambio de la sesión
+    // Auto-backup en el primer cambio de la sesion
     if (cambiosSinGuardar === 0) {
         crearAutoBackupAdmin('Antes de ediciones');
     }
@@ -75,16 +75,16 @@ function guardarTodosCambios() {
     actualizarBarraCambios();
     productosDataOriginal = JSON.parse(JSON.stringify(productosData));
 
-    // Sincronizar catálogo con Firebase (para que vendedores lo reciban en tiempo real)
+    // Sincronizar catalogo con Firebase (para que vendedores lo reciban en tiempo real)
     if (typeof guardarCatalogoFirebase === 'function') {
         guardarCatalogoFirebase(productosData).then(ok => {
-            if (ok) console.log('[Admin] Catálogo sincronizado con Firebase');
+            if (ok) console.log('[Admin] Catalogo sincronizado con Firebase');
         });
     }
 }
 
 function descartarCambios() {
-    if (!confirm('¿Descartar todos los cambios? Se perderán las modificaciones.')) return;
+    if (!confirm('¿Descartar todos los cambios? Se perderan las modificaciones.')) return;
     productosData = JSON.parse(JSON.stringify(productosDataOriginal));
     productosFiltrados = [...productosData.productos];
     clientesFiltrados = [...productosData.clientes];
@@ -99,7 +99,7 @@ window.addEventListener('beforeunload', (e) => {
 });
 
 // ============================================
-// INICIALIZACIÓN
+// INICIALIZACION
 // ============================================
 let unsubscribePedidos = null; // Listener de Firebase
 
@@ -117,7 +117,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (nuevos.length > 0 && todosLosPedidos.length > 0) {
                 const badge = document.getElementById('currentSectionTitle');
                 if (badge && badge.textContent.includes('Pedidos')) {
-                    // Flash sutil para indicar actualización
+                    // Flash sutil para indicar actualizacion
                     badge.style.transition = 'color 0.3s';
                     badge.style.color = '#059669';
                     setTimeout(() => badge.style.color = '', 1500);
@@ -300,7 +300,7 @@ function exportarExcelPedidos() {
 }
 
 // ============================================
-// CRÉDITOS
+// CREDITOS
 // ============================================
 function cargarCreditos() {
     const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
@@ -318,7 +318,7 @@ function cargarCreditos() {
     if (!container) return;
     
     if (creditos.length === 0) {
-        container.innerHTML = '<div class="p-8 text-center text-gray-400">Sin créditos pendientes</div>';
+        container.innerHTML = '<div class="p-8 text-center text-gray-400">Sin creditos pendientes</div>';
         return;
     }
     
@@ -500,7 +500,7 @@ function mostrarProductosGestion() {
                 <select onchange="actualizarProducto('${prod.id}','categoria',this.value)" class="w-full px-1 py-1 text-xs border border-transparent hover:border-gray-300 rounded bg-transparent">
                     ${productosData.categorias.map(c => `<option value="${c.id}" ${c.id === prod.categoria ? 'selected' : ''}>${c.nombre}</option>`).join('')}
                 </select>
-                <input type="text" value="${prod.subcategoria || ''}" onchange="actualizarProducto('${prod.id}','subcategoria',this.value)" class="w-full mt-1 px-1 py-1 text-xs border border-transparent hover:border-gray-300 rounded bg-transparent text-gray-400" placeholder="Subcategoría">
+                <input type="text" value="${prod.subcategoria || ''}" onchange="actualizarProducto('${prod.id}','subcategoria',this.value)" class="w-full mt-1 px-1 py-1 text-xs border border-transparent hover:border-gray-300 rounded bg-transparent text-gray-400" placeholder="Subcategoria">
             </td>
             <td class="px-4 py-3">${presHTML}<button onclick="agregarPresentacion('${prod.id}')" class="text-xs text-blue-600 font-bold hover:underline">+ Agregar</button></td>
             <td class="px-4 py-3">
@@ -530,7 +530,7 @@ function actualizarPresentacion(id, idx, campo, valor) {
 function editarImagenProducto(id) {
     const prod = productosData.productos.find(p => p.id === id);
     if (!prod) return;
-    const url = prompt(`📷 Imagen para: ${prod.nombre}\n\nPega la URL (vacío para quitar):`, prod.imagen || '');
+    const url = prompt(`📷 Imagen para: ${prod.nombre}\n\nPega la URL (vacio para quitar):`, prod.imagen || '');
     if (url === null) return;
     if (url.trim()) prod.imagen = url.trim();
     else delete prod.imagen;
@@ -541,7 +541,7 @@ function editarImagenProducto(id) {
 function eliminarPresentacion(id, idx) {
     const p = productosData.productos.find(x => x.id === id);
     if (p && p.presentaciones.length > 1) { p.presentaciones.splice(idx, 1); registrarCambio(); mostrarProductosGestion(); }
-    else alert('Debe tener al menos una presentación');
+    else alert('Debe tener al menos una presentacion');
 }
 
 function agregarPresentacion(id) {
@@ -642,7 +642,7 @@ function mostrarClientesGestion() {
             <div class="flex justify-between items-start mb-2">
                 <div>
                     <p class="font-bold text-gray-800 text-lg">${cliente.razon_social || cliente.nombre || 'Sin nombre'}</p>
-                    <p class="text-sm text-gray-500">📍 ${cliente.direccion || cliente.zona || 'Sin dirección'}</p>
+                    <p class="text-sm text-gray-500">📍 ${cliente.direccion || cliente.zona || 'Sin direccion'}</p>
                 </div>
                 <span class="text-xs text-gray-400 font-mono">${cliente.id}</span>
             </div>
@@ -687,7 +687,7 @@ function agregarNuevoCliente() {
     const direccion = document.getElementById('nuevoClienteDireccion')?.value.trim();
     const encargado = document.getElementById('nuevoClienteEncargado')?.value.trim();
     
-    if (!razon) { alert('Ingresa la razón social'); return; }
+    if (!razon) { alert('Ingresa la razon social'); return; }
     
     const ultimoId = productosData.clientes.length > 0 ?
         Math.max(...productosData.clientes.map(c => parseInt(c.id.replace('C', '')) || 0)) : 0;
@@ -842,7 +842,7 @@ function restaurarBackup(event) {
     if (!confirm('¿Reemplazar todos los datos actuales con el backup?')) { event.target.value = ''; return; }
 
     // Auto-backup antes de restaurar
-    crearAutoBackupAdmin('Pre-restauración');
+    crearAutoBackupAdmin('Pre-restauracion');
 
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -860,7 +860,7 @@ function restaurarBackup(event) {
                 productosData.productos = backup.datos.productos || productosData.productos;
                 productosData.clientes = backup.datos.clientes || productosData.clientes;
                 productosDataOriginal = JSON.parse(JSON.stringify(productosData));
-                alert('Catálogo restaurado.');
+                alert('Catalogo restaurado.');
                 setTimeout(() => location.reload(), 1000);
             } else if (backup.tipo === 'backup_pedidos' && backup.pedidos) {
                 localStorage.setItem('hdv_pedidos', JSON.stringify(backup.pedidos));
@@ -881,7 +881,7 @@ function restaurarBackup(event) {
             } else {
                 alert('Formato de backup no reconocido');
             }
-        } catch (err) { alert('Error: archivo inválido'); }
+        } catch (err) { alert('Error: archivo invalido'); }
         event.target.value = '';
     };
     reader.readAsText(file);
@@ -927,7 +927,7 @@ function crearAutoBackupAdmin(motivo) {
 function actualizarInfoBackupAdmin() {
     const ultimo = localStorage.getItem('hdv_admin_ultimo_backup');
     const el = document.getElementById('adminUltimoBackup');
-    if (el) el.textContent = ultimo ? `Último: ${new Date(ultimo).toLocaleString('es-PY')}` : 'Sin backups';
+    if (el) el.textContent = ultimo ? `Ultimo: ${new Date(ultimo).toLocaleString('es-PY')}` : 'Sin backups';
 
     const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
     const setEl = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
@@ -967,13 +967,13 @@ function mostrarHistorialBackupsAdmin() {
 }
 
 function restaurarAutoBackupAdmin(idx) {
-    if (!confirm('¿Restaurar este auto-backup? Los datos actuales serán reemplazados.')) return;
+    if (!confirm('¿Restaurar este auto-backup? Los datos actuales seran reemplazados.')) return;
     const historial = JSON.parse(localStorage.getItem('hdv_admin_auto_backups') || '[]');
     if (historial[idx]?.datos) {
         productosData = historial[idx].datos.productos;
         if (historial[idx].datos.pedidos) localStorage.setItem('hdv_pedidos', JSON.stringify(historial[idx].datos.pedidos));
         productosDataOriginal = JSON.parse(JSON.stringify(productosData));
-        alert('Auto-backup restaurado. La página se recargará.');
+        alert('Auto-backup restaurado. La pagina se recargara.');
         setTimeout(() => location.reload(), 1000);
     }
 }
@@ -992,7 +992,7 @@ function importarProductosExcel(event) {
     reader.onload = (e) => {
         try {
             const lines = e.target.result.split('\n').filter(l => l.trim());
-            if (lines.length < 2) { alert('Archivo vacío o sin datos'); return; }
+            if (lines.length < 2) { alert('Archivo vacio o sin datos'); return; }
             
             let agregados = 0;
             const ultimoId = Math.max(...productosData.productos.map(p => parseInt(p.id.replace('P', '')) || 0), 0);
@@ -1031,7 +1031,7 @@ function importarClientesExcel(event) {
     reader.onload = (e) => {
         try {
             const lines = e.target.result.split('\n').filter(l => l.trim());
-            if (lines.length < 2) { alert('Archivo vacío'); return; }
+            if (lines.length < 2) { alert('Archivo vacio'); return; }
             
             let agregados = 0;
             const ultimoId = Math.max(...productosData.clientes.map(c => parseInt(c.id.replace('C', '')) || 0), 0);
@@ -1065,11 +1065,11 @@ function importarClientesExcel(event) {
 
 function limpiarPedidos() {
     if (!confirm('¿ELIMINAR TODOS LOS PEDIDOS? Esto no se puede deshacer.')) return;
-    if (!confirm('¿Estás seguro? Todos los datos de pedidos se perderán.')) return;
+    if (!confirm('¿Estas seguro? Todos los datos de pedidos se perderan.')) return;
     crearAutoBackupAdmin('Pre-limpieza de pedidos');
     localStorage.removeItem('hdv_pedidos');
     todosLosPedidos = [];
-    alert('Pedidos eliminados. Se guardó un auto-backup por seguridad.');
+    alert('Pedidos eliminados. Se guardo un auto-backup por seguridad.');
     cargarPedidos();
 }
 
@@ -1093,7 +1093,7 @@ function descargarCSV(contenido, nombreArchivo) {
 }
 
 // ============================================
-// EDICIÓN DE PEDIDOS, PDF, DASHBOARD, REPORTES
+// EDICION DE PEDIDOS, PDF, DASHBOARD, REPORTES
 // ============================================
 // ===== 1. EDIT PEDIDO FUNCTIONS =====
 
@@ -1271,7 +1271,7 @@ function generarPDFRemision(pedidoId) {
     doc.text('HDV Distribuciones', 15, 18);
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
-    doc.text('EAS - Nota de Remisión', 15, 26);
+    doc.text('EAS - Nota de Remision', 15, 26);
     
     // Pedido info right
     doc.setFontSize(10);
@@ -1288,9 +1288,9 @@ function generarPDFRemision(pedidoId) {
     doc.text('DATOS DEL CLIENTE', 15, 50);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
-    doc.text(`Razón Social: ${pedido.cliente?.nombre || 'N/A'}`, 15, 57);
+    doc.text(`Razon Social: ${pedido.cliente?.nombre || 'N/A'}`, 15, 57);
     doc.text(`RUC: ${clienteInfo?.ruc || 'N/A'}`, 110, 57);
-    doc.text(`Dirección: ${clienteInfo?.direccion || clienteInfo?.zona || 'N/A'}`, 15, 63);
+    doc.text(`Direccion: ${clienteInfo?.direccion || clienteInfo?.zona || 'N/A'}`, 15, 63);
     doc.text(`Tel: ${clienteInfo?.telefono || 'N/A'}`, 110, 63);
     
     // Table header
@@ -1301,7 +1301,7 @@ function generarPDFRemision(pedidoId) {
     doc.setFontSize(8);
     doc.setFont('helvetica', 'bold');
     doc.text('PRODUCTO', 15, y);
-    doc.text('PRESENTACIÓN', 80, y);
+    doc.text('PRESENTACION', 80, y);
     doc.text('CANT.', 125, y);
     doc.text('P. UNIT.', 145, y);
     doc.text('SUBTOTAL', 175, y, { align: 'right' });
@@ -1365,7 +1365,7 @@ function generarPDFRemision(pedidoId) {
     doc.text('Firma del Vendedor', 150, y + 5);
     
     doc.setTextColor(180, 180, 180);
-    doc.text('HDV Distribuciones EAS - Documento generado automáticamente', 105, 290, { align: 'center' });
+    doc.text('HDV Distribuciones EAS - Documento generado automaticamente', 105, 290, { align: 'center' });
     
     doc.save(`remision_${pedido.id}_${pedido.cliente?.nombre || 'cliente'}.pdf`);
 }
@@ -1396,7 +1396,7 @@ function generarTicketTermico(pedidoId) {
     .total-row { font-size: 14px; font-weight: bold; }
 </style></head><body>
 <div class="center bold big">HDV DISTRIBUCIONES</div>
-<div class="center small">EAS - Nota de Remisión</div>
+<div class="center small">EAS - Nota de Remision</div>
 <div class="line"></div>
 <div class="row"><span>N°: ${pedido.id}</span></div>
 <div class="row"><span>Fecha: ${new Date(pedido.fecha).toLocaleDateString('es-PY')}</span></div>
@@ -1456,7 +1456,7 @@ function cargarDashboard() {
     el('dashClientesActivos', clientesActivosMes);
     el('dashTicketPromedio', `Gs. ${ticketPromedio.toLocaleString()}`);
     
-    // Chart: ventas últimos 7 días
+    // Chart: ventas ultimos 7 dias
     const labels7d = [];
     const datos7d = [];
     for (let i = 6; i >= 0; i--) {
@@ -1607,7 +1607,7 @@ function cargarResumenMensual() {
                 <div class="bg-green-50 p-3 rounded-lg"><p class="text-xs text-gray-500">Total Ventas</p><p class="font-bold text-green-700">Gs. ${totalVentas.toLocaleString()}</p></div>
                 <div class="bg-blue-50 p-3 rounded-lg"><p class="text-xs text-gray-500">Pedidos</p><p class="font-bold text-blue-700">${totalPedidos}</p></div>
                 <div class="bg-gray-50 p-3 rounded-lg"><p class="text-xs text-gray-500">Contado</p><p class="font-bold">Gs. ${contado.toLocaleString()}</p></div>
-                <div class="bg-red-50 p-3 rounded-lg"><p class="text-xs text-gray-500">Crédito</p><p class="font-bold text-red-600">Gs. ${credito.toLocaleString()}</p></div>
+                <div class="bg-red-50 p-3 rounded-lg"><p class="text-xs text-gray-500">Credito</p><p class="font-bold text-red-600">Gs. ${credito.toLocaleString()}</p></div>
                 <div class="bg-purple-50 p-3 rounded-lg"><p class="text-xs text-gray-500">Entregados</p><p class="font-bold text-purple-700">${entregados} / ${totalPedidos}</p></div>
                 <div class="bg-yellow-50 p-3 rounded-lg"><p class="text-xs text-gray-500">Clientes</p><p class="font-bold text-yellow-700">${clientesUnicos}</p></div>
             </div>
@@ -1678,7 +1678,7 @@ function exportarResumenMensualPDF() {
     doc.text(`Total Ventas: Gs. ${totalVentas.toLocaleString()}`, 15, y); y += 6;
     doc.text(`Total Pedidos: ${pedidosMes.length}`, 15, y); y += 6;
     doc.text(`Ventas Contado: Gs. ${contado.toLocaleString()}`, 15, y); y += 6;
-    doc.text(`Ventas Crédito: Gs. ${credito.toLocaleString()}`, 15, y); y += 6;
+    doc.text(`Ventas Credito: Gs. ${credito.toLocaleString()}`, 15, y); y += 6;
     doc.text(`Clientes Activos: ${Object.keys(porCliente).length}`, 15, y); y += 12;
     
     // Top clientes

@@ -1,5 +1,5 @@
 // ============================================
-// HDV Firebase - Configuración y Sincronización
+// HDV Firebase - Configuracion y Sincronizacion
 // ============================================
 const firebaseConfig = {
     apiKey: "AIzaSyCPz1RAyMQWzBDGobEdM6SVNt3Qsh1DiLc",
@@ -14,19 +14,19 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
-// Habilitar persistencia offline (crucial para vendedores sin señal)
+// Habilitar persistencia offline (crucial para vendedores sin senal)
 db.enablePersistence({ synchronizeTabs: true })
     .then(() => console.log('[Firebase] Persistencia offline activada'))
     .catch(err => {
         if (err.code === 'failed-precondition') {
-            console.warn('[Firebase] Persistencia no disponible: múltiples pestañas abiertas');
+            console.warn('[Firebase] Persistencia no disponible: multiples pestanas abiertas');
         } else if (err.code === 'unimplemented') {
             console.warn('[Firebase] Este navegador no soporta persistencia offline');
         }
     });
 
 // ============================================
-// ESTADO DE CONEXIÓN
+// ESTADO DE CONEXION
 // ============================================
 let firebaseConectado = false;
 
@@ -41,7 +41,7 @@ function monitorearConexion() {
         }, (error) => {
             firebaseConectado = false;
             actualizarIndicadorConexion(false);
-            console.warn('[Firebase] Sin conexión:', error.code);
+            console.warn('[Firebase] Sin conexion:', error.code);
         });
 }
 
@@ -121,7 +121,7 @@ function escucharPedidosRealtime(callback) {
         .orderBy('fecha', 'desc')
         .onSnapshot((snapshot) => {
             const pedidos = snapshot.docs.map(doc => doc.data());
-            // También sincronizar con localStorage como backup
+            // Tambien sincronizar con localStorage como backup
             localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
             callback(pedidos, snapshot.docChanges());
         }, (error) => {
@@ -157,25 +157,25 @@ async function sincronizarPedidosLocales() {
 }
 
 // ============================================
-// FUNCIONES PARA CATÁLOGO (productos, clientes)
+// FUNCIONES PARA CATALOGO (productos, clientes)
 // ============================================
 
-// Guardar catálogo completo en Firestore
+// Guardar catalogo completo en Firestore
 async function guardarCatalogoFirebase(productosData) {
     try {
         await db.collection('catalogo').doc('principal').set({
             ...productosData,
             actualizadoEn: firebase.firestore.FieldValue.serverTimestamp()
         });
-        console.log('[Firebase] Catálogo guardado');
+        console.log('[Firebase] Catalogo guardado');
         return true;
     } catch (error) {
-        console.error('[Firebase] Error guardando catálogo:', error);
+        console.error('[Firebase] Error guardando catalogo:', error);
         return false;
     }
 }
 
-// Obtener catálogo desde Firestore
+// Obtener catalogo desde Firestore
 async function obtenerCatalogoFirebase() {
     try {
         const doc = await db.collection('catalogo').doc('principal').get();
@@ -184,12 +184,12 @@ async function obtenerCatalogoFirebase() {
         }
         return null;
     } catch (error) {
-        console.error('[Firebase] Error obteniendo catálogo:', error);
+        console.error('[Firebase] Error obteniendo catalogo:', error);
         return null;
     }
 }
 
-// Escuchar cambios en catálogo (para vendedores)
+// Escuchar cambios en catalogo (para vendedores)
 function escucharCatalogoRealtime(callback) {
     return db.collection('catalogo').doc('principal')
         .onSnapshot((doc) => {
@@ -198,7 +198,7 @@ function escucharCatalogoRealtime(callback) {
                 callback(data);
             }
         }, (error) => {
-            console.error('[Firebase] Error en listener catálogo:', error);
+            console.error('[Firebase] Error en listener catalogo:', error);
         });
 }
 

@@ -11,7 +11,7 @@ let vistaActual = 'lista'; // 'lista', 'pedidos' o 'config'
 let autoBackupInterval = null;
 
 // ============================================
-// INICIALIZACIÓN
+// INICIALIZACION
 // ============================================
 document.addEventListener('DOMContentLoaded', async () => {
     await cargarDatos();
@@ -26,7 +26,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         setTimeout(() => sincronizarPedidosLocales(), 2000);
     }
 
-    // Escuchar catálogo en tiempo real desde Firebase
+    // Escuchar catalogo en tiempo real desde Firebase
     if (typeof escucharCatalogoRealtime === 'function') {
         escucharCatalogoRealtime((data) => {
             if (data && data.categorias && data.productos) {
@@ -36,7 +36,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 poblarClientes();
                 crearFiltrosCategorias();
                 if (vistaActual === 'lista') mostrarProductos();
-                console.log('[Vendedor] Catálogo actualizado desde Firebase');
+                console.log('[Vendedor] Catalogo actualizado desde Firebase');
             }
         });
     }
@@ -57,7 +57,7 @@ async function cargarDatos() {
         document.getElementById('searchInput').disabled = false;
     } catch (e) {
         console.error('Error cargando datos:', e);
-        document.getElementById('productsContainer').innerHTML = '<div class="text-center text-red-500 mt-10 font-bold">Error al cargar catálogo. Verifica tu conexión.</div>';
+        document.getElementById('productsContainer').innerHTML = '<div class="text-center text-red-500 mt-10 font-bold">Error al cargar catalogo. Verifica tu conexion.</div>';
     }
 }
 
@@ -70,7 +70,7 @@ function configurarEventos() {
         if (id) {
             const nuevoCliente = clientes.find(c => c.id === id);
             if (clienteActual && clienteActual.id !== id && carrito.length > 0) {
-                if (!confirm('Cambiar de cliente vaciará el carrito actual. ¿Continuar?')) {
+                if (!confirm('Cambiar de cliente vaciara el carrito actual. ¿Continuar?')) {
                     e.target.value = clienteActual.id;
                     return;
                 }
@@ -102,7 +102,7 @@ function poblarClientes() {
 }
 
 // ============================================
-// CATEGORÍAS
+// CATEGORIAS
 // ============================================
 function crearFiltrosCategorias() {
     const container = document.getElementById('categoryFilters');
@@ -176,10 +176,10 @@ function mostrarProductos() {
 
 function obtenerEmoji(producto) {
     const n = producto.nombre.toLowerCase();
-    if (n.includes('jabón') || n.includes('jabon')) return '🧼';
+    if (n.includes('jabon') || n.includes('jabon')) return '🧼';
     if (n.includes('shampoo')) return '🧴';
     if (n.includes('desodorante')) return '💨';
-    if (n.includes('pañal') || n.includes('panal')) return '🍼';
+    if (n.includes('panal') || n.includes('panal')) return '🍼';
     if (n.includes('toallita')) return '🧻';
     if (n.includes('havaianas') || n.includes('ipanema')) return '🩴';
     if (n.includes('aceite')) return '🫗';
@@ -327,7 +327,7 @@ function cargarCarritoGuardado() {
 // ============================================
 function mostrarModalCarrito() {
     if (carrito.length === 0) {
-        alert('El carrito está vacío');
+        alert('El carrito esta vacio');
         return;
     }
     
@@ -389,7 +389,7 @@ function eliminarDelCarrito(idx) {
 
 function aplicarDescuento() {
     const desc = parseFloat(document.getElementById('descuento').value) || 0;
-    if (desc < 0 || desc > 100) { alert('Descuento inválido'); return; }
+    if (desc < 0 || desc > 100) { alert('Descuento invalido'); return; }
     
     const subtotal = carrito.reduce((s, i) => s + i.subtotal, 0);
     const totalConDesc = Math.round(subtotal * (1 - desc / 100));
@@ -408,7 +408,7 @@ function aplicarDescuento() {
 // ============================================
 function confirmarPedido() {
     if (!clienteActual) { alert('Selecciona un cliente'); return; }
-    if (carrito.length === 0) { alert('El carrito está vacío'); return; }
+    if (carrito.length === 0) { alert('El carrito esta vacio'); return; }
 
     const descuento = parseFloat(document.getElementById('descuento').value) || 0;
     const tipoPago = document.getElementById('tipoPago').value;
@@ -436,7 +436,7 @@ function confirmarPedido() {
     pedidos.push(pedido);
     localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
 
-    // Guardar en Firebase (sincronización en tiempo real)
+    // Guardar en Firebase (sincronizacion en tiempo real)
     if (typeof guardarPedidoFirebase === 'function') {
         guardarPedidoFirebase(pedido).then(ok => {
             if (ok) {
@@ -581,7 +581,7 @@ function registrarSW() {
                     const newWorker = reg.installing;
                     newWorker.addEventListener('statechange', () => {
                         if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                            if (confirm('Hay una actualización disponible. ¿Actualizar ahora?')) {
+                            if (confirm('Hay una actualizacion disponible. ¿Actualizar ahora?')) {
                                 location.reload(true);
                             }
                         }
@@ -598,7 +598,7 @@ function filtrarPedidos() {
 }
 
 // ============================================
-// VISTA CONFIGURACIÓN
+// VISTA CONFIGURACION
 // ============================================
 function mostrarConfiguracion() {
     const container = document.getElementById('productsContainer');
@@ -611,7 +611,7 @@ function mostrarConfiguracion() {
     const totalGs = pedidos.reduce((s, p) => s + (p.total || 0), 0);
 
     container.innerHTML = `
-        <h3 class="text-lg font-bold text-gray-800 mb-4">Configuración</h3>
+        <h3 class="text-lg font-bold text-gray-800 mb-4">Configuracion</h3>
 
         <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100 mb-3">
             <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Resumen de Datos</p>
@@ -633,7 +633,7 @@ function mostrarConfiguracion() {
 
         <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100 mb-3">
             <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Estado de Backups</p>
-            <p class="text-sm text-gray-700">${ultimoBackup ? 'Último backup: ' + new Date(ultimoBackup).toLocaleString('es-PY') : 'Sin backups realizados'}</p>
+            <p class="text-sm text-gray-700">${ultimoBackup ? 'Ultimo backup: ' + new Date(ultimoBackup).toLocaleString('es-PY') : 'Sin backups realizados'}</p>
             <p class="text-sm text-gray-500 mt-1">Auto-backups guardados: ${autoBackups.length}/10</p>
         </div>
 
@@ -667,8 +667,8 @@ function calcularAlmacenamiento() {
 }
 
 function limpiarTodosDatos() {
-    if (!confirm('¿BORRAR TODOS los pedidos? Esta acción no se puede deshacer.')) return;
-    if (!confirm('¿Estás completamente seguro?')) return;
+    if (!confirm('¿BORRAR TODOS los pedidos? Esta accion no se puede deshacer.')) return;
+    if (!confirm('¿Estas completamente seguro?')) return;
     localStorage.removeItem('hdv_pedidos');
     // Limpiar carritos
     for (let key in localStorage) {
@@ -705,7 +705,7 @@ function actualizarInfoBackup() {
     infoText.textContent = `${pedidos.length} pedidos en el dispositivo`;
 
     if (ultimaFecha) {
-        infoDate.textContent = `Último backup: ${new Date(ultimaFecha).toLocaleString('es-PY')}`;
+        infoDate.textContent = `Ultimo backup: ${new Date(ultimaFecha).toLocaleString('es-PY')}`;
     } else {
         infoDate.textContent = 'Nunca se ha hecho backup';
     }
@@ -795,7 +795,7 @@ function restaurarBackupVendedor(event) {
     const file = event.target.files[0];
     if (!file) return;
 
-    if (!confirm('¿Restaurar datos desde este backup? Los datos actuales serán reemplazados.')) {
+    if (!confirm('¿Restaurar datos desde este backup? Los datos actuales seran reemplazados.')) {
         event.target.value = '';
         return;
     }
@@ -833,7 +833,7 @@ function restaurarBackupVendedor(event) {
             cerrarModalBackup();
             if (vistaActual === 'pedidos') mostrarMisPedidos();
         } catch (err) {
-            alert('Error: El archivo no es válido');
+            alert('Error: El archivo no es valido');
         }
         event.target.value = '';
     };
@@ -874,7 +874,7 @@ function toggleAutoBackup() {
 
 function realizarAutoBackup() {
     const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
-    if (pedidos.length === 0) return; // No guardar backup vacío
+    if (pedidos.length === 0) return; // No guardar backup vacio
 
     const backup = {
         fecha: new Date().toISOString(),
@@ -882,7 +882,7 @@ function realizarAutoBackup() {
         totalPedidos: pedidos.length
     };
 
-    // Guardar en localStorage con rotación (máximo 10 backups)
+    // Guardar en localStorage con rotacion (maximo 10 backups)
     let backups = JSON.parse(localStorage.getItem('hdv_auto_backups') || '[]');
     backups.unshift(backup);
     if (backups.length > 10) backups = backups.slice(0, 10);
@@ -908,7 +908,7 @@ function mostrarHistorialBackups() {
 
     const meta = JSON.parse(localStorage.getItem('hdv_auto_backups_meta') || '[]');
     if (meta.length === 0) {
-        container.innerHTML = '<p class="text-xs text-gray-400 italic">Sin auto-backups aún</p>';
+        container.innerHTML = '<p class="text-xs text-gray-400 italic">Sin auto-backups aun</p>';
         return;
     }
 
@@ -928,7 +928,7 @@ function mostrarHistorialBackups() {
 }
 
 function restaurarAutoBackup(idx) {
-    if (!confirm('¿Restaurar este auto-backup? Los pedidos actuales serán reemplazados.')) return;
+    if (!confirm('¿Restaurar este auto-backup? Los pedidos actuales seran reemplazados.')) return;
 
     const backups = JSON.parse(localStorage.getItem('hdv_auto_backups') || '[]');
     if (backups[idx] && backups[idx].pedidos) {
@@ -959,7 +959,7 @@ function formatearFechaArchivo() {
 }
 
 // ============================================
-// IMPRESIÓN Y COMPARTIR POR PEDIDO
+// IMPRESION Y COMPARTIR POR PEDIDO
 // ============================================
 function imprimirTicketVendedor(pedidoId) {
     const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');

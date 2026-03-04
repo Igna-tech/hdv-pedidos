@@ -30,7 +30,8 @@ function cambiarSeccion(seccionId) {
         'dashboard': 'Dashboard', 'pedidos': 'Gestion de Pedidos', 'creditos': 'Control de Creditos',
         'reportes': 'Analisis y Reportes', 'stock': 'Inventario',
         'productos': 'Catalogo de Productos', 'clientes': 'Base de Datos de Clientes',
-        'precios': 'Configuracion de Precios', 'herramientas': 'Sistema y Herramientas'
+        'precios': 'Configuracion de Precios', 'promociones': 'Motor de Promociones',
+        'herramientas': 'Sistema y Herramientas'
     };
     const titleEl = document.getElementById('currentSectionTitle');
     if (titleEl) titleEl.textContent = titulos[seccionId] || 'Panel Admin';
@@ -44,6 +45,8 @@ function cambiarSeccion(seccionId) {
     if (seccionId === 'precios') cargarSelectPreciosCliente();
     if (seccionId === 'herramientas') actualizarInfoBackupAdmin();
     if (seccionId === 'dashboard') cargarDashboard();
+    if (seccionId === 'creditos') cargarCreditos();
+    if (seccionId === 'promociones') cargarPromociones();
 
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
@@ -300,50 +303,8 @@ function exportarExcelPedidos() {
 }
 
 // ============================================
-// CREDITOS
+// CREDITOS (ver funciones completas al final)
 // ============================================
-function cargarCreditos() {
-    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
-    const creditos = pedidos.filter(p => p.tipoPago === 'credito' && (p.estado || 'pendiente') !== 'pagado');
-    
-    const totalCreditos = creditos.reduce((s, p) => s + (p.total || 0), 0);
-    const clientesUnicos = new Set(creditos.map(p => p.cliente?.id)).size;
-    
-    const el = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
-    el('totalCreditos', 'Gs. ' + totalCreditos.toLocaleString());
-    el('clientesConCredito', clientesUnicos);
-    el('pedidosCredito', creditos.length);
-    
-    const container = document.getElementById('listaCreditos');
-    if (!container) return;
-    
-    if (creditos.length === 0) {
-        container.innerHTML = '<div class="p-8 text-center text-gray-400">Sin creditos pendientes</div>';
-        return;
-    }
-    
-    container.innerHTML = '';
-    creditos.forEach(p => {
-        const div = document.createElement('div');
-        div.className = 'p-4 hover:bg-gray-50 flex justify-between items-center';
-        div.innerHTML = `
-            <div>
-                <p class="font-bold text-gray-800">${p.cliente?.nombre || 'N/A'}</p>
-                <p class="text-sm text-gray-500">${new Date(p.fecha).toLocaleDateString('es-PY')}</p>
-            </div>
-            <div class="text-right">
-                <p class="font-bold text-red-600">Gs. ${(p.total || 0).toLocaleString()}</p>
-                <button onclick="marcarPagado('${p.id}')" class="text-xs text-green-600 font-bold hover:underline mt-1">Marcar Pagado</button>
-            </div>`;
-        container.appendChild(div);
-    });
-}
-
-function marcarPagado(id) {
-    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
-    const p = pedidos.find(x => x.id === id);
-    if (p) { p.estado = 'pagado'; localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos)); cargarCreditos(); }
-}
 
 // ============================================
 // REPORTES
@@ -1753,4 +1714,609 @@ async function guardarResumenMensualFirebase() {
     } else {
         alert('Firebase no disponible');
     }
+}
+
+// ============================================
+// CREDITOS, PROMOCIONES - FUNCIONES COMPLETAS
+// ============================================
+// ============================================
+// SISTEMA DE CREDITOS COMPLETO
+// ============================================
+
+function calcularDiasDesde(fecha) {
+    return Math.floor((new Date() - new Date(fecha)) / (1000 * 60 * 60 * 24));
+}
+
+function obtenerPagosCredito(pedidoId) {
+    const pagos = JSON.parse(localStorage.getItem('hdv_pagos_credito') || '[]');
+    return pagos.filter(p => p.pedidoId === pedidoId);
+}
+
+function obtenerSaldoPendiente(pedido) {
+    const pagos = obtenerPagosCredito(pedido.id);
+    const totalPagado = pagos.reduce((s, p) => s + (p.monto || 0), 0);
+    return (pedido.total || 0) - totalPagado;
+}
+
+function obtenerCreditosManuales() {
+    return JSON.parse(localStorage.getItem('hdv_creditos_manuales') || '[]');
+}
+
+function obtenerSaldoManual(credito) {
+    const pagos = credito.pagos || [];
+    const totalPagado = pagos.reduce((s, p) => s + (p.monto || 0), 0);
+    return (credito.monto || 0) - totalPagado;
+}
+
+function cargarCreditos() {
+    // Pedidos a credito
+    const pedidosCredito = todosLosPedidos.filter(p => p.tipoPago === 'credito' && p.estado !== 'pagado');
+    const creditosManuales = obtenerCreditosManuales().filter(c => !c.pagado);
+    const allPagos = JSON.parse(localStorage.getItem('hdv_pagos_credito') || '[]');
+
+    // Calcular stats
+    let totalDeuda = 0, totalCobrado = 0;
+    pedidosCredito.forEach(p => {
+        const pagos = allPagos.filter(pg => pg.pedidoId === p.id);
+        const pagado = pagos.reduce((s, pg) => s + (pg.monto || 0), 0);
+        totalDeuda += (p.total || 0) - pagado;
+        totalCobrado += pagado;
+    });
+    creditosManuales.forEach(c => {
+        const pagado = (c.pagos || []).reduce((s, p) => s + (p.monto || 0), 0);
+        totalDeuda += (c.monto || 0) - pagado;
+        totalCobrado += pagado;
+    });
+
+    const clientesUnicos = new Set([
+        ...pedidosCredito.map(p => p.cliente?.id),
+        ...creditosManuales.map(c => c.clienteId)
+    ]).size;
+
+    const el = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
+    el('totalCreditos', 'Gs. ' + totalDeuda.toLocaleString());
+    el('totalCobrado', 'Gs. ' + totalCobrado.toLocaleString());
+    el('clientesConCredito', clientesUnicos);
+    el('pedidosCredito', pedidosCredito.length + creditosManuales.length);
+
+    const container = document.getElementById('listaCreditos');
+    if (!container) return;
+
+    if (pedidosCredito.length === 0 && creditosManuales.length === 0) {
+        container.innerHTML = '<div class="p-8 text-center text-gray-400">Sin creditos pendientes</div>';
+        return;
+    }
+
+    container.innerHTML = '';
+
+    // Pedidos a credito
+    pedidosCredito.sort((a, b) => new Date(a.fecha) - new Date(b.fecha)).forEach(p => {
+        const dias = calcularDiasDesde(p.fecha);
+        const saldo = obtenerSaldoPendiente(p);
+        const pagos = obtenerPagosCredito(p.id);
+        const totalPagado = pagos.reduce((s, pg) => s + (pg.monto || 0), 0);
+        const esVencido = dias > 15;
+        const clienteInfo = productosData.clientes.find(c => c.id === p.cliente?.id);
+
+        if (saldo <= 0) return; // Ya pagado
+
+        const div = document.createElement('div');
+        div.className = `p-5 hover:bg-gray-50 transition-colors ${esVencido ? 'bg-red-50 border-l-4 border-red-500' : ''}`;
+        div.innerHTML = `
+            <div class="flex justify-between items-start mb-2">
+                <div>
+                    <p class="font-bold text-gray-800 text-lg">${p.cliente?.nombre || 'N/A'}</p>
+                    <p class="text-sm text-gray-500">${new Date(p.fecha).toLocaleDateString('es-PY')} - Pedido #${p.id}</p>
+                </div>
+                <div class="text-right">
+                    <span class="px-3 py-1 rounded-full text-xs font-bold ${esVencido ? 'bg-red-200 text-red-800' : 'bg-yellow-100 text-yellow-800'}">
+                        ${dias} dias ${esVencido ? '- VENCIDO' : ''}
+                    </span>
+                </div>
+            </div>
+            <div class="grid grid-cols-3 gap-4 mb-3 text-sm">
+                <div><span class="text-gray-500">Total:</span> <strong>Gs. ${(p.total || 0).toLocaleString()}</strong></div>
+                <div><span class="text-gray-500">Pagado:</span> <strong class="text-green-600">Gs. ${totalPagado.toLocaleString()}</strong></div>
+                <div><span class="text-gray-500">Saldo:</span> <strong class="text-red-600">Gs. ${saldo.toLocaleString()}</strong></div>
+            </div>
+            ${totalPagado > 0 ? `
+                <div class="w-full bg-gray-200 rounded-full h-2 mb-3">
+                    <div class="bg-green-500 h-2 rounded-full" style="width:${Math.min(100, (totalPagado / p.total * 100)).toFixed(0)}%"></div>
+                </div>` : ''}
+            <div class="flex gap-2 flex-wrap">
+                <button onclick="registrarPagoCredito('${p.id}')" class="bg-green-600 text-white px-3 py-2 rounded-lg text-xs font-bold">Registrar Pago</button>
+                <button onclick="enviarRecordatorioWhatsApp('${p.id}')" class="bg-[#25D366] text-white px-3 py-2 rounded-lg text-xs font-bold">WhatsApp</button>
+                <button onclick="verHistorialPagos('${p.id}')" class="bg-gray-200 text-gray-700 px-3 py-2 rounded-lg text-xs font-bold">Historial</button>
+                ${saldo <= 0 ? `<button onclick="marcarPagado('${p.id}')" class="bg-blue-600 text-white px-3 py-2 rounded-lg text-xs font-bold">Marcar Pagado</button>` : ''}
+            </div>`;
+        container.appendChild(div);
+    });
+
+    // Creditos manuales
+    creditosManuales.forEach(c => {
+        const dias = calcularDiasDesde(c.fecha);
+        const saldo = obtenerSaldoManual(c);
+        const totalPagado = (c.pagos || []).reduce((s, p) => s + (p.monto || 0), 0);
+        const esVencido = dias > 15;
+
+        if (saldo <= 0) return;
+
+        const div = document.createElement('div');
+        div.className = `p-5 hover:bg-gray-50 transition-colors ${esVencido ? 'bg-red-50 border-l-4 border-red-500' : ''}`;
+        div.innerHTML = `
+            <div class="flex justify-between items-start mb-2">
+                <div>
+                    <p class="font-bold text-gray-800 text-lg">${c.clienteNombre || 'N/A'}</p>
+                    <p class="text-sm text-gray-500">${new Date(c.fecha).toLocaleDateString('es-PY')} - Manual: ${c.descripcion || ''}</p>
+                </div>
+                <div class="text-right">
+                    <span class="px-2 py-1 rounded-full text-[10px] font-bold bg-purple-100 text-purple-700">MANUAL</span>
+                    <span class="ml-1 px-3 py-1 rounded-full text-xs font-bold ${esVencido ? 'bg-red-200 text-red-800' : 'bg-yellow-100 text-yellow-800'}">
+                        ${dias} dias
+                    </span>
+                </div>
+            </div>
+            <div class="grid grid-cols-3 gap-4 mb-3 text-sm">
+                <div><span class="text-gray-500">Total:</span> <strong>Gs. ${(c.monto || 0).toLocaleString()}</strong></div>
+                <div><span class="text-gray-500">Pagado:</span> <strong class="text-green-600">Gs. ${totalPagado.toLocaleString()}</strong></div>
+                <div><span class="text-gray-500">Saldo:</span> <strong class="text-red-600">Gs. ${saldo.toLocaleString()}</strong></div>
+            </div>
+            <div class="flex gap-2 flex-wrap">
+                <button onclick="registrarPagoManual('${c.id}')" class="bg-green-600 text-white px-3 py-2 rounded-lg text-xs font-bold">Registrar Pago</button>
+                <button onclick="enviarRecordatorioManualWhatsApp('${c.id}')" class="bg-[#25D366] text-white px-3 py-2 rounded-lg text-xs font-bold">WhatsApp</button>
+            </div>`;
+        container.appendChild(div);
+    });
+}
+
+function registrarPagoCredito(pedidoId) {
+    const pedido = todosLosPedidos.find(p => p.id === pedidoId);
+    if (!pedido) return;
+    const saldo = obtenerSaldoPendiente(pedido);
+    const montoStr = prompt(`Registrar pago para ${pedido.cliente?.nombre}\nSaldo pendiente: Gs. ${saldo.toLocaleString()}\n\nMonto del pago (Gs.):`);
+    if (!montoStr) return;
+    const monto = parseInt(montoStr);
+    if (isNaN(monto) || monto <= 0) { alert('Monto invalido'); return; }
+    if (monto > saldo) { alert('El monto excede el saldo pendiente'); return; }
+
+    const nota = prompt('Nota del pago (opcional):') || '';
+    const pago = { id: 'PAG' + Date.now(), pedidoId, monto, fecha: new Date().toISOString(), nota };
+    const pagos = JSON.parse(localStorage.getItem('hdv_pagos_credito') || '[]');
+    pagos.push(pago);
+    localStorage.setItem('hdv_pagos_credito', JSON.stringify(pagos));
+
+    // Si saldo = 0, marcar pagado
+    if (saldo - monto <= 0) {
+        marcarPagado(pedidoId);
+    }
+
+    // Firebase
+    if (typeof db !== 'undefined') {
+        db.collection('pagos_credito').doc(pago.id).set(pago).catch(e => console.error(e));
+    }
+
+    alert(`Pago de Gs. ${monto.toLocaleString()} registrado exitosamente`);
+    cargarCreditos();
+}
+
+function registrarPagoManual(creditoId) {
+    const creditos = obtenerCreditosManuales();
+    const credito = creditos.find(c => c.id === creditoId);
+    if (!credito) return;
+    const saldo = obtenerSaldoManual(credito);
+    const montoStr = prompt(`Registrar pago para ${credito.clienteNombre}\nSaldo: Gs. ${saldo.toLocaleString()}\n\nMonto:`);
+    if (!montoStr) return;
+    const monto = parseInt(montoStr);
+    if (isNaN(monto) || monto <= 0 || monto > saldo) { alert('Monto invalido'); return; }
+
+    const nota = prompt('Nota (opcional):') || '';
+    if (!credito.pagos) credito.pagos = [];
+    credito.pagos.push({ monto, fecha: new Date().toISOString(), nota });
+    if (saldo - monto <= 0) credito.pagado = true;
+    localStorage.setItem('hdv_creditos_manuales', JSON.stringify(creditos));
+    alert(`Pago de Gs. ${monto.toLocaleString()} registrado`);
+    cargarCreditos();
+}
+
+function marcarPagado(id) {
+    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    const p = pedidos.find(x => x.id === id);
+    if (p) {
+        p.estado = 'pagado';
+        localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
+        if (typeof actualizarEstadoPedidoFirebase === 'function') actualizarEstadoPedidoFirebase(id, 'pagado');
+    }
+    cargarCreditos();
+}
+
+function verHistorialPagos(pedidoId) {
+    const pagos = obtenerPagosCredito(pedidoId);
+    if (pagos.length === 0) { alert('Sin pagos registrados para este credito'); return; }
+    let msg = 'HISTORIAL DE PAGOS\n' + '='.repeat(30) + '\n';
+    pagos.forEach((p, i) => {
+        msg += `\n${i + 1}. Gs. ${p.monto.toLocaleString()} - ${new Date(p.fecha).toLocaleDateString('es-PY')}`;
+        if (p.nota) msg += ` (${p.nota})`;
+    });
+    msg += `\n\nTotal pagado: Gs. ${pagos.reduce((s, p) => s + p.monto, 0).toLocaleString()}`;
+    alert(msg);
+}
+
+function enviarRecordatorioWhatsApp(pedidoId) {
+    const pedido = todosLosPedidos.find(p => p.id === pedidoId);
+    if (!pedido) return;
+    const clienteInfo = productosData.clientes.find(c => c.id === pedido.cliente?.id);
+    const telefono = clienteInfo?.telefono || '';
+    if (!telefono) { alert('Este cliente no tiene telefono registrado'); return; }
+
+    const saldo = obtenerSaldoPendiente(pedido);
+    const dias = calcularDiasDesde(pedido.fecha);
+
+    let plantilla = localStorage.getItem('hdv_whatsapp_mensaje_credito');
+    if (!plantilla) {
+        plantilla = 'Hola {cliente}, le recordamos que tiene un saldo pendiente de Gs. {saldo} desde hace {dias} dias. Total original: Gs. {monto}. Fecha del pedido: {fecha}. Agradecemos su pronto pago. HDV Distribuciones';
+        // Primera vez: permitir editar
+        const editada = prompt('Mensaje de recordatorio (primera vez, podes editarlo):\nPlaceholders: {cliente}, {monto}, {saldo}, {dias}, {fecha}', plantilla);
+        if (!editada) return;
+        plantilla = editada;
+        localStorage.setItem('hdv_whatsapp_mensaje_credito', plantilla);
+    }
+
+    const mensaje = plantilla
+        .replace(/{cliente}/g, pedido.cliente?.nombre || '')
+        .replace(/{monto}/g, (pedido.total || 0).toLocaleString())
+        .replace(/{saldo}/g, saldo.toLocaleString())
+        .replace(/{dias}/g, dias)
+        .replace(/{fecha}/g, new Date(pedido.fecha).toLocaleDateString('es-PY'));
+
+    let tel = telefono.replace(/\D/g, '');
+    if (tel.startsWith('0')) tel = '595' + tel.substring(1);
+    else if (!tel.startsWith('595')) tel = '595' + tel;
+
+    window.open(`https://wa.me/${tel}?text=${encodeURIComponent(mensaje)}`, '_blank');
+}
+
+function enviarRecordatorioManualWhatsApp(creditoId) {
+    const creditos = obtenerCreditosManuales();
+    const credito = creditos.find(c => c.id === creditoId);
+    if (!credito) return;
+    const clienteInfo = productosData.clientes.find(c => c.id === credito.clienteId);
+    const telefono = clienteInfo?.telefono || '';
+    if (!telefono) { alert('Sin telefono'); return; }
+
+    const saldo = obtenerSaldoManual(credito);
+    const dias = calcularDiasDesde(credito.fecha);
+    const mensaje = `Hola ${credito.clienteNombre}, le recordamos que tiene un saldo pendiente de Gs. ${saldo.toLocaleString()} desde hace ${dias} dias por: ${credito.descripcion}. Agradecemos su pronto pago. HDV Distribuciones`;
+
+    let tel = telefono.replace(/\D/g, '');
+    if (tel.startsWith('0')) tel = '595' + tel.substring(1);
+    window.open(`https://wa.me/${tel}?text=${encodeURIComponent(mensaje)}`, '_blank');
+}
+
+function editarMensajeRecordatorio() {
+    let plantilla = localStorage.getItem('hdv_whatsapp_mensaje_credito') ||
+        'Hola {cliente}, le recordamos que tiene un saldo pendiente de Gs. {saldo} desde hace {dias} dias. Total original: Gs. {monto}. Fecha del pedido: {fecha}. Agradecemos su pronto pago. HDV Distribuciones';
+    const nueva = prompt('Editar mensaje de recordatorio WhatsApp:\nPlaceholders: {cliente}, {monto}, {saldo}, {dias}, {fecha}', plantilla);
+    if (nueva) {
+        localStorage.setItem('hdv_whatsapp_mensaje_credito', nueva);
+        alert('Mensaje actualizado');
+    }
+}
+
+function agregarCreditoManual() {
+    const clienteId = prompt('ID del cliente (o nombre):');
+    if (!clienteId) return;
+    const cliente = productosData.clientes.find(c => c.id === clienteId || c.nombre === clienteId || c.razon_social === clienteId);
+    const nombre = cliente ? (cliente.razon_social || cliente.nombre) : clienteId;
+    const montoStr = prompt('Monto del credito (Gs.):');
+    if (!montoStr) return;
+    const monto = parseInt(montoStr);
+    if (isNaN(monto) || monto <= 0) { alert('Monto invalido'); return; }
+    const descripcion = prompt('Descripcion:') || 'Credito manual';
+
+    const creditos = obtenerCreditosManuales();
+    const nuevo = {
+        id: 'CM' + Date.now(),
+        clienteId: cliente?.id || clienteId,
+        clienteNombre: nombre,
+        monto, descripcion,
+        fecha: new Date().toISOString(),
+        pagos: [], pagado: false
+    };
+    creditos.push(nuevo);
+    localStorage.setItem('hdv_creditos_manuales', JSON.stringify(creditos));
+
+    if (typeof db !== 'undefined') {
+        db.collection('creditos_manuales').doc(nuevo.id).set(nuevo).catch(e => console.error(e));
+    }
+    alert('Credito manual agregado');
+    cargarCreditos();
+}
+
+function toggleVistaCreditos(vista) {
+    document.getElementById('vistaListaCreditos').style.display = vista === 'lista' ? '' : 'none';
+    document.getElementById('vistaResumenCreditos').style.display = vista === 'resumen' ? '' : 'none';
+    document.getElementById('vistaGraficosCreditos').style.display = vista === 'graficos' ? '' : 'none';
+    if (vista === 'resumen') mostrarDeudaPorCliente();
+    if (vista === 'graficos') renderizarGraficoCreditos();
+}
+
+function mostrarDeudaPorCliente() {
+    const pedidosCredito = todosLosPedidos.filter(p => p.tipoPago === 'credito' && p.estado !== 'pagado');
+    const creditosManuales = obtenerCreditosManuales().filter(c => !c.pagado);
+    const allPagos = JSON.parse(localStorage.getItem('hdv_pagos_credito') || '[]');
+    const resumen = {};
+
+    pedidosCredito.forEach(p => {
+        const nombre = p.cliente?.nombre || 'N/A';
+        if (!resumen[nombre]) resumen[nombre] = { creditos: 0, deuda: 0, pagado: 0 };
+        const pagado = allPagos.filter(pg => pg.pedidoId === p.id).reduce((s, pg) => s + pg.monto, 0);
+        resumen[nombre].creditos++;
+        resumen[nombre].deuda += (p.total || 0);
+        resumen[nombre].pagado += pagado;
+    });
+    creditosManuales.forEach(c => {
+        const nombre = c.clienteNombre || 'N/A';
+        if (!resumen[nombre]) resumen[nombre] = { creditos: 0, deuda: 0, pagado: 0 };
+        const pagado = (c.pagos || []).reduce((s, p) => s + p.monto, 0);
+        resumen[nombre].creditos++;
+        resumen[nombre].deuda += c.monto;
+        resumen[nombre].pagado += pagado;
+    });
+
+    const container = document.getElementById('resumenDeudaClientes');
+    if (!container) return;
+    const sorted = Object.entries(resumen).sort((a, b) => (b[1].deuda - b[1].pagado) - (a[1].deuda - a[1].pagado));
+
+    container.innerHTML = `
+        <table class="w-full text-sm">
+            <thead class="bg-gray-50 text-gray-500 uppercase text-[11px]">
+                <tr><th class="px-4 py-2 text-left">Cliente</th><th class="px-4 py-2">Creditos</th><th class="px-4 py-2">Deuda Total</th><th class="px-4 py-2">Pagado</th><th class="px-4 py-2">Saldo</th></tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+                ${sorted.map(([nombre, d]) => {
+                    const saldo = d.deuda - d.pagado;
+                    return `<tr class="${saldo > 0 ? 'bg-red-50' : 'bg-green-50'}">
+                        <td class="px-4 py-3 font-bold">${nombre}</td>
+                        <td class="px-4 py-3 text-center">${d.creditos}</td>
+                        <td class="px-4 py-3 text-center">Gs. ${d.deuda.toLocaleString()}</td>
+                        <td class="px-4 py-3 text-center text-green-600 font-bold">Gs. ${d.pagado.toLocaleString()}</td>
+                        <td class="px-4 py-3 text-center text-red-600 font-bold">Gs. ${saldo.toLocaleString()}</td>
+                    </tr>`;
+                }).join('')}
+            </tbody>
+        </table>`;
+}
+
+let chartCred = null, chartCredPie = null;
+function renderizarGraficoCreditos() {
+    const pedidosCredito = todosLosPedidos.filter(p => p.tipoPago === 'credito' && p.estado !== 'pagado');
+    const allPagos = JSON.parse(localStorage.getItem('hdv_pagos_credito') || '[]');
+    const porCliente = {};
+    let totalPagadoGlobal = 0, totalPendienteGlobal = 0;
+
+    pedidosCredito.forEach(p => {
+        const nombre = p.cliente?.nombre || 'N/A';
+        const pagado = allPagos.filter(pg => pg.pedidoId === p.id).reduce((s, pg) => s + pg.monto, 0);
+        const saldo = (p.total || 0) - pagado;
+        if (!porCliente[nombre]) porCliente[nombre] = 0;
+        porCliente[nombre] += saldo;
+        totalPagadoGlobal += pagado;
+        totalPendienteGlobal += saldo;
+    });
+
+    const top10 = Object.entries(porCliente).sort((a, b) => b[1] - a[1]).slice(0, 10);
+
+    const ctx1 = document.getElementById('chartCreditos');
+    if (ctx1) {
+        if (chartCred) chartCred.destroy();
+        chartCred = new Chart(ctx1, {
+            type: 'bar',
+            data: {
+                labels: top10.map(t => t[0]),
+                datasets: [{ label: 'Deuda (Gs.)', data: top10.map(t => t[1]), backgroundColor: 'rgba(220, 38, 38, 0.7)', borderRadius: 6 }]
+            },
+            options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { callback: v => 'Gs.' + (v / 1000).toFixed(0) + 'k' } } } }
+        });
+    }
+
+    const ctx2 = document.getElementById('chartCreditosPagados');
+    if (ctx2) {
+        if (chartCredPie) chartCredPie.destroy();
+        chartCredPie = new Chart(ctx2, {
+            type: 'doughnut',
+            data: {
+                labels: ['Cobrado', 'Pendiente'],
+                datasets: [{ data: [totalPagadoGlobal, totalPendienteGlobal], backgroundColor: ['#16a34a', '#dc2626'], borderWidth: 0 }]
+            },
+            options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+        });
+    }
+}
+
+
+// ============================================
+// MOTOR DE PROMOCIONES
+// ============================================
+
+function cargarPromocionesDesdeStorage() {
+    return JSON.parse(localStorage.getItem('hdv_promociones') || '[]');
+}
+
+function guardarPromocionesEnStorage(promos) {
+    localStorage.setItem('hdv_promociones', JSON.stringify(promos));
+}
+
+function esPromocionActiva(promo) {
+    if (!promo.activa) return false;
+    const hoy = new Date();
+    return hoy >= new Date(promo.fechaInicio) && hoy <= new Date(promo.fechaFin);
+}
+
+function cargarPromociones() {
+    const container = document.getElementById('promocionesContainer');
+    if (!container) return;
+    const promos = cargarPromocionesDesdeStorage();
+
+    if (promos.length === 0) {
+        container.innerHTML = '<p class="p-8 text-center text-gray-400 italic">Sin promociones configuradas. Crea una nueva.</p>';
+        return;
+    }
+
+    container.innerHTML = '';
+    promos.forEach(p => {
+        const activa = esPromocionActiva(p);
+        const prod = productosData.productos.find(pr => pr.id === p.productoId);
+        const tipoLabels = { descuento_cantidad: 'Descuento x Cant.', combo: 'Combo', precio_mayorista: 'Mayorista' };
+        const div = document.createElement('div');
+        div.className = `p-5 hover:bg-gray-50 ${!activa ? 'opacity-50' : ''}`;
+        div.innerHTML = `
+            <div class="flex justify-between items-start mb-2">
+                <div>
+                    <p class="font-bold text-gray-800">${p.nombre}</p>
+                    <p class="text-sm text-gray-500">${p.descripcion || ''}</p>
+                </div>
+                <div class="flex gap-2 items-center">
+                    <span class="px-2 py-1 rounded-full text-[10px] font-bold ${activa ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-500'}">${activa ? 'ACTIVA' : 'INACTIVA'}</span>
+                    <span class="px-2 py-1 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700">${tipoLabels[p.tipo] || p.tipo}</span>
+                </div>
+            </div>
+            <div class="text-sm text-gray-600 mb-3">
+                <span class="font-medium">${prod?.nombre || p.productoId}</span>
+                ${p.presentacion !== 'todas' ? ` (${p.presentacion})` : ' (todas)'}
+                - Min: ${p.cantidadMinima} unid.
+                ${p.tipo !== 'combo' ? ` - Precio: Gs. ${(p.precioEspecial || 0).toLocaleString()}` : ` - Gratis: ${p.cantidadGratis} unid.`}
+            </div>
+            <div class="text-xs text-gray-400 mb-3">${new Date(p.fechaInicio).toLocaleDateString('es-PY')} al ${new Date(p.fechaFin).toLocaleDateString('es-PY')}</div>
+            <div class="flex gap-2">
+                <button onclick="abrirModalPromocion('${p.id}')" class="bg-blue-50 text-blue-600 px-3 py-1 rounded-lg text-xs font-bold">Editar</button>
+                <button onclick="togglePromocion('${p.id}')" class="bg-gray-100 text-gray-600 px-3 py-1 rounded-lg text-xs font-bold">${p.activa ? 'Desactivar' : 'Activar'}</button>
+                <button onclick="eliminarPromocion('${p.id}')" class="bg-red-50 text-red-600 px-3 py-1 rounded-lg text-xs font-bold">Eliminar</button>
+            </div>`;
+        container.appendChild(div);
+    });
+}
+
+function abrirModalPromocion(promoId) {
+    // Poblar selects de productos
+    const selectProd = document.getElementById('formPromoProducto');
+    const selectGratis = document.getElementById('formPromoProductoGratis');
+    if (selectProd) {
+        selectProd.innerHTML = '<option value="">-- Seleccionar --</option>' +
+            productosData.productos.map(p => `<option value="${p.id}">${p.nombre}</option>`).join('');
+    }
+    if (selectGratis) {
+        selectGratis.innerHTML = '<option value="">-- Ninguno --</option>' +
+            productosData.productos.map(p => `<option value="${p.id}">${p.nombre}</option>`).join('');
+    }
+
+    if (promoId) {
+        const promo = cargarPromocionesDesdeStorage().find(p => p.id === promoId);
+        if (promo) {
+            document.getElementById('formPromoId').value = promo.id;
+            document.getElementById('formPromoNombre').value = promo.nombre;
+            document.getElementById('formPromoDescripcion').value = promo.descripcion || '';
+            document.getElementById('formPromoTipo').value = promo.tipo;
+            document.getElementById('formPromoProducto').value = promo.productoId;
+            actualizarPresentacionesPromo();
+            setTimeout(() => {
+                document.getElementById('formPromoPresentacion').value = promo.presentacion || 'todas';
+            }, 50);
+            document.getElementById('formPromoCantidad').value = promo.cantidadMinima;
+            document.getElementById('formPromoPrecio').value = promo.precioEspecial || '';
+            if (selectGratis) selectGratis.value = promo.productoGratisId || '';
+            document.getElementById('formPromoCantidadGratis').value = promo.cantidadGratis || 1;
+            document.getElementById('formPromoActiva').checked = promo.activa;
+            document.getElementById('formPromoFechaInicio').value = promo.fechaInicio;
+            document.getElementById('formPromoFechaFin').value = promo.fechaFin;
+        }
+    } else {
+        document.getElementById('formPromoId').value = 'PROMO' + Date.now();
+        document.getElementById('formPromoNombre').value = '';
+        document.getElementById('formPromoDescripcion').value = '';
+        document.getElementById('formPromoCantidad').value = 12;
+        document.getElementById('formPromoPrecio').value = '';
+        const hoy = new Date().toISOString().split('T')[0];
+        document.getElementById('formPromoFechaInicio').value = hoy;
+        const fin = new Date(); fin.setFullYear(fin.getFullYear() + 1);
+        document.getElementById('formPromoFechaFin').value = fin.toISOString().split('T')[0];
+    }
+
+    toggleCamposPromo();
+    document.getElementById('modalPromocion')?.classList.add('show');
+}
+
+function cerrarModalPromocion() {
+    document.getElementById('modalPromocion')?.classList.remove('show');
+}
+
+function actualizarPresentacionesPromo() {
+    const prodId = document.getElementById('formPromoProducto')?.value;
+    const select = document.getElementById('formPromoPresentacion');
+    if (!select) return;
+    select.innerHTML = '<option value="todas">Todas</option>';
+    if (prodId) {
+        const prod = productosData.productos.find(p => p.id === prodId);
+        if (prod) {
+            prod.presentaciones.forEach(pres => {
+                select.innerHTML += `<option value="${pres.tamano}">${pres.tamano} - Gs.${pres.precio_base.toLocaleString()}</option>`;
+            });
+        }
+    }
+}
+
+function toggleCamposPromo() {
+    const tipo = document.getElementById('formPromoTipo')?.value;
+    document.getElementById('campoPrecioEspecial').style.display = tipo !== 'combo' ? '' : 'none';
+    document.getElementById('camposCombo').style.display = tipo === 'combo' ? '' : 'none';
+}
+
+function guardarPromocion() {
+    const id = document.getElementById('formPromoId').value;
+    const nombre = document.getElementById('formPromoNombre').value.trim();
+    const productoId = document.getElementById('formPromoProducto').value;
+    if (!nombre || !productoId) { alert('Completa nombre y producto'); return; }
+
+    const promo = {
+        id,
+        tipo: document.getElementById('formPromoTipo').value,
+        nombre,
+        descripcion: document.getElementById('formPromoDescripcion').value.trim(),
+        productoId,
+        presentacion: document.getElementById('formPromoPresentacion').value,
+        cantidadMinima: parseInt(document.getElementById('formPromoCantidad').value) || 1,
+        precioEspecial: parseInt(document.getElementById('formPromoPrecio').value) || 0,
+        productoGratisId: document.getElementById('formPromoProductoGratis')?.value || null,
+        cantidadGratis: parseInt(document.getElementById('formPromoCantidadGratis').value) || 1,
+        activa: document.getElementById('formPromoActiva').checked,
+        fechaInicio: document.getElementById('formPromoFechaInicio').value,
+        fechaFin: document.getElementById('formPromoFechaFin').value
+    };
+
+    const promos = cargarPromocionesDesdeStorage();
+    const idx = promos.findIndex(p => p.id === id);
+    if (idx >= 0) promos[idx] = promo;
+    else promos.push(promo);
+    guardarPromocionesEnStorage(promos);
+
+    if (typeof db !== 'undefined') {
+        db.collection('promociones').doc(id).set(promo).catch(e => console.error(e));
+    }
+
+    cerrarModalPromocion();
+    cargarPromociones();
+    alert('Promocion guardada');
+}
+
+function togglePromocion(promoId) {
+    const promos = cargarPromocionesDesdeStorage();
+    const p = promos.find(pr => pr.id === promoId);
+    if (p) { p.activa = !p.activa; guardarPromocionesEnStorage(promos); cargarPromociones(); }
+}
+
+function eliminarPromocion(promoId) {
+    if (!confirm('Eliminar esta promocion?')) return;
+    let promos = cargarPromocionesDesdeStorage();
+    promos = promos.filter(p => p.id !== promoId);
+    guardarPromocionesEnStorage(promos);
+    cargarPromociones();
 }

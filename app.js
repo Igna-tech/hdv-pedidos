@@ -164,9 +164,11 @@ function mostrarProductos() {
                <span class="text-4xl hidden items-center justify-center w-full h-full">${obtenerEmoji(prod)}</span>`
             : `<span class="text-4xl">${obtenerEmoji(prod)}</span>`;
         
+        const promoBadge = typeof mostrarPromocionesEnProducto === 'function' ? mostrarPromocionesEnProducto(prod.id) : '';
         card.innerHTML = `
             <div class="w-full h-28 bg-gray-50 rounded-lg mb-2 flex items-center justify-center overflow-hidden">${imgContent}</div>
             <p class="text-sm font-bold text-gray-800 leading-tight">${prod.nombre}</p>
+            ${promoBadge}
         `;
         grid.appendChild(card);
     });
@@ -364,15 +366,30 @@ function renderizarCarrito() {
     const total = carrito.reduce((s, i) => s + i.subtotal, 0);
     const totalSection = document.getElementById('totalSection');
     totalSection.classList.remove('hidden');
+    // Aplicar promociones
+    let promoHTML = '';
+    let descuentoPromo = 0;
+    if (typeof aplicarPromociones === 'function') {
+        const resultPromo = aplicarPromociones(carrito);
+        descuentoPromo = resultPromo.descuentoTotal;
+        promoHTML = typeof mostrarResumenPromociones === 'function' ? mostrarResumenPromociones(resultPromo) : '';
+    }
+    const totalConPromo = total - descuentoPromo;
+
     totalSection.innerHTML = `
         <div class="flex justify-between items-center">
             <span class="text-gray-500 font-bold">SUBTOTAL</span>
             <span class="text-xl font-bold text-gray-900" id="cartSubtotal">Gs. ${total.toLocaleString()}</span>
         </div>
+        ${descuentoPromo > 0 ? `<div class="flex justify-between items-center text-green-600">
+            <span class="font-bold">DESCUENTO PROMO</span>
+            <span class="font-bold">-Gs. ${descuentoPromo.toLocaleString()}</span>
+        </div>` : ''}
         <div class="flex justify-between items-center" id="cartTotalFinal">
             <span class="text-gray-500 font-bold">TOTAL</span>
-            <span class="text-2xl font-bold text-gray-900">Gs. ${total.toLocaleString()}</span>
+            <span class="text-2xl font-bold text-gray-900">Gs. ${totalConPromo.toLocaleString()}</span>
         </div>
+        ${promoHTML}
     `;
 }
 
@@ -475,8 +492,10 @@ function cambiarVistaVendedor(vista) {
     const catFilters = document.getElementById('categoryFilters');
     const searchBox = document.getElementById('searchContainer');
 
+    const btnZonas = document.getElementById('btn-tab-zonas');
+
     // Reset all tabs
-    [btnLista, btnPedidos, btnBackup, btnConfig].forEach(btn => {
+    [btnLista, btnPedidos, btnBackup, btnConfig, btnZonas].forEach(btn => {
         if (btn) btn.className = 'flex flex-col items-center gap-1 text-gray-400 transition-colors';
     });
 
@@ -495,6 +514,12 @@ function cambiarVistaVendedor(vista) {
         catFilters.style.display = 'none';
         searchBox.style.display = 'none';
         mostrarConfiguracion();
+    } else if (vista === 'zonas') {
+        if (btnZonas) btnZonas.className = 'flex flex-col items-center gap-1 text-gray-900 transition-colors';
+        catFilters.style.display = 'none';
+        searchBox.style.display = 'none';
+        if (zonaActiva) mostrarRutaHoy();
+        else mostrarFiltroZonas();
     }
 }
 
@@ -1110,4 +1135,241 @@ function enviarPedidoWhatsApp(pedidoId) {
     
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
     mostrarExito('Abriendo WhatsApp...');
+}
+
+// ============================================
+// ZONAS, RUTAS Y PROMOCIONES - VENDEDOR
+// ============================================
+// ============================================
+// ZONAS Y RUTAS - App Vendedor
+// ============================================
+
+let zonaActiva = null;
+
+function obtenerZonasUnicas() {
+    const zonasMap = {};
+    clientes.forEach(c => {
+        if (c.zona) {
+            const z = c.zona.trim();
+            zonasMap[z] = (zonasMap[z] || 0) + 1;
+        }
+    });
+    return Object.entries(zonasMap).map(([zona, cantidad]) => ({ zona, cantidad })).sort((a, b) => a.zona.localeCompare(b.zona));
+}
+
+function mostrarFiltroZonas() {
+    const container = document.getElementById('productsContainer');
+    const zonas = obtenerZonasUnicas();
+
+    let html = '<h3 class="text-lg font-bold text-gray-800 mb-4">Seleccionar Zona</h3>';
+
+    // Boton todas las zonas
+    html += `<button onclick="resetearFiltroZona()" class="w-full bg-gray-800 text-white py-4 rounded-xl font-bold text-sm mb-3 active:scale-95 transition-transform">
+        Todas las Zonas (${clientes.length} clientes)
+    </button>`;
+
+    html += '<div class="grid grid-cols-2 gap-3">';
+    const colores = ['bg-blue-50 border-blue-200 text-blue-800', 'bg-green-50 border-green-200 text-green-800', 'bg-purple-50 border-purple-200 text-purple-800', 'bg-yellow-50 border-yellow-200 text-yellow-800', 'bg-red-50 border-red-200 text-red-800', 'bg-indigo-50 border-indigo-200 text-indigo-800'];
+    zonas.forEach((z, i) => {
+        const color = colores[i % colores.length];
+        html += `<button onclick="seleccionarZona('${z.zona}')" class="${color} border-2 rounded-xl p-4 text-center active:scale-95 transition-transform">
+            <p class="text-3xl mb-1">📍</p>
+            <p class="font-bold text-sm">${z.zona}</p>
+            <p class="text-xs opacity-70">${z.cantidad} clientes</p>
+        </button>`;
+    });
+    html += '</div>';
+
+    container.innerHTML = html;
+}
+
+function seleccionarZona(zona) {
+    zonaActiva = zona;
+    filtrarClientesPorZona(zona);
+    mostrarRutaHoy();
+}
+
+function filtrarClientesPorZona(zona) {
+    const select = document.getElementById('clienteSelect');
+    if (!select) return;
+
+    zonaActiva = zona;
+    const options = select.querySelectorAll('option');
+    options.forEach(opt => {
+        if (opt.value === '') {
+            opt.style.display = '';
+        } else {
+            const cliente = clientes.find(c => c.id == opt.value);
+            opt.style.display = (cliente && cliente.zona && cliente.zona.trim() === zona) ? '' : 'none';
+        }
+    });
+
+    // Actualizar indicador
+    actualizarIndicadorZona(zona);
+}
+
+function resetearFiltroZona() {
+    zonaActiva = null;
+    const select = document.getElementById('clienteSelect');
+    if (select) {
+        select.querySelectorAll('option').forEach(opt => opt.style.display = '');
+    }
+    actualizarIndicadorZona(null);
+    cambiarVistaVendedor('lista');
+}
+
+function actualizarIndicadorZona(zona) {
+    let badge = document.getElementById('zonaActivaBadge');
+    if (!badge) {
+        badge = document.createElement('div');
+        badge.id = 'zonaActivaBadge';
+        badge.style.cssText = 'cursor:pointer;';
+        badge.onclick = () => mostrarFiltroZonas();
+        const header = document.querySelector('header .bg-gray-800');
+        if (header) header.parentElement.insertBefore(badge, header);
+    }
+    if (zona) {
+        badge.className = 'bg-blue-600 text-white text-xs font-bold px-3 py-1 rounded-full mt-2 inline-block';
+        badge.textContent = '📍 ' + zona;
+        badge.style.display = '';
+    } else {
+        badge.style.display = 'none';
+    }
+}
+
+function mostrarRutaHoy() {
+    if (!zonaActiva) { mostrarFiltroZonas(); return; }
+    const container = document.getElementById('productsContainer');
+    const clientesZona = clientes.filter(c => c.zona && c.zona.trim() === zonaActiva);
+    const pedidosHoy = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    const hoy = new Date().toISOString().split('T')[0];
+
+    let html = `<div class="flex justify-between items-center mb-4">
+        <h3 class="text-lg font-bold text-gray-800">📍 ${zonaActiva}</h3>
+        <button onclick="mostrarFiltroZonas()" class="text-sm text-blue-600 font-bold">Cambiar Zona</button>
+    </div>`;
+    html += `<p class="text-sm text-gray-500 mb-4">${clientesZona.length} clientes en esta zona</p>`;
+
+    if (clientesZona.length === 0) {
+        html += '<p class="text-center text-gray-400 mt-10">No hay clientes en esta zona</p>';
+    } else {
+        clientesZona.forEach((c, i) => {
+            const tienePedidoHoy = pedidosHoy.some(p => p.cliente?.id === c.id && p.fecha && p.fecha.startsWith(hoy));
+            const nombre = c.razon_social || c.nombre || c.id;
+            html += `<div class="bg-white rounded-xl p-4 shadow-sm border ${tienePedidoHoy ? 'border-green-300 bg-green-50' : 'border-gray-100'} mb-3">
+                <div class="flex justify-between items-start">
+                    <div class="flex items-start gap-3">
+                        <span class="bg-gray-800 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0">${i + 1}</span>
+                        <div>
+                            <p class="font-bold text-gray-800">${nombre}</p>
+                            <p class="text-xs text-gray-500">${c.direccion || c.zona || ''}</p>
+                            ${c.telefono ? `<a href="tel:${c.telefono}" class="text-xs text-blue-600 font-bold">📞 ${c.telefono}</a>` : ''}
+                        </div>
+                    </div>
+                    <div class="flex flex-col items-end gap-1">
+                        ${tienePedidoHoy ? '<span class="text-[10px] font-bold text-green-600 bg-green-100 px-2 py-1 rounded-full">PEDIDO HOY</span>' : ''}
+                        <button onclick="seleccionarClienteDesdeRuta('${c.id}')" class="bg-gray-800 text-white px-3 py-2 rounded-lg text-xs font-bold active:scale-95 transition-transform">Seleccionar</button>
+                    </div>
+                </div>
+            </div>`;
+        });
+    }
+
+    container.innerHTML = html;
+}
+
+function seleccionarClienteDesdeRuta(clienteId) {
+    const select = document.getElementById('clienteSelect');
+    if (select) {
+        select.value = clienteId;
+        select.dispatchEvent(new Event('change'));
+    }
+    cambiarVistaVendedor('lista');
+}
+
+
+// ============================================
+// PROMOCIONES - App Vendedor
+// ============================================
+
+function obtenerPromocionesActivas() {
+    const promos = JSON.parse(localStorage.getItem('hdv_promociones') || '[]');
+    const hoy = new Date();
+    return promos.filter(p => p.activa && hoy >= new Date(p.fechaInicio) && hoy <= new Date(p.fechaFin));
+}
+
+function aplicarPromociones(cart) {
+    const promos = obtenerPromocionesActivas();
+    const resultado = { descuentoTotal: 0, promocionesAplicadas: [], itemsGratis: [] };
+
+    promos.forEach(promo => {
+        // Contar items del producto en el carrito
+        const itemsProducto = cart.filter(item => {
+            if (item.productoId !== promo.productoId) return false;
+            if (promo.presentacion !== 'todas' && item.presentacion !== promo.presentacion) return false;
+            return true;
+        });
+
+        const cantidadTotal = itemsProducto.reduce((s, i) => s + i.cantidad, 0);
+
+        if (cantidadTotal >= promo.cantidadMinima) {
+            if (promo.tipo === 'descuento_cantidad' || promo.tipo === 'precio_mayorista') {
+                let ahorro = 0;
+                itemsProducto.forEach(item => {
+                    const diferencia = item.precio - promo.precioEspecial;
+                    if (diferencia > 0) {
+                        ahorro += diferencia * item.cantidad;
+                    }
+                });
+                if (ahorro > 0) {
+                    resultado.descuentoTotal += ahorro;
+                    resultado.promocionesAplicadas.push({
+                        nombre: promo.nombre,
+                        ahorro,
+                        descripcion: `${cantidadTotal} x Gs.${promo.precioEspecial.toLocaleString()} en vez de Gs.${itemsProducto[0]?.precio.toLocaleString()}`
+                    });
+                }
+            } else if (promo.tipo === 'combo' && promo.productoGratisId) {
+                resultado.itemsGratis.push({
+                    productoId: promo.productoGratisId,
+                    nombre: promo.nombre,
+                    cantidad: promo.cantidadGratis || 1,
+                    descripcion: `Gratis por llevar ${cantidadTotal} de ${itemsProducto[0]?.nombre}`
+                });
+            }
+        }
+    });
+
+    return resultado;
+}
+
+function mostrarPromocionesEnProducto(productoId) {
+    const promos = obtenerPromocionesActivas().filter(p => p.productoId === productoId);
+    if (promos.length === 0) return '';
+    return promos.map(p => {
+        if (p.tipo === 'combo') {
+            return `<span class="inline-block bg-green-100 text-green-700 text-[10px] font-bold px-2 py-1 rounded-full mt-1">🎁 Lleva ${p.cantidadMinima}+ y lleva gratis!</span>`;
+        }
+        return `<span class="inline-block bg-green-100 text-green-700 text-[10px] font-bold px-2 py-1 rounded-full mt-1">🏷 ${p.cantidadMinima}+ a Gs.${(p.precioEspecial || 0).toLocaleString()}</span>`;
+    }).join(' ');
+}
+
+function mostrarResumenPromociones(resultado) {
+    if (!resultado || (resultado.promocionesAplicadas.length === 0 && resultado.itemsGratis.length === 0)) return '';
+    let html = '<div class="bg-green-50 border border-green-200 rounded-xl p-4 mt-3">';
+    html += '<p class="font-bold text-green-800 text-sm mb-2">🎉 Promociones Aplicadas</p>';
+    resultado.promocionesAplicadas.forEach(p => {
+        html += `<div class="text-sm text-green-700 mb-1">
+            <strong>${p.nombre}</strong>: Ahorro Gs. ${p.ahorro.toLocaleString()}
+            <br><span class="text-xs">${p.descripcion}</span>
+        </div>`;
+    });
+    resultado.itemsGratis.forEach(g => {
+        html += `<div class="text-sm text-green-700 mb-1">🎁 <strong>${g.nombre}</strong>: ${g.cantidad} unid. GRATIS</div>`;
+    });
+    if (resultado.descuentoTotal > 0) {
+        html += `<p class="font-bold text-green-800 text-sm mt-2 pt-2 border-t border-green-200">Total Ahorro: Gs. ${resultado.descuentoTotal.toLocaleString()}</p>`;
+    }
+    html += '</div>';
+    return html;
 }

@@ -36,7 +36,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                 poblarClientes();
                 crearFiltrosCategorias();
                 if (vistaActual === 'lista') mostrarProductos();
-                console.log('[Vendedor] Catalogo actualizado desde Firebase');
+                // Cachear en localStorage para uso offline
+                try {
+                    localStorage.setItem('hdv_catalogo_local', JSON.stringify({
+                        categorias: data.categorias,
+                        productos: data.productos,
+                        clientes: data.clientes
+                    }));
+                } catch(e) {}
+                console.log('[Vendedor] Catalogo actualizado desde Firebase y cacheado');
             }
         });
     }
@@ -44,18 +52,46 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function cargarDatos() {
     try {
-        // Intentar cargar desde Firebase primero (datos mas recientes)
+        // Prioridad 1: Firebase (datos mas recientes en la nube)
         let data = null;
         if (typeof obtenerCatalogoFirebase === 'function') {
             try {
                 data = await obtenerCatalogoFirebase();
-                if (data) console.log('[Vendedor] Catalogo cargado desde Firebase');
+                if (data && data.productos) {
+                    console.log('[Vendedor] Catalogo cargado desde Firebase');
+                    // Guardar en localStorage como cache
+                    try {
+                        localStorage.setItem('hdv_catalogo_local', JSON.stringify({
+                            categorias: data.categorias,
+                            productos: data.productos,
+                            clientes: data.clientes
+                        }));
+                    } catch(e) { console.warn('[Vendedor] No se pudo cachear en localStorage'); }
+                } else {
+                    data = null;
+                }
             } catch (fbErr) {
-                console.warn('[Vendedor] Firebase no disponible, usando JSON local');
+                console.warn('[Vendedor] Firebase no disponible:', fbErr.message);
+                data = null;
             }
         }
 
-        // Fallback: cargar desde JSON local (GitHub Pages)
+        // Prioridad 2: localStorage (cache local, funciona offline)
+        if (!data || !data.productos) {
+            try {
+                const cached = localStorage.getItem('hdv_catalogo_local');
+                if (cached) {
+                    data = JSON.parse(cached);
+                    if (data && data.productos) {
+                        console.log('[Vendedor] Catalogo cargado desde localStorage (cache)');
+                    } else {
+                        data = null;
+                    }
+                }
+            } catch(e) { console.warn('[Vendedor] Error leyendo localStorage'); data = null; }
+        }
+
+        // Prioridad 3: JSON local (GitHub Pages - archivo estatico)
         if (!data || !data.productos) {
             const response = await fetch('productos.json?t=' + Date.now());
             data = await response.json();
@@ -617,11 +653,15 @@ function registrarSW() {
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('service-worker.js')
             .then(reg => {
-                console.log('SW registrado');
+                console.log('[SW] Registrado v7.0');
+                // Buscar actualizaciones cada 30 segundos
+                setInterval(() => reg.update(), 30000);
                 reg.addEventListener('updatefound', () => {
                     const newWorker = reg.installing;
                     newWorker.addEventListener('statechange', () => {
                         if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                            // Forzar activacion del nuevo SW
+                            newWorker.postMessage('skipWaiting');
                             if (confirm('Hay una actualizacion disponible. ¿Actualizar ahora?')) {
                                 location.reload(true);
                             }
@@ -629,7 +669,11 @@ function registrarSW() {
                     });
                 });
             })
-            .catch(err => console.log('SW error:', err));
+            .catch(err => console.log('[SW] Error:', err));
+        // Recargar cuando el nuevo SW tome control
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+            console.log('[SW] Nuevo service worker activo');
+        });
     }
 }
 

@@ -187,25 +187,32 @@ function filtrarCategoria(catId) {
 function mostrarProductos() {
     const container = document.getElementById('productsContainer');
     const busqueda = document.getElementById('searchInput').value.toLowerCase().trim();
-    
+
     let filtrados = productos;
-    
+
     if (categoriaActual !== 'todas') {
         filtrados = filtrados.filter(p => p.categoria === categoriaActual);
     }
     if (busqueda) {
         filtrados = filtrados.filter(p => p.nombre.toLowerCase().includes(busqueda));
     }
-    
+
     if (filtrados.length === 0) {
-        container.innerHTML = '<div class="text-center text-gray-400 mt-10"><div class="text-4xl mb-3">🔍</div><p class="font-bold">No se encontraron productos</p></div>';
+        container.innerHTML = (typeof generarWidgetMeta === 'function' ? generarWidgetMeta() : '') + '<div class="text-center text-gray-400 mt-10"><div class="text-4xl mb-3">🔍</div><p class="font-bold">No se encontraron productos</p></div>';
         return;
     }
     
     container.innerHTML = '';
+    // Widget de meta al inicio de la lista
+    const metaHtml = typeof generarWidgetMeta === 'function' ? generarWidgetMeta() : '';
+    if (metaHtml && !busqueda && categoriaActual === 'todas') {
+        const metaDiv = document.createElement('div');
+        metaDiv.innerHTML = metaHtml;
+        container.appendChild(metaDiv);
+    }
     const grid = document.createElement('div');
     grid.className = 'grid grid-cols-2 sm:grid-cols-3 gap-3';
-    
+
     filtrados.forEach(prod => {
         const card = document.createElement('div');
         card.className = 'bg-white rounded-xl p-3 shadow-sm border border-gray-100 active:scale-95 transition-transform cursor-pointer';
@@ -538,8 +545,7 @@ function cambiarVistaVendedor(vista) {
 
     const btnLista = document.getElementById('btn-tab-lista');
     const btnPedidos = document.getElementById('btn-tab-pedidos');
-    const btnBackup = document.getElementById('btn-tab-backup');
-    const btnConfig = document.getElementById('btn-tab-config');
+    const btnCaja = document.getElementById('btn-tab-caja');
     const container = document.getElementById('productsContainer');
     const catFilters = document.getElementById('categoryFilters');
     const searchBox = document.getElementById('searchContainer');
@@ -547,7 +553,7 @@ function cambiarVistaVendedor(vista) {
     const btnZonas = document.getElementById('btn-tab-zonas');
 
     // Reset all tabs
-    [btnLista, btnPedidos, btnBackup, btnConfig, btnZonas].forEach(btn => {
+    [btnLista, btnPedidos, btnCaja, btnZonas].forEach(btn => {
         if (btn) btn.className = 'flex flex-col items-center gap-1 text-gray-400 transition-colors';
     });
 
@@ -561,11 +567,11 @@ function cambiarVistaVendedor(vista) {
         catFilters.style.display = 'none';
         searchBox.style.display = 'none';
         mostrarMisPedidos();
-    } else if (vista === 'config') {
-        btnConfig.className = 'flex flex-col items-center gap-1 text-gray-900 transition-colors';
+    } else if (vista === 'caja') {
+        if (btnCaja) btnCaja.className = 'flex flex-col items-center gap-1 text-gray-900 transition-colors';
         catFilters.style.display = 'none';
         searchBox.style.display = 'none';
-        mostrarConfiguracion();
+        mostrarMiCaja();
     } else if (vista === 'zonas') {
         if (btnZonas) btnZonas.className = 'flex flex-col items-center gap-1 text-gray-900 transition-colors';
         catFilters.style.display = 'none';
@@ -653,7 +659,7 @@ function registrarSW() {
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('service-worker.js')
             .then(reg => {
-                console.log('[SW] Registrado v7.0');
+                console.log('[SW] Registrado v7.1');
                 // Buscar actualizaciones cada 30 segundos
                 setInterval(() => reg.update(), 30000);
                 reg.addEventListener('updatefound', () => {
@@ -1432,4 +1438,266 @@ function mostrarResumenPromociones(resultado) {
     }
     html += '</div>';
     return html;
+}
+
+// ============================================
+// MI CAJA - RENDICION Y GASTOS (VENDEDOR)
+// ============================================
+
+function obtenerSemanaActualVendedor() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const oneJan = new Date(year, 0, 1);
+    const week = Math.ceil(((now - oneJan) / 86400000 + oneJan.getDay() + 1) / 7);
+    return `${year}-W${String(week).padStart(2, '0')}`;
+}
+
+function obtenerRangoSemanaVendedor(weekStr) {
+    if (!weekStr) weekStr = obtenerSemanaActualVendedor();
+    const parts = weekStr.split('-W');
+    const year = parseInt(parts[0]);
+    const week = parseInt(parts[1]);
+    const simple = new Date(year, 0, 1 + (week - 1) * 7);
+    const dayOfWeek = simple.getDay();
+    const inicio = new Date(simple);
+    inicio.setDate(simple.getDate() - dayOfWeek + 1);
+    const fin = new Date(inicio);
+    fin.setDate(inicio.getDate() + 6);
+    fin.setHours(23, 59, 59, 999);
+    return { inicio, fin };
+}
+
+function mostrarMiCaja() {
+    const container = document.getElementById('productsContainer');
+    const semana = obtenerSemanaActualVendedor();
+    const { inicio, fin } = obtenerRangoSemanaVendedor(semana);
+
+    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    const gastos = JSON.parse(localStorage.getItem('hdv_gastos') || '[]');
+    const cuentas = JSON.parse(localStorage.getItem('hdv_cuentas_bancarias') || '[]');
+    const rendiciones = JSON.parse(localStorage.getItem('hdv_rendiciones') || '[]');
+
+    // Pedidos de la semana
+    const pedidosSemana = pedidos.filter(p => {
+        const f = new Date(p.fecha);
+        return f >= inicio && f <= fin;
+    });
+    const totalContado = pedidosSemana
+        .filter(p => p.tipoPago === 'contado' && (p.estado === 'entregado' || p.estado === 'pendiente'))
+        .reduce((s, p) => s + (p.total || 0), 0);
+    const totalCredito = pedidosSemana
+        .filter(p => p.tipoPago === 'credito')
+        .reduce((s, p) => s + (p.total || 0), 0);
+
+    // Gastos de la semana
+    const gastosSemana = gastos.filter(g => {
+        const f = new Date(g.fecha);
+        return f >= inicio && f <= fin;
+    });
+    const totalGastos = gastosSemana.reduce((s, g) => s + (g.monto || 0), 0);
+    const aRendir = totalContado - totalGastos;
+
+    // Widget de meta
+    const metaWidget = generarWidgetMeta();
+
+    // Rendicion de esta semana
+    const rendSemana = rendiciones.find(r => r.semana === semana);
+
+    const fechaInicio = inicio.toLocaleDateString('es-PY', { day: '2-digit', month: 'short' });
+    const fechaFin = fin.toLocaleDateString('es-PY', { day: '2-digit', month: 'short' });
+
+    container.innerHTML = `
+        <h3 class="text-lg font-bold text-gray-800 mb-4">Mi Caja</h3>
+
+        ${metaWidget}
+
+        <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100 mb-3">
+            <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Semana: ${fechaInicio} - ${fechaFin}</p>
+            ${rendSemana ? '<span class="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-bold">RENDIDO</span>' : ''}
+            <div class="grid grid-cols-2 gap-3 mt-3">
+                <div class="bg-green-50 rounded-lg p-3 text-center">
+                    <p class="text-lg font-bold text-green-700">Gs. ${totalContado.toLocaleString()}</p>
+                    <p class="text-[10px] text-gray-500 font-bold">CONTADO</p>
+                </div>
+                <div class="bg-yellow-50 rounded-lg p-3 text-center">
+                    <p class="text-lg font-bold text-yellow-700">Gs. ${totalCredito.toLocaleString()}</p>
+                    <p class="text-[10px] text-gray-500 font-bold">CREDITO</p>
+                </div>
+                <div class="bg-red-50 rounded-lg p-3 text-center">
+                    <p class="text-lg font-bold text-red-700">Gs. ${totalGastos.toLocaleString()}</p>
+                    <p class="text-[10px] text-gray-500 font-bold">GASTOS</p>
+                </div>
+                <div class="bg-blue-50 rounded-lg p-3 text-center">
+                    <p class="text-lg font-bold text-blue-800">Gs. ${aRendir.toLocaleString()}</p>
+                    <p class="text-[10px] text-gray-500 font-bold">A RENDIR</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex gap-2 mb-3">
+            <button onclick="agregarGastoVendedor()" class="flex-1 bg-red-50 text-red-700 py-3 rounded-xl text-sm font-bold active:scale-95 transition-transform">+ Agregar Gasto</button>
+            ${!rendSemana ? `<button onclick="cerrarSemanaVendedor('${semana}')" class="flex-1 bg-blue-600 text-white py-3 rounded-xl text-sm font-bold active:scale-95 transition-transform">Cerrar Semana</button>` : ''}
+        </div>
+
+        ${gastosSemana.length > 0 ? `
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 mb-3 overflow-hidden">
+            <p class="text-xs font-bold text-gray-500 uppercase tracking-wider p-3 bg-gray-50">Gastos de la Semana</p>
+            ${gastosSemana.map(g => `
+                <div class="p-3 border-t border-gray-100 flex justify-between items-center">
+                    <div>
+                        <p class="text-sm font-bold text-gray-800">${g.concepto}</p>
+                        <p class="text-xs text-gray-400">${new Date(g.fecha).toLocaleDateString('es-PY')}</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-sm font-bold text-red-600">- Gs. ${(g.monto || 0).toLocaleString()}</p>
+                        <button onclick="eliminarGastoVendedor('${g.id}')" class="text-[10px] text-red-400">Eliminar</button>
+                    </div>
+                </div>
+            `).join('')}
+        </div>` : ''}
+
+        ${cuentas.length > 0 ? `
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 mb-3 overflow-hidden">
+            <p class="text-xs font-bold text-gray-500 uppercase tracking-wider p-3 bg-gray-50">Cuentas Bancarias de la Empresa</p>
+            ${cuentas.map(c => `
+                <div class="p-3 border-t border-gray-100">
+                    <p class="text-sm font-bold text-gray-800">🏦 ${c.banco}</p>
+                    <p class="text-xs text-gray-600">${c.tipo === 'ahorro' ? 'Caja de Ahorro' : 'Cta. Corriente'} | ${c.moneda === 'USD' ? 'USD' : 'Gs.'}</p>
+                    <p class="text-xs text-gray-500">Nro: <strong>${c.numero}</strong></p>
+                    <p class="text-xs text-gray-400">Titular: ${c.titular}${c.ruc ? ' | RUC: ' + c.ruc : ''}</p>
+                </div>
+            `).join('')}
+        </div>` : ''}
+
+        <button onclick="mostrarConfiguracion()" class="w-full bg-gray-100 text-gray-600 py-3 rounded-xl text-sm font-bold mt-2">Configuracion y Backups</button>
+    `;
+}
+
+function agregarGastoVendedor() {
+    const concepto = prompt('Concepto del gasto (Ej: Combustible, Almuerzo):');
+    if (!concepto) return;
+    const montoStr = prompt('Monto del gasto (Gs.):');
+    if (!montoStr) return;
+    const monto = parseInt(montoStr);
+    if (isNaN(monto) || monto <= 0) { alert('Monto invalido'); return; }
+
+    const gasto = {
+        id: 'G' + Date.now(),
+        concepto,
+        monto,
+        fecha: new Date().toISOString()
+    };
+
+    const gastos = JSON.parse(localStorage.getItem('hdv_gastos') || '[]');
+    gastos.push(gasto);
+    localStorage.setItem('hdv_gastos', JSON.stringify(gastos));
+
+    if (typeof guardarGastosFirebase === 'function') {
+        guardarGastosFirebase(gastos).catch(e => console.error(e));
+    }
+
+    mostrarExito('Gasto registrado');
+    mostrarMiCaja();
+}
+
+function eliminarGastoVendedor(gastoId) {
+    if (!confirm('Eliminar este gasto?')) return;
+    let gastos = JSON.parse(localStorage.getItem('hdv_gastos') || '[]');
+    gastos = gastos.filter(g => g.id !== gastoId);
+    localStorage.setItem('hdv_gastos', JSON.stringify(gastos));
+    if (typeof guardarGastosFirebase === 'function') guardarGastosFirebase(gastos).catch(e => console.error(e));
+    mostrarMiCaja();
+}
+
+function cerrarSemanaVendedor(semana) {
+    const { inicio, fin } = obtenerRangoSemanaVendedor(semana);
+    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    const gastos = JSON.parse(localStorage.getItem('hdv_gastos') || '[]');
+
+    const pedidosSemana = pedidos.filter(p => {
+        const f = new Date(p.fecha);
+        return f >= inicio && f <= fin;
+    });
+    const totalContado = pedidosSemana
+        .filter(p => p.tipoPago === 'contado' && (p.estado === 'entregado' || p.estado === 'pendiente'))
+        .reduce((s, p) => s + (p.total || 0), 0);
+    const totalGastos = gastos.filter(g => {
+        const f = new Date(g.fecha);
+        return f >= inicio && f <= fin;
+    }).reduce((s, g) => s + (g.monto || 0), 0);
+
+    const aRendir = totalContado - totalGastos;
+
+    if (!confirm(`Cerrar rendicion de la semana?\n\nContado cobrado: Gs. ${totalContado.toLocaleString()}\nGastos: Gs. ${totalGastos.toLocaleString()}\n\nA RENDIR: Gs. ${aRendir.toLocaleString()}`)) return;
+
+    const rendicion = {
+        id: 'REND' + Date.now(),
+        semana,
+        fecha: new Date().toISOString(),
+        contado: totalContado,
+        gastos: totalGastos,
+        aRendir,
+        estado: 'rendido',
+        pedidos: pedidosSemana.length
+    };
+
+    const rendiciones = JSON.parse(localStorage.getItem('hdv_rendiciones') || '[]');
+    rendiciones.push(rendicion);
+    localStorage.setItem('hdv_rendiciones', JSON.stringify(rendiciones));
+
+    if (typeof guardarRendicionesFirebase === 'function') {
+        guardarRendicionesFirebase(rendiciones).catch(e => console.error(e));
+    }
+
+    mostrarExito('Semana cerrada exitosamente');
+    mostrarMiCaja();
+}
+
+// ============================================
+// WIDGET DE META / PROGRESO (VENDEDOR)
+// ============================================
+
+function generarWidgetMeta() {
+    const metas = JSON.parse(localStorage.getItem('hdv_metas') || '[]');
+    const mesActual = new Date().toISOString().slice(0, 7);
+    const metaActiva = metas.find(m => m.mes === mesActual && m.activa) || metas.find(m => m.activa);
+
+    if (!metaActiva) return '';
+
+    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    const pedidosMes = pedidos.filter(p => p.fecha && p.fecha.startsWith(mesActual));
+    const totalVendido = pedidosMes.reduce((s, p) => s + (p.total || 0), 0);
+
+    const objetivo = metaActiva.monto || 0;
+    const comisionPct = metaActiva.comision || 0;
+    const porcentaje = objetivo > 0 ? Math.min(100, Math.round((totalVendido / objetivo) * 100)) : 0;
+    const comisionEstimada = Math.round(totalVendido * (comisionPct / 100));
+
+    const barColor = porcentaje < 50 ? 'bg-red-500' : porcentaje < 80 ? 'bg-yellow-500' : 'bg-green-500';
+    const emoji = porcentaje >= 100 ? '🏆' : porcentaje >= 80 ? '🔥' : porcentaje >= 50 ? '💪' : '📈';
+
+    return `
+    <div class="bg-gradient-to-r ${porcentaje >= 80 ? 'from-green-50 to-emerald-50 border-green-200' : porcentaje >= 50 ? 'from-yellow-50 to-amber-50 border-yellow-200' : 'from-red-50 to-orange-50 border-red-200'} rounded-xl p-4 shadow-sm border mb-3">
+        <div class="flex justify-between items-center mb-2">
+            <p class="text-xs font-bold text-gray-600">${emoji} META DEL MES</p>
+            <p class="text-lg font-bold ${porcentaje >= 80 ? 'text-green-700' : porcentaje >= 50 ? 'text-yellow-700' : 'text-red-700'}">${porcentaje}%</p>
+        </div>
+        <div class="w-full bg-gray-200 rounded-full h-4 mb-2 overflow-hidden">
+            <div class="h-4 rounded-full ${barColor} transition-all duration-700 flex items-center justify-center text-white text-[10px] font-bold" style="width: ${porcentaje}%">${porcentaje > 15 ? porcentaje + '%' : ''}</div>
+        </div>
+        <div class="grid grid-cols-3 gap-2 text-center mt-2">
+            <div>
+                <p class="text-xs text-gray-500">Vendido</p>
+                <p class="text-sm font-bold text-gray-800">Gs. ${(totalVendido / 1000000).toFixed(1)}M</p>
+            </div>
+            <div>
+                <p class="text-xs text-gray-500">Meta</p>
+                <p class="text-sm font-bold text-gray-800">Gs. ${(objetivo / 1000000).toFixed(1)}M</p>
+            </div>
+            <div>
+                <p class="text-xs text-gray-500">Comision</p>
+                <p class="text-sm font-bold text-purple-700">Gs. ${comisionEstimada.toLocaleString()}</p>
+            </div>
+        </div>
+    </div>`;
 }

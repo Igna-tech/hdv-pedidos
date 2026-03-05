@@ -73,6 +73,17 @@
                 <i data-lucide="gift" class="w-4 h-4 mr-3 text-gray-400"></i> Promociones
             </button>
 
+            <div class="px-4 mt-6 mb-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Vendedores</div>
+            <button onclick="cambiarSeccion('rendiciones')" class="nav-item w-full flex items-center px-6 py-3 text-sm transition-colors">
+                <i data-lucide="wallet" class="w-4 h-4 mr-3 text-gray-400"></i> Rendiciones
+            </button>
+            <button onclick="cambiarSeccion('metas')" class="nav-item w-full flex items-center px-6 py-3 text-sm transition-colors">
+                <i data-lucide="target" class="w-4 h-4 mr-3 text-gray-400"></i> Metas
+            </button>
+            <button onclick="cambiarSeccion('inactivos')" class="nav-item w-full flex items-center px-6 py-3 text-sm transition-colors">
+                <i data-lucide="alert-triangle" class="w-4 h-4 mr-3 text-gray-400"></i> Clientes en Riesgo
+            </button>
+
             <div class="px-4 mt-6 mb-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Opciones</div>
             <button onclick="cambiarSeccion('herramientas')" class="nav-item w-full flex items-center px-6 py-3 text-sm transition-colors">
                 <i data-lucide="settings" class="w-4 h-4 mr-3 text-gray-400"></i> Herramientas
@@ -80,7 +91,7 @@
         </nav>
 
         <div class="p-4 border-t border-gray-700 text-center">
-            <span class="text-xs text-gray-500">Version 4.0 - 2026</span>
+            <span class="text-xs text-gray-500">Version 7.1 - 2026</span>
         </div>
     </aside>
 
@@ -464,6 +475,239 @@
             </div>
 
             <!-- HERRAMIENTAS -->
+            <!-- ========== RENDICIONES ========== -->
+            <section id="seccion-rendiciones" class="tab-content space-y-6">
+                <div class="flex justify-between items-center flex-wrap gap-4">
+                    <h3 class="text-xl font-bold text-gray-800">Rendiciones de Caja</h3>
+                    <div class="flex gap-2">
+                        <button onclick="abrirModalCuentaBancaria()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold">🏦 Cuentas Bancarias</button>
+                    </div>
+                </div>
+                <!-- Resumen de caja actual -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div class="bg-green-50 border border-green-200 rounded-xl p-4 text-center">
+                        <p class="text-xs font-bold text-green-600 mb-1">CONTADO COBRADO</p>
+                        <p class="text-2xl font-bold text-green-800" id="rendContado">Gs. 0</p>
+                    </div>
+                    <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-center">
+                        <p class="text-xs font-bold text-yellow-600 mb-1">CREDITO ENTREGADO</p>
+                        <p class="text-2xl font-bold text-yellow-800" id="rendCredito">Gs. 0</p>
+                    </div>
+                    <div class="bg-red-50 border border-red-200 rounded-xl p-4 text-center">
+                        <p class="text-xs font-bold text-red-600 mb-1">GASTOS</p>
+                        <p class="text-2xl font-bold text-red-800" id="rendGastos">Gs. 0</p>
+                    </div>
+                    <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 text-center">
+                        <p class="text-xs font-bold text-blue-600 mb-1">A RENDIR EN MANO</p>
+                        <p class="text-2xl font-bold text-blue-900" id="rendTotal">Gs. 0</p>
+                    </div>
+                </div>
+                <!-- Filtro de semana -->
+                <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4 flex items-center gap-4 flex-wrap">
+                    <label class="text-sm font-bold text-gray-600">Semana:</label>
+                    <input type="week" id="rendSemana" class="border border-gray-300 rounded-lg px-3 py-2 text-sm" onchange="cargarRendiciones()">
+                    <button onclick="cargarRendiciones()" class="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-bold">Calcular</button>
+                </div>
+                <!-- Detalle gastos -->
+                <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                    <div class="p-4 bg-gray-50 border-b border-gray-200 font-bold text-sm text-gray-600">Gastos Registrados</div>
+                    <div id="rendGastosLista" class="divide-y divide-gray-100">
+                        <p class="p-6 text-center text-gray-400 italic">Sin gastos registrados esta semana</p>
+                    </div>
+                </div>
+                <!-- Historial rendiciones -->
+                <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                    <div class="p-4 bg-gray-50 border-b border-gray-200 font-bold text-sm text-gray-600">Historial de Rendiciones</div>
+                    <div id="rendHistorial" class="divide-y divide-gray-100">
+                        <p class="p-6 text-center text-gray-400 italic">Sin rendiciones anteriores</p>
+                    </div>
+                </div>
+                <!-- Cuentas bancarias vista -->
+                <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                    <div class="p-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
+                        <span class="font-bold text-sm text-gray-600">Cuentas Bancarias de la Empresa</span>
+                        <button onclick="abrirModalCuentaBancaria()" class="text-blue-600 text-sm font-bold">+ Agregar</button>
+                    </div>
+                    <div id="cuentasBancariasAdmin" class="divide-y divide-gray-100">
+                        <p class="p-6 text-center text-gray-400 italic">Sin cuentas configuradas</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- MODAL CUENTA BANCARIA -->
+            <div id="modalCuentaBancaria" class="modal-overlay">
+                <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden">
+                    <div class="p-6 border-b border-gray-100">
+                        <h3 class="text-xl font-bold text-gray-800">Cuenta Bancaria</h3>
+                    </div>
+                    <div class="p-6 space-y-4">
+                        <input type="hidden" id="formCuentaId">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1">BANCO</label>
+                            <input type="text" id="formCuentaBanco" class="w-full border border-gray-300 rounded-lg px-4 py-2" placeholder="Ej: Banco Continental">
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 mb-1">TIPO DE CUENTA</label>
+                                <select id="formCuentaTipo" class="w-full border border-gray-300 rounded-lg px-4 py-2">
+                                    <option value="ahorro">Caja de Ahorro</option>
+                                    <option value="corriente">Cuenta Corriente</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 mb-1">MONEDA</label>
+                                <select id="formCuentaMoneda" class="w-full border border-gray-300 rounded-lg px-4 py-2">
+                                    <option value="PYG">Guaranies (Gs.)</option>
+                                    <option value="USD">Dolares (USD)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1">NUMERO DE CUENTA</label>
+                            <input type="text" id="formCuentaNumero" class="w-full border border-gray-300 rounded-lg px-4 py-2" placeholder="Ej: 1234567890">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1">TITULAR</label>
+                            <input type="text" id="formCuentaTitular" class="w-full border border-gray-300 rounded-lg px-4 py-2" placeholder="Ej: HDV Distribuciones EAS">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1">RUC</label>
+                            <input type="text" id="formCuentaRUC" class="w-full border border-gray-300 rounded-lg px-4 py-2" placeholder="Ej: 80012345-6">
+                        </div>
+                    </div>
+                    <div class="p-6 bg-gray-50 flex justify-end gap-3">
+                        <button onclick="cerrarModalCuentaBancaria()" class="px-4 py-2 text-gray-500 font-bold">Cancelar</button>
+                        <button onclick="guardarCuentaBancaria()" class="bg-gray-800 text-white px-6 py-2 rounded-lg font-bold">Guardar</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ========== METAS Y COMISIONES ========== -->
+            <section id="seccion-metas" class="tab-content space-y-6">
+                <div class="flex justify-between items-center flex-wrap gap-4">
+                    <h3 class="text-xl font-bold text-gray-800">Metas y Comisiones</h3>
+                    <button onclick="abrirModalMeta()" class="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-bold">+ Nueva Meta</button>
+                </div>
+                <!-- Resumen metas activas -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 text-center">
+                        <p class="text-xs font-bold text-blue-600 mb-1">META DEL MES</p>
+                        <p class="text-2xl font-bold text-blue-800" id="metaObjetivo">Gs. 0</p>
+                    </div>
+                    <div class="bg-green-50 border border-green-200 rounded-xl p-4 text-center">
+                        <p class="text-xs font-bold text-green-600 mb-1">VENDIDO</p>
+                        <p class="text-2xl font-bold text-green-800" id="metaVendido">Gs. 0</p>
+                    </div>
+                    <div class="bg-purple-50 border border-purple-200 rounded-xl p-4 text-center">
+                        <p class="text-xs font-bold text-purple-600 mb-1">COMISION ESTIMADA</p>
+                        <p class="text-2xl font-bold text-purple-800" id="metaComision">Gs. 0</p>
+                    </div>
+                </div>
+                <!-- Barra de progreso -->
+                <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+                    <div class="flex justify-between items-center mb-3">
+                        <span class="text-sm font-bold text-gray-600">Progreso del Mes</span>
+                        <span class="text-lg font-bold" id="metaPorcentaje">0%</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-6 overflow-hidden">
+                        <div id="metaBarraProgreso" class="h-6 rounded-full bg-red-500 transition-all duration-700 flex items-center justify-center text-white text-xs font-bold" style="width: 0%"></div>
+                    </div>
+                    <p class="text-xs text-gray-400 mt-2" id="metaFaltante">Faltan Gs. 0 para alcanzar la meta</p>
+                </div>
+                <!-- Lista de metas configuradas -->
+                <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                    <div class="p-4 bg-gray-50 border-b border-gray-200 font-bold text-sm text-gray-600">Metas Configuradas</div>
+                    <div id="metasContainer" class="divide-y divide-gray-100">
+                        <p class="p-6 text-center text-gray-400 italic">Sin metas configuradas</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- MODAL NUEVA META -->
+            <div id="modalMeta" class="modal-overlay">
+                <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden">
+                    <div class="p-6 border-b border-gray-100">
+                        <h3 class="text-xl font-bold text-gray-800">Configurar Meta</h3>
+                    </div>
+                    <div class="p-6 space-y-4">
+                        <input type="hidden" id="formMetaId">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1">VENDEDOR</label>
+                            <input type="text" id="formMetaVendedor" class="w-full border border-gray-300 rounded-lg px-4 py-2" placeholder="Ej: Juan Perez" value="Vendedor Principal">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1">META MENSUAL (Gs.)</label>
+                            <input type="number" id="formMetaMonto" class="w-full border border-gray-300 rounded-lg px-4 py-2" placeholder="20000000">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1">COMISION (%)</label>
+                            <input type="number" id="formMetaComision" class="w-full border border-gray-300 rounded-lg px-4 py-2" placeholder="5" min="0" max="100" step="0.5">
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 mb-1">MES</label>
+                                <input type="month" id="formMetaMes" class="w-full border border-gray-300 rounded-lg px-4 py-2">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 mb-1">ESTADO</label>
+                                <select id="formMetaActiva" class="w-full border border-gray-300 rounded-lg px-4 py-2">
+                                    <option value="true">Activa</option>
+                                    <option value="false">Inactiva</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-6 bg-gray-50 flex justify-end gap-3">
+                        <button onclick="cerrarModalMeta()" class="px-4 py-2 text-gray-500 font-bold">Cancelar</button>
+                        <button onclick="guardarMeta()" class="bg-gray-800 text-white px-6 py-2 rounded-lg font-bold">Guardar</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ========== CLIENTES EN RIESGO ========== -->
+            <section id="seccion-inactivos" class="tab-content space-y-6">
+                <div class="flex justify-between items-center flex-wrap gap-4">
+                    <h3 class="text-xl font-bold text-gray-800">Clientes en Riesgo</h3>
+                    <div class="flex gap-2">
+                        <select id="filtroInactivos" class="border border-gray-300 rounded-lg px-3 py-2 text-sm" onchange="cargarClientesInactivos()">
+                            <option value="todos">Todos</option>
+                            <option value="atencion">Atencion (15-30 dias)</option>
+                            <option value="riesgo">En Riesgo (30-60 dias)</option>
+                            <option value="perdido">Perdidos (60+ dias)</option>
+                        </select>
+                    </div>
+                </div>
+                <!-- Stats -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-center">
+                        <p class="text-xs font-bold text-yellow-600 mb-1">ATENCION</p>
+                        <p class="text-2xl font-bold text-yellow-800" id="inactivosAtencion">0</p>
+                        <p class="text-xs text-yellow-600">15-30 dias</p>
+                    </div>
+                    <div class="bg-red-50 border border-red-200 rounded-xl p-4 text-center">
+                        <p class="text-xs font-bold text-red-600 mb-1">EN RIESGO</p>
+                        <p class="text-2xl font-bold text-red-800" id="inactivosRiesgo">0</p>
+                        <p class="text-xs text-red-600">30-60 dias</p>
+                    </div>
+                    <div class="bg-gray-100 border border-gray-300 rounded-xl p-4 text-center">
+                        <p class="text-xs font-bold text-gray-600 mb-1">PERDIDOS</p>
+                        <p class="text-2xl font-bold text-gray-800" id="inactivosPerdidos">0</p>
+                        <p class="text-xs text-gray-600">60+ dias</p>
+                    </div>
+                    <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 text-center">
+                        <p class="text-xs font-bold text-blue-600 mb-1">INGRESO EN RIESGO</p>
+                        <p class="text-2xl font-bold text-blue-800" id="inactivosIngreso">Gs. 0</p>
+                        <p class="text-xs text-blue-600">promedio mensual</p>
+                    </div>
+                </div>
+                <!-- Lista de clientes -->
+                <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                    <div id="inactivosContainer" class="divide-y divide-gray-100">
+                        <p class="p-8 text-center text-gray-400 italic">Cargando clientes...</p>
+                    </div>
+                </div>
+            </section>
+
             <section id="seccion-herramientas" class="tab-content space-y-6">
                 <div class="max-w-3xl space-y-4">
                     <!-- Estado de Backups -->

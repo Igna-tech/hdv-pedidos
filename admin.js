@@ -31,7 +31,8 @@ function cambiarSeccion(seccionId) {
         'reportes': 'Analisis y Reportes', 'stock': 'Inventario',
         'productos': 'Catalogo de Productos', 'clientes': 'Base de Datos de Clientes',
         'precios': 'Configuracion de Precios', 'promociones': 'Motor de Promociones',
-        'herramientas': 'Sistema y Herramientas'
+        'rendiciones': 'Rendiciones de Caja', 'metas': 'Metas y Comisiones',
+        'inactivos': 'Clientes en Riesgo', 'herramientas': 'Sistema y Herramientas'
     };
     const titleEl = document.getElementById('currentSectionTitle');
     if (titleEl) titleEl.textContent = titulos[seccionId] || 'Panel Admin';
@@ -47,6 +48,9 @@ function cambiarSeccion(seccionId) {
     if (seccionId === 'dashboard') cargarDashboard();
     if (seccionId === 'creditos') cargarCreditos();
     if (seccionId === 'promociones') cargarPromociones();
+    if (seccionId === 'rendiciones') cargarRendiciones();
+    if (seccionId === 'metas') cargarMetas();
+    if (seccionId === 'inactivos') cargarClientesInactivos();
 
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
@@ -2386,4 +2390,440 @@ function eliminarPromocion(promoId) {
     promos = promos.filter(p => p.id !== promoId);
     guardarPromocionesEnStorage(promos);
     cargarPromociones();
+}
+
+// ============================================
+// RENDICIONES DE CAJA Y GASTOS
+// ============================================
+
+function obtenerSemanaActual() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const oneJan = new Date(year, 0, 1);
+    const week = Math.ceil(((now - oneJan) / 86400000 + oneJan.getDay() + 1) / 7);
+    return `${year}-W${String(week).padStart(2, '0')}`;
+}
+
+function obtenerRangoSemana(weekStr) {
+    if (!weekStr) weekStr = obtenerSemanaActual();
+    const parts = weekStr.split('-W');
+    const year = parseInt(parts[0]);
+    const week = parseInt(parts[1]);
+    const simple = new Date(year, 0, 1 + (week - 1) * 7);
+    const dayOfWeek = simple.getDay();
+    const inicio = new Date(simple);
+    inicio.setDate(simple.getDate() - dayOfWeek + 1);
+    const fin = new Date(inicio);
+    fin.setDate(inicio.getDate() + 6);
+    fin.setHours(23, 59, 59, 999);
+    return { inicio, fin };
+}
+
+function cargarRendiciones() {
+    const weekInput = document.getElementById('rendSemana');
+    if (!weekInput.value) weekInput.value = obtenerSemanaActual();
+    const { inicio, fin } = obtenerRangoSemana(weekInput.value);
+
+    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    const gastos = JSON.parse(localStorage.getItem('hdv_gastos') || '[]');
+
+    // Filtrar pedidos de la semana
+    const pedidosSemana = pedidos.filter(p => {
+        const fecha = new Date(p.fecha);
+        return fecha >= inicio && fecha <= fin;
+    });
+
+    const totalContado = pedidosSemana
+        .filter(p => p.tipoPago === 'contado' && (p.estado === 'entregado' || p.estado === 'pendiente'))
+        .reduce((sum, p) => sum + (p.total || 0), 0);
+    const totalCredito = pedidosSemana
+        .filter(p => p.tipoPago === 'credito')
+        .reduce((sum, p) => sum + (p.total || 0), 0);
+
+    // Gastos de la semana
+    const gastosSemana = gastos.filter(g => {
+        const fecha = new Date(g.fecha);
+        return fecha >= inicio && fecha <= fin;
+    });
+    const totalGastos = gastosSemana.reduce((sum, g) => sum + (g.monto || 0), 0);
+    const aRendir = totalContado - totalGastos;
+
+    document.getElementById('rendContado').textContent = `Gs. ${totalContado.toLocaleString()}`;
+    document.getElementById('rendCredito').textContent = `Gs. ${totalCredito.toLocaleString()}`;
+    document.getElementById('rendGastos').textContent = `Gs. ${totalGastos.toLocaleString()}`;
+    document.getElementById('rendTotal').textContent = `Gs. ${aRendir.toLocaleString()}`;
+
+    // Mostrar gastos
+    const gastosEl = document.getElementById('rendGastosLista');
+    if (gastosSemana.length === 0) {
+        gastosEl.innerHTML = '<p class="p-6 text-center text-gray-400 italic">Sin gastos registrados esta semana</p>';
+    } else {
+        gastosEl.innerHTML = gastosSemana.map(g => `
+            <div class="p-4 flex justify-between items-center">
+                <div>
+                    <p class="font-bold text-gray-800">${g.concepto}</p>
+                    <p class="text-xs text-gray-400">${new Date(g.fecha).toLocaleDateString('es-PY')}</p>
+                </div>
+                <div class="text-right">
+                    <p class="font-bold text-red-600">- Gs. ${(g.monto || 0).toLocaleString()}</p>
+                    <button onclick="eliminarGastoAdmin('${g.id}')" class="text-xs text-red-400 hover:underline">Eliminar</button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    // Historial de rendiciones
+    const rendiciones = JSON.parse(localStorage.getItem('hdv_rendiciones') || '[]');
+    const histEl = document.getElementById('rendHistorial');
+    if (rendiciones.length === 0) {
+        histEl.innerHTML = '<p class="p-6 text-center text-gray-400 italic">Sin rendiciones anteriores</p>';
+    } else {
+        histEl.innerHTML = rendiciones.sort((a, b) => new Date(b.fecha) - new Date(a.fecha)).map(r => `
+            <div class="p-4 flex justify-between items-center">
+                <div>
+                    <p class="font-bold text-gray-800">Semana ${r.semana}</p>
+                    <p class="text-xs text-gray-400">Rendido: ${new Date(r.fecha).toLocaleDateString('es-PY')} - Contado: Gs. ${(r.contado || 0).toLocaleString()} | Gastos: Gs. ${(r.gastos || 0).toLocaleString()}</p>
+                </div>
+                <div class="text-right">
+                    <p class="font-bold ${r.aRendir >= 0 ? 'text-green-600' : 'text-red-600'}">Gs. ${(r.aRendir || 0).toLocaleString()}</p>
+                    <span class="text-xs px-2 py-1 rounded-full ${r.estado === 'rendido' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}">${r.estado || 'pendiente'}</span>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    // Cuentas bancarias
+    cargarCuentasBancariasAdmin();
+}
+
+function eliminarGastoAdmin(gastoId) {
+    if (!confirm('Eliminar este gasto?')) return;
+    let gastos = JSON.parse(localStorage.getItem('hdv_gastos') || '[]');
+    gastos = gastos.filter(g => g.id !== gastoId);
+    localStorage.setItem('hdv_gastos', JSON.stringify(gastos));
+    if (typeof guardarGastosFirebase === 'function') guardarGastosFirebase(gastos).catch(e => console.error(e));
+    cargarRendiciones();
+}
+
+// Cuentas bancarias
+function cargarCuentasBancariasAdmin() {
+    const cuentas = JSON.parse(localStorage.getItem('hdv_cuentas_bancarias') || '[]');
+    const el = document.getElementById('cuentasBancariasAdmin');
+    if (cuentas.length === 0) {
+        el.innerHTML = '<p class="p-6 text-center text-gray-400 italic">Sin cuentas configuradas</p>';
+        return;
+    }
+    el.innerHTML = cuentas.map(c => `
+        <div class="p-4 flex justify-between items-center">
+            <div>
+                <p class="font-bold text-gray-800">🏦 ${c.banco} - ${c.tipo === 'ahorro' ? 'Caja de Ahorro' : 'Cuenta Corriente'}</p>
+                <p class="text-sm text-gray-600">Nro: ${c.numero} | ${c.moneda === 'USD' ? 'Dolares' : 'Guaranies'}</p>
+                <p class="text-xs text-gray-400">Titular: ${c.titular} | RUC: ${c.ruc || '-'}</p>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="editarCuentaBancaria('${c.id}')" class="text-blue-600 text-sm font-bold hover:underline">Editar</button>
+                <button onclick="eliminarCuentaBancaria('${c.id}')" class="text-red-600 text-sm font-bold hover:underline">Eliminar</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function abrirModalCuentaBancaria(cuentaId) {
+    document.getElementById('formCuentaId').value = '';
+    document.getElementById('formCuentaBanco').value = '';
+    document.getElementById('formCuentaTipo').value = 'ahorro';
+    document.getElementById('formCuentaMoneda').value = 'PYG';
+    document.getElementById('formCuentaNumero').value = '';
+    document.getElementById('formCuentaTitular').value = 'HDV Distribuciones EAS';
+    document.getElementById('formCuentaRUC').value = '';
+    if (cuentaId) {
+        const cuentas = JSON.parse(localStorage.getItem('hdv_cuentas_bancarias') || '[]');
+        const c = cuentas.find(x => x.id === cuentaId);
+        if (c) {
+            document.getElementById('formCuentaId').value = c.id;
+            document.getElementById('formCuentaBanco').value = c.banco;
+            document.getElementById('formCuentaTipo').value = c.tipo;
+            document.getElementById('formCuentaMoneda').value = c.moneda || 'PYG';
+            document.getElementById('formCuentaNumero').value = c.numero;
+            document.getElementById('formCuentaTitular').value = c.titular;
+            document.getElementById('formCuentaRUC').value = c.ruc || '';
+        }
+    }
+    document.getElementById('modalCuentaBancaria').classList.add('show');
+}
+
+function cerrarModalCuentaBancaria() {
+    document.getElementById('modalCuentaBancaria').classList.remove('show');
+}
+
+function editarCuentaBancaria(id) { abrirModalCuentaBancaria(id); }
+
+function guardarCuentaBancaria() {
+    const id = document.getElementById('formCuentaId').value || 'CTA' + Date.now();
+    const cuenta = {
+        id,
+        banco: document.getElementById('formCuentaBanco').value,
+        tipo: document.getElementById('formCuentaTipo').value,
+        moneda: document.getElementById('formCuentaMoneda').value,
+        numero: document.getElementById('formCuentaNumero').value,
+        titular: document.getElementById('formCuentaTitular').value,
+        ruc: document.getElementById('formCuentaRUC').value
+    };
+    if (!cuenta.banco || !cuenta.numero) { alert('Banco y numero de cuenta son obligatorios'); return; }
+    let cuentas = JSON.parse(localStorage.getItem('hdv_cuentas_bancarias') || '[]');
+    const idx = cuentas.findIndex(c => c.id === id);
+    if (idx >= 0) cuentas[idx] = cuenta; else cuentas.push(cuenta);
+    localStorage.setItem('hdv_cuentas_bancarias', JSON.stringify(cuentas));
+    if (typeof guardarCuentasBancariasFirebase === 'function') guardarCuentasBancariasFirebase(cuentas).catch(e => console.error(e));
+    cerrarModalCuentaBancaria();
+    cargarCuentasBancariasAdmin();
+    alert('Cuenta bancaria guardada');
+}
+
+function eliminarCuentaBancaria(id) {
+    if (!confirm('Eliminar esta cuenta bancaria?')) return;
+    let cuentas = JSON.parse(localStorage.getItem('hdv_cuentas_bancarias') || '[]');
+    cuentas = cuentas.filter(c => c.id !== id);
+    localStorage.setItem('hdv_cuentas_bancarias', JSON.stringify(cuentas));
+    if (typeof guardarCuentasBancariasFirebase === 'function') guardarCuentasBancariasFirebase(cuentas).catch(e => console.error(e));
+    cargarCuentasBancariasAdmin();
+}
+
+// ============================================
+// METAS Y COMISIONES
+// ============================================
+
+function cargarMetas() {
+    const metas = JSON.parse(localStorage.getItem('hdv_metas') || '[]');
+    const mesActual = new Date().toISOString().slice(0, 7); // YYYY-MM
+    const metaActiva = metas.find(m => m.mes === mesActual && m.activa) || metas.find(m => m.activa);
+
+    // Calcular ventas del mes
+    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    const pedidosMes = pedidos.filter(p => p.fecha && p.fecha.startsWith(mesActual));
+    const totalVendido = pedidosMes.reduce((sum, p) => sum + (p.total || 0), 0);
+
+    if (metaActiva) {
+        const objetivo = metaActiva.monto || 0;
+        const comisionPct = metaActiva.comision || 0;
+        const porcentaje = objetivo > 0 ? Math.min(100, Math.round((totalVendido / objetivo) * 100)) : 0;
+        const comisionEstimada = Math.round(totalVendido * (comisionPct / 100));
+        const faltante = Math.max(0, objetivo - totalVendido);
+
+        document.getElementById('metaObjetivo').textContent = `Gs. ${objetivo.toLocaleString()}`;
+        document.getElementById('metaVendido').textContent = `Gs. ${totalVendido.toLocaleString()}`;
+        document.getElementById('metaComision').textContent = `Gs. ${comisionEstimada.toLocaleString()}`;
+        document.getElementById('metaPorcentaje').textContent = `${porcentaje}%`;
+        document.getElementById('metaFaltante').textContent = faltante > 0
+            ? `Faltan Gs. ${faltante.toLocaleString()} para alcanzar la meta`
+            : 'Meta alcanzada!';
+
+        const barra = document.getElementById('metaBarraProgreso');
+        barra.style.width = `${porcentaje}%`;
+        barra.textContent = `${porcentaje}%`;
+        barra.className = `h-6 rounded-full transition-all duration-700 flex items-center justify-center text-white text-xs font-bold ${porcentaje < 50 ? 'bg-red-500' : porcentaje < 80 ? 'bg-yellow-500' : 'bg-green-500'}`;
+    } else {
+        document.getElementById('metaObjetivo').textContent = 'Sin meta';
+        document.getElementById('metaVendido').textContent = `Gs. ${totalVendido.toLocaleString()}`;
+        document.getElementById('metaComision').textContent = 'Gs. 0';
+        document.getElementById('metaPorcentaje').textContent = '-';
+        document.getElementById('metaFaltante').textContent = 'Configure una meta para ver el progreso';
+        document.getElementById('metaBarraProgreso').style.width = '0%';
+    }
+
+    // Lista de metas
+    const container = document.getElementById('metasContainer');
+    if (metas.length === 0) {
+        container.innerHTML = '<p class="p-6 text-center text-gray-400 italic">Sin metas configuradas</p>';
+    } else {
+        container.innerHTML = metas.map(m => {
+            const pedMes = pedidos.filter(p => p.fecha && p.fecha.startsWith(m.mes));
+            const vendMes = pedMes.reduce((s, p) => s + (p.total || 0), 0);
+            const pct = m.monto > 0 ? Math.min(100, Math.round((vendMes / m.monto) * 100)) : 0;
+            return `
+            <div class="p-4 flex justify-between items-center">
+                <div>
+                    <p class="font-bold text-gray-800">${m.vendedor} - ${m.mes}</p>
+                    <p class="text-sm text-gray-500">Meta: Gs. ${(m.monto || 0).toLocaleString()} | Comision: ${m.comision}%</p>
+                    <div class="mt-2 w-48 bg-gray-200 rounded-full h-3">
+                        <div class="h-3 rounded-full ${pct < 50 ? 'bg-red-500' : pct < 80 ? 'bg-yellow-500' : 'bg-green-500'}" style="width: ${pct}%"></div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <span class="text-sm font-bold ${pct >= 100 ? 'text-green-600' : 'text-gray-600'}">${pct}%</span>
+                    <span class="text-xs px-2 py-1 rounded-full ${m.activa ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}">${m.activa ? 'Activa' : 'Inactiva'}</span>
+                    <button onclick="editarMeta('${m.id}')" class="text-blue-600 text-sm font-bold">Editar</button>
+                    <button onclick="eliminarMeta('${m.id}')" class="text-red-600 text-sm font-bold">Eliminar</button>
+                </div>
+            </div>`;
+        }).join('');
+    }
+}
+
+function abrirModalMeta(metaId) {
+    document.getElementById('formMetaId').value = '';
+    document.getElementById('formMetaVendedor').value = 'Vendedor Principal';
+    document.getElementById('formMetaMonto').value = '';
+    document.getElementById('formMetaComision').value = '5';
+    document.getElementById('formMetaMes').value = new Date().toISOString().slice(0, 7);
+    document.getElementById('formMetaActiva').value = 'true';
+    if (metaId) {
+        const metas = JSON.parse(localStorage.getItem('hdv_metas') || '[]');
+        const m = metas.find(x => x.id === metaId);
+        if (m) {
+            document.getElementById('formMetaId').value = m.id;
+            document.getElementById('formMetaVendedor').value = m.vendedor;
+            document.getElementById('formMetaMonto').value = m.monto;
+            document.getElementById('formMetaComision').value = m.comision;
+            document.getElementById('formMetaMes').value = m.mes;
+            document.getElementById('formMetaActiva').value = m.activa ? 'true' : 'false';
+        }
+    }
+    document.getElementById('modalMeta').classList.add('show');
+}
+
+function cerrarModalMeta() { document.getElementById('modalMeta').classList.remove('show'); }
+function editarMeta(id) { abrirModalMeta(id); }
+
+function guardarMeta() {
+    const id = document.getElementById('formMetaId').value || 'META' + Date.now();
+    const meta = {
+        id,
+        vendedor: document.getElementById('formMetaVendedor').value,
+        monto: parseInt(document.getElementById('formMetaMonto').value) || 0,
+        comision: parseFloat(document.getElementById('formMetaComision').value) || 0,
+        mes: document.getElementById('formMetaMes').value,
+        activa: document.getElementById('formMetaActiva').value === 'true'
+    };
+    if (!meta.monto) { alert('Monto de meta es obligatorio'); return; }
+    let metas = JSON.parse(localStorage.getItem('hdv_metas') || '[]');
+    const idx = metas.findIndex(m => m.id === id);
+    if (idx >= 0) metas[idx] = meta; else metas.push(meta);
+    localStorage.setItem('hdv_metas', JSON.stringify(metas));
+    if (typeof guardarMetasFirebase === 'function') guardarMetasFirebase(metas).catch(e => console.error(e));
+    cerrarModalMeta();
+    cargarMetas();
+    alert('Meta guardada');
+}
+
+function eliminarMeta(id) {
+    if (!confirm('Eliminar esta meta?')) return;
+    let metas = JSON.parse(localStorage.getItem('hdv_metas') || '[]');
+    metas = metas.filter(m => m.id !== id);
+    localStorage.setItem('hdv_metas', JSON.stringify(metas));
+    if (typeof guardarMetasFirebase === 'function') guardarMetasFirebase(metas).catch(e => console.error(e));
+    cargarMetas();
+}
+
+// ============================================
+// CLIENTES EN RIESGO (INACTIVOS)
+// ============================================
+
+function cargarClientesInactivos() {
+    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    const clientesData = productosData.clientes || [];
+    const filtro = document.getElementById('filtroInactivos')?.value || 'todos';
+    const hoy = new Date();
+
+    // Calcular ultimo pedido y frecuencia por cliente
+    const analisis = clientesData.filter(c => !c.oculto).map(cliente => {
+        const pedidosCliente = pedidos.filter(p => p.cliente?.id === cliente.id);
+        const ultimoPedido = pedidosCliente.length > 0
+            ? pedidosCliente.sort((a, b) => new Date(b.fecha) - new Date(a.fecha))[0]
+            : null;
+
+        const diasInactivo = ultimoPedido
+            ? Math.floor((hoy - new Date(ultimoPedido.fecha)) / 86400000)
+            : 999;
+
+        const totalHistorico = pedidosCliente.reduce((sum, p) => sum + (p.total || 0), 0);
+        const cantidadPedidos = pedidosCliente.length;
+
+        // Calcular promedio mensual (ultimos 3 meses)
+        const hace3Meses = new Date(hoy);
+        hace3Meses.setMonth(hace3Meses.getMonth() - 3);
+        const pedidosRecientes = pedidosCliente.filter(p => new Date(p.fecha) >= hace3Meses);
+        const promedioMensual = pedidosRecientes.length > 0
+            ? Math.round(pedidosRecientes.reduce((s, p) => s + (p.total || 0), 0) / 3)
+            : Math.round(totalHistorico / Math.max(1, cantidadPedidos));
+
+        let nivel = 'activo';
+        if (diasInactivo >= 60) nivel = 'perdido';
+        else if (diasInactivo >= 30) nivel = 'riesgo';
+        else if (diasInactivo >= 15) nivel = 'atencion';
+
+        return {
+            cliente,
+            ultimoPedido,
+            diasInactivo,
+            totalHistorico,
+            cantidadPedidos,
+            promedioMensual,
+            nivel
+        };
+    });
+
+    // Filtrar solo inactivos (15+ dias)
+    let inactivos = analisis.filter(a => a.nivel !== 'activo');
+    inactivos.sort((a, b) => b.diasInactivo - a.diasInactivo);
+
+    if (filtro !== 'todos') {
+        inactivos = inactivos.filter(a => a.nivel === filtro);
+    }
+
+    // Stats
+    const atencion = analisis.filter(a => a.nivel === 'atencion').length;
+    const riesgo = analisis.filter(a => a.nivel === 'riesgo').length;
+    const perdidos = analisis.filter(a => a.nivel === 'perdido').length;
+    const ingresoRiesgo = analisis
+        .filter(a => a.nivel !== 'activo')
+        .reduce((sum, a) => sum + a.promedioMensual, 0);
+
+    document.getElementById('inactivosAtencion').textContent = atencion;
+    document.getElementById('inactivosRiesgo').textContent = riesgo;
+    document.getElementById('inactivosPerdidos').textContent = perdidos;
+    document.getElementById('inactivosIngreso').textContent = `Gs. ${ingresoRiesgo.toLocaleString()}`;
+
+    // Renderizar lista
+    const container = document.getElementById('inactivosContainer');
+    if (inactivos.length === 0) {
+        container.innerHTML = '<p class="p-8 text-center text-gray-400 italic">Todos los clientes estan activos. Excelente!</p>';
+        return;
+    }
+
+    container.innerHTML = inactivos.map(a => {
+        const nombre = a.cliente.razon_social || a.cliente.nombre || a.cliente.id;
+        const zona = a.cliente.zona || '-';
+        const tel = a.cliente.telefono || '';
+        const badgeColor = a.nivel === 'perdido' ? 'bg-gray-800 text-white' :
+                           a.nivel === 'riesgo' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700';
+        const badgeText = a.nivel === 'perdido' ? 'PERDIDO' :
+                          a.nivel === 'riesgo' ? 'EN RIESGO' : 'ATENCION';
+        const ultimaFecha = a.ultimoPedido ? new Date(a.ultimoPedido.fecha).toLocaleDateString('es-PY') : 'Nunca';
+
+        return `
+        <div class="p-4 hover:bg-gray-50 transition-colors">
+            <div class="flex justify-between items-start">
+                <div class="flex-1">
+                    <div class="flex items-center gap-2 mb-1">
+                        <p class="font-bold text-gray-800">${nombre}</p>
+                        <span class="text-xs px-2 py-0.5 rounded-full font-bold ${badgeColor}">${badgeText}</span>
+                    </div>
+                    <p class="text-sm text-gray-500">Zona: ${zona} | ${a.cantidadPedidos} pedidos historicos</p>
+                    <p class="text-xs text-gray-400 mt-1">Ultimo pedido: ${ultimaFecha} (hace ${a.diasInactivo} dias) | Total historico: Gs. ${a.totalHistorico.toLocaleString()}</p>
+                    <p class="text-xs text-blue-600 mt-1">Promedio mensual estimado: Gs. ${a.promedioMensual.toLocaleString()}</p>
+                </div>
+                <div class="flex gap-2 ml-4">
+                    ${tel ? `<button onclick="enviarWhatsAppReactivacion('${tel}', '${nombre.replace(/'/g, '')}')" class="bg-green-50 text-green-700 px-3 py-2 rounded-lg text-xs font-bold hover:bg-green-100">📲 WhatsApp</button>` : ''}
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function enviarWhatsAppReactivacion(telefono, nombre) {
+    let tel = telefono.replace(/\D/g, '');
+    if (tel.startsWith('0')) tel = '595' + tel.substring(1);
+    const mensaje = `Hola ${nombre}, desde HDV Distribuciones le saludamos! Hace un tiempo que no nos visita y queremos ofrecerle nuestras ultimas promociones. Estamos para servirle! Contactenos para su proximo pedido.`;
+    window.open(`https://wa.me/${tel}?text=${encodeURIComponent(mensaje)}`, '_blank');
 }

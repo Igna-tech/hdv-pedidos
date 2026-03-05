@@ -296,7 +296,11 @@ async function sincronizarDatosNegocio() {
         { key: 'hdv_pagos_credito', doc: 'pagos_credito' },
         { key: 'hdv_creditos_manuales', doc: 'creditos_manuales' },
         { key: 'hdv_promociones', doc: 'promociones' },
-        { key: 'hdv_whatsapp_mensaje_credito', doc: 'whatsapp_plantilla' }
+        { key: 'hdv_whatsapp_mensaje_credito', doc: 'whatsapp_plantilla' },
+        { key: 'hdv_gastos', doc: 'gastos_vendedor' },
+        { key: 'hdv_rendiciones', doc: 'rendiciones' },
+        { key: 'hdv_cuentas_bancarias', doc: 'cuentas_bancarias' },
+        { key: 'hdv_metas', doc: 'metas_vendedor' }
     ];
     for (const item of mapeo) {
         const local = localStorage.getItem(item.key);
@@ -323,7 +327,11 @@ async function cargarDatosNegocioDesdeFirebase() {
         { key: 'hdv_pagos_credito', doc: 'pagos_credito' },
         { key: 'hdv_creditos_manuales', doc: 'creditos_manuales' },
         { key: 'hdv_promociones', doc: 'promociones' },
-        { key: 'hdv_whatsapp_mensaje_credito', doc: 'whatsapp_plantilla' }
+        { key: 'hdv_whatsapp_mensaje_credito', doc: 'whatsapp_plantilla' },
+        { key: 'hdv_gastos', doc: 'gastos_vendedor' },
+        { key: 'hdv_rendiciones', doc: 'rendiciones' },
+        { key: 'hdv_cuentas_bancarias', doc: 'cuentas_bancarias' },
+        { key: 'hdv_metas', doc: 'metas_vendedor' }
     ];
     for (const item of mapeo) {
         try {
@@ -342,12 +350,48 @@ async function cargarDatosNegocioDesdeFirebase() {
     }
 }
 
+// GASTOS DEL VENDEDOR
+function guardarGastosFirebase(gastos) {
+    return guardarConfigFirebase('gastos_vendedor', gastos);
+}
+async function obtenerGastosFirebase() {
+    return await obtenerConfigFirebase('gastos_vendedor');
+}
+
+// RENDICIONES
+function guardarRendicionesFirebase(rendiciones) {
+    return guardarConfigFirebase('rendiciones', rendiciones);
+}
+async function obtenerRendicionesFirebase() {
+    return await obtenerConfigFirebase('rendiciones');
+}
+
+// CUENTAS BANCARIAS
+function guardarCuentasBancariasFirebase(cuentas) {
+    return guardarConfigFirebase('cuentas_bancarias', cuentas);
+}
+async function obtenerCuentasBancariasFirebase() {
+    return await obtenerConfigFirebase('cuentas_bancarias');
+}
+
+// METAS DE VENDEDOR
+function guardarMetasFirebase(metas) {
+    return guardarConfigFirebase('metas_vendedor', metas);
+}
+async function obtenerMetasFirebase() {
+    return await obtenerConfigFirebase('metas_vendedor');
+}
+
 // Iniciar listeners en tiempo real para datos de negocio
 function iniciarListenersDatosNegocio() {
     escucharConfigRealtime('pagos_credito', 'hdv_pagos_credito');
     escucharConfigRealtime('creditos_manuales', 'hdv_creditos_manuales');
     escucharConfigRealtime('promociones', 'hdv_promociones');
     escucharConfigRealtime('whatsapp_plantilla', 'hdv_whatsapp_mensaje_credito');
+    escucharConfigRealtime('gastos_vendedor', 'hdv_gastos');
+    escucharConfigRealtime('rendiciones', 'hdv_rendiciones');
+    escucharConfigRealtime('cuentas_bancarias', 'hdv_cuentas_bancarias');
+    escucharConfigRealtime('metas_vendedor', 'hdv_metas');
 }
 
 // ============================================
@@ -359,4 +403,4 @@ setTimeout(() => {
     cargarDatosNegocioDesdeFirebase();
     iniciarListenersDatosNegocio();
 }, 1500);
-console.log('[Firebase] HDV Distribuciones - Inicializado v7.0');
+console.log('[Firebase] HDV Distribuciones - Inicializado v7.1');

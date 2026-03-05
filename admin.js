@@ -6,7 +6,6 @@ let productosData = { productos: [], categorias: [], clientes: [] };
 let productosDataOriginal = null;
 let productosFiltrados = [];
 let clientesFiltrados = [];
-let clienteActualPrecios = null;
 let cambiosSinGuardar = 0;
 let stockFiltrado = [];
 
@@ -1654,81 +1653,6 @@ function renderizarPerfilEstadisticas() {
             <div class="bg-blue-50 rounded-lg p-3 text-center"><p class="text-xs text-blue-600 font-bold">ESTE MES</p><p class="text-lg font-bold text-blue-800">Gs. ${totalMes.toLocaleString()}</p></div>
             <div class="bg-green-50 rounded-lg p-3 text-center"><p class="text-xs text-green-600 font-bold">ULTIMOS 6 MESES</p><p class="text-lg font-bold text-green-800">Gs. ${total6m.toLocaleString()}</p></div>
             <div class="bg-purple-50 rounded-lg p-3 text-center"><p class="text-xs text-purple-600 font-bold">ULTIMO ANO</p><p class="text-lg font-bold text-purple-800">Gs. ${total1a.toLocaleString()}</p></div>`;
-    }
-}
-
-// ============================================
-// PRECIOS POR CLIENTE
-// ============================================
-function cargarSelectPreciosCliente() {
-    const select = document.getElementById('preciosCliente');
-    if (!select) return;
-    select.innerHTML = '<option value="">-- Seleccione un cliente --</option>';
-    productosData.clientes.forEach(c => {
-        select.innerHTML += `<option value="${c.id}">${c.razon_social || c.nombre} (${c.id})</option>`;
-    });
-}
-
-function cargarPreciosCliente() {
-    const clienteId = document.getElementById('preciosCliente')?.value;
-    if (!clienteId) { document.getElementById('preciosCard').style.display = 'none'; return; }
-
-    clienteActualPrecios = productosData.clientes.find(c => c.id === clienteId);
-    if (!clienteActualPrecios) return;
-
-    document.getElementById('preciosCard').style.display = '';
-    const tbody = document.getElementById('preciosBody');
-    tbody.innerHTML = '';
-
-    productosData.productos.forEach(prod => {
-        if (prod.estado === 'discontinuado') return;
-        prod.presentaciones.forEach(pres => {
-            const precioPersonalizado = clienteActualPrecios.precios_personalizados?.[prod.id]?.find(p => p.tamano === pres.tamano);
-            const tr = document.createElement('tr');
-            tr.className = 'hover:bg-gray-50';
-            tr.innerHTML = `
-                <td class="px-6 py-3 font-medium">${prod.nombre}</td>
-                <td class="px-6 py-3 text-gray-500">${pres.tamano}</td>
-                <td class="px-6 py-3 text-gray-400">Gs. ${pres.precio_base.toLocaleString()}</td>
-                <td class="px-6 py-3">
-                    <input type="number" value="${precioPersonalizado?.precio || ''}" placeholder="${pres.precio_base}"
-                        data-producto="${prod.id}" data-tamano="${pres.tamano}"
-                        class="w-32 px-2 py-1 border border-gray-200 rounded text-sm">
-                </td>`;
-            tbody.appendChild(tr);
-        });
-    });
-
-    const buscar = document.getElementById('buscarProductoPrecio');
-    if (buscar) {
-        buscar.oninput = () => {
-            const filtro = buscar.value.toLowerCase();
-            tbody.querySelectorAll('tr').forEach(tr => {
-                const nombre = tr.querySelector('td')?.textContent.toLowerCase() || '';
-                tr.style.display = nombre.includes(filtro) ? '' : 'none';
-            });
-        };
-    }
-}
-
-function guardarPreciosPersonalizados() {
-    if (!clienteActualPrecios) return;
-    const inputs = document.querySelectorAll('#preciosBody [data-producto]');
-    const nuevosPrecios = {};
-    inputs.forEach(input => {
-        const prodId = input.dataset.producto;
-        const tamano = input.dataset.tamano;
-        const precio = parseInt(input.value) || 0;
-        if (precio > 0) {
-            if (!nuevosPrecios[prodId]) nuevosPrecios[prodId] = [];
-            nuevosPrecios[prodId].push({ tamano, precio });
-        }
-    });
-    const cliente = productosData.clientes.find(c => c.id === clienteActualPrecios.id);
-    if (cliente) {
-        cliente.precios_personalizados = nuevosPrecios;
-        registrarCambio();
-        alert('Precios guardados. Usa "Guardar y Sincronizar" para aplicar.');
     }
 }
 

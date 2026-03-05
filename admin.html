@@ -308,28 +308,40 @@
                 <div class="flex justify-between items-center flex-wrap gap-4">
                     <h3 class="text-xl font-bold">Gestion de Catalogo</h3>
                     <div class="flex gap-2 flex-wrap">
-                        <input type="text" id="buscarProducto" oninput="filtrarProductos()" placeholder="🔍 Buscar..." class="border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none w-48">
+                        <input type="text" id="buscarProducto" oninput="filtrarProductos()" placeholder="Buscar producto..." class="border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none w-48">
+                        <select id="filtroCategoria" onchange="filtrarProductos()" class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                            <option value="">Todas las categorias</option>
+                        </select>
+                        <select id="filtroEstadoProducto" onchange="filtrarProductos()" class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                            <option value="">Todos los estados</option>
+                            <option value="disponible">Disponible</option>
+                            <option value="agotado">Agotado</option>
+                            <option value="discontinuado">Discontinuado</option>
+                        </select>
                         <label class="flex items-center gap-2 text-sm text-gray-600">
                             <input type="checkbox" id="mostrarOcultosProductos" onchange="filtrarProductos()"> Ocultos
                         </label>
-                        <button onclick="abrirModalProducto()" class="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-700">+ Nuevo Producto</button>
+                        <button onclick="abrirModalCategorias()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold">Categorias</button>
+                        <button onclick="abrirModalProducto()" class="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-bold">+ Nuevo Producto</button>
                     </div>
                 </div>
                 <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-x-auto">
                     <table class="w-full text-left text-sm">
                         <thead class="bg-gray-50 border-b border-gray-200 text-gray-500 font-bold uppercase text-[11px] tracking-wider">
                             <tr>
-                                <th class="px-4 py-3">ID</th>
-                                <th class="px-4 py-3">Imagen</th>
-                                <th class="px-4 py-3">Nombre</th>
-                                <th class="px-4 py-3">Categoria</th>
-                                <th class="px-4 py-3">Presentaciones / Precios</th>
+                                <th class="px-4 py-3 cursor-pointer hover:text-gray-800" onclick="ordenarProductos('id')">ID</th>
+                                <th class="px-4 py-3">Img</th>
+                                <th class="px-4 py-3 cursor-pointer hover:text-gray-800" onclick="ordenarProductos('nombre')">Nombre</th>
+                                <th class="px-4 py-3 cursor-pointer hover:text-gray-800" onclick="ordenarProductos('categoria')">Categoria</th>
+                                <th class="px-4 py-3">Estado</th>
+                                <th class="px-4 py-3">Presentaciones / Costo / Precio / Margen</th>
                                 <th class="px-4 py-3">Acciones</th>
                             </tr>
                         </thead>
                         <tbody id="tablaProductosCuerpo" class="divide-y divide-gray-100"></tbody>
                     </table>
                 </div>
+                <div id="paginacionProductos" class="flex items-center justify-between text-sm text-gray-500"></div>
             </section>
 
             <!-- CLIENTES -->
@@ -337,14 +349,31 @@
                 <div class="flex justify-between items-center flex-wrap gap-4">
                     <h3 class="text-xl font-bold text-gray-800">Directorio de Clientes</h3>
                     <div class="flex gap-2 flex-wrap">
-                        <input type="text" id="buscarCliente" oninput="filtrarClientes()" placeholder="🔍 Buscar..." class="border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none w-48">
+                        <input type="text" id="buscarCliente" oninput="filtrarClientes()" placeholder="Buscar cliente..." class="border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none w-48">
+                        <select id="filtroZonaCliente" onchange="filtrarClientes()" class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                            <option value="">Todas las zonas</option>
+                        </select>
                         <label class="flex items-center gap-2 text-sm text-gray-600">
                             <input type="checkbox" id="mostrarOcultosClientes" onchange="filtrarClientes()"> Ocultos
                         </label>
                         <button onclick="abrirModalCliente()" class="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-bold">+ Nuevo Cliente</button>
                     </div>
                 </div>
-                <div id="listaClientes" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+                <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-x-auto">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-gray-50 border-b border-gray-200 text-gray-500 font-bold uppercase text-[11px] tracking-wider">
+                            <tr>
+                                <th class="px-4 py-3 cursor-pointer hover:text-gray-800" onclick="ordenarClientes('nombre')">Nombre</th>
+                                <th class="px-4 py-3 cursor-pointer hover:text-gray-800" onclick="ordenarClientes('zona')">Zona</th>
+                                <th class="px-4 py-3">Telefono</th>
+                                <th class="px-4 py-3">Precios Esp.</th>
+                                <th class="px-4 py-3">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaClientesCuerpo" class="divide-y divide-gray-100"></tbody>
+                    </table>
+                </div>
+                <div id="paginacionClientes" class="flex items-center justify-between text-sm text-gray-500"></div>
             </section>
 
             <!-- PRECIOS POR CLIENTE -->
@@ -794,13 +823,14 @@
         </div>
     </div>
 
-    <!-- MODAL NUEVO PRODUCTO -->
+    <!-- MODAL PRODUCTO (Crear/Editar) -->
     <div id="modalProducto" class="modal-overlay">
-        <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden max-h-[90vh] overflow-y-auto">
             <div class="p-6 border-b border-gray-100">
-                <h3 class="text-xl font-bold text-gray-800">Nuevo Producto</h3>
+                <h3 class="text-xl font-bold text-gray-800" id="modalProductoTitulo">Nuevo Producto</h3>
             </div>
             <div class="p-6 space-y-4">
+                <input type="hidden" id="formProductoId">
                 <div>
                     <label class="block text-xs font-bold text-gray-500 mb-1">NOMBRE</label>
                     <input type="text" id="nuevoProductoNombre" class="w-full border border-gray-300 rounded-lg px-4 py-2" placeholder="Ej: Jabon Dove">
@@ -809,37 +839,75 @@
                     <label class="block text-xs font-bold text-gray-500 mb-1">IMAGEN URL (opcional)</label>
                     <input type="url" id="nuevoProductoImagen" class="w-full border border-gray-300 rounded-lg px-4 py-2" placeholder="https://...">
                 </div>
-                <div>
-                    <label class="block text-xs font-bold text-gray-500 mb-1">CATEGORIA</label>
-                    <select id="nuevoProductoCategoria" class="w-full border border-gray-300 rounded-lg px-4 py-2"></select>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">CATEGORIA</label>
+                        <select id="nuevoProductoCategoria" class="w-full border border-gray-300 rounded-lg px-4 py-2" onchange="actualizarSubcategoriasModal()"></select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">SUBCATEGORIA</label>
+                        <select id="nuevoProductoSubcategoria" class="w-full border border-gray-300 rounded-lg px-4 py-2"></select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">ESTADO</label>
+                        <select id="nuevoProductoEstado" class="w-full border border-gray-300 rounded-lg px-4 py-2">
+                            <option value="disponible">Disponible</option>
+                            <option value="agotado">Agotado</option>
+                            <option value="discontinuado">Discontinuado</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">PRECIO BASE</label>
+                        <input type="number" id="nuevoProductoPrecio" class="w-full border border-gray-300 rounded-lg px-4 py-2" placeholder="1000">
+                    </div>
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-gray-500 mb-1">SUBCATEGORIA</label>
-                    <input type="text" id="nuevoProductoSubcategoria" class="w-full border border-gray-300 rounded-lg px-4 py-2" placeholder="Ej: Jabones">
+                    <label class="block text-xs font-bold text-gray-500 mb-1">COSTO (precio de compra)</label>
+                    <input type="number" id="nuevoProductoCosto" class="w-full border border-gray-300 rounded-lg px-4 py-2" placeholder="800">
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-gray-500 mb-1">PRESENTACIONES (separadas por coma)</label>
                     <input type="text" id="nuevoProductoPresentaciones" class="w-full border border-gray-300 rounded-lg px-4 py-2" placeholder="Ej: 125g, 90g">
+                    <p class="text-xs text-gray-400 mt-1" id="modalProductoPresInfo">Cada presentacion usara el precio base y costo indicados</p>
                 </div>
-                <div>
-                    <label class="block text-xs font-bold text-gray-500 mb-1">PRECIO BASE</label>
-                    <input type="number" id="nuevoProductoPrecio" class="w-full border border-gray-300 rounded-lg px-4 py-2" placeholder="1000">
-                </div>
+                <!-- Presentaciones detalladas (modo edicion) -->
+                <div id="presentacionesDetalladas" style="display:none;"></div>
             </div>
             <div class="p-6 bg-gray-50 flex justify-end gap-3">
                 <button onclick="cerrarModalProducto()" class="px-4 py-2 text-gray-500 font-bold">Cancelar</button>
-                <button onclick="agregarNuevoProducto()" class="bg-gray-800 text-white px-6 py-2 rounded-lg font-bold">Guardar</button>
+                <button onclick="guardarProductoModal()" class="bg-gray-800 text-white px-6 py-2 rounded-lg font-bold">Guardar</button>
             </div>
         </div>
     </div>
 
-    <!-- MODAL NUEVO CLIENTE -->
+    <!-- MODAL CATEGORIAS -->
+    <div id="modalCategorias" class="modal-overlay">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden max-h-[90vh] overflow-y-auto">
+            <div class="p-6 border-b border-gray-100 flex justify-between items-center">
+                <h3 class="text-xl font-bold text-gray-800">Gestionar Categorias</h3>
+                <button onclick="cerrarModalCategorias()" class="text-gray-400 hover:text-gray-600 text-xl font-bold">x</button>
+            </div>
+            <div class="p-6">
+                <div class="flex gap-2 mb-4">
+                    <input type="text" id="nuevaCategoriaId" class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm" placeholder="ID (ej: limpieza)">
+                    <input type="text" id="nuevaCategoriaNombre" class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm" placeholder="Nombre (ej: Limpieza)">
+                    <button onclick="agregarCategoriaModal()" class="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-bold">+</button>
+                </div>
+                <div id="listaCategoriasCuerpo" class="space-y-3"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL CLIENTE (Crear/Editar) -->
     <div id="modalCliente" class="modal-overlay">
         <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden">
             <div class="p-6 border-b border-gray-100">
-                <h3 class="text-xl font-bold text-gray-800">Nuevo Cliente</h3>
+                <h3 class="text-xl font-bold text-gray-800" id="modalClienteTitulo">Nuevo Cliente</h3>
             </div>
             <div class="p-6 space-y-4">
+                <input type="hidden" id="formClienteId">
                 <div>
                     <label class="block text-xs font-bold text-gray-500 mb-1">RAZON SOCIAL / NOMBRE</label>
                     <input type="text" id="nuevoClienteRazon" class="w-full border border-gray-300 rounded-lg px-4 py-2" placeholder="Ej: Supermercado Central S.A.">
@@ -854,9 +922,15 @@
                         <input type="tel" id="nuevoClienteTelefono" class="w-full border border-gray-300 rounded-lg px-4 py-2" placeholder="0981234567">
                     </div>
                 </div>
-                <div>
-                    <label class="block text-xs font-bold text-gray-500 mb-1">DIRECCION</label>
-                    <input type="text" id="nuevoClienteDireccion" class="w-full border border-gray-300 rounded-lg px-4 py-2" placeholder="Av. Central 1234">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">DIRECCION</label>
+                        <input type="text" id="nuevoClienteDireccion" class="w-full border border-gray-300 rounded-lg px-4 py-2" placeholder="Av. Central 1234">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">ZONA</label>
+                        <input type="text" id="nuevoClienteZona" class="w-full border border-gray-300 rounded-lg px-4 py-2" placeholder="Ej: Loma Plata">
+                    </div>
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-gray-500 mb-1">ENCARGADO (opcional)</label>
@@ -865,7 +939,70 @@
             </div>
             <div class="p-6 bg-gray-50 flex justify-end gap-3">
                 <button onclick="cerrarModalCliente()" class="px-4 py-2 text-gray-500 font-bold">Cancelar</button>
-                <button onclick="agregarNuevoCliente()" class="bg-gray-800 text-white px-6 py-2 rounded-lg font-bold">Guardar</button>
+                <button onclick="guardarClienteModal()" class="bg-gray-800 text-white px-6 py-2 rounded-lg font-bold">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL PERFIL CLIENTE -->
+    <div id="modalPerfilCliente" class="modal-overlay">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-4xl w-full overflow-hidden max-h-[90vh] overflow-y-auto">
+            <div class="p-6 border-b border-gray-100">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <h3 class="text-xl font-bold text-gray-800" id="perfilClienteNombre">Cliente</h3>
+                        <p class="text-sm text-gray-500" id="perfilClienteInfo"></p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button id="perfilWhatsAppBtn" class="bg-green-500 text-white px-4 py-2 rounded-lg text-sm font-bold">WhatsApp</button>
+                        <button onclick="cerrarPerfilCliente()" class="text-gray-400 hover:text-gray-600 px-3 py-2 text-xl font-bold">x</button>
+                    </div>
+                </div>
+                <!-- Stats cards -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
+                    <div class="bg-blue-50 rounded-lg p-3 text-center">
+                        <p class="text-xs text-blue-600 font-bold">TOTAL COMPRADO</p>
+                        <p class="text-lg font-bold text-blue-800" id="perfilTotalComprado">Gs. 0</p>
+                    </div>
+                    <div class="bg-green-50 rounded-lg p-3 text-center">
+                        <p class="text-xs text-green-600 font-bold">PEDIDOS</p>
+                        <p class="text-lg font-bold text-green-800" id="perfilTotalPedidos">0</p>
+                    </div>
+                    <div class="bg-purple-50 rounded-lg p-3 text-center">
+                        <p class="text-xs text-purple-600 font-bold">ULTIMO PEDIDO</p>
+                        <p class="text-lg font-bold text-purple-800" id="perfilUltimoPedido">-</p>
+                    </div>
+                    <div class="bg-yellow-50 rounded-lg p-3 text-center">
+                        <p class="text-xs text-yellow-600 font-bold">PRECIOS ESP.</p>
+                        <p class="text-lg font-bold text-yellow-800" id="perfilPreciosEsp">0</p>
+                    </div>
+                </div>
+            </div>
+            <!-- Tabs -->
+            <div class="flex border-b border-gray-200">
+                <button onclick="cambiarTabPerfil('precios')" id="tabPerfil-precios" class="px-6 py-3 text-sm font-bold border-b-2 border-gray-800 text-gray-800">Precios Especiales</button>
+                <button onclick="cambiarTabPerfil('historial')" id="tabPerfil-historial" class="px-6 py-3 text-sm font-bold border-b-2 border-transparent text-gray-400 hover:text-gray-600">Historial</button>
+                <button onclick="cambiarTabPerfil('estadisticas')" id="tabPerfil-estadisticas" class="px-6 py-3 text-sm font-bold border-b-2 border-transparent text-gray-400 hover:text-gray-600">Estadisticas</button>
+            </div>
+            <div class="p-6">
+                <div id="perfilTab-precios"></div>
+                <div id="perfilTab-historial" style="display:none;"></div>
+                <div id="perfilTab-estadisticas" style="display:none;">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <h4 class="font-bold text-gray-700 mb-3">Top 5 Productos</h4>
+                            <div id="perfilTopProductos"></div>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-gray-700 mb-3">Compras Ultimos 6 Meses</h4>
+                            <canvas id="chartPerfilCliente" height="200"></canvas>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <h4 class="font-bold text-gray-700 mb-3">Desglose por Periodo</h4>
+                        <div id="perfilDesglosePeriodo" class="grid grid-cols-3 gap-3"></div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

@@ -31,7 +31,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         escucharCatalogoRealtime((data) => {
             if (data && data.categorias && data.productos) {
                 categorias = data.categorias || [];
-                productos = (data.productos || []).filter(p => !p.oculto);
+                productos = (data.productos || []).filter(p => !p.oculto && (p.estado || 'disponible') !== 'discontinuado');
                 clientes = (data.clientes || []).filter(c => !c.oculto);
                 poblarClientes();
                 crearFiltrosCategorias();
@@ -99,7 +99,7 @@ async function cargarDatos() {
         }
 
         categorias = data.categorias || [];
-        productos = (data.productos || []).filter(p => !p.oculto);
+        productos = (data.productos || []).filter(p => !p.oculto && (p.estado || 'disponible') !== 'discontinuado');
         clientes = (data.clientes || []).filter(c => !c.oculto);
 
         poblarClientes();

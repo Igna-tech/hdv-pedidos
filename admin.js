@@ -479,13 +479,47 @@ function guardarStock() { guardarTodosCambios(); }
 // ============================================
 // GESTIONAR PRODUCTOS
 // ============================================
+let paginaProductos = 1;
+let productosPorPagina = 20;
+let ordenProductos = { campo: 'id', asc: true };
+let paginaClientes = 1;
+let clientesPorPagina = 20;
+let ordenClientes = { campo: 'nombre', asc: true };
+let chartPerfilClienteInstance = null;
+
 function filtrarProductos() {
     const filtro = document.getElementById('buscarProducto')?.value.toLowerCase() || '';
+    const catFiltro = document.getElementById('filtroCategoria')?.value || '';
+    const estadoFiltro = document.getElementById('filtroEstadoProducto')?.value || '';
     const mostrarOcultos = document.getElementById('mostrarOcultosProductos')?.checked || false;
     productosFiltrados = productosData.productos.filter(p => {
         const match = p.nombre.toLowerCase().includes(filtro) || p.id.toLowerCase().includes(filtro);
         const visible = mostrarOcultos || !p.oculto;
-        return match && visible;
+        const catMatch = !catFiltro || p.categoria === catFiltro;
+        const estMatch = !estadoFiltro || (p.estado || 'disponible') === estadoFiltro;
+        return match && visible && catMatch && estMatch;
+    });
+    paginaProductos = 1;
+    mostrarProductosGestion();
+}
+
+function poblarFiltroCategorias() {
+    const sel = document.getElementById('filtroCategoria');
+    if (!sel) return;
+    sel.innerHTML = '<option value="">Todas las categorias</option>';
+    (productosData.categorias || []).forEach(c => {
+        sel.innerHTML += `<option value="${c.id}">${c.nombre}</option>`;
+    });
+}
+
+function ordenarProductos(campo) {
+    if (ordenProductos.campo === campo) ordenProductos.asc = !ordenProductos.asc;
+    else { ordenProductos.campo = campo; ordenProductos.asc = true; }
+    productosFiltrados.sort((a, b) => {
+        let va = a[campo] || '', vb = b[campo] || '';
+        if (typeof va === 'string') va = va.toLowerCase();
+        if (typeof vb === 'string') vb = vb.toLowerCase();
+        return ordenProductos.asc ? (va > vb ? 1 : -1) : (va < vb ? 1 : -1);
     });
     mostrarProductosGestion();
 }
@@ -494,42 +528,67 @@ function mostrarProductosGestion() {
     const tbody = document.getElementById('tablaProductosCuerpo');
     if (!tbody) return;
     tbody.innerHTML = '';
-    
-    productosFiltrados.forEach(prod => {
-        const presHTML = prod.presentaciones.map((p, i) => `
-            <div class="flex items-center gap-2 mb-1">
-                <input type="text" value="${p.tamano}" onchange="actualizarPresentacion('${prod.id}',${i},'tamano',this.value)" class="w-20 px-2 py-1 text-xs border border-gray-200 rounded">
-                <span class="text-gray-400 text-xs">Gs.</span>
-                <input type="number" value="${p.precio_base}" onchange="actualizarPresentacion('${prod.id}',${i},'precio',this.value)" class="w-24 px-2 py-1 text-xs border border-gray-200 rounded">
-                <button onclick="eliminarPresentacion('${prod.id}',${i})" class="text-red-400 hover:text-red-600 font-bold text-sm">×</button>
-            </div>`).join('');
-        
-        const imgHTML = prod.imagen 
-            ? `<img src="${prod.imagen}" class="w-12 h-12 object-contain rounded border border-gray-200 cursor-pointer" onclick="editarImagenProducto('${prod.id}')" onerror="this.outerHTML='<div class=\\'w-12 h-12 bg-gray-100 rounded flex items-center justify-center cursor-pointer text-xl\\' onclick=\\'editarImagenProducto(\\\"${prod.id}\\\")\\'>📷</div>'">`
-            : `<div class="w-12 h-12 bg-gray-100 rounded flex items-center justify-center cursor-pointer text-xl hover:bg-gray-200" onclick="editarImagenProducto('${prod.id}')">📷</div>`;
-        
+    poblarFiltroCategorias();
+
+    const total = productosFiltrados.length;
+    const inicio = (paginaProductos - 1) * productosPorPagina;
+    const paginados = productosFiltrados.slice(inicio, inicio + productosPorPagina);
+
+    paginados.forEach(prod => {
+        const estado = prod.estado || 'disponible';
+        const estadoBadge = estado === 'disponible' ? '<span class="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-bold">Disponible</span>' :
+                            estado === 'agotado' ? '<span class="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 font-bold">Agotado</span>' :
+                            '<span class="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-bold">Discontinuado</span>';
+
+        const presHTML = prod.presentaciones.map((p, i) => {
+            const costo = p.costo || 0;
+            const precio = p.precio_base || 0;
+            const margen = precio > 0 ? Math.round(((precio - costo) / precio) * 100) : 0;
+            const margenColor = margen > 30 ? 'text-green-600' : margen > 15 ? 'text-yellow-600' : 'text-red-600';
+            return `<div class="flex items-center gap-1 mb-1 text-xs">
+                <span class="w-14 text-gray-600 font-medium">${p.tamano}</span>
+                <span class="text-gray-400">C:</span><span class="w-16 text-gray-500">${costo > 0 ? costo.toLocaleString() : '-'}</span>
+                <span class="text-gray-400">P:</span><span class="w-16 font-medium">${precio.toLocaleString()}</span>
+                ${costo > 0 ? `<span class="${margenColor} font-bold w-12">${margen}%</span>` : '<span class="w-12 text-gray-300">-</span>'}
+            </div>`;
+        }).join('');
+
+        const imgHTML = prod.imagen
+            ? `<img src="${prod.imagen}" class="w-10 h-10 object-contain rounded" onerror="this.outerHTML='<span class=\\'text-xl\\'>📦</span>'">`
+            : '<span class="text-xl">📦</span>';
+
         const oculto = prod.oculto || false;
         const tr = document.createElement('tr');
         tr.className = `hover:bg-gray-50 ${oculto ? 'opacity-40' : ''}`;
         tr.innerHTML = `
             <td class="px-4 py-3 text-xs text-gray-400 font-mono">${prod.id}</td>
-            <td class="px-4 py-3">${imgHTML}</td>
-            <td class="px-4 py-3"><input type="text" value="${prod.nombre}" onchange="actualizarProducto('${prod.id}','nombre',this.value)" class="w-full px-2 py-1 border border-transparent hover:border-gray-300 rounded bg-transparent font-medium"></td>
-            <td class="px-4 py-3">
-                <select onchange="actualizarProducto('${prod.id}','categoria',this.value)" class="w-full px-1 py-1 text-xs border border-transparent hover:border-gray-300 rounded bg-transparent">
-                    ${productosData.categorias.map(c => `<option value="${c.id}" ${c.id === prod.categoria ? 'selected' : ''}>${c.nombre}</option>`).join('')}
-                </select>
-                <input type="text" value="${prod.subcategoria || ''}" onchange="actualizarProducto('${prod.id}','subcategoria',this.value)" class="w-full mt-1 px-1 py-1 text-xs border border-transparent hover:border-gray-300 rounded bg-transparent text-gray-400" placeholder="Subcategoria">
-            </td>
-            <td class="px-4 py-3">${presHTML}<button onclick="agregarPresentacion('${prod.id}')" class="text-xs text-blue-600 font-bold hover:underline">+ Agregar</button></td>
+            <td class="px-4 py-2">${imgHTML}</td>
+            <td class="px-4 py-3 font-medium text-gray-800">${prod.nombre}</td>
+            <td class="px-4 py-3 text-xs text-gray-500">${(productosData.categorias.find(c => c.id === prod.categoria)?.nombre || prod.categoria)}<br><span class="text-gray-400">${prod.subcategoria || ''}</span></td>
+            <td class="px-4 py-2">${estadoBadge}</td>
+            <td class="px-4 py-2">${presHTML}</td>
             <td class="px-4 py-3">
                 <div class="flex gap-1">
-                    <button onclick="toggleOcultarProducto('${prod.id}')" class="p-2 rounded hover:bg-gray-200 text-lg" title="${oculto ? 'Mostrar' : 'Ocultar'}">${oculto ? '👁️' : '🙈'}</button>
-                    <button onclick="eliminarProducto('${prod.id}')" class="p-2 rounded hover:bg-red-100 text-lg text-red-500">🗑️</button>
+                    <button onclick="editarProducto('${prod.id}')" class="p-1.5 rounded hover:bg-blue-100 text-blue-600 text-xs font-bold">Editar</button>
+                    <button onclick="toggleOcultarProducto('${prod.id}')" class="p-1.5 rounded hover:bg-gray-200 text-xs">${oculto ? '👁️' : '🙈'}</button>
+                    <button onclick="eliminarProducto('${prod.id}')" class="p-1.5 rounded hover:bg-red-100 text-red-500 text-xs">🗑️</button>
                 </div>
             </td>`;
         tbody.appendChild(tr);
     });
+
+    // Paginacion
+    const totalPaginas = Math.ceil(total / productosPorPagina);
+    const pagEl = document.getElementById('paginacionProductos');
+    if (pagEl) {
+        pagEl.innerHTML = `<span>${total} productos | Pagina ${paginaProductos} de ${totalPaginas}</span>
+        <div class="flex gap-2">
+            <button onclick="paginaProductos=1;mostrarProductosGestion()" class="px-3 py-1 rounded border text-xs ${paginaProductos <= 1 ? 'opacity-30' : 'hover:bg-gray-100'}" ${paginaProductos <= 1 ? 'disabled' : ''}>|&lt;</button>
+            <button onclick="paginaProductos--;mostrarProductosGestion()" class="px-3 py-1 rounded border text-xs ${paginaProductos <= 1 ? 'opacity-30' : 'hover:bg-gray-100'}" ${paginaProductos <= 1 ? 'disabled' : ''}>&lt;</button>
+            <button onclick="paginaProductos++;mostrarProductosGestion()" class="px-3 py-1 rounded border text-xs ${paginaProductos >= totalPaginas ? 'opacity-30' : 'hover:bg-gray-100'}" ${paginaProductos >= totalPaginas ? 'disabled' : ''}>&gt;</button>
+            <button onclick="paginaProductos=${totalPaginas};mostrarProductosGestion()" class="px-3 py-1 rounded border text-xs ${paginaProductos >= totalPaginas ? 'opacity-30' : 'hover:bg-gray-100'}" ${paginaProductos >= totalPaginas ? 'disabled' : ''}>&gt;|</button>
+        </div>`;
+    }
 }
 
 function actualizarProducto(id, campo, valor) {
@@ -541,20 +600,10 @@ function actualizarPresentacion(id, idx, campo, valor) {
     const p = productosData.productos.find(x => x.id === id);
     if (p && p.presentaciones[idx]) {
         if (campo === 'precio') p.presentaciones[idx].precio_base = parseInt(valor) || 0;
+        else if (campo === 'costo') p.presentaciones[idx].costo = parseInt(valor) || 0;
         else p.presentaciones[idx].tamano = valor;
         registrarCambio();
     }
-}
-
-function editarImagenProducto(id) {
-    const prod = productosData.productos.find(p => p.id === id);
-    if (!prod) return;
-    const url = prompt(`📷 Imagen para: ${prod.nombre}\n\nPega la URL (vacio para quitar):`, prod.imagen || '');
-    if (url === null) return;
-    if (url.trim()) prod.imagen = url.trim();
-    else delete prod.imagen;
-    registrarCambio();
-    mostrarProductosGestion();
 }
 
 function eliminarPresentacion(id, idx) {
@@ -565,11 +614,11 @@ function eliminarPresentacion(id, idx) {
 
 function agregarPresentacion(id) {
     const p = productosData.productos.find(x => x.id === id);
-    if (p) { p.presentaciones.push({ tamano: '', precio_base: 0 }); registrarCambio(); mostrarProductosGestion(); }
+    if (p) { p.presentaciones.push({ tamano: '', precio_base: 0, costo: 0 }); registrarCambio(); mostrarProductosGestion(); }
 }
 
 function eliminarProducto(id) {
-    if (!confirm('¿Eliminar este producto?')) return;
+    if (!confirm('Eliminar este producto?')) return;
     productosData.productos = productosData.productos.filter(p => p.id !== id);
     productosFiltrados = productosFiltrados.filter(p => p.id !== id);
     registrarCambio();
@@ -581,7 +630,15 @@ function toggleOcultarProducto(id) {
     if (prod) { prod.oculto = !prod.oculto; registrarCambio(); mostrarProductosGestion(); }
 }
 
-function abrirModalProducto() {
+// Modal Producto (crear/editar)
+function abrirModalProducto(productoId) {
+    const titulo = document.getElementById('modalProductoTitulo');
+    const formId = document.getElementById('formProductoId');
+    const presDetalladas = document.getElementById('presentacionesDetalladas');
+    const presInput = document.getElementById('nuevoProductoPresentaciones');
+    const presInfo = document.getElementById('modalProductoPresInfo');
+
+    // Poblar categorias
     const select = document.getElementById('nuevoProductoCategoria');
     if (select) {
         select.innerHTML = '';
@@ -589,45 +646,228 @@ function abrirModalProducto() {
             select.innerHTML += `<option value="${c.id}">${c.nombre}</option>`;
         });
     }
+
+    if (productoId) {
+        // Modo edicion
+        const prod = productosData.productos.find(p => p.id === productoId);
+        if (!prod) return;
+        titulo.textContent = 'Editar Producto';
+        formId.value = prod.id;
+        document.getElementById('nuevoProductoNombre').value = prod.nombre;
+        document.getElementById('nuevoProductoImagen').value = prod.imagen || '';
+        document.getElementById('nuevoProductoCategoria').value = prod.categoria;
+        actualizarSubcategoriasModal();
+        document.getElementById('nuevoProductoSubcategoria').value = prod.subcategoria || '';
+        document.getElementById('nuevoProductoEstado').value = prod.estado || 'disponible';
+        document.getElementById('nuevoProductoPrecio').value = prod.presentaciones[0]?.precio_base || 0;
+        document.getElementById('nuevoProductoCosto').value = prod.presentaciones[0]?.costo || 0;
+
+        // Mostrar presentaciones detalladas
+        presInput.style.display = 'none';
+        presInfo.style.display = 'none';
+        presDetalladas.style.display = '';
+        presDetalladas.innerHTML = '<p class="text-xs font-bold text-gray-500 mb-2">PRESENTACIONES</p>' +
+            prod.presentaciones.map((p, i) => `
+            <div class="flex items-center gap-2 mb-2 bg-gray-50 p-2 rounded-lg">
+                <input type="text" value="${p.tamano}" data-pres-idx="${i}" data-pres-field="tamano" class="w-20 px-2 py-1 text-sm border rounded" placeholder="Tamano">
+                <label class="text-xs text-gray-400">Precio:</label>
+                <input type="number" value="${p.precio_base}" data-pres-idx="${i}" data-pres-field="precio" class="w-24 px-2 py-1 text-sm border rounded">
+                <label class="text-xs text-gray-400">Costo:</label>
+                <input type="number" value="${p.costo || 0}" data-pres-idx="${i}" data-pres-field="costo" class="w-24 px-2 py-1 text-sm border rounded">
+                ${prod.presentaciones.length > 1 ? `<button onclick="this.parentElement.remove()" class="text-red-400 font-bold">x</button>` : ''}
+            </div>`).join('') +
+            '<button onclick="agregarPresModal()" class="text-xs text-blue-600 font-bold mt-1">+ Agregar presentacion</button>';
+    } else {
+        // Modo creacion
+        titulo.textContent = 'Nuevo Producto';
+        formId.value = '';
+        ['nuevoProductoNombre','nuevoProductoImagen','nuevoProductoPresentaciones','nuevoProductoPrecio','nuevoProductoCosto'].forEach(id => {
+            const el = document.getElementById(id); if (el) el.value = '';
+        });
+        document.getElementById('nuevoProductoEstado').value = 'disponible';
+        presInput.style.display = '';
+        presInfo.style.display = '';
+        presDetalladas.style.display = 'none';
+        actualizarSubcategoriasModal();
+    }
     document.getElementById('modalProducto')?.classList.add('show');
+}
+
+function editarProducto(id) { abrirModalProducto(id); }
+
+function agregarPresModal() {
+    const container = document.getElementById('presentacionesDetalladas');
+    const idx = container.querySelectorAll('[data-pres-idx]').length / 3;
+    const div = document.createElement('div');
+    div.className = 'flex items-center gap-2 mb-2 bg-gray-50 p-2 rounded-lg';
+    div.innerHTML = `
+        <input type="text" data-pres-idx="${idx}" data-pres-field="tamano" class="w-20 px-2 py-1 text-sm border rounded" placeholder="Tamano">
+        <label class="text-xs text-gray-400">Precio:</label>
+        <input type="number" value="0" data-pres-idx="${idx}" data-pres-field="precio" class="w-24 px-2 py-1 text-sm border rounded">
+        <label class="text-xs text-gray-400">Costo:</label>
+        <input type="number" value="0" data-pres-idx="${idx}" data-pres-field="costo" class="w-24 px-2 py-1 text-sm border rounded">
+        <button onclick="this.parentElement.remove()" class="text-red-400 font-bold">x</button>`;
+    container.querySelector('button:last-child').before(div);
+}
+
+function actualizarSubcategoriasModal() {
+    const catId = document.getElementById('nuevoProductoCategoria')?.value;
+    const subSel = document.getElementById('nuevoProductoSubcategoria');
+    if (!subSel) return;
+    const cat = productosData.categorias.find(c => c.id === catId);
+    subSel.innerHTML = '<option value="">Seleccionar...</option>';
+    if (cat && cat.subcategorias) {
+        cat.subcategorias.forEach(s => {
+            subSel.innerHTML += `<option value="${s}">${s}</option>`;
+        });
+    }
+    subSel.innerHTML += '<option value="__otra__">+ Otra...</option>';
 }
 
 function cerrarModalProducto() {
     document.getElementById('modalProducto')?.classList.remove('show');
 }
 
-function agregarNuevoProducto() {
+function guardarProductoModal() {
+    const id = document.getElementById('formProductoId')?.value;
     const nombre = document.getElementById('nuevoProductoNombre')?.value.trim();
     const imagen = document.getElementById('nuevoProductoImagen')?.value.trim();
     const categoria = document.getElementById('nuevoProductoCategoria')?.value;
-    const subcategoria = document.getElementById('nuevoProductoSubcategoria')?.value.trim();
-    const presentacionesStr = document.getElementById('nuevoProductoPresentaciones')?.value.trim();
+    let subcategoria = document.getElementById('nuevoProductoSubcategoria')?.value;
+    const estado = document.getElementById('nuevoProductoEstado')?.value || 'disponible';
     const precio = parseInt(document.getElementById('nuevoProductoPrecio')?.value) || 0;
-    
+    const costo = parseInt(document.getElementById('nuevoProductoCosto')?.value) || 0;
+
+    if (subcategoria === '__otra__') {
+        subcategoria = prompt('Nombre de la nueva subcategoria:');
+        if (!subcategoria) return;
+    }
+
     if (!nombre) { alert('Ingresa el nombre del producto'); return; }
-    
-    const ultimoId = productosData.productos.length > 0 ? 
-        Math.max(...productosData.productos.map(p => parseInt(p.id.replace('P', '')) || 0)) : 0;
-    const nuevoId = `P${String(ultimoId + 1).padStart(3, '0')}`;
-    
-    const presentaciones = presentacionesStr 
-        ? presentacionesStr.split(',').map(p => ({ tamano: p.trim(), precio_base: precio }))
-        : [{ tamano: 'Unidad', precio_base: precio }];
-    
-    const nuevo = { id: nuevoId, nombre, categoria: categoria || 'cuidado_personal', subcategoria: subcategoria || 'General', presentaciones };
-    if (imagen) nuevo.imagen = imagen;
-    
-    productosData.productos.push(nuevo);
+
+    if (id) {
+        // Edicion
+        const prod = productosData.productos.find(p => p.id === id);
+        if (!prod) return;
+        prod.nombre = nombre;
+        prod.imagen = imagen || undefined;
+        prod.categoria = categoria;
+        prod.subcategoria = subcategoria || 'General';
+        prod.estado = estado;
+        // Recoger presentaciones detalladas
+        const presContainer = document.getElementById('presentacionesDetalladas');
+        const presRows = presContainer.querySelectorAll('.bg-gray-50');
+        const nuevasPres = [];
+        presRows.forEach(row => {
+            const tamano = row.querySelector('[data-pres-field="tamano"]')?.value || '';
+            const precioVal = parseInt(row.querySelector('[data-pres-field="precio"]')?.value) || 0;
+            const costoVal = parseInt(row.querySelector('[data-pres-field="costo"]')?.value) || 0;
+            if (tamano) nuevasPres.push({ tamano, precio_base: precioVal, costo: costoVal });
+        });
+        if (nuevasPres.length > 0) prod.presentaciones = nuevasPres;
+    } else {
+        // Creacion
+        const ultimoId = productosData.productos.length > 0 ?
+            Math.max(...productosData.productos.map(p => parseInt(p.id.replace('P', '')) || 0)) : 0;
+        const nuevoId = `P${String(ultimoId + 1).padStart(3, '0')}`;
+        const presStr = document.getElementById('nuevoProductoPresentaciones')?.value.trim();
+        const presentaciones = presStr
+            ? presStr.split(',').map(p => ({ tamano: p.trim(), precio_base: precio, costo }))
+            : [{ tamano: 'Unidad', precio_base: precio, costo }];
+        const nuevo = { id: nuevoId, nombre, categoria: categoria || 'cuidado_personal', subcategoria: subcategoria || 'General', presentaciones, estado };
+        if (imagen) nuevo.imagen = imagen;
+        productosData.productos.push(nuevo);
+    }
+
     productosFiltrados = [...productosData.productos];
     registrarCambio();
     mostrarProductosGestion();
     cerrarModalProducto();
-    
-    // Limpiar form
-    ['nuevoProductoNombre','nuevoProductoImagen','nuevoProductoSubcategoria','nuevoProductoPresentaciones','nuevoProductoPrecio'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.value = '';
+}
+
+// ============================================
+// GESTION DE CATEGORIAS
+// ============================================
+function abrirModalCategorias() {
+    renderizarListaCategorias();
+    document.getElementById('modalCategorias')?.classList.add('show');
+}
+function cerrarModalCategorias() {
+    document.getElementById('modalCategorias')?.classList.remove('show');
+}
+
+function renderizarListaCategorias() {
+    const container = document.getElementById('listaCategoriasCuerpo');
+    if (!container) return;
+    container.innerHTML = '';
+    (productosData.categorias || []).forEach(cat => {
+        const div = document.createElement('div');
+        div.className = 'bg-gray-50 rounded-xl p-4';
+        div.innerHTML = `
+            <div class="flex justify-between items-center mb-2">
+                <div>
+                    <span class="font-bold text-gray-800">${cat.nombre}</span>
+                    <span class="text-xs text-gray-400 ml-2">(${cat.id})</span>
+                </div>
+                <button onclick="eliminarCategoria('${cat.id}')" class="text-red-500 text-xs font-bold hover:underline">Eliminar</button>
+            </div>
+            <div class="flex flex-wrap gap-2 mb-2">
+                ${(cat.subcategorias || []).map(s => `
+                    <span class="bg-white px-2 py-1 rounded-lg text-xs border border-gray-200 flex items-center gap-1">
+                        ${s} <button onclick="eliminarSubcategoria('${cat.id}','${s}')" class="text-red-400 hover:text-red-600 font-bold">x</button>
+                    </span>`).join('')}
+            </div>
+            <div class="flex gap-2">
+                <input type="text" id="nuevaSub_${cat.id}" class="flex-1 border border-gray-200 rounded-lg px-2 py-1 text-xs" placeholder="Nueva subcategoria...">
+                <button onclick="agregarSubcategoria('${cat.id}')" class="bg-gray-800 text-white px-3 py-1 rounded-lg text-xs font-bold">+</button>
+            </div>`;
+        container.appendChild(div);
     });
+}
+
+function agregarCategoriaModal() {
+    const id = document.getElementById('nuevaCategoriaId')?.value.trim().toLowerCase().replace(/\s+/g, '_');
+    const nombre = document.getElementById('nuevaCategoriaNombre')?.value.trim();
+    if (!id || !nombre) { alert('ID y nombre son obligatorios'); return; }
+    if (productosData.categorias.find(c => c.id === id)) { alert('Ya existe esta categoria'); return; }
+    productosData.categorias.push({ id, nombre, subcategorias: [] });
+    registrarCambio();
+    document.getElementById('nuevaCategoriaId').value = '';
+    document.getElementById('nuevaCategoriaNombre').value = '';
+    renderizarListaCategorias();
+}
+
+function eliminarCategoria(catId) {
+    const prods = productosData.productos.filter(p => p.categoria === catId);
+    if (prods.length > 0) { alert(`No se puede eliminar: ${prods.length} productos usan esta categoria`); return; }
+    if (!confirm('Eliminar esta categoria?')) return;
+    productosData.categorias = productosData.categorias.filter(c => c.id !== catId);
+    registrarCambio();
+    renderizarListaCategorias();
+}
+
+function agregarSubcategoria(catId) {
+    const input = document.getElementById('nuevaSub_' + catId);
+    const nombre = input?.value.trim();
+    if (!nombre) return;
+    const cat = productosData.categorias.find(c => c.id === catId);
+    if (cat) {
+        if (!cat.subcategorias) cat.subcategorias = [];
+        if (cat.subcategorias.includes(nombre)) { alert('Ya existe'); return; }
+        cat.subcategorias.push(nombre);
+        registrarCambio();
+        input.value = '';
+        renderizarListaCategorias();
+    }
+}
+
+function eliminarSubcategoria(catId, subNombre) {
+    const cat = productosData.categorias.find(c => c.id === catId);
+    if (cat) {
+        cat.subcategorias = (cat.subcategorias || []).filter(s => s !== subNombre);
+        registrarCambio();
+        renderizarListaCategorias();
+    }
 }
 
 // ============================================
@@ -635,97 +875,409 @@ function agregarNuevoProducto() {
 // ============================================
 function filtrarClientes() {
     const filtro = document.getElementById('buscarCliente')?.value.toLowerCase() || '';
+    const zonaFiltro = document.getElementById('filtroZonaCliente')?.value || '';
     const mostrarOcultos = document.getElementById('mostrarOcultosClientes')?.checked || false;
     clientesFiltrados = productosData.clientes.filter(c => {
-        const match = (c.razon_social || c.nombre || '').toLowerCase().includes(filtro) || 
+        const match = (c.razon_social || c.nombre || '').toLowerCase().includes(filtro) ||
                       (c.ruc || '').toLowerCase().includes(filtro) ||
                       (c.id || '').toLowerCase().includes(filtro) ||
                       (c.direccion || c.zona || '').toLowerCase().includes(filtro);
         const visible = mostrarOcultos || !c.oculto;
-        return match && visible;
+        const zonaMatch = !zonaFiltro || (c.zona || '') === zonaFiltro;
+        return match && visible && zonaMatch;
+    });
+    paginaClientes = 1;
+    mostrarClientesGestion();
+}
+
+function poblarFiltroZonas() {
+    const sel = document.getElementById('filtroZonaCliente');
+    if (!sel) return;
+    const zonas = [...new Set(productosData.clientes.map(c => c.zona).filter(Boolean))].sort();
+    sel.innerHTML = '<option value="">Todas las zonas</option>';
+    zonas.forEach(z => { sel.innerHTML += `<option value="${z}">${z}</option>`; });
+}
+
+function ordenarClientes(campo) {
+    if (ordenClientes.campo === campo) ordenClientes.asc = !ordenClientes.asc;
+    else { ordenClientes.campo = campo; ordenClientes.asc = true; }
+    clientesFiltrados.sort((a, b) => {
+        let va = campo === 'nombre' ? (a.razon_social || a.nombre || '') : (a[campo] || '');
+        let vb = campo === 'nombre' ? (b.razon_social || b.nombre || '') : (b[campo] || '');
+        va = va.toLowerCase(); vb = vb.toLowerCase();
+        return ordenClientes.asc ? (va > vb ? 1 : -1) : (va < vb ? 1 : -1);
     });
     mostrarClientesGestion();
 }
 
 function mostrarClientesGestion() {
-    const container = document.getElementById('listaClientes');
-    if (!container) return;
-    container.innerHTML = '';
-    
-    clientesFiltrados.forEach(cliente => {
-        const oculto = cliente.oculto || false;
-        const precios = cliente.precios_personalizados ? Object.keys(cliente.precios_personalizados).length : 0;
-        const div = document.createElement('div');
-        div.className = `bg-white p-5 rounded-xl border border-gray-200 shadow-sm ${oculto ? 'opacity-40' : ''}`;
-        div.innerHTML = `
-            <div class="flex justify-between items-start mb-2">
-                <div>
-                    <p class="font-bold text-gray-800 text-lg">${cliente.razon_social || cliente.nombre || 'Sin nombre'}</p>
-                    <p class="text-sm text-gray-500">📍 ${cliente.direccion || cliente.zona || 'Sin direccion'}</p>
+    const tbody = document.getElementById('tablaClientesCuerpo');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    poblarFiltroZonas();
+
+    const total = clientesFiltrados.length;
+    const inicio = (paginaClientes - 1) * clientesPorPagina;
+    const paginados = clientesFiltrados.slice(inicio, inicio + clientesPorPagina);
+
+    paginados.forEach(c => {
+        const oculto = c.oculto || false;
+        const precios = c.precios_personalizados ? Object.keys(c.precios_personalizados).length : 0;
+        const nombre = c.razon_social || c.nombre || 'Sin nombre';
+        const tel = c.telefono || '';
+        const tr = document.createElement('tr');
+        tr.className = `hover:bg-gray-50 cursor-pointer ${oculto ? 'opacity-40' : ''}`;
+        tr.innerHTML = `
+            <td class="px-4 py-3" onclick="abrirPerfilCliente('${c.id}')">
+                <p class="font-medium text-gray-800">${nombre}</p>
+                <p class="text-xs text-gray-400">${c.ruc || ''} ${c.encargado ? '| ' + c.encargado : ''}</p>
+            </td>
+            <td class="px-4 py-3 text-sm text-gray-500">${c.zona || c.direccion || '-'}</td>
+            <td class="px-4 py-3 text-sm text-gray-500">${tel || '-'}</td>
+            <td class="px-4 py-3">${precios > 0 ? `<span class="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-bold">${precios}</span>` : '<span class="text-xs text-gray-300">0</span>'}</td>
+            <td class="px-4 py-3">
+                <div class="flex gap-1">
+                    <button onclick="event.stopPropagation();abrirPerfilCliente('${c.id}')" class="text-blue-600 text-xs font-bold px-2 py-1 rounded hover:bg-blue-50">Perfil</button>
+                    <button onclick="event.stopPropagation();editarCliente('${c.id}')" class="text-gray-600 text-xs font-bold px-2 py-1 rounded hover:bg-gray-100">Editar</button>
+                    ${tel ? `<button onclick="event.stopPropagation();enviarWhatsAppCliente('${tel}','${nombre.replace(/'/g, '')}')" class="text-green-600 text-xs font-bold px-2 py-1 rounded hover:bg-green-50">WA</button>` : ''}
+                    <button onclick="event.stopPropagation();toggleOcultarCliente('${c.id}')" class="text-xs px-2 py-1 rounded hover:bg-gray-100">${oculto ? '👁️' : '🙈'}</button>
                 </div>
-                <span class="text-xs text-gray-400 font-mono">${cliente.id}</span>
-            </div>
-            <div class="text-xs text-gray-400 mb-3 space-y-1">
-                <p>RUC: ${cliente.ruc || 'N/A'} • Tel: ${cliente.telefono || 'N/A'}</p>
-                ${cliente.encargado ? `<p>Encargado: ${cliente.encargado}</p>` : ''}
-                ${precios > 0 ? `<p class="text-blue-600 font-bold">${precios} precios personalizados</p>` : ''}
-            </div>
-            <div class="flex gap-2">
-                <button onclick="toggleOcultarCliente('${cliente.id}')" class="text-xs px-3 py-1 rounded-lg border font-bold ${oculto ? 'text-green-600 border-green-200 bg-green-50' : 'text-yellow-600 border-yellow-200 bg-yellow-50'}">${oculto ? '👁️ Mostrar' : '🙈 Ocultar'}</button>
-                <button onclick="eliminarCliente('${cliente.id}')" class="text-xs text-red-600 bg-red-50 px-3 py-1 rounded-lg border border-red-100 font-bold">🗑️ Eliminar</button>
-            </div>`;
-        container.appendChild(div);
+            </td>`;
+        tbody.appendChild(tr);
     });
+
+    const totalPaginas = Math.ceil(total / clientesPorPagina);
+    const pagEl = document.getElementById('paginacionClientes');
+    if (pagEl) {
+        pagEl.innerHTML = `<span>${total} clientes | Pagina ${paginaClientes} de ${totalPaginas}</span>
+        <div class="flex gap-2">
+            <button onclick="paginaClientes=1;mostrarClientesGestion()" class="px-3 py-1 rounded border text-xs ${paginaClientes <= 1 ? 'opacity-30' : 'hover:bg-gray-100'}" ${paginaClientes <= 1 ? 'disabled' : ''}>&lt;&lt;</button>
+            <button onclick="paginaClientes--;mostrarClientesGestion()" class="px-3 py-1 rounded border text-xs ${paginaClientes <= 1 ? 'opacity-30' : 'hover:bg-gray-100'}" ${paginaClientes <= 1 ? 'disabled' : ''}>&lt;</button>
+            <button onclick="paginaClientes++;mostrarClientesGestion()" class="px-3 py-1 rounded border text-xs ${paginaClientes >= totalPaginas ? 'opacity-30' : 'hover:bg-gray-100'}" ${paginaClientes >= totalPaginas ? 'disabled' : ''}>&gt;</button>
+            <button onclick="paginaClientes=${totalPaginas};mostrarClientesGestion()" class="px-3 py-1 rounded border text-xs ${paginaClientes >= totalPaginas ? 'opacity-30' : 'hover:bg-gray-100'}" ${paginaClientes >= totalPaginas ? 'disabled' : ''}>&gt;&gt;</button>
+        </div>`;
+    }
+}
+
+function enviarWhatsAppCliente(telefono, nombre) {
+    let tel = telefono.replace(/\D/g, '');
+    if (tel.startsWith('0')) tel = '595' + tel.substring(1);
+    const msg = `Hola ${nombre}, le saludamos de HDV Distribuciones. `;
+    window.open(`https://wa.me/${tel}?text=${encodeURIComponent(msg)}`, '_blank');
 }
 
 function toggleOcultarCliente(id) {
     const c = productosData.clientes.find(x => x.id === id);
-    if (c) { c.oculto = !c.oculto; registrarCambio(); clientesFiltrados = [...productosData.clientes]; mostrarClientesGestion(); }
+    if (c) { c.oculto = !c.oculto; registrarCambio(); filtrarClientes(); }
 }
 
 function eliminarCliente(id) {
-    if (!confirm('¿Eliminar este cliente y sus precios personalizados?')) return;
+    if (!confirm('Eliminar este cliente y sus precios personalizados?')) return;
     productosData.clientes = productosData.clientes.filter(c => c.id !== id);
     clientesFiltrados = clientesFiltrados.filter(c => c.id !== id);
     registrarCambio();
     mostrarClientesGestion();
 }
 
-function abrirModalCliente() {
+// Modal Cliente (crear/editar)
+function abrirModalCliente(clienteId) {
+    const titulo = document.getElementById('modalClienteTitulo');
+    const formId = document.getElementById('formClienteId');
+    if (clienteId) {
+        const c = productosData.clientes.find(x => x.id === clienteId);
+        if (!c) return;
+        titulo.textContent = 'Editar Cliente';
+        formId.value = c.id;
+        document.getElementById('nuevoClienteRazon').value = c.razon_social || c.nombre || '';
+        document.getElementById('nuevoClienteRUC').value = c.ruc || '';
+        document.getElementById('nuevoClienteTelefono').value = c.telefono || '';
+        document.getElementById('nuevoClienteDireccion').value = c.direccion || '';
+        document.getElementById('nuevoClienteZona').value = c.zona || '';
+        document.getElementById('nuevoClienteEncargado').value = c.encargado || '';
+    } else {
+        titulo.textContent = 'Nuevo Cliente';
+        formId.value = '';
+        ['nuevoClienteRazon','nuevoClienteRUC','nuevoClienteTelefono','nuevoClienteDireccion','nuevoClienteZona','nuevoClienteEncargado'].forEach(id => {
+            const el = document.getElementById(id); if (el) el.value = '';
+        });
+    }
     document.getElementById('modalCliente')?.classList.add('show');
 }
+
+function editarCliente(id) { abrirModalCliente(id); }
 
 function cerrarModalCliente() {
     document.getElementById('modalCliente')?.classList.remove('show');
 }
 
-function agregarNuevoCliente() {
+function guardarClienteModal() {
+    const id = document.getElementById('formClienteId')?.value;
     const razon = document.getElementById('nuevoClienteRazon')?.value.trim();
     const ruc = document.getElementById('nuevoClienteRUC')?.value.trim();
     const telefono = document.getElementById('nuevoClienteTelefono')?.value.trim();
     const direccion = document.getElementById('nuevoClienteDireccion')?.value.trim();
+    const zona = document.getElementById('nuevoClienteZona')?.value.trim();
     const encargado = document.getElementById('nuevoClienteEncargado')?.value.trim();
-    
+
     if (!razon) { alert('Ingresa la razon social'); return; }
-    
-    const ultimoId = productosData.clientes.length > 0 ?
-        Math.max(...productosData.clientes.map(c => parseInt(c.id.replace('C', '')) || 0)) : 0;
-    const nuevoId = `C${String(ultimoId + 1).padStart(3, '0')}`;
-    
-    productosData.clientes.push({
-        id: nuevoId, nombre: razon, razon_social: razon, ruc: ruc || '',
-        telefono: telefono || '', direccion: direccion || '', zona: direccion || '',
-        encargado: encargado || '', tipo: 'mayorista_estandar', precios_personalizados: {}
-    });
-    
+
+    if (id) {
+        // Edicion
+        const c = productosData.clientes.find(x => x.id === id);
+        if (c) {
+            c.nombre = razon; c.razon_social = razon;
+            c.ruc = ruc; c.telefono = telefono;
+            c.direccion = direccion; c.zona = zona || direccion;
+            c.encargado = encargado;
+        }
+    } else {
+        // Creacion
+        const ultimoId = productosData.clientes.length > 0 ?
+            Math.max(...productosData.clientes.map(c => parseInt(c.id.replace('C', '')) || 0)) : 0;
+        const nuevoId = `C${String(ultimoId + 1).padStart(3, '0')}`;
+        productosData.clientes.push({
+            id: nuevoId, nombre: razon, razon_social: razon, ruc: ruc || '',
+            telefono: telefono || '', direccion: direccion || '', zona: zona || direccion || '',
+            encargado: encargado || '', tipo: 'mayorista_estandar', precios_personalizados: {}
+        });
+    }
+
     clientesFiltrados = [...productosData.clientes];
     registrarCambio();
     mostrarClientesGestion();
     cerrarModalCliente();
-    
-    ['nuevoClienteRazon','nuevoClienteRUC','nuevoClienteTelefono','nuevoClienteDireccion','nuevoClienteEncargado'].forEach(id => {
-        const el = document.getElementById(id); if (el) el.value = '';
+}
+
+// ============================================
+// PERFIL DE CLIENTE (Master-Detail)
+// ============================================
+let clientePerfilActual = null;
+
+function abrirPerfilCliente(clienteId) {
+    const cliente = productosData.clientes.find(c => c.id === clienteId);
+    if (!cliente) return;
+    clientePerfilActual = cliente;
+    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    const pedidosCliente = pedidos.filter(p => p.cliente?.id === clienteId);
+    const nombre = cliente.razon_social || cliente.nombre || clienteId;
+
+    // Header
+    document.getElementById('perfilClienteNombre').textContent = nombre;
+    document.getElementById('perfilClienteInfo').textContent = `${cliente.id} | ${cliente.zona || ''} | Tel: ${cliente.telefono || '-'} | RUC: ${cliente.ruc || '-'}`;
+
+    // WhatsApp button
+    const waBtn = document.getElementById('perfilWhatsAppBtn');
+    if (cliente.telefono) {
+        waBtn.style.display = '';
+        waBtn.onclick = () => enviarWhatsAppCliente(cliente.telefono, nombre);
+    } else {
+        waBtn.style.display = 'none';
+    }
+
+    // Stats
+    const totalComprado = pedidosCliente.reduce((s, p) => s + (p.total || 0), 0);
+    const ultimoPedido = pedidosCliente.length > 0 ?
+        pedidosCliente.sort((a, b) => new Date(b.fecha) - new Date(a.fecha))[0] : null;
+    const preciosEsp = cliente.precios_personalizados ? Object.keys(cliente.precios_personalizados).length : 0;
+
+    document.getElementById('perfilTotalComprado').textContent = `Gs. ${totalComprado.toLocaleString()}`;
+    document.getElementById('perfilTotalPedidos').textContent = pedidosCliente.length;
+    document.getElementById('perfilUltimoPedido').textContent = ultimoPedido ? new Date(ultimoPedido.fecha).toLocaleDateString('es-PY') : '-';
+    document.getElementById('perfilPreciosEsp').textContent = preciosEsp;
+
+    cambiarTabPerfil('precios');
+    document.getElementById('modalPerfilCliente')?.classList.add('show');
+}
+
+function cerrarPerfilCliente() {
+    document.getElementById('modalPerfilCliente')?.classList.remove('show');
+    clientePerfilActual = null;
+}
+
+function cambiarTabPerfil(tab) {
+    ['precios', 'historial', 'estadisticas'].forEach(t => {
+        const el = document.getElementById('perfilTab-' + t);
+        const btn = document.getElementById('tabPerfil-' + t);
+        if (el) el.style.display = t === tab ? '' : 'none';
+        if (btn) {
+            btn.className = t === tab
+                ? 'px-6 py-3 text-sm font-bold border-b-2 border-gray-800 text-gray-800'
+                : 'px-6 py-3 text-sm font-bold border-b-2 border-transparent text-gray-400 hover:text-gray-600';
+        }
     });
+    if (!clientePerfilActual) return;
+    if (tab === 'precios') renderizarPerfilPrecios();
+    if (tab === 'historial') renderizarPerfilHistorial();
+    if (tab === 'estadisticas') renderizarPerfilEstadisticas();
+}
+
+function renderizarPerfilPrecios() {
+    const container = document.getElementById('perfilTab-precios');
+    const cliente = clientePerfilActual;
+    if (!container || !cliente) return;
+
+    let html = '<div class="flex justify-between items-center mb-4"><h4 class="font-bold text-gray-700">Precios Especiales</h4>' +
+        `<button onclick="agregarPrecioEspecial()" class="bg-gray-800 text-white px-3 py-1.5 rounded-lg text-xs font-bold">+ Agregar precio especial</button></div>`;
+
+    const precios = cliente.precios_personalizados || {};
+    const keys = Object.keys(precios);
+    if (keys.length === 0) {
+        html += '<p class="text-gray-400 italic text-sm">Sin precios especiales configurados</p>';
+    } else {
+        html += '<table class="w-full text-sm"><thead class="bg-gray-50 text-xs text-gray-500 uppercase"><tr><th class="px-4 py-2 text-left">Producto</th><th class="px-4 py-2 text-left">Presentacion</th><th class="px-4 py-2 text-left">Precio Base</th><th class="px-4 py-2 text-left">Precio Especial</th><th class="px-4 py-2">Accion</th></tr></thead><tbody class="divide-y">';
+        keys.forEach(prodId => {
+            const prod = productosData.productos.find(p => p.id === prodId);
+            (precios[prodId] || []).forEach(pe => {
+                const pres = prod?.presentaciones.find(p => p.tamano === pe.tamano);
+                const precioBase = pres?.precio_base || 0;
+                html += `<tr class="hover:bg-gray-50">
+                    <td class="px-4 py-2 font-medium">${prod?.nombre || prodId}</td>
+                    <td class="px-4 py-2 text-gray-500">${pe.tamano}</td>
+                    <td class="px-4 py-2 text-gray-400">Gs. ${precioBase.toLocaleString()}</td>
+                    <td class="px-4 py-2 font-bold text-blue-700">Gs. ${(pe.precio || 0).toLocaleString()}</td>
+                    <td class="px-4 py-2 text-center"><button onclick="eliminarPrecioEspecial('${prodId}','${pe.tamano}')" class="text-red-500 text-xs font-bold">x</button></td>
+                </tr>`;
+            });
+        });
+        html += '</tbody></table>';
+    }
+    container.innerHTML = html;
+}
+
+function agregarPrecioEspecial() {
+    if (!clientePerfilActual) return;
+    const prodNombre = prompt('Nombre o ID del producto:');
+    if (!prodNombre) return;
+    const prod = productosData.productos.find(p => p.id === prodNombre || p.nombre.toLowerCase().includes(prodNombre.toLowerCase()));
+    if (!prod) { alert('Producto no encontrado'); return; }
+
+    let tamano = prod.presentaciones[0]?.tamano;
+    if (prod.presentaciones.length > 1) {
+        const opciones = prod.presentaciones.map((p, i) => `${i + 1}. ${p.tamano} (Gs. ${p.precio_base.toLocaleString()})`).join('\n');
+        const sel = prompt(`Seleccione presentacion:\n${opciones}\n\nNumero:`);
+        if (!sel) return;
+        const idx = parseInt(sel) - 1;
+        if (prod.presentaciones[idx]) tamano = prod.presentaciones[idx].tamano;
+    }
+
+    const precioBase = prod.presentaciones.find(p => p.tamano === tamano)?.precio_base || 0;
+    const precioStr = prompt(`Precio especial para ${prod.nombre} (${tamano})\nPrecio base: Gs. ${precioBase.toLocaleString()}\n\nNuevo precio:`);
+    if (!precioStr) return;
+    const precio = parseInt(precioStr);
+    if (isNaN(precio) || precio <= 0) { alert('Precio invalido'); return; }
+
+    if (!clientePerfilActual.precios_personalizados) clientePerfilActual.precios_personalizados = {};
+    if (!clientePerfilActual.precios_personalizados[prod.id]) clientePerfilActual.precios_personalizados[prod.id] = [];
+    const existing = clientePerfilActual.precios_personalizados[prod.id].findIndex(p => p.tamano === tamano);
+    if (existing >= 0) clientePerfilActual.precios_personalizados[prod.id][existing].precio = precio;
+    else clientePerfilActual.precios_personalizados[prod.id].push({ tamano, precio });
+
+    registrarCambio();
+    renderizarPerfilPrecios();
+}
+
+function eliminarPrecioEspecial(prodId, tamano) {
+    if (!clientePerfilActual) return;
+    const precios = clientePerfilActual.precios_personalizados;
+    if (precios && precios[prodId]) {
+        precios[prodId] = precios[prodId].filter(p => p.tamano !== tamano);
+        if (precios[prodId].length === 0) delete precios[prodId];
+        registrarCambio();
+        renderizarPerfilPrecios();
+    }
+}
+
+function renderizarPerfilHistorial() {
+    const container = document.getElementById('perfilTab-historial');
+    if (!container || !clientePerfilActual) return;
+    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    const pedidosCliente = pedidos.filter(p => p.cliente?.id === clientePerfilActual.id)
+        .sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+
+    if (pedidosCliente.length === 0) {
+        container.innerHTML = '<p class="text-gray-400 italic text-sm">Sin pedidos registrados</p>';
+        return;
+    }
+
+    container.innerHTML = '<div class="space-y-3">' + pedidosCliente.map(p => {
+        const items = (p.items || []).map(i => `${i.nombre} x${i.cantidad}`).join(', ');
+        const estadoColor = p.estado === 'entregado' ? 'bg-green-100 text-green-700' :
+                            p.estado === 'pagado' ? 'bg-blue-100 text-blue-700' : 'bg-yellow-100 text-yellow-700';
+        return `<div class="bg-gray-50 rounded-lg p-3">
+            <div class="flex justify-between items-center mb-1">
+                <span class="text-xs text-gray-400">${new Date(p.fecha).toLocaleDateString('es-PY')} | ${p.id}</span>
+                <span class="text-xs px-2 py-0.5 rounded-full font-bold ${estadoColor}">${p.estado || 'pendiente'}</span>
+            </div>
+            <p class="text-sm text-gray-600">${items || 'Sin items'}</p>
+            <div class="flex justify-between items-center mt-1">
+                <span class="text-xs text-gray-400">${p.tipoPago || 'contado'}</span>
+                <span class="font-bold text-gray-800">Gs. ${(p.total || 0).toLocaleString()}</span>
+            </div>
+        </div>`;
+    }).join('') + '</div>';
+}
+
+function renderizarPerfilEstadisticas() {
+    if (!clientePerfilActual) return;
+    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    const pedidosCliente = pedidos.filter(p => p.cliente?.id === clientePerfilActual.id);
+    const hoy = new Date();
+
+    // Top 5 productos
+    const conteoProductos = {};
+    pedidosCliente.forEach(p => {
+        (p.items || []).forEach(item => {
+            const key = item.nombre || item.productoId;
+            conteoProductos[key] = (conteoProductos[key] || 0) + (item.cantidad || 1);
+        });
+    });
+    const top5 = Object.entries(conteoProductos).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    const topEl = document.getElementById('perfilTopProductos');
+    if (topEl) {
+        topEl.innerHTML = top5.length === 0 ? '<p class="text-gray-400 italic text-sm">Sin datos</p>' :
+            top5.map((t, i) => `<div class="flex justify-between items-center py-1.5 ${i < 4 ? 'border-b border-gray-100' : ''}">
+                <span class="text-sm text-gray-700">${i + 1}. ${t[0]}</span>
+                <span class="text-sm font-bold text-gray-800">${t[1]} unid.</span>
+            </div>`).join('');
+    }
+
+    // Grafico ultimos 6 meses
+    const meses = [];
+    const montos = [];
+    for (let i = 5; i >= 0; i--) {
+        const d = new Date(hoy.getFullYear(), hoy.getMonth() - i, 1);
+        const mesKey = d.toISOString().slice(0, 7);
+        const mesNombre = d.toLocaleDateString('es-PY', { month: 'short' });
+        const total = pedidosCliente.filter(p => p.fecha && p.fecha.startsWith(mesKey))
+            .reduce((s, p) => s + (p.total || 0), 0);
+        meses.push(mesNombre);
+        montos.push(total);
+    }
+
+    const canvas = document.getElementById('chartPerfilCliente');
+    if (canvas && typeof Chart !== 'undefined') {
+        if (chartPerfilClienteInstance) chartPerfilClienteInstance.destroy();
+        chartPerfilClienteInstance = new Chart(canvas, {
+            type: 'bar',
+            data: { labels: meses, datasets: [{ label: 'Compras (Gs.)', data: montos, backgroundColor: '#3b82f6', borderRadius: 6 }] },
+            options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { callback: v => 'Gs.' + (v/1000) + 'k' } } } }
+        });
+    }
+
+    // Desglose por periodo
+    const desglose = document.getElementById('perfilDesglosePeriodo');
+    if (desglose) {
+        const mesActual = hoy.toISOString().slice(0, 7);
+        const totalMes = pedidosCliente.filter(p => p.fecha?.startsWith(mesActual)).reduce((s, p) => s + (p.total || 0), 0);
+        const hace6m = new Date(hoy); hace6m.setMonth(hace6m.getMonth() - 6);
+        const total6m = pedidosCliente.filter(p => new Date(p.fecha) >= hace6m).reduce((s, p) => s + (p.total || 0), 0);
+        const hace1a = new Date(hoy); hace1a.setFullYear(hace1a.getFullYear() - 1);
+        const total1a = pedidosCliente.filter(p => new Date(p.fecha) >= hace1a).reduce((s, p) => s + (p.total || 0), 0);
+        desglose.innerHTML = `
+            <div class="bg-blue-50 rounded-lg p-3 text-center"><p class="text-xs text-blue-600 font-bold">ESTE MES</p><p class="text-lg font-bold text-blue-800">Gs. ${totalMes.toLocaleString()}</p></div>
+            <div class="bg-green-50 rounded-lg p-3 text-center"><p class="text-xs text-green-600 font-bold">ULTIMOS 6 MESES</p><p class="text-lg font-bold text-green-800">Gs. ${total6m.toLocaleString()}</p></div>
+            <div class="bg-purple-50 rounded-lg p-3 text-center"><p class="text-xs text-purple-600 font-bold">ULTIMO ANO</p><p class="text-lg font-bold text-purple-800">Gs. ${total1a.toLocaleString()}</p></div>`;
+    }
 }
 
 // ============================================
@@ -743,15 +1295,16 @@ function cargarSelectPreciosCliente() {
 function cargarPreciosCliente() {
     const clienteId = document.getElementById('preciosCliente')?.value;
     if (!clienteId) { document.getElementById('preciosCard').style.display = 'none'; return; }
-    
+
     clienteActualPrecios = productosData.clientes.find(c => c.id === clienteId);
     if (!clienteActualPrecios) return;
-    
+
     document.getElementById('preciosCard').style.display = '';
     const tbody = document.getElementById('preciosBody');
     tbody.innerHTML = '';
-    
+
     productosData.productos.forEach(prod => {
+        if (prod.estado === 'discontinuado') return;
         prod.presentaciones.forEach(pres => {
             const precioPersonalizado = clienteActualPrecios.precios_personalizados?.[prod.id]?.find(p => p.tamano === pres.tamano);
             const tr = document.createElement('tr');
@@ -761,15 +1314,14 @@ function cargarPreciosCliente() {
                 <td class="px-6 py-3 text-gray-500">${pres.tamano}</td>
                 <td class="px-6 py-3 text-gray-400">Gs. ${pres.precio_base.toLocaleString()}</td>
                 <td class="px-6 py-3">
-                    <input type="number" value="${precioPersonalizado?.precio || ''}" placeholder="${pres.precio_base}" 
+                    <input type="number" value="${precioPersonalizado?.precio || ''}" placeholder="${pres.precio_base}"
                         data-producto="${prod.id}" data-tamano="${pres.tamano}"
                         class="w-32 px-2 py-1 border border-gray-200 rounded text-sm">
                 </td>`;
             tbody.appendChild(tr);
         });
     });
-    
-    // Filtro
+
     const buscar = document.getElementById('buscarProductoPrecio');
     if (buscar) {
         buscar.oninput = () => {
@@ -784,10 +1336,8 @@ function cargarPreciosCliente() {
 
 function guardarPreciosPersonalizados() {
     if (!clienteActualPrecios) return;
-    
-    const inputs = document.querySelectorAll('[data-producto]');
+    const inputs = document.querySelectorAll('#preciosBody [data-producto]');
     const nuevosPrecios = {};
-    
     inputs.forEach(input => {
         const prodId = input.dataset.producto;
         const tamano = input.dataset.tamano;
@@ -797,12 +1347,11 @@ function guardarPreciosPersonalizados() {
             nuevosPrecios[prodId].push({ tamano, precio });
         }
     });
-    
     const cliente = productosData.clientes.find(c => c.id === clienteActualPrecios.id);
     if (cliente) {
         cliente.precios_personalizados = nuevosPrecios;
         registrarCambio();
-        alert('Precios guardados en memoria. Usa "Guardar y Descargar JSON" para aplicar.');
+        alert('Precios guardados. Usa "Guardar y Sincronizar" para aplicar.');
     }
 }
 

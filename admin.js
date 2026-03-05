@@ -30,7 +30,7 @@ function cambiarSeccion(seccionId) {
         'dashboard': 'Dashboard', 'pedidos': 'Gestion de Pedidos', 'creditos': 'Control de Creditos',
         'reportes': 'Analisis y Reportes', 'stock': 'Inventario',
         'productos': 'Catalogo de Productos', 'clientes': 'Base de Datos de Clientes',
-        'precios': 'Configuracion de Precios', 'promociones': 'Motor de Promociones',
+        'promociones': 'Motor de Promociones',
         'rendiciones': 'Rendiciones de Caja', 'metas': 'Metas y Comisiones',
         'inactivos': 'Clientes en Riesgo', 'herramientas': 'Sistema y Herramientas'
     };
@@ -43,7 +43,6 @@ function cambiarSeccion(seccionId) {
     if (seccionId === 'clientes') { clientesFiltrados = [...productosData.clientes]; mostrarClientesGestion(); }
     if (seccionId === 'creditos') cargarCreditos();
     if (seccionId === 'stock') cargarStock();
-    if (seccionId === 'precios') cargarSelectPreciosCliente();
     if (seccionId === 'herramientas') actualizarInfoBackupAdmin();
     if (seccionId === 'dashboard') cargarDashboard();
     if (seccionId === 'creditos') cargarCreditos();
@@ -424,43 +423,175 @@ function generarReporte(tipo) {
 // ============================================
 // STOCK
 // ============================================
+// Stock grid navigation state
+let stockNavNivel = 'categorias'; // 'categorias' | 'subcategorias' | 'productos'
+let stockNavCatId = null;
+let stockNavSubId = null;
+
 function cargarStock() {
-    stockFiltrado = [];
-    productosData.productos.forEach(prod => {
-        prod.presentaciones.forEach(pres => {
-            stockFiltrado.push({
-                productoId: prod.id,
-                nombre: prod.nombre,
-                tamano: pres.tamano,
-                stock: pres.stock || 0
-            });
-        });
-    });
-    filtrarStock();
+    stockNavNivel = 'categorias';
+    stockNavCatId = null;
+    stockNavSubId = null;
+    actualizarBreadcrumbStock();
+    renderizarStockGrid();
+}
+
+function stockNavegar(nivel) {
+    if (nivel === 'inicio') { stockNavNivel = 'categorias'; stockNavCatId = null; stockNavSubId = null; }
+    else if (nivel === 'categoria') { stockNavNivel = 'subcategorias'; stockNavSubId = null; }
+    actualizarBreadcrumbStock();
+    renderizarStockGrid();
+}
+
+function actualizarBreadcrumbStock() {
+    const cat = document.getElementById('stock-breadcrumb-cat');
+    const sub = document.getElementById('stock-breadcrumb-sub');
+    const sep1 = document.getElementById('stock-breadcrumb-sep1');
+    const sep2 = document.getElementById('stock-breadcrumb-sep2');
+    if (!cat) return;
+    cat.classList.add('hidden'); sub.classList.add('hidden');
+    sep1.classList.add('hidden'); sep2.classList.add('hidden');
+    if (stockNavCatId) {
+        const catObj = (productosData.categorias || []).find(c => c.id === stockNavCatId);
+        cat.textContent = catObj?.nombre || stockNavCatId;
+        cat.classList.remove('hidden'); sep1.classList.remove('hidden');
+    }
+    if (stockNavSubId) {
+        sub.textContent = stockNavSubId;
+        sub.classList.remove('hidden'); sep2.classList.remove('hidden');
+    }
 }
 
 function filtrarStock() {
-    const filtro = document.getElementById('buscarStock')?.value.toLowerCase() || '';
-    const tbody = document.getElementById('tablaStock');
-    if (!tbody) return;
-    tbody.innerHTML = '';
-    
-    stockFiltrado.filter(s => s.nombre.toLowerCase().includes(filtro)).forEach(item => {
-        const tr = document.createElement('tr');
-        tr.className = 'hover:bg-gray-50';
-        tr.innerHTML = `
-            <td class="px-6 py-3 font-medium">${item.nombre}</td>
-            <td class="px-6 py-3 text-gray-500">${item.tamano}</td>
-            <td class="px-6 py-3"><span class="font-bold ${item.stock <= 0 ? 'text-red-600' : item.stock < 10 ? 'text-yellow-600' : 'text-green-600'}">${item.stock}</span></td>
-            <td class="px-6 py-3">
-                <div class="flex items-center gap-2">
-                    <button onclick="ajustarStock('${item.productoId}','${item.tamano}',-1)" class="w-7 h-7 bg-red-50 text-red-600 rounded font-bold">−</button>
-                    <button onclick="ajustarStock('${item.productoId}','${item.tamano}',1)" class="w-7 h-7 bg-green-50 text-green-600 rounded font-bold">+</button>
-                    <button onclick="ajustarStock('${item.productoId}','${item.tamano}',10)" class="w-7 h-7 bg-blue-50 text-blue-600 rounded text-xs font-bold">+10</button>
+    renderizarStockGrid();
+}
+
+function aplicarFiltroStock() {
+    renderizarStockGrid();
+}
+
+function renderizarStockGrid() {
+    const container = document.getElementById('stockGridContainer');
+    if (!container) return;
+    const busqueda = document.getElementById('buscarStock')?.value.toLowerCase() || '';
+    const filtro = document.getElementById('filtroStock')?.value || '';
+
+    // Si hay busqueda, mostrar productos directamente
+    if (busqueda) {
+        let items = [];
+        productosData.productos.forEach(prod => {
+            if (prod.nombre.toLowerCase().includes(busqueda) || prod.id.toLowerCase().includes(busqueda)) {
+                items.push(prod);
+            }
+        });
+        renderizarProductosStock(container, items, filtro);
+        return;
+    }
+
+    if (stockNavNivel === 'categorias') {
+        renderizarCategoriasStock(container);
+    } else if (stockNavNivel === 'subcategorias') {
+        const catObj = (productosData.categorias || []).find(c => c.id === stockNavCatId);
+        const subs = catObj?.subcategorias || [];
+        if (subs.length === 0) {
+            // Sin subcategorias, ir directo a productos
+            const prods = productosData.productos.filter(p => p.categoria === stockNavCatId);
+            renderizarProductosStock(container, prods, filtro);
+        } else {
+            renderizarSubcategoriasStock(container, subs, filtro);
+        }
+    } else if (stockNavNivel === 'productos') {
+        let prods = productosData.productos.filter(p => p.categoria === stockNavCatId && (stockNavSubId ? p.subcategoria === stockNavSubId : true));
+        renderizarProductosStock(container, prods, filtro);
+    }
+}
+
+function renderizarCategoriasStock(container) {
+    const cats = productosData.categorias || [];
+    container.innerHTML = `<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        ${cats.map(cat => {
+            const count = productosData.productos.filter(p => p.categoria === cat.id).length;
+            const totalStock = productosData.productos.filter(p => p.categoria === cat.id)
+                .reduce((s, p) => s + p.presentaciones.reduce((ss, pr) => ss + (pr.stock || 0), 0), 0);
+            return `<div onclick="stockNavCatId='${cat.id}';stockNavNivel='subcategorias';actualizarBreadcrumbStock();renderizarStockGrid()"
+                class="bg-white border border-gray-200 rounded-xl p-5 cursor-pointer hover:shadow-md hover:border-gray-400 transition-all">
+                <p class="font-bold text-gray-800 text-lg mb-1">${cat.nombre}</p>
+                <p class="text-sm text-gray-500">${count} productos</p>
+                <p class="text-xs font-bold mt-2 ${totalStock <= 0 ? 'text-red-600' : 'text-green-600'}">Stock: ${totalStock}</p>
+            </div>`;
+        }).join('')}
+    </div>`;
+}
+
+function renderizarSubcategoriasStock(container, subs, filtro) {
+    container.innerHTML = `<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div onclick="stockNavSubId=null;stockNavNivel='productos';actualizarBreadcrumbStock();renderizarStockGrid()"
+            class="bg-gray-50 border border-dashed border-gray-300 rounded-xl p-5 cursor-pointer hover:shadow-md transition-all flex items-center justify-center">
+            <p class="font-bold text-gray-500 text-sm">Ver todos</p>
+        </div>
+        ${subs.map(sub => {
+            const count = productosData.productos.filter(p => p.categoria === stockNavCatId && p.subcategoria === sub).length;
+            const totalStock = productosData.productos.filter(p => p.categoria === stockNavCatId && p.subcategoria === sub)
+                .reduce((s, p) => s + p.presentaciones.reduce((ss, pr) => ss + (pr.stock || 0), 0), 0);
+            return `<div onclick="stockNavSubId='${sub}';stockNavNivel='productos';actualizarBreadcrumbStock();renderizarStockGrid()"
+                class="bg-white border border-gray-200 rounded-xl p-5 cursor-pointer hover:shadow-md hover:border-gray-400 transition-all">
+                <p class="font-bold text-gray-800 mb-1">${sub}</p>
+                <p class="text-sm text-gray-500">${count} productos</p>
+                <p class="text-xs font-bold mt-2 ${totalStock <= 0 ? 'text-red-600' : 'text-green-600'}">Stock: ${totalStock}</p>
+            </div>`;
+        }).join('')}
+    </div>`;
+}
+
+function renderizarProductosStock(container, prods, filtro) {
+    // Aplicar ordenamiento/filtro
+    if (filtro === 'az') prods = [...prods].sort((a, b) => a.nombre.localeCompare(b.nombre));
+    else if (filtro === 'disponibles') prods = prods.filter(p => (p.estado || 'disponible') === 'disponible');
+    else if (filtro === 'no-disponibles') prods = prods.filter(p => (p.estado || 'disponible') !== 'disponible');
+    else if (filtro === 'mas-vendidos') {
+        const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+        const conteo = {};
+        pedidos.forEach(p => (p.items || []).forEach(it => { conteo[it.productoId] = (conteo[it.productoId] || 0) + (it.cantidad || 1); }));
+        prods = [...prods].sort((a, b) => (conteo[b.id] || 0) - (conteo[a.id] || 0));
+    } else if (filtro === 'menos-vendidos') {
+        const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+        const conteo = {};
+        pedidos.forEach(p => (p.items || []).forEach(it => { conteo[it.productoId] = (conteo[it.productoId] || 0) + (it.cantidad || 1); }));
+        prods = [...prods].sort((a, b) => (conteo[a.id] || 0) - (conteo[b.id] || 0));
+    }
+
+    if (prods.length === 0) {
+        container.innerHTML = '<div class="bg-white rounded-xl border border-gray-200 p-8 text-center text-gray-400">Sin productos en esta categoria</div>';
+        return;
+    }
+
+    container.innerHTML = `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        ${prods.map(prod => {
+            const stockTotal = prod.presentaciones.reduce((s, p) => s + (p.stock || 0), 0);
+            const presRows = prod.presentaciones.map((p, i) => `
+                <div class="flex items-center gap-2 py-1 border-b border-gray-50 last:border-0">
+                    <span class="text-xs text-gray-500 w-16">${p.tamano}</span>
+                    <span class="font-bold text-sm ${(p.stock || 0) <= 0 ? 'text-red-600' : (p.stock || 0) < 10 ? 'text-yellow-600' : 'text-green-600'}">${p.stock || 0}</span>
+                    <div class="flex gap-1 ml-auto">
+                        <button onclick="ajustarStock('${prod.id}','${p.tamano}',-1)" class="w-6 h-6 bg-red-50 text-red-600 rounded font-bold text-sm">−</button>
+                        <button onclick="ajustarStock('${prod.id}','${p.tamano}',1)" class="w-6 h-6 bg-green-50 text-green-600 rounded font-bold text-sm">+</button>
+                        <button onclick="ajustarStock('${prod.id}','${p.tamano}',10)" class="w-6 h-6 bg-blue-50 text-blue-600 rounded text-[10px] font-bold">+10</button>
+                    </div>
+                </div>`).join('');
+            return `<div class="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-sm transition-all">
+                <div class="flex justify-between items-start mb-3">
+                    <div>
+                        <p class="font-bold text-gray-800 text-sm">${prod.nombre}</p>
+                        <p class="text-xs text-gray-400">${prod.id}</p>
+                    </div>
+                    <span class="text-xs font-bold px-2 py-1 rounded-full ${stockTotal <= 0 ? 'bg-red-100 text-red-700' : stockTotal < 10 ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'}">
+                        Total: ${stockTotal}
+                    </span>
                 </div>
-            </td>`;
-        tbody.appendChild(tr);
-    });
+                ${presRows}
+            </div>`;
+        }).join('')}
+    </div>`;
 }
 
 function ajustarStock(prodId, tamano, cantidad) {
@@ -500,6 +631,9 @@ function filtrarProductos() {
         return match && visible && catMatch && estMatch;
     });
     paginaProductos = 1;
+    // Resetear navegacion si se aplica un filtro global
+    const hayFiltro = filtro || catFiltro || estadoFiltro;
+    if (hayFiltro) { prodNavNivel = 'categorias'; prodNavCatId = null; prodNavSubId = null; }
     mostrarProductosGestion();
 }
 
@@ -524,71 +658,249 @@ function ordenarProductos(campo) {
     mostrarProductosGestion();
 }
 
+// Productos grid navigation state
+let prodNavNivel = 'categorias';
+let prodNavCatId = null;
+let prodNavSubId = null;
+
+function productosNavegar(nivel) {
+    if (nivel === 'inicio') { prodNavNivel = 'categorias'; prodNavCatId = null; prodNavSubId = null; }
+    else if (nivel === 'categoria') { prodNavNivel = 'subcategorias'; prodNavSubId = null; }
+    actualizarBreadcrumbProductos();
+    mostrarProductosGestion();
+}
+
+function actualizarBreadcrumbProductos() {
+    const cat = document.getElementById('prod-breadcrumb-cat');
+    const sub = document.getElementById('prod-breadcrumb-sub');
+    const sep1 = document.getElementById('prod-breadcrumb-sep1');
+    const sep2 = document.getElementById('prod-breadcrumb-sep2');
+    if (!cat) return;
+    cat.classList.add('hidden'); sub.classList.add('hidden');
+    sep1.classList.add('hidden'); sep2.classList.add('hidden');
+    if (prodNavCatId) {
+        const catObj = (productosData.categorias || []).find(c => c.id === prodNavCatId);
+        cat.textContent = catObj?.nombre || prodNavCatId;
+        cat.classList.remove('hidden'); sep1.classList.remove('hidden');
+    }
+    if (prodNavSubId) {
+        sub.textContent = prodNavSubId;
+        sub.classList.remove('hidden'); sep2.classList.remove('hidden');
+    }
+}
+
 function mostrarProductosGestion() {
-    const tbody = document.getElementById('tablaProductosCuerpo');
-    if (!tbody) return;
-    tbody.innerHTML = '';
+    const container = document.getElementById('productosGridContainer');
+    if (!container) return;
     poblarFiltroCategorias();
 
-    const total = productosFiltrados.length;
-    const inicio = (paginaProductos - 1) * productosPorPagina;
-    const paginados = productosFiltrados.slice(inicio, inicio + productosPorPagina);
+    const busqueda = document.getElementById('buscarProducto')?.value.toLowerCase() || '';
+    const catFiltro = document.getElementById('filtroCategoria')?.value || '';
+    const estadoFiltro = document.getElementById('filtroEstadoProducto')?.value || '';
+    const ordenFiltro = document.getElementById('filtroOrdenProductos')?.value || '';
+    const mostrarOcultos = document.getElementById('mostrarOcultosProductos')?.checked || false;
 
-    paginados.forEach(prod => {
-        const estado = prod.estado || 'disponible';
-        const estadoBadge = estado === 'disponible' ? '<span class="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-bold">Disponible</span>' :
-                            estado === 'agotado' ? '<span class="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 font-bold">Agotado</span>' :
-                            '<span class="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-bold">Discontinuado</span>';
+    // Si hay filtros activos de busqueda/categoria/estado, mostrar grid de productos directamente
+    const hayFiltro = busqueda || catFiltro || estadoFiltro;
 
-        const presHTML = prod.presentaciones.map((p, i) => {
-            const costo = p.costo || 0;
-            const precio = p.precio_base || 0;
-            const margen = precio > 0 ? Math.round(((precio - costo) / precio) * 100) : 0;
-            const margenColor = margen > 30 ? 'text-green-600' : margen > 15 ? 'text-yellow-600' : 'text-red-600';
-            return `<div class="flex items-center gap-1 mb-1 text-xs">
-                <span class="w-14 text-gray-600 font-medium">${p.tamano}</span>
-                <span class="text-gray-400">C:</span><span class="w-16 text-gray-500">${costo > 0 ? costo.toLocaleString() : '-'}</span>
-                <span class="text-gray-400">P:</span><span class="w-16 font-medium">${precio.toLocaleString()}</span>
-                ${costo > 0 ? `<span class="${margenColor} font-bold w-12">${margen}%</span>` : '<span class="w-12 text-gray-300">-</span>'}
-            </div>`;
-        }).join('');
-
-        const imgHTML = prod.imagen
-            ? `<img src="${prod.imagen}" class="w-10 h-10 object-contain rounded" onerror="this.outerHTML='<span class=\\'text-xl\\'>📦</span>'">`
-            : '<span class="text-xl">📦</span>';
-
-        const oculto = prod.oculto || false;
-        const tr = document.createElement('tr');
-        tr.className = `hover:bg-gray-50 ${oculto ? 'opacity-40' : ''}`;
-        tr.innerHTML = `
-            <td class="px-4 py-3 text-xs text-gray-400 font-mono">${prod.id}</td>
-            <td class="px-4 py-2">${imgHTML}</td>
-            <td class="px-4 py-3 font-medium text-gray-800">${prod.nombre}</td>
-            <td class="px-4 py-3 text-xs text-gray-500">${(productosData.categorias.find(c => c.id === prod.categoria)?.nombre || prod.categoria)}<br><span class="text-gray-400">${prod.subcategoria || ''}</span></td>
-            <td class="px-4 py-2">${estadoBadge}</td>
-            <td class="px-4 py-2">${presHTML}</td>
-            <td class="px-4 py-3">
-                <div class="flex gap-1">
-                    <button onclick="editarProducto('${prod.id}')" class="p-1.5 rounded hover:bg-blue-100 text-blue-600 text-xs font-bold">Editar</button>
-                    <button onclick="toggleOcultarProducto('${prod.id}')" class="p-1.5 rounded hover:bg-gray-200 text-xs">${oculto ? '👁️' : '🙈'}</button>
-                    <button onclick="eliminarProducto('${prod.id}')" class="p-1.5 rounded hover:bg-red-100 text-red-500 text-xs">🗑️</button>
-                </div>
-            </td>`;
-        tbody.appendChild(tr);
-    });
-
-    // Paginacion
-    const totalPaginas = Math.ceil(total / productosPorPagina);
-    const pagEl = document.getElementById('paginacionProductos');
-    if (pagEl) {
-        pagEl.innerHTML = `<span>${total} productos | Pagina ${paginaProductos} de ${totalPaginas}</span>
-        <div class="flex gap-2">
-            <button onclick="paginaProductos=1;mostrarProductosGestion()" class="px-3 py-1 rounded border text-xs ${paginaProductos <= 1 ? 'opacity-30' : 'hover:bg-gray-100'}" ${paginaProductos <= 1 ? 'disabled' : ''}>|&lt;</button>
-            <button onclick="paginaProductos--;mostrarProductosGestion()" class="px-3 py-1 rounded border text-xs ${paginaProductos <= 1 ? 'opacity-30' : 'hover:bg-gray-100'}" ${paginaProductos <= 1 ? 'disabled' : ''}>&lt;</button>
-            <button onclick="paginaProductos++;mostrarProductosGestion()" class="px-3 py-1 rounded border text-xs ${paginaProductos >= totalPaginas ? 'opacity-30' : 'hover:bg-gray-100'}" ${paginaProductos >= totalPaginas ? 'disabled' : ''}>&gt;</button>
-            <button onclick="paginaProductos=${totalPaginas};mostrarProductosGestion()" class="px-3 py-1 rounded border text-xs ${paginaProductos >= totalPaginas ? 'opacity-30' : 'hover:bg-gray-100'}" ${paginaProductos >= totalPaginas ? 'disabled' : ''}>&gt;|</button>
-        </div>`;
+    if (hayFiltro) {
+        let prods = productosFiltrados;
+        if (!mostrarOcultos) prods = prods.filter(p => !p.oculto);
+        prods = aplicarOrdenProductos(prods, ordenFiltro);
+        renderizarProductosGestionGrid(container, prods);
+        actualizarPaginacionProductos(prods.length);
+        return;
     }
+
+    // Sin filtros: navegacion por categoria
+    if (prodNavNivel === 'categorias') {
+        renderizarCategoriasGestion(container);
+        actualizarPaginacionProductos(0);
+    } else if (prodNavNivel === 'subcategorias') {
+        const catObj = (productosData.categorias || []).find(c => c.id === prodNavCatId);
+        const subs = catObj?.subcategorias || [];
+        if (subs.length === 0) {
+            let prods = productosData.productos.filter(p => p.categoria === prodNavCatId);
+            if (!mostrarOcultos) prods = prods.filter(p => !p.oculto);
+            prods = aplicarOrdenProductos(prods, ordenFiltro);
+            renderizarProductosGestionGrid(container, prods);
+            actualizarPaginacionProductos(prods.length);
+        } else {
+            renderizarSubcategoriasGestion(container, subs);
+            actualizarPaginacionProductos(0);
+        }
+    } else if (prodNavNivel === 'productos') {
+        let prods = productosData.productos.filter(p => p.categoria === prodNavCatId && (prodNavSubId ? p.subcategoria === prodNavSubId : true));
+        if (!mostrarOcultos) prods = prods.filter(p => !p.oculto);
+        prods = aplicarOrdenProductos(prods, ordenFiltro);
+        renderizarProductosGestionGrid(container, prods);
+        actualizarPaginacionProductos(prods.length);
+    }
+
+    actualizarBreadcrumbProductos();
+}
+
+function aplicarOrdenProductos(prods, orden) {
+    if (orden === 'az') return [...prods].sort((a, b) => a.nombre.localeCompare(b.nombre));
+    if (orden === 'za') return [...prods].sort((a, b) => b.nombre.localeCompare(a.nombre));
+    if (orden === 'mas-vendidos') {
+        const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+        const conteo = {};
+        pedidos.forEach(p => (p.items || []).forEach(it => { conteo[it.productoId] = (conteo[it.productoId] || 0) + (it.cantidad || 1); }));
+        return [...prods].sort((a, b) => (conteo[b.id] || 0) - (conteo[a.id] || 0));
+    }
+    if (orden === 'menos-vendidos') {
+        const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+        const conteo = {};
+        pedidos.forEach(p => (p.items || []).forEach(it => { conteo[it.productoId] = (conteo[it.productoId] || 0) + (it.cantidad || 1); }));
+        return [...prods].sort((a, b) => (conteo[a.id] || 0) - (conteo[b.id] || 0));
+    }
+    return prods;
+}
+
+function renderizarCategoriasGestion(container) {
+    const cats = productosData.categorias || [];
+    container.innerHTML = `<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        ${cats.map(cat => {
+            const count = productosData.productos.filter(p => p.categoria === cat.id).length;
+            return `<div onclick="prodNavCatId='${cat.id}';prodNavNivel='subcategorias';actualizarBreadcrumbProductos();mostrarProductosGestion()"
+                class="bg-white border border-gray-200 rounded-xl p-5 cursor-pointer hover:shadow-md hover:border-gray-400 transition-all">
+                <p class="font-bold text-gray-800 text-lg mb-1">${cat.nombre}</p>
+                <p class="text-sm text-gray-500">${count} productos</p>
+            </div>`;
+        }).join('')}
+    </div>`;
+}
+
+function renderizarSubcategoriasGestion(container, subs) {
+    container.innerHTML = `<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div onclick="prodNavSubId=null;prodNavNivel='productos';actualizarBreadcrumbProductos();mostrarProductosGestion()"
+            class="bg-gray-50 border border-dashed border-gray-300 rounded-xl p-5 cursor-pointer hover:shadow-md transition-all flex items-center justify-center">
+            <p class="font-bold text-gray-500 text-sm">Ver todos</p>
+        </div>
+        ${subs.map(sub => {
+            const count = productosData.productos.filter(p => p.categoria === prodNavCatId && p.subcategoria === sub).length;
+            return `<div onclick="prodNavSubId='${sub}';prodNavNivel='productos';actualizarBreadcrumbProductos();mostrarProductosGestion()"
+                class="bg-white border border-gray-200 rounded-xl p-5 cursor-pointer hover:shadow-md hover:border-gray-400 transition-all">
+                <p class="font-bold text-gray-800 mb-1">${sub}</p>
+                <p class="text-sm text-gray-500">${count} productos</p>
+            </div>`;
+        }).join('')}
+    </div>`;
+}
+
+function renderizarProductosGestionGrid(container, prods) {
+    if (prods.length === 0) {
+        container.innerHTML = '<div class="bg-white rounded-xl border border-gray-200 p-8 text-center text-gray-400">Sin productos encontrados</div>';
+        return;
+    }
+    const total = prods.length;
+    const inicio = (paginaProductos - 1) * productosPorPagina;
+    const paginados = prods.slice(inicio, inicio + productosPorPagina);
+
+    container.innerHTML = `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        ${paginados.map(prod => {
+            const estado = prod.estado || 'disponible';
+            const estadoColor = estado === 'disponible' ? 'bg-green-100 text-green-700' : estado === 'agotado' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700';
+            const oculto = prod.oculto || false;
+            const imgHTML = prod.imagen ? `<img src="${prod.imagen}" class="w-12 h-12 object-contain rounded-lg" onerror="this.outerHTML='<span class=\\'text-3xl\\'>📦</span>'">` : '<span class="text-3xl">📦</span>';
+            const presHTML = prod.presentaciones.slice(0, 3).map(p => {
+                const precio = p.precio_base || 0;
+                return `<div class="text-xs text-gray-600 flex justify-between"><span>${p.tamano}</span><span class="font-medium">Gs. ${precio.toLocaleString()}</span></div>`;
+            }).join('');
+            return `<div onclick="abrirPerfilProducto('${prod.id}')" class="bg-white border border-gray-200 rounded-xl p-4 cursor-pointer hover:shadow-md hover:border-gray-400 transition-all ${oculto ? 'opacity-50' : ''}">
+                <div class="flex items-start gap-3 mb-3">
+                    ${imgHTML}
+                    <div class="flex-1 min-w-0">
+                        <p class="font-bold text-gray-800 text-sm leading-tight truncate">${prod.nombre}</p>
+                        <p class="text-xs text-gray-400">${prod.id}</p>
+                        <span class="text-[10px] px-1.5 py-0.5 rounded-full font-bold ${estadoColor}">${estado}</span>
+                    </div>
+                </div>
+                <div class="space-y-1 border-t border-gray-50 pt-2">
+                    ${presHTML}
+                    ${prod.presentaciones.length > 3 ? `<p class="text-xs text-gray-400">+${prod.presentaciones.length - 3} más</p>` : ''}
+                </div>
+            </div>`;
+        }).join('')}
+    </div>`;
+}
+
+function actualizarPaginacionProductos(total) {
+    const pagEl = document.getElementById('paginacionProductos');
+    if (!pagEl || total === 0) { if (pagEl) pagEl.innerHTML = ''; return; }
+    const totalPaginas = Math.ceil(total / productosPorPagina);
+    pagEl.innerHTML = `<span class="text-sm">${total} productos | Pag. ${paginaProductos} de ${totalPaginas}</span>
+    <div class="flex gap-2">
+        <button onclick="paginaProductos=1;mostrarProductosGestion()" class="px-3 py-1 rounded border text-xs ${paginaProductos <= 1 ? 'opacity-30' : 'hover:bg-gray-100'}" ${paginaProductos <= 1 ? 'disabled' : ''}>|&lt;</button>
+        <button onclick="if(paginaProductos>1){paginaProductos--;mostrarProductosGestion()}" class="px-3 py-1 rounded border text-xs ${paginaProductos <= 1 ? 'opacity-30' : 'hover:bg-gray-100'}">&lt;</button>
+        <button onclick="if(paginaProductos<${totalPaginas}){paginaProductos++;mostrarProductosGestion()}" class="px-3 py-1 rounded border text-xs ${paginaProductos >= totalPaginas ? 'opacity-30' : 'hover:bg-gray-100'}">&gt;</button>
+        <button onclick="paginaProductos=${totalPaginas};mostrarProductosGestion()" class="px-3 py-1 rounded border text-xs ${paginaProductos >= totalPaginas ? 'opacity-30' : 'hover:bg-gray-100'}" ${paginaProductos >= totalPaginas ? 'disabled' : ''}>&gt;|</button>
+    </div>`;
+}
+
+// Perfil de producto
+function abrirPerfilProducto(prodId) {
+    const prod = productosData.productos.find(p => p.id === prodId);
+    if (!prod) return;
+    const estado = prod.estado || 'disponible';
+    const estadoColor = estado === 'disponible' ? 'bg-green-100 text-green-700' : estado === 'agotado' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700';
+    const oculto = prod.oculto || false;
+
+    const img = document.getElementById('perfilProductoImg');
+    if (img) { img.src = prod.imagen || ''; img.style.display = prod.imagen ? '' : 'none'; }
+    document.getElementById('perfilProductoNombre').textContent = prod.nombre;
+    const catObj = productosData.categorias.find(c => c.id === prod.categoria);
+    document.getElementById('perfilProductoCategoria').textContent = `${catObj?.nombre || prod.categoria}${prod.subcategoria ? ' / ' + prod.subcategoria : ''}`;
+    const badge = document.getElementById('perfilProductoEstadoBadge');
+    badge.textContent = estado; badge.className = `inline-block mt-1 px-2 py-0.5 rounded-full text-xs font-bold ${estadoColor}`;
+
+    // Botones de accion
+    document.getElementById('perfilProductoEditarBtn').onclick = () => { cerrarPerfilProducto(); editarProducto(prodId); };
+    const ocultarBtn = document.getElementById('perfilProductoOcultarBtn');
+    ocultarBtn.textContent = oculto ? 'Mostrar' : 'Ocultar';
+    ocultarBtn.onclick = () => { toggleOcultarProducto(prodId); cerrarPerfilProducto(); };
+    document.getElementById('perfilProductoEliminarBtn').onclick = () => { cerrarPerfilProducto(); eliminarProducto(prodId); };
+
+    // Presentaciones
+    const presEl = document.getElementById('perfilProductoPresentaciones');
+    presEl.innerHTML = prod.presentaciones.map(p => {
+        const costo = p.costo || 0;
+        const precio = p.precio_base || 0;
+        const margen = precio > 0 && costo > 0 ? Math.round(((precio - costo) / precio) * 100) : null;
+        return `<div class="flex justify-between items-center py-2 border-b border-gray-100 last:border-0 text-sm">
+            <span class="font-medium text-gray-700">${p.tamano}</span>
+            <div class="flex gap-4 text-right">
+                ${costo > 0 ? `<span class="text-gray-500">Costo: <strong>Gs. ${costo.toLocaleString()}</strong></span>` : ''}
+                <span class="text-gray-800">Precio: <strong>Gs. ${precio.toLocaleString()}</strong></span>
+                ${margen !== null ? `<span class="${margen > 30 ? 'text-green-600' : margen > 15 ? 'text-yellow-600' : 'text-red-600'} font-bold">${margen}%</span>` : ''}
+            </div>
+        </div>`;
+    }).join('');
+
+    // Stock
+    const stockEl = document.getElementById('perfilProductoStock');
+    stockEl.innerHTML = prod.presentaciones.map(p => `
+        <div class="flex items-center gap-3 py-1">
+            <span class="text-sm text-gray-600 w-20">${p.tamano}</span>
+            <span class="font-bold ${(p.stock || 0) <= 0 ? 'text-red-600' : 'text-green-600'}">${p.stock || 0}</span>
+            <div class="flex gap-1 ml-auto">
+                <button onclick="ajustarStock('${prodId}','${p.tamano}',-1);abrirPerfilProducto('${prodId}')" class="w-7 h-7 bg-red-50 text-red-600 rounded font-bold">−</button>
+                <button onclick="ajustarStock('${prodId}','${p.tamano}',1);abrirPerfilProducto('${prodId}')" class="w-7 h-7 bg-green-50 text-green-600 rounded font-bold">+</button>
+                <button onclick="ajustarStock('${prodId}','${p.tamano}',10);abrirPerfilProducto('${prodId}')" class="w-7 h-7 bg-blue-50 text-blue-600 rounded text-xs font-bold">+10</button>
+            </div>
+        </div>`).join('');
+
+    document.getElementById('modalPerfilProducto').classList.add('show');
+}
+
+function cerrarPerfilProducto() {
+    document.getElementById('modalPerfilProducto').classList.remove('show');
+}
+
+function guardarStockDesdePerfilProducto() {
+    guardarStock();
+    mostrarProductosGestion();
 }
 
 function actualizarProducto(id, campo, valor) {
@@ -915,6 +1227,7 @@ function mostrarClientesGestion() {
     if (!tbody) return;
     tbody.innerHTML = '';
     poblarFiltroZonas();
+    mostrarClientesPendientes();
 
     const total = clientesFiltrados.length;
     const inicio = (paginaClientes - 1) * clientesPorPagina;
@@ -957,6 +1270,70 @@ function mostrarClientesGestion() {
             <button onclick="paginaClientes=${totalPaginas};mostrarClientesGestion()" class="px-3 py-1 rounded border text-xs ${paginaClientes >= totalPaginas ? 'opacity-30' : 'hover:bg-gray-100'}" ${paginaClientes >= totalPaginas ? 'disabled' : ''}>&gt;&gt;</button>
         </div>`;
     }
+}
+
+function mostrarClientesPendientes() {
+    const pendientes = JSON.parse(localStorage.getItem('hdv_clientes_pendientes') || '[]')
+        .filter(c => c.estado === 'pendiente_aprobacion');
+
+    // Buscar o crear el banner de pendientes en la seccion clientes
+    let banner = document.getElementById('bannerClientesPendientes');
+    if (!banner) {
+        banner = document.createElement('div');
+        banner.id = 'bannerClientesPendientes';
+        const seccion = document.getElementById('seccion-clientes');
+        if (seccion) seccion.insertBefore(banner, seccion.firstChild);
+    }
+
+    if (pendientes.length === 0) { banner.innerHTML = ''; return; }
+
+    banner.innerHTML = `
+        <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-4">
+            <div class="flex justify-between items-center mb-3">
+                <h4 class="font-bold text-yellow-800">🕐 Clientes pendientes de aprobacion (${pendientes.length})</h4>
+            </div>
+            <div class="space-y-2">
+                ${pendientes.map(c => `
+                    <div class="bg-white border border-yellow-100 rounded-lg p-3 flex justify-between items-center">
+                        <div>
+                            <p class="font-bold text-gray-800 text-sm">${c.nombre}</p>
+                            <p class="text-xs text-gray-500">Tel: ${c.telefono || '-'} | Zona: ${c.zona || '-'}${c.direccion ? ' | Dir: ' + c.direccion : ''}</p>
+                            <p class="text-xs text-gray-400">${new Date(c.fechaSolicitud).toLocaleDateString('es-PY')}</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="aprobarClientePendiente('${c.id}')" class="bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold">Aprobar</button>
+                            <button onclick="rechazarClientePendiente('${c.id}')" class="bg-red-100 text-red-700 px-3 py-1.5 rounded-lg text-xs font-bold">Rechazar</button>
+                        </div>
+                    </div>`).join('')}
+            </div>
+        </div>`;
+}
+
+function aprobarClientePendiente(id) {
+    const pendientes = JSON.parse(localStorage.getItem('hdv_clientes_pendientes') || '[]');
+    const cliente = pendientes.find(c => c.id === id);
+    if (!cliente) return;
+    // Generar ID definitivo
+    const ultimoId = Math.max(...productosData.clientes.map(c => parseInt(c.id.replace('C', '')) || 0), 0);
+    const nuevoId = `C${String(ultimoId + 1).padStart(3, '0')}`;
+    const clienteAprobado = { ...cliente, id: nuevoId, estado: 'activo', precios_personalizados: {} };
+    delete clienteAprobado.fechaSolicitud;
+    productosData.clientes.push(clienteAprobado);
+    registrarCambio();
+    // Marcar como aprobado
+    const idx = pendientes.findIndex(c => c.id === id);
+    if (idx >= 0) pendientes.splice(idx, 1);
+    localStorage.setItem('hdv_clientes_pendientes', JSON.stringify(pendientes));
+    clientesFiltrados = [...productosData.clientes];
+    mostrarClientesGestion();
+}
+
+function rechazarClientePendiente(id) {
+    if (!confirm('Rechazar esta solicitud de cliente?')) return;
+    const pendientes = JSON.parse(localStorage.getItem('hdv_clientes_pendientes') || '[]');
+    const nuevos = pendientes.filter(c => c.id !== id);
+    localStorage.setItem('hdv_clientes_pendientes', JSON.stringify(nuevos));
+    mostrarClientesPendientes();
 }
 
 function enviarWhatsAppCliente(telefono, nombre) {
@@ -1629,6 +2006,49 @@ function importarClientesExcel(event) {
         event.target.value = '';
     };
     reader.readAsText(file);
+}
+
+function descargarPlantillaProductos() {
+    const plantilla = {
+        _instrucciones: "Completa el array 'productos' con tus productos. Campos requeridos: id, nombre, categoria. Presenta un array de presentaciones con tamano y precio_base.",
+        _categorias_disponibles: (productosData.categorias || []).map(c => ({ id: c.id, nombre: c.nombre, subcategorias: c.subcategorias || [] })),
+        productos: [
+            {
+                id: "P999",
+                nombre: "Nombre del Producto",
+                categoria: "categoria_id",
+                subcategoria: "Subcategoria (opcional)",
+                estado: "disponible",
+                imagen: "URL de imagen (opcional)",
+                presentaciones: [
+                    { tamano: "1L", precio_base: 10000, costo: 7000, stock: 0 },
+                    { tamano: "500ml", precio_base: 6000, costo: 4000, stock: 0 }
+                ]
+            }
+        ]
+    };
+    descargarJSON(plantilla, 'plantilla_productos.json');
+}
+
+function descargarPlantillaClientes() {
+    const zonas = [...new Set((productosData.clientes || []).map(c => c.zona).filter(Boolean))];
+    const plantilla = {
+        _instrucciones: "Completa el array 'clientes'. Campos requeridos: nombre/razon_social. Los campos marcados como opcional pueden omitirse.",
+        _zonas_existentes: zonas,
+        clientes: [
+            {
+                id: "C999",
+                nombre: "Nombre del Cliente",
+                razon_social: "Nombre o Razon Social (igual que nombre si es persona)",
+                ruc: "80012345-6 (opcional)",
+                telefono: "0981234567 (opcional)",
+                direccion: "Direccion completa (opcional)",
+                zona: "Nombre de la zona",
+                encargado: "Nombre del encargado (opcional)"
+            }
+        ]
+    };
+    descargarJSON(plantilla, 'plantilla_clientes.json');
 }
 
 function limpiarPedidos() {
@@ -2551,6 +2971,8 @@ function cargarCreditos() {
                 <button onclick="enviarRecordatorioWhatsApp('${p.id}')" class="bg-[#25D366] text-white px-3 py-2 rounded-lg text-xs font-bold">WhatsApp</button>
                 <button onclick="verHistorialPagos('${p.id}')" class="bg-gray-200 text-gray-700 px-3 py-2 rounded-lg text-xs font-bold">Historial</button>
                 ${saldo <= 0 ? `<button onclick="marcarPagado('${p.id}')" class="bg-blue-600 text-white px-3 py-2 rounded-lg text-xs font-bold">Marcar Pagado</button>` : ''}
+                <button onclick="editarPagosCreditoPedido('${p.id}')" class="bg-yellow-500 text-white px-3 py-2 rounded-lg text-xs font-bold">Editar Pagos</button>
+                <button onclick="eliminarCreditoPedido('${p.id}')" class="bg-red-100 text-red-700 px-3 py-2 rounded-lg text-xs font-bold">Eliminar</button>
             </div>`;
         container.appendChild(div);
     });
@@ -2587,6 +3009,8 @@ function cargarCreditos() {
             <div class="flex gap-2 flex-wrap">
                 <button onclick="registrarPagoManual('${c.id}')" class="bg-green-600 text-white px-3 py-2 rounded-lg text-xs font-bold">Registrar Pago</button>
                 <button onclick="enviarRecordatorioManualWhatsApp('${c.id}')" class="bg-[#25D366] text-white px-3 py-2 rounded-lg text-xs font-bold">WhatsApp</button>
+                <button onclick="editarCreditoManualItem('${c.id}')" class="bg-yellow-500 text-white px-3 py-2 rounded-lg text-xs font-bold">Editar</button>
+                <button onclick="eliminarCreditoManualItem('${c.id}')" class="bg-red-100 text-red-700 px-3 py-2 rounded-lg text-xs font-bold">Eliminar</button>
             </div>`;
         container.appendChild(div);
     });
@@ -2762,6 +3186,57 @@ function agregarCreditoManual() {
     }
     alert('Credito manual agregado');
     cargarCreditos();
+}
+
+// Editar/eliminar creditos
+function editarCreditoManualItem(creditoId) {
+    const creditos = obtenerCreditosManuales();
+    const c = creditos.find(x => x.id === creditoId);
+    if (!c) return;
+    const nuevoMonto = prompt(`Editar credito manual de ${c.clienteNombre}\nMonto actual: Gs. ${(c.monto || 0).toLocaleString()}\nDescripcion: ${c.descripcion || ''}\n\nNuevo monto (dejar en blanco para mantener):`);
+    if (nuevoMonto !== null && nuevoMonto.trim() !== '') {
+        const monto = parseInt(nuevoMonto);
+        if (!isNaN(monto) && monto > 0) c.monto = monto;
+    }
+    const nuevaDesc = prompt('Nueva descripcion (dejar en blanco para mantener):', c.descripcion || '');
+    if (nuevaDesc !== null && nuevaDesc.trim() !== '') c.descripcion = nuevaDesc;
+    localStorage.setItem('hdv_creditos_manuales', JSON.stringify(creditos));
+    if (typeof guardarCreditosManualesFirebase === 'function') guardarCreditosManualesFirebase(creditos).catch(e => console.error(e));
+    cargarCreditos();
+}
+
+function eliminarCreditoManualItem(creditoId) {
+    const creditos = obtenerCreditosManuales();
+    const c = creditos.find(x => x.id === creditoId);
+    if (!c) return;
+    if (!confirm(`Eliminar credito manual de ${c.clienteNombre} (Gs. ${(c.monto || 0).toLocaleString()})?\nEsta accion es irreversible.`)) return;
+    const nuevos = creditos.filter(x => x.id !== creditoId);
+    localStorage.setItem('hdv_creditos_manuales', JSON.stringify(nuevos));
+    if (typeof guardarCreditosManualesFirebase === 'function') guardarCreditosManualesFirebase(nuevos).catch(e => console.error(e));
+    cargarCreditos();
+}
+
+function editarPagosCreditoPedido(pedidoId) {
+    const allPagos = JSON.parse(localStorage.getItem('hdv_pagos_credito') || '[]');
+    const pagos = allPagos.filter(p => p.pedidoId === pedidoId);
+    if (pagos.length === 0) { alert('Sin pagos registrados para este pedido.'); return; }
+    const lista = pagos.map((p, i) => `${i + 1}. Gs. ${(p.monto || 0).toLocaleString()} - ${new Date(p.fecha).toLocaleDateString('es-PY')}${p.nota ? ' - ' + p.nota : ''}`).join('\n');
+    const eliminarIdx = prompt(`Pagos registrados:\n${lista}\n\nIngresa el numero del pago a eliminar (o Cancelar):`);
+    if (!eliminarIdx) return;
+    const idx = parseInt(eliminarIdx) - 1;
+    if (isNaN(idx) || idx < 0 || idx >= pagos.length) { alert('Numero invalido'); return; }
+    if (!confirm(`Eliminar pago de Gs. ${pagos[idx].monto.toLocaleString()}?`)) return;
+    const pagoAEliminar = pagos[idx];
+    const nuevosPagos = allPagos.filter(p => !(p.pedidoId === pedidoId && p.fecha === pagoAEliminar.fecha && p.monto === pagoAEliminar.monto));
+    localStorage.setItem('hdv_pagos_credito', JSON.stringify(nuevosPagos));
+    cargarCreditos();
+}
+
+function eliminarCreditoPedido(pedidoId) {
+    const pedido = todosLosPedidos.find(p => p.id === pedidoId);
+    if (!pedido) return;
+    if (!confirm(`Marcar como pagado el credito de ${pedido.cliente?.nombre}?\nEsto lo marcara como pagado en el sistema.`)) return;
+    marcarPagado(pedidoId);
 }
 
 function toggleVistaCreditos(vista) {
@@ -3181,7 +3656,7 @@ function cargarCuentasBancariasAdmin() {
     el.innerHTML = cuentas.map(c => `
         <div class="p-4 flex justify-between items-center">
             <div>
-                <p class="font-bold text-gray-800">🏦 ${c.banco} - ${c.tipo === 'ahorro' ? 'Caja de Ahorro' : 'Cuenta Corriente'}</p>
+                <p class="font-bold text-gray-800">🏦 ${c.banco} - ${c.tipo === 'ahorro' ? 'Caja de Ahorro' : 'Cuenta Corriente'}${c.alias ? ` <span class="text-blue-600 font-medium">(${c.alias})</span>` : ''}</p>
                 <p class="text-sm text-gray-600">Nro: ${c.numero} | ${c.moneda === 'USD' ? 'Dolares' : 'Guaranies'}</p>
                 <p class="text-xs text-gray-400">Titular: ${c.titular} | RUC: ${c.ruc || '-'}</p>
             </div>
@@ -3199,6 +3674,7 @@ function abrirModalCuentaBancaria(cuentaId) {
     document.getElementById('formCuentaTipo').value = 'ahorro';
     document.getElementById('formCuentaMoneda').value = 'PYG';
     document.getElementById('formCuentaNumero').value = '';
+    document.getElementById('formCuentaAlias').value = '';
     document.getElementById('formCuentaTitular').value = 'HDV Distribuciones EAS';
     document.getElementById('formCuentaRUC').value = '';
     if (cuentaId) {
@@ -3210,6 +3686,7 @@ function abrirModalCuentaBancaria(cuentaId) {
             document.getElementById('formCuentaTipo').value = c.tipo;
             document.getElementById('formCuentaMoneda').value = c.moneda || 'PYG';
             document.getElementById('formCuentaNumero').value = c.numero;
+            document.getElementById('formCuentaAlias').value = c.alias || '';
             document.getElementById('formCuentaTitular').value = c.titular;
             document.getElementById('formCuentaRUC').value = c.ruc || '';
         }
@@ -3231,6 +3708,7 @@ function guardarCuentaBancaria() {
         tipo: document.getElementById('formCuentaTipo').value,
         moneda: document.getElementById('formCuentaMoneda').value,
         numero: document.getElementById('formCuentaNumero').value,
+        alias: document.getElementById('formCuentaAlias').value,
         titular: document.getElementById('formCuentaTitular').value,
         ruc: document.getElementById('formCuentaRUC').value
     };

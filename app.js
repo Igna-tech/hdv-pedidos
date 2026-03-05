@@ -765,7 +765,11 @@ function aplicarDescuento() {
 // CONFIRMAR PEDIDO
 // ============================================
 function confirmarPedido() {
-    if (!clienteActual) { alert('Selecciona un cliente'); return; }
+    if (!clienteActual) {
+        closeCartModal();
+        mostrarModalSinCliente();
+        return;
+    }
     if (carrito.length === 0) { alert('El carrito esta vacio'); return; }
 
     const descuento = parseFloat(document.getElementById('descuento').value) || 0;
@@ -817,6 +821,111 @@ function confirmarPedido() {
     document.getElementById('tipoPago').value = 'contado';
 
     mostrarExito('Pedido confirmado correctamente');
+}
+
+// ============================================
+// MODAL CLIENTE NUEVO DESDE VENDEDOR
+// ============================================
+function mostrarModalSinCliente() {
+    let modal = document.getElementById('modalSinCliente');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'modalSinCliente';
+        modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;display:flex;align-items:flex-end;';
+        modal.innerHTML = `
+            <div class="bg-white w-full rounded-t-3xl p-6 shadow-2xl pb-10" style="max-height:90vh;overflow-y:auto;">
+                <div class="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-6"></div>
+                <h3 class="text-lg font-bold text-gray-900 mb-2">Sin cliente seleccionado</h3>
+                <p class="text-sm text-gray-500 mb-6">¿Deseas agregar un nuevo cliente para continuar con el pedido?</p>
+                <div id="modalSinClienteOpciones" class="space-y-3">
+                    <button onclick="mostrarFormNuevoCliente()" class="w-full bg-gray-900 text-white py-4 rounded-xl font-bold">
+                        Agregar nuevo cliente
+                    </button>
+                    <button onclick="cerrarModalSinCliente()" class="w-full bg-gray-100 text-gray-700 py-4 rounded-xl font-bold">
+                        Volver y seleccionar cliente
+                    </button>
+                </div>
+                <div id="formNuevoClienteVendedor" style="display:none;" class="space-y-3 mt-2">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">NOMBRE *</label>
+                        <input type="text" id="ncvNombre" class="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none text-sm" placeholder="Nombre del cliente">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">TELEFONO *</label>
+                        <input type="tel" id="ncvTelefono" class="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none text-sm" placeholder="Ej: 0981234567">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">ZONA *</label>
+                        <input type="text" id="ncvZona" class="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none text-sm" placeholder="Ej: Loma Plata">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">DIRECCION (opcional)</label>
+                        <input type="text" id="ncvDireccion" class="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none text-sm" placeholder="Ej: Calle San Martin 123">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">RUC (opcional)</label>
+                        <input type="text" id="ncvRuc" class="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none text-sm" placeholder="Ej: 80012345-6">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">ENCARGADO (opcional)</label>
+                        <input type="text" id="ncvEncargado" class="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none text-sm" placeholder="Ej: Juan Perez">
+                    </div>
+                    <div class="flex gap-3 pt-2">
+                        <button onclick="cerrarModalSinCliente()" class="flex-1 bg-gray-100 text-gray-700 py-4 rounded-xl font-bold">Cancelar</button>
+                        <button onclick="guardarNuevoClienteDesdeVendedor()" class="flex-1 bg-gray-900 text-white py-4 rounded-xl font-bold">Enviar para aprobacion</button>
+                    </div>
+                </div>
+            </div>`;
+        document.body.appendChild(modal);
+    }
+    modal.style.display = 'flex';
+    document.getElementById('formNuevoClienteVendedor').style.display = 'none';
+    document.getElementById('modalSinClienteOpciones').style.display = 'block';
+}
+
+function mostrarFormNuevoCliente() {
+    document.getElementById('modalSinClienteOpciones').style.display = 'none';
+    document.getElementById('formNuevoClienteVendedor').style.display = 'block';
+}
+
+function cerrarModalSinCliente() {
+    const modal = document.getElementById('modalSinCliente');
+    if (modal) modal.style.display = 'none';
+}
+
+function guardarNuevoClienteDesdeVendedor() {
+    const nombre = document.getElementById('ncvNombre')?.value.trim();
+    const telefono = document.getElementById('ncvTelefono')?.value.trim();
+    const zona = document.getElementById('ncvZona')?.value.trim();
+    const direccion = document.getElementById('ncvDireccion')?.value.trim();
+    const ruc = document.getElementById('ncvRuc')?.value.trim();
+    const encargado = document.getElementById('ncvEncargado')?.value.trim();
+
+    if (!nombre) { alert('El nombre es obligatorio'); return; }
+    if (!telefono) { alert('El telefono es obligatorio'); return; }
+    if (!zona) { alert('La zona es obligatoria'); return; }
+
+    const nuevoCliente = {
+        id: 'CNUEVO-' + Date.now(),
+        nombre, razon_social: nombre, telefono, zona,
+        direccion: direccion || '', ruc: ruc || '', encargado: encargado || '',
+        estado: 'pendiente_aprobacion',
+        fechaSolicitud: new Date().toISOString()
+    };
+
+    // Guardar en la lista local de clientes pendientes
+    const pendientes = JSON.parse(localStorage.getItem('hdv_clientes_pendientes') || '[]');
+    pendientes.push(nuevoCliente);
+    localStorage.setItem('hdv_clientes_pendientes', JSON.stringify(pendientes));
+
+    // Intentar subir a Firebase si esta disponible
+    if (typeof db !== 'undefined') {
+        db.collection('configuracion').doc('clientes_pendientes').set({ lista: pendientes })
+          .catch(e => console.error('[Vendedor] Error al subir cliente pendiente:', e));
+    }
+
+    cerrarModalSinCliente();
+    mostrarExito('Cliente enviado para aprobacion del administrador');
 }
 
 // ============================================

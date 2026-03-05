@@ -76,9 +76,6 @@
             <button onclick="cambiarSeccion('clientes')" class="nav-item w-full flex items-center px-6 py-3 text-sm transition-colors">
                 <i data-lucide="users" class="w-4 h-4 mr-3 text-gray-400"></i> Clientes
             </button>
-            <button onclick="cambiarSeccion('precios')" class="nav-item w-full flex items-center px-6 py-3 text-sm transition-colors">
-                <i data-lucide="dollar-sign" class="w-4 h-4 mr-3 text-gray-400"></i> Precios/Cliente
-            </button>
             <button onclick="cambiarSeccion('promociones')" class="nav-item w-full flex items-center px-6 py-3 text-sm transition-colors">
                 <i data-lucide="gift" class="w-4 h-4 mr-3 text-gray-400"></i> Promociones
             </button>
@@ -101,7 +98,7 @@
         </nav>
 
         <div class="p-4 border-t border-gray-700 text-center">
-            <span class="text-xs text-gray-500">Version 7.3 - 2026</span>
+            <span class="text-xs text-gray-500">Version 7.4 - 2026</span>
         </div>
     </aside>
 
@@ -316,33 +313,44 @@
             </section>
 
             <!-- STOCK -->
-            <section id="seccion-stock" class="tab-content space-y-6">
-                <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-wrap gap-4 items-end">
-                    <div class="flex-1 min-w-[200px]">
-                        <input type="text" id="buscarStock" placeholder="🔍 Buscar producto..." oninput="filtrarStock()" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none">
+            <section id="seccion-stock" class="tab-content space-y-4">
+                <!-- Toolbar -->
+                <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-wrap gap-3 items-center justify-between">
+                    <div class="flex items-center gap-2 text-sm text-gray-500">
+                        <button onclick="stockNavegar('inicio')" id="stock-breadcrumb-inicio" class="hover:text-gray-800 font-bold">Stock</button>
+                        <span id="stock-breadcrumb-sep1" class="hidden">/</span>
+                        <button onclick="stockNavegar('categoria')" id="stock-breadcrumb-cat" class="hidden hover:text-gray-800 font-bold text-gray-700"></button>
+                        <span id="stock-breadcrumb-sep2" class="hidden">/</span>
+                        <span id="stock-breadcrumb-sub" class="hidden font-bold text-gray-900"></span>
                     </div>
-                    <button onclick="guardarStock()" class="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-bold">💾 Guardar Stock</button>
+                    <div class="flex gap-2 flex-wrap items-center">
+                        <input type="text" id="buscarStock" placeholder="🔍 Buscar producto..." oninput="filtrarStock()" class="border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none w-48">
+                        <select id="filtroStock" onchange="aplicarFiltroStock()" class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                            <option value="">Sin filtro</option>
+                            <option value="mas-vendidos">Más vendidos</option>
+                            <option value="menos-vendidos">Menos vendidos</option>
+                            <option value="az">A-Z</option>
+                            <option value="disponibles">Disponibles</option>
+                            <option value="no-disponibles">No disponibles</option>
+                        </select>
+                        <button onclick="guardarStock()" class="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-bold">💾 Guardar Stock</button>
+                    </div>
                 </div>
-                <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-x-auto">
-                    <table class="w-full text-left text-sm">
-                        <thead class="bg-gray-50 border-b border-gray-200 text-gray-500 font-bold uppercase text-[11px] tracking-wider">
-                            <tr>
-                                <th class="px-6 py-3">Producto</th>
-                                <th class="px-6 py-3">Presentacion</th>
-                                <th class="px-6 py-3">Stock</th>
-                                <th class="px-6 py-3">Ajustar</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tablaStock" class="divide-y divide-gray-100"></tbody>
-                    </table>
-                </div>
+                <!-- Grid content -->
+                <div id="stockGridContainer"></div>
             </section>
 
             <!-- PRODUCTOS -->
-            <section id="seccion-productos" class="tab-content space-y-6">
-                <div class="flex justify-between items-center flex-wrap gap-4">
-                    <h3 class="text-xl font-bold">Gestion de Catalogo</h3>
-                    <div class="flex gap-2 flex-wrap">
+            <section id="seccion-productos" class="tab-content space-y-4">
+                <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-wrap gap-3 items-center justify-between">
+                    <div class="flex items-center gap-2 text-sm text-gray-500">
+                        <button onclick="productosNavegar('inicio')" id="prod-breadcrumb-inicio" class="hover:text-gray-800 font-bold">Catalogo</button>
+                        <span id="prod-breadcrumb-sep1" class="hidden">/</span>
+                        <button onclick="productosNavegar('categoria')" id="prod-breadcrumb-cat" class="hidden hover:text-gray-800 font-bold text-gray-700"></button>
+                        <span id="prod-breadcrumb-sep2" class="hidden">/</span>
+                        <span id="prod-breadcrumb-sub" class="hidden font-bold text-gray-900"></span>
+                    </div>
+                    <div class="flex gap-2 flex-wrap items-center">
                         <input type="text" id="buscarProducto" oninput="filtrarProductos()" placeholder="Buscar producto..." class="border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none w-48">
                         <select id="filtroCategoria" onchange="filtrarProductos()" class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
                             <option value="">Todas las categorias</option>
@@ -353,29 +361,21 @@
                             <option value="agotado">Agotado</option>
                             <option value="discontinuado">Discontinuado</option>
                         </select>
+                        <select id="filtroOrdenProductos" onchange="filtrarProductos()" class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                            <option value="">Sin orden</option>
+                            <option value="az">A-Z</option>
+                            <option value="za">Z-A</option>
+                            <option value="mas-vendidos">Más vendidos</option>
+                            <option value="menos-vendidos">Menos vendidos</option>
+                        </select>
                         <label class="flex items-center gap-2 text-sm text-gray-600">
                             <input type="checkbox" id="mostrarOcultosProductos" onchange="filtrarProductos()"> Ocultos
                         </label>
                         <button onclick="abrirModalCategorias()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold">Categorias</button>
-                        <button onclick="abrirModalProducto()" class="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-bold">+ Nuevo Producto</button>
+                        <button onclick="abrirModalProducto()" class="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-bold">+ Nuevo</button>
                     </div>
                 </div>
-                <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-x-auto">
-                    <table class="w-full text-left text-sm">
-                        <thead class="bg-gray-50 border-b border-gray-200 text-gray-500 font-bold uppercase text-[11px] tracking-wider">
-                            <tr>
-                                <th class="px-4 py-3 cursor-pointer hover:text-gray-800" onclick="ordenarProductos('id')">ID</th>
-                                <th class="px-4 py-3">Img</th>
-                                <th class="px-4 py-3 cursor-pointer hover:text-gray-800" onclick="ordenarProductos('nombre')">Nombre</th>
-                                <th class="px-4 py-3 cursor-pointer hover:text-gray-800" onclick="ordenarProductos('categoria')">Categoria</th>
-                                <th class="px-4 py-3">Estado</th>
-                                <th class="px-4 py-3">Presentaciones / Costo / Precio / Margen</th>
-                                <th class="px-4 py-3">Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tablaProductosCuerpo" class="divide-y divide-gray-100"></tbody>
-                    </table>
-                </div>
+                <div id="productosGridContainer"></div>
                 <div id="paginacionProductos" class="flex items-center justify-between text-sm text-gray-500"></div>
             </section>
 
@@ -409,37 +409,6 @@
                     </table>
                 </div>
                 <div id="paginacionClientes" class="flex items-center justify-between text-sm text-gray-500"></div>
-            </section>
-
-            <!-- PRECIOS POR CLIENTE -->
-            <section id="seccion-precios" class="tab-content space-y-6">
-                <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-                    <h3 class="font-bold text-gray-800 mb-4">Configurar Precios Personalizados</h3>
-                    <select id="preciosCliente" onchange="cargarPreciosCliente()" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none max-w-md">
-                        <option value="">-- Seleccione un cliente --</option>
-                    </select>
-                </div>
-                <div id="preciosCard" class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden" style="display:none;">
-                    <div class="p-4 border-b border-gray-200">
-                        <input type="text" id="buscarProductoPrecio" placeholder="🔍 Buscar producto..." class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none">
-                    </div>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left text-sm">
-                            <thead class="bg-gray-50 border-b border-gray-200 text-gray-500 font-bold uppercase text-[11px] tracking-wider">
-                                <tr>
-                                    <th class="px-6 py-3">Producto</th>
-                                    <th class="px-6 py-3">Presentacion</th>
-                                    <th class="px-6 py-3">Precio Base</th>
-                                    <th class="px-6 py-3">Precio Cliente</th>
-                                </tr>
-                            </thead>
-                            <tbody id="preciosBody" class="divide-y divide-gray-100"></tbody>
-                        </table>
-                    </div>
-                    <div class="p-4 bg-gray-50 border-t border-gray-200">
-                        <button onclick="guardarPreciosPersonalizados()" class="bg-gray-800 text-white px-6 py-2 rounded-lg text-sm font-bold">💾 Guardar Precios</button>
-                    </div>
-                </div>
             </section>
 
             <!-- PROMOCIONES -->
@@ -629,6 +598,10 @@
                         <div>
                             <label class="block text-xs font-bold text-gray-500 mb-1">NUMERO DE CUENTA</label>
                             <input type="text" id="formCuentaNumero" class="w-full border border-gray-300 rounded-lg px-4 py-2" placeholder="Ej: 1234567890">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1">ALIAS (opcional)</label>
+                            <input type="text" id="formCuentaAlias" class="w-full border border-gray-300 rounded-lg px-4 py-2" placeholder="Ej: Cuenta principal HDV">
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-gray-500 mb-1">TITULAR</label>
@@ -832,6 +805,14 @@
                             <input type="file" id="importarFile" accept=".xlsx,.xls,.csv" style="display:none;" onchange="importarProductosExcel(event)">
                             <button onclick="document.getElementById('importarClientesFile').click()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold">👥 Importar Clientes</button>
                             <input type="file" id="importarClientesFile" accept=".xlsx,.xls,.csv" style="display:none;" onchange="importarClientesExcel(event)">
+                        </div>
+                        <div class="mt-4 pt-4 border-t border-gray-100">
+                            <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Plantillas de Importacion</p>
+                            <div class="flex gap-3 flex-wrap">
+                                <button onclick="descargarPlantillaProductos()" class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-emerald-700">📥 Plantilla Productos (JSON)</button>
+                                <button onclick="descargarPlantillaClientes()" class="bg-teal-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-teal-700">📥 Plantilla Clientes (JSON)</button>
+                            </div>
+                            <p class="text-xs text-gray-400 mt-2">Descarga las plantillas con el formato correcto para importacion masiva.</p>
                         </div>
                     </div>
 
@@ -1090,6 +1071,41 @@
                 <div class="flex gap-3">
                     <button onclick="cerrarModalEditarPedido()" class="px-4 py-2 text-gray-500 font-bold">Cancelar</button>
                     <button onclick="guardarEdicionPedido()" class="bg-gray-800 text-white px-6 py-2 rounded-lg font-bold">Guardar Cambios</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL PERFIL PRODUCTO -->
+    <div id="modalPerfilProducto" class="modal-overlay">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden max-h-[90vh] overflow-y-auto">
+            <div class="p-6 border-b border-gray-100">
+                <div class="flex justify-between items-start">
+                    <div class="flex items-center gap-4">
+                        <img id="perfilProductoImg" src="" alt="" class="w-16 h-16 object-cover rounded-xl border border-gray-200" onerror="this.style.display='none'">
+                        <div>
+                            <h3 class="text-xl font-bold text-gray-800" id="perfilProductoNombre"></h3>
+                            <p class="text-sm text-gray-500" id="perfilProductoCategoria"></p>
+                            <span id="perfilProductoEstadoBadge" class="inline-block mt-1 px-2 py-0.5 rounded-full text-xs font-bold"></span>
+                        </div>
+                    </div>
+                    <div class="flex gap-2">
+                        <button id="perfilProductoEditarBtn" class="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-bold">Editar</button>
+                        <button id="perfilProductoOcultarBtn" class="bg-yellow-500 text-white px-4 py-2 rounded-lg text-sm font-bold"></button>
+                        <button id="perfilProductoEliminarBtn" class="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-bold">Eliminar</button>
+                        <button onclick="cerrarPerfilProducto()" class="text-gray-400 hover:text-gray-600 px-2 py-2 text-xl font-bold">x</button>
+                    </div>
+                </div>
+            </div>
+            <div class="p-6 space-y-4">
+                <div>
+                    <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Presentaciones</p>
+                    <div id="perfilProductoPresentaciones" class="space-y-2"></div>
+                </div>
+                <div id="perfilProductoStockSection">
+                    <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Stock por Presentacion</p>
+                    <div id="perfilProductoStock" class="space-y-2"></div>
+                    <button onclick="guardarStockDesdePerfilProducto()" class="mt-3 bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-bold">💾 Guardar Stock</button>
                 </div>
             </div>
         </div>

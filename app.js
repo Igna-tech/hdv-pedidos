@@ -263,57 +263,339 @@ function obtenerPrecio(productoId, presentacion) {
 // DETALLE DE PRODUCTO (Modal inline)
 // ============================================
 function mostrarDetalleProducto(producto) {
-    // Remover modal existente si hay
+    // Si tiene 6+ presentaciones, abrir modo MATRIZ (ideal para calzados con muchos talles)
+    if (producto.presentaciones && producto.presentaciones.length >= 6) {
+        mostrarMatrizProducto(producto);
+        return;
+    }
+    // Si tiene 2-5 presentaciones, abrir modo MASIVO (todas las presentaciones con inputs)
+    mostrarDetalleMasivo(producto);
+}
+
+// ============================================
+// MODO MATRIZ - Carga rapida tipo Excel (6+ presentaciones)
+// ============================================
+function mostrarMatrizProducto(producto) {
     const existing = document.getElementById('productDetailModal');
     if (existing) existing.remove();
-    
-    const catNombre = categorias.find(c => c.id === producto.categoria)?.nombre || '';
+
     const emoji = obtenerEmoji(producto);
-    
-    const imgContent = producto.imagen
-        ? `<img src="${producto.imagen}" class="w-full h-full object-contain" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-           <span class="text-6xl hidden items-center justify-center w-full h-full">${emoji}</span>`
-        : `<span class="text-6xl">${emoji}</span>`;
-    
-    const presHTML = producto.presentaciones.map((pres, idx) => {
+    const catNombre = categorias.find(c => c.id === producto.categoria)?.nombre || '';
+
+    const celdas = producto.presentaciones.map((pres, idx) => {
         const precio = obtenerPrecio(producto.id, pres);
+        const estadoProd = producto.estado || 'disponible';
+        const esAgotado = estadoProd === 'agotado';
         return `
-            <div class="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
-                <div>
-                    <p class="font-bold text-gray-800">${pres.tamano}</p>
-                    <p class="text-blue-600 font-bold">Gs. ${precio.toLocaleString()}</p>
-                </div>
-                <div class="flex items-center gap-2">
-                    <button onclick="ajustarQty('${producto.id}',${idx},-1)" class="w-8 h-8 rounded-lg border-2 border-gray-300 flex items-center justify-center font-bold text-lg">−</button>
-                    <input type="number" id="qty-${producto.id}-${idx}" value="1" min="1" class="w-12 text-center border border-gray-300 rounded-lg py-1 font-bold">
-                    <button onclick="ajustarQty('${producto.id}',${idx},1)" class="w-8 h-8 rounded-lg border-2 border-gray-300 flex items-center justify-center font-bold text-lg">+</button>
-                    <button onclick="agregarAlCarrito('${producto.id}',${idx})" class="ml-2 bg-[#111827] text-white px-4 py-2 rounded-lg font-bold text-sm">Agregar</button>
-                </div>
+            <div class="matriz-celda bg-white rounded-xl border-2 border-gray-200 p-3 text-center transition-all ${esAgotado ? 'opacity-50' : ''}" id="celda-${producto.id}-${idx}">
+                <p class="text-xs font-bold text-gray-500 mb-1">${pres.tamano}</p>
+                <input type="number" id="mtz-${producto.id}-${idx}" value="0" min="0"
+                    ${esAgotado ? 'disabled' : ''}
+                    class="w-full text-center text-2xl font-bold border-0 border-b-2 border-gray-200 focus:border-blue-500 outline-none bg-transparent py-1 mtz-input"
+                    data-idx="${idx}" data-precio="${precio}"
+                    oninput="actualizarCeldaMatriz('${producto.id}',${idx})">
+                <p class="text-[10px] text-blue-600 font-bold mt-1">Gs. ${precio.toLocaleString()}</p>
+                ${esAgotado ? '<p class="text-[10px] text-red-500 font-bold">AGOTADO</p>' : ''}
             </div>`;
     }).join('');
-    
+
     const modal = document.createElement('div');
     modal.id = 'productDetailModal';
     modal.className = 'fixed inset-0 bg-black/50 z-[100] flex items-end';
     modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
     modal.innerHTML = `
-        <div class="bg-white w-full rounded-t-3xl max-h-[85vh] overflow-y-auto p-6 shadow-2xl">
-            <div class="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-4"></div>
-            <div class="w-full h-40 bg-gray-50 rounded-xl mb-4 flex items-center justify-center overflow-hidden">${imgContent}</div>
-            <h3 class="text-xl font-bold text-gray-900">${producto.nombre}</h3>
-            <p class="text-sm text-gray-500 mb-4">${catNombre} › ${producto.subcategoria}</p>
-            <div class="space-y-1">${presHTML}</div>
-            <button onclick="document.getElementById('productDetailModal').remove()" class="w-full mt-6 bg-gray-100 text-gray-700 py-3 rounded-xl font-bold">Cerrar</button>
+        <div class="bg-gray-50 w-full rounded-t-3xl max-h-[90vh] overflow-y-auto shadow-2xl" onclick="event.stopPropagation()">
+            <div class="bg-[#111827] text-white p-4 rounded-t-3xl">
+                <div class="w-12 h-1.5 bg-gray-600 rounded-full mx-auto mb-3"></div>
+                <div class="flex items-center gap-3">
+                    <span class="text-4xl">${emoji}</span>
+                    <div>
+                        <h3 class="text-lg font-bold">${producto.nombre}</h3>
+                        <p class="text-xs text-gray-400">${catNombre} › ${producto.subcategoria}</p>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between mt-3 bg-gray-800 rounded-xl p-3">
+                    <div class="text-center">
+                        <p class="text-2xl font-bold" id="mtzTotalPares-${producto.id}">0</p>
+                        <p class="text-[10px] text-gray-400 font-bold">PARES</p>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-lg font-bold text-green-400" id="mtzTotalGs-${producto.id}">Gs. 0</p>
+                        <p class="text-[10px] text-gray-400 font-bold">TOTAL</p>
+                    </div>
+                    <button onclick="limpiarMatriz('${producto.id}')" class="bg-gray-700 text-gray-300 px-3 py-2 rounded-lg text-xs font-bold">Limpiar</button>
+                </div>
+            </div>
+
+            <div class="p-4">
+                <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Toca cada talle e ingresa la cantidad</p>
+                <div class="grid grid-cols-3 gap-3" id="matrizGrid-${producto.id}">
+                    ${celdas}
+                </div>
+            </div>
+
+            <div class="sticky bottom-0 bg-white border-t border-gray-200 p-4 flex gap-3">
+                <button onclick="document.getElementById('productDetailModal').remove()" class="flex-1 bg-gray-100 text-gray-700 py-4 rounded-xl font-bold">Cancelar</button>
+                <button onclick="agregarMatrizAlCarrito('${producto.id}')" class="flex-1 bg-[#111827] text-white py-4 rounded-xl font-bold shadow-lg">
+                    Agregar <span id="mtzBtnCount-${producto.id}">0</span> pares
+                </button>
+            </div>
         </div>`;
     document.body.appendChild(modal);
+
+    // Hacer focus en la primera celda
+    setTimeout(() => {
+        const primerInput = document.getElementById(`mtz-${producto.id}-0`);
+        if (primerInput) primerInput.focus();
+    }, 300);
+}
+
+function actualizarCeldaMatriz(productoId, idx) {
+    const input = document.getElementById(`mtz-${productoId}-${idx}`);
+    const celda = document.getElementById(`celda-${productoId}-${idx}`);
+    const val = parseInt(input.value) || 0;
+
+    // Colorear celda segun tenga cantidad
+    if (val > 0) {
+        celda.className = 'matriz-celda bg-green-50 rounded-xl border-2 border-green-400 p-3 text-center transition-all';
+    } else {
+        celda.className = 'matriz-celda bg-white rounded-xl border-2 border-gray-200 p-3 text-center transition-all';
+    }
+
+    recalcularTotalesMatriz(productoId);
+}
+
+function recalcularTotalesMatriz(productoId) {
+    const producto = productos.find(p => p.id === productoId);
+    if (!producto) return;
+
+    let totalPares = 0;
+    let totalGs = 0;
+
+    producto.presentaciones.forEach((pres, idx) => {
+        const input = document.getElementById(`mtz-${productoId}-${idx}`);
+        if (!input) return;
+        const cant = parseInt(input.value) || 0;
+        if (cant > 0) {
+            totalPares += cant;
+            totalGs += cant * parseFloat(input.dataset.precio);
+        }
+    });
+
+    const elPares = document.getElementById(`mtzTotalPares-${productoId}`);
+    const elGs = document.getElementById(`mtzTotalGs-${productoId}`);
+    const elBtn = document.getElementById(`mtzBtnCount-${productoId}`);
+
+    if (elPares) elPares.textContent = totalPares;
+    if (elGs) elGs.textContent = 'Gs. ' + totalGs.toLocaleString();
+    if (elBtn) elBtn.textContent = totalPares;
+}
+
+function limpiarMatriz(productoId) {
+    const producto = productos.find(p => p.id === productoId);
+    if (!producto) return;
+
+    producto.presentaciones.forEach((pres, idx) => {
+        const input = document.getElementById(`mtz-${productoId}-${idx}`);
+        if (input) {
+            input.value = 0;
+            actualizarCeldaMatriz(productoId, idx);
+        }
+    });
+}
+
+function agregarMatrizAlCarrito(productoId) {
+    if (!clienteActual) {
+        alert('Selecciona un cliente primero');
+        return;
+    }
+
+    const producto = productos.find(p => p.id === productoId);
+    if (!producto) return;
+
+    let paresAgregados = 0;
+
+    producto.presentaciones.forEach((pres, idx) => {
+        const input = document.getElementById(`mtz-${productoId}-${idx}`);
+        if (!input) return;
+        const cantidad = parseInt(input.value) || 0;
+        if (cantidad <= 0) return;
+
+        const precio = parseFloat(input.dataset.precio);
+
+        const existente = carrito.findIndex(item => item.productoId === productoId && item.presentacion === pres.tamano);
+        if (existente >= 0) {
+            carrito[existente].cantidad += cantidad;
+            carrito[existente].subtotal = carrito[existente].cantidad * carrito[existente].precio;
+        } else {
+            carrito.push({
+                productoId,
+                nombre: producto.nombre,
+                presentacion: pres.tamano,
+                precio,
+                cantidad,
+                subtotal: precio * cantidad
+            });
+        }
+
+        paresAgregados += cantidad;
+    });
+
+    if (paresAgregados === 0) {
+        alert('Ingresa al menos 1 par');
+        return;
+    }
+
+    actualizarContadorCarrito();
+    guardarCarrito();
+    mostrarExito(`${paresAgregados} pares de ${producto.nombre} agregados`);
+
+    const modal = document.getElementById('productDetailModal');
+    if (modal) modal.remove();
+}
+
+// ============================================
+// MODO MASIVO - Todas las presentaciones a la vez (2-5 presentaciones)
+// ============================================
+function mostrarDetalleMasivo(producto) {
+    const existing = document.getElementById('productDetailModal');
+    if (existing) existing.remove();
+
+    const catNombre = categorias.find(c => c.id === producto.categoria)?.nombre || '';
+    const emoji = obtenerEmoji(producto);
+
+    const imgContent = producto.imagen
+        ? `<img src="${producto.imagen}" class="w-full h-full object-contain" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+           <span class="text-6xl hidden items-center justify-center w-full h-full">${emoji}</span>`
+        : `<span class="text-6xl">${emoji}</span>`;
+
+    const presHTML = producto.presentaciones.map((pres, idx) => {
+        const precio = obtenerPrecio(producto.id, pres);
+        return `
+            <div class="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
+                <div class="flex-1">
+                    <p class="font-bold text-gray-800">${pres.tamano}</p>
+                    <p class="text-blue-600 font-bold text-sm">Gs. ${precio.toLocaleString()}</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="ajustarQty('${producto.id}',${idx},-1)" class="w-8 h-8 rounded-lg border-2 border-gray-300 flex items-center justify-center font-bold text-lg">-</button>
+                    <input type="number" id="qty-${producto.id}-${idx}" value="0" min="0" data-precio="${precio}"
+                        class="w-14 text-center border border-gray-300 rounded-lg py-1 font-bold masivo-input"
+                        oninput="recalcularTotalMasivo('${producto.id}')">
+                    <button onclick="ajustarQty('${producto.id}',${idx},1);recalcularTotalMasivo('${producto.id}')" class="w-8 h-8 rounded-lg border-2 border-gray-300 flex items-center justify-center font-bold text-lg">+</button>
+                </div>
+            </div>`;
+    }).join('');
+
+    const modal = document.createElement('div');
+    modal.id = 'productDetailModal';
+    modal.className = 'fixed inset-0 bg-black/50 z-[100] flex items-end';
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+    modal.innerHTML = `
+        <div class="bg-white w-full rounded-t-3xl max-h-[85vh] overflow-y-auto p-6 shadow-2xl" onclick="event.stopPropagation()">
+            <div class="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-4"></div>
+            <div class="w-full h-32 bg-gray-50 rounded-xl mb-3 flex items-center justify-center overflow-hidden">${imgContent}</div>
+            <h3 class="text-xl font-bold text-gray-900">${producto.nombre}</h3>
+            <p class="text-sm text-gray-500 mb-1">${catNombre} › ${producto.subcategoria}</p>
+
+            <div class="bg-blue-50 rounded-xl p-3 mb-4 flex justify-between items-center">
+                <div>
+                    <p class="text-xs text-gray-500 font-bold">TOTAL</p>
+                    <p class="text-lg font-bold text-blue-800" id="masivoTotal-${producto.id}">Gs. 0</p>
+                </div>
+                <p class="text-sm font-bold text-gray-600"><span id="masivoItems-${producto.id}">0</span> items</p>
+            </div>
+
+            <div class="space-y-1">${presHTML}</div>
+
+            <div class="flex gap-3 mt-6">
+                <button onclick="document.getElementById('productDetailModal').remove()" class="flex-1 bg-gray-100 text-gray-700 py-3 rounded-xl font-bold">Cancelar</button>
+                <button onclick="agregarMasivoAlCarrito('${producto.id}')" class="flex-1 bg-[#111827] text-white py-3 rounded-xl font-bold">Agregar Todo</button>
+            </div>
+        </div>`;
+    document.body.appendChild(modal);
+}
+
+function recalcularTotalMasivo(productoId) {
+    const producto = productos.find(p => p.id === productoId);
+    if (!producto) return;
+
+    let totalItems = 0;
+    let totalGs = 0;
+
+    producto.presentaciones.forEach((pres, idx) => {
+        const input = document.getElementById(`qty-${productoId}-${idx}`);
+        if (!input) return;
+        const cant = parseInt(input.value) || 0;
+        if (cant > 0) {
+            totalItems += cant;
+            totalGs += cant * parseFloat(input.dataset.precio);
+        }
+    });
+
+    const elTotal = document.getElementById(`masivoTotal-${productoId}`);
+    const elItems = document.getElementById(`masivoItems-${productoId}`);
+    if (elTotal) elTotal.textContent = 'Gs. ' + totalGs.toLocaleString();
+    if (elItems) elItems.textContent = totalItems;
+}
+
+function agregarMasivoAlCarrito(productoId) {
+    if (!clienteActual) {
+        alert('Selecciona un cliente primero');
+        return;
+    }
+
+    const producto = productos.find(p => p.id === productoId);
+    if (!producto) return;
+
+    let itemsAgregados = 0;
+
+    producto.presentaciones.forEach((pres, idx) => {
+        const input = document.getElementById(`qty-${productoId}-${idx}`);
+        if (!input) return;
+        const cantidad = parseInt(input.value) || 0;
+        if (cantidad <= 0) return;
+
+        const precio = parseFloat(input.dataset.precio);
+
+        const existente = carrito.findIndex(item => item.productoId === productoId && item.presentacion === pres.tamano);
+        if (existente >= 0) {
+            carrito[existente].cantidad += cantidad;
+            carrito[existente].subtotal = carrito[existente].cantidad * carrito[existente].precio;
+        } else {
+            carrito.push({
+                productoId,
+                nombre: producto.nombre,
+                presentacion: pres.tamano,
+                precio,
+                cantidad,
+                subtotal: precio * cantidad
+            });
+        }
+
+        itemsAgregados += cantidad;
+    });
+
+    if (itemsAgregados === 0) {
+        alert('Ingresa al menos 1 unidad');
+        return;
+    }
+
+    actualizarContadorCarrito();
+    guardarCarrito();
+    mostrarExito(`${itemsAgregados} unidades de ${producto.nombre} agregadas`);
+
+    const modal = document.getElementById('productDetailModal');
+    if (modal) modal.remove();
 }
 
 function ajustarQty(prodId, idx, delta) {
     const input = document.getElementById(`qty-${prodId}-${idx}`);
     if (input) {
-        let val = parseInt(input.value) || 1;
-        val = Math.max(1, val + delta);
+        let val = parseInt(input.value) || 0;
+        val = Math.max(0, val + delta);
         input.value = val;
+        recalcularTotalMasivo(prodId);
     }
 }
 
@@ -659,7 +941,7 @@ function registrarSW() {
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('service-worker.js')
             .then(reg => {
-                console.log('[SW] Registrado v7.1');
+                console.log('[SW] Registrado v7.3');
                 // Buscar actualizaciones cada 30 segundos
                 setInterval(() => reg.update(), 30000);
                 reg.addEventListener('updatefound', () => {

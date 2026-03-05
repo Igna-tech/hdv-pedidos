@@ -130,6 +130,23 @@
                         <p class="text-2xl font-bold mt-1 text-purple-700" id="dashTicketPromedio">Gs. 0</p>
                     </div>
                 </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="bg-gradient-to-r from-green-50 to-emerald-50 p-6 rounded-xl border border-green-200 shadow-sm">
+                        <p class="text-sm text-green-600 font-medium">Ganancia Neta del Mes</p>
+                        <p class="text-2xl font-bold mt-1 text-green-700" id="dashGananciaNeta">Gs. 0</p>
+                        <p class="text-xs text-green-500 mt-1" id="dashGananciaDetalle">Solo visible para admin</p>
+                    </div>
+                    <div class="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl border border-blue-200 shadow-sm">
+                        <p class="text-sm text-blue-600 font-medium">Margen Promedio</p>
+                        <p class="text-2xl font-bold mt-1" id="dashMargenPromedio">0%</p>
+                        <p class="text-xs text-blue-500 mt-1" id="dashMargenDetalle">Sin costos definidos</p>
+                    </div>
+                    <div class="bg-gradient-to-r from-orange-50 to-amber-50 p-6 rounded-xl border border-orange-200 shadow-sm">
+                        <p class="text-sm text-orange-600 font-medium">Costo Total del Mes</p>
+                        <p class="text-2xl font-bold mt-1 text-orange-700" id="dashCostoTotal">Gs. 0</p>
+                        <p class="text-xs text-orange-500 mt-1" id="dashCostoDetalle">Inversion en mercaderia</p>
+                    </div>
+                </div>
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                         <h3 class="font-bold text-gray-800 mb-4">Ventas Ultimos 7 Dias</h3>
@@ -153,6 +170,7 @@
                             <button onclick="guardarResumenMensualFirebase()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold">☁️ Guardar en Nube</button>
                         </div>
                         <div id="resumenMensualContenido" class="text-sm text-gray-600">Selecciona un mes</div>
+                        <div id="resumenGananciaContenido" class="mt-3"></div>
                     </div>
                 </div>
             </section>

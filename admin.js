@@ -2007,36 +2007,123 @@ ${pedido.notas ? `<div class="small">Notas: ${pedido.notas}</div>` : ''}
 let chartVentas7d = null;
 let chartTopProd = null;
 
+// ============================================
+// CALCULO DE GANANCIA NETA
+// ============================================
+function calcularGananciaPedido(pedido) {
+    let costoTotal = 0;
+    let ventaTotal = pedido.total || 0;
+    let itemsConCosto = 0;
+    let itemsTotales = 0;
+
+    (pedido.items || []).forEach(item => {
+        itemsTotales++;
+        const producto = (productosData.productos || []).find(p => p.id === item.productoId);
+        if (!producto) return;
+        const pres = (producto.presentaciones || []).find(pr => pr.tamano === item.presentacion);
+        if (!pres) return;
+        const costo = pres.costo || 0;
+        if (costo > 0) {
+            costoTotal += costo * (item.cantidad || 1);
+            itemsConCosto++;
+        }
+    });
+
+    const gananciaTotal = ventaTotal - costoTotal;
+    const margenPromedio = ventaTotal > 0 ? Math.round((gananciaTotal / ventaTotal) * 100) : 0;
+
+    return { costoTotal, gananciaTotal, margenPromedio, itemsConCosto, itemsTotales };
+}
+
+function calcularGananciaPedidos(pedidos) {
+    let costoTotal = 0;
+    let ventaTotal = 0;
+    let itemsConCosto = 0;
+    let itemsTotales = 0;
+
+    pedidos.forEach(p => {
+        ventaTotal += p.total || 0;
+        const g = calcularGananciaPedido(p);
+        costoTotal += g.costoTotal;
+        itemsConCosto += g.itemsConCosto;
+        itemsTotales += g.itemsTotales;
+    });
+
+    const gananciaTotal = ventaTotal - costoTotal;
+    const margenPromedio = ventaTotal > 0 ? Math.round((gananciaTotal / ventaTotal) * 100) : 0;
+
+    return { costoTotal, ventaTotal, gananciaTotal, margenPromedio, itemsConCosto, itemsTotales };
+}
+
 function cargarDashboard() {
     const pedidos = todosLosPedidos;
     const hoy = new Date();
-    
+
     // Stats del mes
     const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
     const pedidosMes = pedidos.filter(p => new Date(p.fecha) >= inicioMes);
     const ventasMes = pedidosMes.reduce((s, p) => s + (p.total || 0), 0);
     const clientesActivosMes = new Set(pedidosMes.map(p => p.cliente?.id)).size;
     const ticketPromedio = pedidosMes.length > 0 ? Math.round(ventasMes / pedidosMes.length) : 0;
-    
+
     const el = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
     el('dashVentasMes', `Gs. ${ventasMes.toLocaleString()}`);
     el('dashPedidosMes', pedidosMes.length);
     el('dashClientesActivos', clientesActivosMes);
     el('dashTicketPromedio', `Gs. ${ticketPromedio.toLocaleString()}`);
-    
-    // Chart: ventas ultimos 7 dias
+
+    // Ganancia Neta del Mes
+    const gananciaMes = calcularGananciaPedidos(pedidosMes);
+    el('dashGananciaNeta', `Gs. ${gananciaMes.gananciaTotal.toLocaleString()}`);
+    el('dashCostoTotal', `Gs. ${gananciaMes.costoTotal.toLocaleString()}`);
+
+    const elMargen = document.getElementById('dashMargenPromedio');
+    if (elMargen) {
+        elMargen.textContent = gananciaMes.margenPromedio + '%';
+        elMargen.className = 'text-2xl font-bold mt-1 ' + (
+            gananciaMes.margenPromedio > 30 ? 'text-green-700' :
+            gananciaMes.margenPromedio > 15 ? 'text-yellow-700' : 'text-red-700'
+        );
+    }
+
+    const elDetalle = document.getElementById('dashGananciaDetalle');
+    if (elDetalle) {
+        if (gananciaMes.itemsConCosto === 0) {
+            elDetalle.textContent = 'Define costos en productos para ver ganancia real';
+        } else {
+            elDetalle.textContent = `${gananciaMes.itemsConCosto}/${gananciaMes.itemsTotales} items con costo definido`;
+        }
+    }
+    const elMargenDet = document.getElementById('dashMargenDetalle');
+    if (elMargenDet) {
+        elMargenDet.textContent = gananciaMes.costoTotal > 0
+            ? `Ventas Gs. ${ventasMes.toLocaleString()} - Costos Gs. ${gananciaMes.costoTotal.toLocaleString()}`
+            : 'Sin costos definidos aun';
+    }
+    const elCostoDet = document.getElementById('dashCostoDetalle');
+    if (elCostoDet) {
+        elCostoDet.textContent = gananciaMes.costoTotal > 0
+            ? `${pedidosMes.length} pedidos este mes`
+            : 'Agrega costos a tus productos';
+    }
+
+    // Chart: ventas ultimos 7 dias (ahora con ganancia)
     const labels7d = [];
     const datos7d = [];
+    const ganancia7d = [];
     for (let i = 6; i >= 0; i--) {
         const d = new Date(hoy);
         d.setDate(d.getDate() - i);
         const fechaStr = d.toISOString().split('T')[0];
         const diaNombre = d.toLocaleDateString('es-PY', { weekday: 'short' });
         labels7d.push(diaNombre);
-        const ventasDia = pedidos.filter(p => new Date(p.fecha).toISOString().split('T')[0] === fechaStr).reduce((s, p) => s + (p.total || 0), 0);
+        const pedidosDia = pedidos.filter(p => new Date(p.fecha).toISOString().split('T')[0] === fechaStr);
+        const ventasDia = pedidosDia.reduce((s, p) => s + (p.total || 0), 0);
         datos7d.push(ventasDia);
+        const gDia = calcularGananciaPedidos(pedidosDia);
+        ganancia7d.push(gDia.gananciaTotal);
     }
-    
+
     const ctx7d = document.getElementById('chartVentas7Dias');
     if (ctx7d) {
         if (chartVentas7d) chartVentas7d.destroy();
@@ -2044,17 +2131,26 @@ function cargarDashboard() {
             type: 'bar',
             data: {
                 labels: labels7d,
-                datasets: [{
-                    label: 'Ventas (Gs.)',
-                    data: datos7d,
-                    backgroundColor: 'rgba(17, 24, 39, 0.8)',
-                    borderRadius: 8,
-                    borderSkipped: false
-                }]
+                datasets: [
+                    {
+                        label: 'Ventas (Gs.)',
+                        data: datos7d,
+                        backgroundColor: 'rgba(17, 24, 39, 0.8)',
+                        borderRadius: 8,
+                        borderSkipped: false
+                    },
+                    {
+                        label: 'Ganancia (Gs.)',
+                        data: ganancia7d,
+                        backgroundColor: 'rgba(34, 197, 94, 0.7)',
+                        borderRadius: 8,
+                        borderSkipped: false
+                    }
+                ]
             },
             options: {
                 responsive: true,
-                plugins: { legend: { display: false } },
+                plugins: { legend: { display: true, position: 'top' } },
                 scales: {
                     y: { beginAtZero: true, ticks: { callback: v => 'Gs.' + (v/1000).toFixed(0) + 'k' } },
                     x: { grid: { display: false } }
@@ -2180,6 +2276,26 @@ function cargarResumenMensual() {
                 <div class="bg-yellow-50 p-3 rounded-lg"><p class="text-xs text-gray-500">Clientes</p><p class="font-bold text-yellow-700">${clientesUnicos}</p></div>
             </div>
         `;
+    }
+
+    // Ganancia neta del mes seleccionado
+    const gananciaContainer = document.getElementById('resumenGananciaContenido');
+    if (gananciaContainer) {
+        const gMes = calcularGananciaPedidos(pedidosMes);
+        const margenColor = gMes.margenPromedio > 30 ? 'text-green-700' :
+                            gMes.margenPromedio > 15 ? 'text-yellow-700' : 'text-red-700';
+        if (gMes.costoTotal > 0) {
+            gananciaContainer.innerHTML = `
+                <div class="grid grid-cols-3 gap-3 border-t border-gray-200 pt-3">
+                    <div class="bg-orange-50 p-3 rounded-lg"><p class="text-xs text-gray-500">Costo Total</p><p class="font-bold text-orange-700">Gs. ${gMes.costoTotal.toLocaleString()}</p></div>
+                    <div class="bg-green-50 p-3 rounded-lg"><p class="text-xs text-gray-500">Ganancia Neta</p><p class="font-bold text-green-700">Gs. ${gMes.gananciaTotal.toLocaleString()}</p></div>
+                    <div class="bg-blue-50 p-3 rounded-lg"><p class="text-xs text-gray-500">Margen</p><p class="font-bold ${margenColor}">${gMes.margenPromedio}%</p></div>
+                </div>
+                <p class="text-xs text-gray-400 mt-2">${gMes.itemsConCosto}/${gMes.itemsTotales} items con costo definido</p>
+            `;
+        } else {
+            gananciaContainer.innerHTML = `<p class="text-xs text-gray-400 mt-2 italic">Define costos en tus productos para ver la ganancia neta de este mes</p>`;
+        }
     }
 }
 

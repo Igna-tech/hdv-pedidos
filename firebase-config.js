@@ -48,12 +48,19 @@ function monitorearConexion() {
 function actualizarIndicadorConexion(conectado) {
     const badge = document.getElementById('status-badge');
     if (!badge) return;
-    if (conectado) {
+    const enLinea = navigator.onLine;
+    if (conectado && enLinea) {
         badge.innerHTML = '<span class="w-2 h-2 bg-green-500 rounded-full mr-2"></span> Sincronizado';
+    } else if (enLinea && !conectado) {
+        badge.innerHTML = '<span class="w-2 h-2 bg-yellow-500 rounded-full mr-2 animate-pulse"></span> Conectando...';
     } else {
-        badge.innerHTML = '<span class="w-2 h-2 bg-yellow-500 rounded-full mr-2 animate-pulse"></span> Offline (local)';
+        badge.innerHTML = '<span class="w-2 h-2 bg-red-500 rounded-full mr-2 animate-pulse"></span> Sin conexion';
     }
 }
+
+// Detectar cambios de red del navegador
+window.addEventListener('online', () => { actualizarIndicadorConexion(firebaseConectado); });
+window.addEventListener('offline', () => { actualizarIndicadorConexion(false); });
 
 // ============================================
 // FUNCIONES PARA PEDIDOS

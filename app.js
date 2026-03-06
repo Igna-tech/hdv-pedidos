@@ -210,6 +210,30 @@ function mostrarProductos() {
         metaDiv.innerHTML = metaHtml;
         container.appendChild(metaDiv);
     }
+
+    // Productos frecuentes del cliente actual
+    if (!busqueda && categoriaActual === 'todas' && clienteActual) {
+        const frecuentes = obtenerProductosFrecuentes(clienteActual.id, 6);
+        if (frecuentes.length > 0) {
+            const frecDiv = document.createElement('div');
+            frecDiv.className = 'mb-4';
+            frecDiv.innerHTML = `<p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Frecuentes de ${clienteActual.razon_social || clienteActual.nombre}</p>`;
+            const frecGrid = document.createElement('div');
+            frecGrid.className = 'flex gap-2 overflow-x-auto no-scrollbar pb-2';
+            frecuentes.forEach(f => {
+                const prod = productos.find(p => p.id === f.productoId);
+                if (!prod) return;
+                const chip = document.createElement('button');
+                chip.className = 'shrink-0 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2 text-xs font-bold text-blue-800 active:scale-95 transition-transform';
+                chip.textContent = prod.nombre;
+                chip.onclick = () => mostrarDetalleProducto(prod);
+                frecGrid.appendChild(chip);
+            });
+            frecDiv.appendChild(frecGrid);
+            container.appendChild(frecDiv);
+        }
+    }
+
     const grid = document.createElement('div');
     grid.className = 'grid grid-cols-2 sm:grid-cols-3 gap-3';
 
@@ -604,7 +628,7 @@ function ajustarQty(prodId, idx, delta) {
 // ============================================
 function agregarAlCarrito(productoId, presIdx) {
     if (!clienteActual) {
-        alert('Selecciona un cliente primero');
+        mostrarExito('Selecciona un cliente primero');
         return;
     }
     
@@ -670,7 +694,7 @@ function cargarCarritoGuardado() {
 // ============================================
 function mostrarModalCarrito() {
     if (carrito.length === 0) {
-        alert('El carrito esta vacio');
+        mostrarExito('El carrito esta vacio');
         return;
     }
     
@@ -688,19 +712,38 @@ function renderizarCarrito() {
     container.innerHTML = '';
     
     carrito.forEach((item, idx) => {
-        const div = document.createElement('div');
-        div.className = 'flex justify-between items-center p-3 bg-gray-50 rounded-xl';
-        div.innerHTML = `
-            <div class="flex-1">
-                <p class="font-bold text-gray-800 text-sm">${item.nombre}</p>
-                <p class="text-xs text-gray-500">${item.presentacion} × ${item.cantidad}</p>
-            </div>
-            <div class="flex items-center gap-3">
-                <p class="font-bold text-gray-900">Gs. ${item.subtotal.toLocaleString()}</p>
-                <button onclick="eliminarDelCarrito(${idx})" class="text-red-500 text-lg font-bold">×</button>
-            </div>
-        `;
-        container.appendChild(div);
+        const wrapper = document.createElement('div');
+        wrapper.className = 'relative overflow-hidden rounded-xl';
+        wrapper.innerHTML = `
+            <div class="absolute inset-y-0 right-0 w-20 bg-red-500 flex items-center justify-center text-white font-bold text-sm rounded-r-xl">Quitar</div>
+            <div class="cart-item-inner relative bg-gray-50 p-3 transition-transform" style="touch-action: pan-y;" data-idx="${idx}">
+                <div class="flex justify-between items-center">
+                    <div class="flex-1">
+                        <p class="font-bold text-gray-800 text-sm">${item.nombre}</p>
+                        <p class="text-xs text-gray-500">${item.presentacion}</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="cambiarCantidadCarrito(${idx},-1)" class="w-7 h-7 bg-gray-200 rounded-full font-bold text-sm">−</button>
+                        <span class="font-bold text-sm w-6 text-center">${item.cantidad}</span>
+                        <button onclick="cambiarCantidadCarrito(${idx},1)" class="w-7 h-7 bg-gray-200 rounded-full font-bold text-sm">+</button>
+                        <p class="font-bold text-gray-900 ml-2 w-24 text-right">Gs. ${item.subtotal.toLocaleString()}</p>
+                    </div>
+                </div>
+            </div>`;
+        // Swipe to delete
+        const inner = wrapper.querySelector('.cart-item-inner');
+        let startX = 0, currentX = 0;
+        inner.addEventListener('touchstart', e => { startX = e.touches[0].clientX; }, { passive: true });
+        inner.addEventListener('touchmove', e => {
+            currentX = e.touches[0].clientX - startX;
+            if (currentX < 0) inner.style.transform = `translateX(${Math.max(currentX, -80)}px)`;
+        }, { passive: true });
+        inner.addEventListener('touchend', () => {
+            if (currentX < -50) { eliminarDelCarrito(idx); }
+            else { inner.style.transform = ''; }
+            currentX = 0;
+        });
+        container.appendChild(wrapper);
     });
     
     // Total
@@ -743,6 +786,15 @@ function eliminarDelCarrito(idx) {
     } else {
         renderizarCarrito();
     }
+}
+
+function cambiarCantidadCarrito(idx, delta) {
+    if (!carrito[idx]) return;
+    carrito[idx].cantidad = Math.max(1, carrito[idx].cantidad + delta);
+    carrito[idx].subtotal = carrito[idx].cantidad * carrito[idx].precio;
+    actualizarContadorCarrito();
+    guardarCarrito();
+    renderizarCarrito();
 }
 
 function aplicarDescuento() {
@@ -1034,6 +1086,22 @@ if (localStorage.getItem('hdv_darkmode') === 'true') {
     document.body.classList.add('dark-mode');
 }
 
+// Productos frecuentes por cliente
+function obtenerProductosFrecuentes(clienteId, limit = 6) {
+    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]')
+        .filter(p => p.cliente?.id === clienteId);
+    const conteo = {};
+    pedidos.forEach(p => {
+        (p.items || []).forEach(it => {
+            conteo[it.productoId] = (conteo[it.productoId] || 0) + (it.cantidad || 1);
+        });
+    });
+    return Object.entries(conteo)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, limit)
+        .map(([productoId, cantidad]) => ({ productoId, cantidad }));
+}
+
 function forzarActualizacion() {
     if ('caches' in window) {
         caches.keys().then(names => names.forEach(name => caches.delete(name)));
@@ -1050,18 +1118,16 @@ function registrarSW() {
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('service-worker.js')
             .then(reg => {
-                console.log('[SW] Registrado v7.3');
+                console.log('[SW] Registrado');
                 // Buscar actualizaciones cada 30 segundos
                 setInterval(() => reg.update(), 30000);
                 reg.addEventListener('updatefound', () => {
                     const newWorker = reg.installing;
                     newWorker.addEventListener('statechange', () => {
                         if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                            // Forzar activacion del nuevo SW
                             newWorker.postMessage('skipWaiting');
-                            if (confirm('Hay una actualizacion disponible. ¿Actualizar ahora?')) {
-                                location.reload(true);
-                            }
+                            mostrarExito('Actualizando app...');
+                            setTimeout(() => location.reload(true), 1500);
                         }
                     });
                 });

@@ -30,9 +30,50 @@
         .unsaved-bar.visible { bottom: 20px; }
         .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 2000; display: none; align-items: center; justify-content: center; padding: 1rem; }
         .modal-overlay.show { display: flex; }
+
+        /* Toast notifications */
+        #toastContainer { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
+        .toast { pointer-events: auto; padding: 14px 20px; border-radius: 12px; font-size: 14px; font-weight: 600; color: white; box-shadow: 0 8px 20px rgba(0,0,0,0.15); transform: translateX(120%); transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); max-width: 380px; display: flex; align-items: center; gap: 10px; }
+        .toast.show { transform: translateX(0); }
+        .toast-success { background: #059669; }
+        .toast-error { background: #dc2626; }
+        .toast-info { background: #2563eb; }
+        .toast-warning { background: #d97706; }
+
+        /* Responsive sidebar */
+        #sidebarOverlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 49; }
+        @media (max-width: 1024px) {
+            #sidebar { position: fixed; left: -280px; z-index: 50; height: 100vh; }
+            #sidebar.open { left: 0; }
+            #sidebarOverlay.open { display: block; }
+            #hamburgerBtn { display: flex !important; }
+        }
+
+        /* Global search */
+        #globalSearchOverlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 3000; display: none; align-items: flex-start; justify-content: center; padding-top: 10vh; }
+        #globalSearchOverlay.show { display: flex; }
+        #globalSearchBox { background: white; border-radius: 16px; width: 90%; max-width: 600px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
     </style>
 </head>
 <body class="flex h-screen overflow-hidden text-gray-800">
+
+    <!-- Toast container -->
+    <div id="toastContainer"></div>
+
+    <!-- Sidebar overlay (mobile) -->
+    <div id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+    <!-- Global search overlay -->
+    <div id="globalSearchOverlay" onclick="cerrarBusquedaGlobal(event)">
+        <div id="globalSearchBox">
+            <div class="p-4 border-b border-gray-200 flex items-center gap-3">
+                <i data-lucide="search" class="w-5 h-5 text-gray-400"></i>
+                <input type="text" id="globalSearchInput" placeholder="Buscar productos, clientes, pedidos..." class="flex-1 text-lg outline-none" oninput="ejecutarBusquedaGlobal()" autofocus>
+                <kbd class="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded">ESC</kbd>
+            </div>
+            <div id="globalSearchResults" class="max-h-[60vh] overflow-y-auto p-2"></div>
+        </div>
+    </div>
 
     <!-- SIDEBAR -->
     <aside id="sidebar" class="sidebar w-64 flex-shrink-0 flex flex-col text-white shadow-2xl">
@@ -98,16 +139,24 @@
         </nav>
 
         <div class="p-4 border-t border-gray-700 text-center">
-            <span class="text-xs text-gray-500">Version 7.4 - 2026</span>
+            <span class="text-xs text-gray-500">Version 7.5 - 2026</span>
         </div>
     </aside>
 
     <!-- MAIN CONTENT -->
     <main class="flex-1 flex flex-col overflow-hidden">
-        <header class="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-8 shrink-0">
-            <h2 class="text-lg font-bold text-gray-800" id="currentSectionTitle">Gestion de Pedidos</h2>
-            <div class="flex items-center gap-4">
-                <button onclick="location.reload()" class="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500" title="Actualizar">
+        <header class="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-4 md:px-8 shrink-0">
+            <div class="flex items-center gap-3">
+                <button id="hamburgerBtn" onclick="toggleSidebar()" class="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500 hidden" title="Menu">
+                    <i data-lucide="menu" class="w-5 h-5"></i>
+                </button>
+                <h2 class="text-lg font-bold text-gray-800" id="currentSectionTitle">Gestion de Pedidos</h2>
+            </div>
+            <div class="flex items-center gap-2 md:gap-4">
+                <button onclick="abrirBusquedaGlobal()" class="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500" title="Buscar (Ctrl+K)">
+                    <i data-lucide="search" class="w-5 h-5"></i>
+                </button>
+                <button onclick="forzarActualizacionAdmin()" class="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500" title="Forzar actualizacion (limpia cache)">
                     <i data-lucide="refresh-cw" class="w-5 h-5"></i>
                 </button>
                 <div class="h-8 w-px bg-gray-200"></div>

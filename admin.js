@@ -3894,3 +3894,178 @@ function enviarWhatsAppReactivacion(telefono, nombre) {
     const mensaje = `Hola ${nombre}, desde HDV Distribuciones le saludamos! Hace un tiempo que no nos visita y queremos ofrecerle nuestras ultimas promociones. Estamos para servirle! Contactenos para su proximo pedido.`;
     window.open(`https://wa.me/${tel}?text=${encodeURIComponent(mensaje)}`, '_blank');
 }
+
+// ============================================
+// TOAST NOTIFICATIONS
+// ============================================
+function mostrarToast(mensaje, tipo = 'info', duracion = 3500) {
+    const container = document.getElementById('toastContainer');
+    if (!container) return;
+    const iconos = { success: '✓', error: '✕', info: 'ℹ', warning: '⚠' };
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${tipo}`;
+    toast.innerHTML = `<span style="font-size:18px">${iconos[tipo] || ''}</span><span>${mensaje}</span>`;
+    container.appendChild(toast);
+    requestAnimationFrame(() => toast.classList.add('show'));
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 400);
+    }, duracion);
+}
+
+// ============================================
+// FORZAR ACTUALIZACION ADMIN
+// ============================================
+function forzarActualizacionAdmin() {
+    mostrarToast('Limpiando cache y actualizando...', 'info');
+    if ('caches' in window) {
+        caches.keys().then(names => names.forEach(name => caches.delete(name)));
+    }
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(regs => {
+            regs.forEach(r => r.unregister());
+        });
+    }
+    setTimeout(() => location.reload(true), 800);
+}
+
+// Registrar SW tambien desde admin
+(function registrarSWAdmin() {
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('service-worker.js')
+            .then(reg => {
+                console.log('[Admin SW] Registrado');
+                setInterval(() => reg.update(), 30000);
+                reg.addEventListener('updatefound', () => {
+                    const nw = reg.installing;
+                    nw.addEventListener('statechange', () => {
+                        if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+                            nw.postMessage('skipWaiting');
+                            mostrarToast('Nueva version disponible. Recargando...', 'info');
+                            setTimeout(() => location.reload(true), 1500);
+                        }
+                    });
+                });
+            }).catch(err => console.log('[Admin SW] Error:', err));
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+            console.log('[Admin SW] Nuevo service worker activo');
+        });
+    }
+})();
+
+// ============================================
+// SIDEBAR RESPONSIVE
+// ============================================
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    sidebar.classList.toggle('open');
+    overlay.classList.toggle('open');
+}
+
+// Cerrar sidebar al navegar en mobile
+const _cambiarSeccionOriginal = cambiarSeccion;
+cambiarSeccion = function(seccionId) {
+    _cambiarSeccionOriginal(seccionId);
+    if (window.innerWidth <= 1024) {
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('sidebarOverlay');
+        if (sidebar) sidebar.classList.remove('open');
+        if (overlay) overlay.classList.remove('open');
+    }
+};
+
+// ============================================
+// BUSQUEDA GLOBAL (Ctrl+K)
+// ============================================
+function abrirBusquedaGlobal() {
+    const overlay = document.getElementById('globalSearchOverlay');
+    overlay.classList.add('show');
+    const input = document.getElementById('globalSearchInput');
+    input.value = '';
+    input.focus();
+    document.getElementById('globalSearchResults').innerHTML = '<p class="p-6 text-center text-gray-400 text-sm">Escribe para buscar en productos, clientes y pedidos</p>';
+}
+
+function cerrarBusquedaGlobal(e) {
+    if (e && e.target !== e.currentTarget) return;
+    document.getElementById('globalSearchOverlay').classList.remove('show');
+}
+
+function ejecutarBusquedaGlobal() {
+    const q = document.getElementById('globalSearchInput').value.toLowerCase().trim();
+    const results = document.getElementById('globalSearchResults');
+    if (q.length < 2) {
+        results.innerHTML = '<p class="p-6 text-center text-gray-400 text-sm">Escribe al menos 2 caracteres</p>';
+        return;
+    }
+
+    let html = '';
+
+    // Buscar productos
+    const prods = (productosData.productos || []).filter(p => p.nombre.toLowerCase().includes(q) || p.id.toLowerCase().includes(q)).slice(0, 5);
+    if (prods.length > 0) {
+        html += '<p class="px-4 py-2 text-xs font-bold text-gray-500 uppercase">Productos</p>';
+        prods.forEach(p => {
+            html += `<button onclick="cerrarBusquedaGlobal({target:{currentTarget:{}}});cambiarSeccion('productos');setTimeout(()=>{document.getElementById('buscarProducto').value='${p.nombre.replace(/'/g, "\\'")}';filtrarProductos()},100)" class="w-full text-left px-4 py-3 hover:bg-gray-100 rounded-lg flex items-center gap-3">
+                <span class="text-lg">📦</span>
+                <div><p class="font-medium text-gray-800 text-sm">${p.nombre}</p><p class="text-xs text-gray-400">${p.id} - ${p.categoria}</p></div>
+            </button>`;
+        });
+    }
+
+    // Buscar clientes
+    const clis = (productosData.clientes || []).filter(c => (c.razon_social || c.nombre || '').toLowerCase().includes(q) || (c.ruc || '').includes(q) || (c.telefono || '').includes(q)).slice(0, 5);
+    if (clis.length > 0) {
+        html += '<p class="px-4 py-2 text-xs font-bold text-gray-500 uppercase">Clientes</p>';
+        clis.forEach(c => {
+            html += `<button onclick="cerrarBusquedaGlobal({target:{currentTarget:{}}});cambiarSeccion('clientes');setTimeout(()=>abrirPerfilCliente('${c.id}'),200)" class="w-full text-left px-4 py-3 hover:bg-gray-100 rounded-lg flex items-center gap-3">
+                <span class="text-lg">👤</span>
+                <div><p class="font-medium text-gray-800 text-sm">${c.razon_social || c.nombre}</p><p class="text-xs text-gray-400">${c.zona || ''} - ${c.telefono || ''}</p></div>
+            </button>`;
+        });
+    }
+
+    // Buscar pedidos
+    const peds = (todosLosPedidos || []).filter(p => p.id?.toLowerCase().includes(q) || (p.cliente?.nombre || '').toLowerCase().includes(q)).slice(0, 5);
+    if (peds.length > 0) {
+        html += '<p class="px-4 py-2 text-xs font-bold text-gray-500 uppercase">Pedidos</p>';
+        peds.forEach(p => {
+            html += `<button onclick="cerrarBusquedaGlobal({target:{currentTarget:{}}});cambiarSeccion('pedidos');setTimeout(()=>editarPedido('${p.id}'),200)" class="w-full text-left px-4 py-3 hover:bg-gray-100 rounded-lg flex items-center gap-3">
+                <span class="text-lg">📋</span>
+                <div><p class="font-medium text-gray-800 text-sm">${p.cliente?.nombre || 'N/A'}</p><p class="text-xs text-gray-400">${p.id} - Gs. ${(p.total || 0).toLocaleString()}</p></div>
+            </button>`;
+        });
+    }
+
+    if (!html) html = '<p class="p-6 text-center text-gray-400 text-sm">Sin resultados</p>';
+    results.innerHTML = html;
+}
+
+// ============================================
+// KEYBOARD SHORTCUTS
+// ============================================
+document.addEventListener('keydown', (e) => {
+    // Ctrl+K = busqueda global
+    if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        const overlay = document.getElementById('globalSearchOverlay');
+        if (overlay.classList.contains('show')) cerrarBusquedaGlobal({target:{currentTarget:{}}});
+        else abrirBusquedaGlobal();
+    }
+    // Ctrl+S = guardar cambios
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        if (cambiosSinGuardar > 0) {
+            guardarTodosCambios();
+            mostrarToast('Cambios guardados y sincronizados', 'success');
+        } else {
+            mostrarToast('No hay cambios pendientes', 'info');
+        }
+    }
+    // ESC = cerrar busqueda global o modales
+    if (e.key === 'Escape') {
+        const search = document.getElementById('globalSearchOverlay');
+        if (search.classList.contains('show')) { cerrarBusquedaGlobal({target:{currentTarget:{}}}); return; }
+    }
+});

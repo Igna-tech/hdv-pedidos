@@ -16,8 +16,21 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     
     <style>
-        :root { --grafito-oscuro: #111827; --grafito-medio: #1f2937; --grafito-claro: #374151; }
-        body { background-color: #f9fafb; font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+        :root {
+            --grafito-oscuro: #111827; --grafito-medio: #1f2937; --grafito-claro: #374151;
+            --sidebar-bg: #ffffff;
+            --sidebar-border: #e2e8f0;
+            --sidebar-text: #475569;
+            --sidebar-text-hover: #1e293b;
+            --sidebar-active-bg: rgba(99, 102, 241, 0.08);
+            --sidebar-active-text: #4f46e5;
+            --content-bg: #f1f5f9;
+            --card-bg: #ffffff;
+            --card-border: #e2e8f0;
+            --card-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+            --heading-color: #0f172a;
+        }
+        body { background-color: var(--content-bg); font-family: 'Inter', system-ui, -apple-system, sans-serif; }
 
         /* A11Y - Focus visible & Microinteractions */
         *:focus-visible {
@@ -68,22 +81,49 @@
             font-size: 0.8125rem; transition: background 0.2s;
         }
         .empty-state .empty-action:hover { background: var(--grafito-medio); }
-        .sidebar { background-color: var(--grafito-oscuro); transition: all 0.3s; }
-        .nav-item { cursor: pointer; transition: background-color 0.15s ease, border-color 0.15s ease; }
-        .nav-item:hover { background-color: var(--grafito-claro); }
-        .nav-item:focus-visible { outline: 2px solid #818cf8; outline-offset: -2px; border-radius: 0; }
-        .nav-item.active { background-color: var(--grafito-medio); border-left: 4px solid #ffffff; }
+
+        /* ==========================================
+           SaaS Sidebar
+           ========================================== */
+        .sidebar {
+            background-color: var(--sidebar-bg);
+            border-right: 1px solid var(--sidebar-border);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .nav-item {
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 6px;
+            margin: 1px 12px;
+            padding: 9px 12px;
+            color: var(--sidebar-text);
+            font-weight: 500;
+        }
+        .nav-item:hover {
+            background-color: #f1f5f9;
+            color: var(--sidebar-text-hover);
+        }
+        .nav-item:hover i { color: var(--sidebar-text-hover) !important; }
+        .nav-item:focus-visible { outline: 2px solid #818cf8; outline-offset: -2px; }
+        .nav-item.active {
+            background-color: var(--sidebar-active-bg);
+            color: var(--sidebar-active-text);
+            font-weight: 600;
+            border-left: none;
+        }
+        .nav-item.active i { color: var(--sidebar-active-text) !important; }
+
         .tab-content { display: none; }
         .tab-content.active { display: block; }
         .unsaved-bar {
             position: fixed; bottom: -100px; left: 50%; transform: translateX(-50%);
-            background: var(--grafito-oscuro); color: white; padding: 1rem 2rem;
-            border-radius: 1rem; display: flex; align-items: center; gap: 2rem;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.3); transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            background: var(--heading-color); color: white; padding: 1rem 2rem;
+            border-radius: 12px; display: flex; align-items: center; gap: 2rem;
+            box-shadow: var(--card-shadow), 0 10px 25px rgba(0,0,0,0.15); transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             z-index: 1000; width: 90%; max-width: 600px;
         }
         .unsaved-bar.visible { bottom: 20px; }
-        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 2000; display: none; align-items: center; justify-content: center; padding: 1rem; }
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 2000; display: none; align-items: center; justify-content: center; padding: 1rem; }
         .modal-overlay.show { display: flex; }
 
         /* Toast notifications */
@@ -109,11 +149,19 @@
         @keyframes confirmFadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes confirmSlideUp { from { opacity: 0; transform: scale(0.9) translateY(20px); } to { opacity: 1; transform: scale(1) translateY(0); } }
 
-        /* Responsive sidebar */
-        #sidebarOverlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 49; }
+        /* Responsive sidebar - slide from left */
+        #sidebarOverlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 49; transition: opacity 0.3s ease; }
         @media (max-width: 1024px) {
-            #sidebar { position: fixed; left: -280px; z-index: 50; height: 100vh; }
-            #sidebar.open { left: 0; }
+            #sidebar {
+                position: fixed; z-index: 50; height: 100vh;
+                transform: translateX(-100%);
+                transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                box-shadow: none;
+            }
+            #sidebar.open {
+                transform: translateX(0);
+                box-shadow: 4px 0 24px rgba(0,0,0,0.1);
+            }
             #sidebarOverlay.open { display: block; }
             #hamburgerBtn { display: flex !important; }
         }
@@ -121,12 +169,21 @@
         /* Catalog grid cards */
         .catalog-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; }
         .catalog-card {
-            position: relative; aspect-ratio: 1 / 1; border-radius: 16px; overflow: hidden;
-            cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            position: relative; aspect-ratio: 1 / 1; border-radius: 12px; overflow: hidden;
+            cursor: pointer; box-shadow: var(--card-shadow);
             transition: transform 0.25s ease, box-shadow 0.25s ease;
             background-color: #e5e7eb; background-size: cover; background-position: center;
         }
-        .catalog-card:hover { transform: scale(1.02); box-shadow: 0 8px 24px rgba(0,0,0,0.15); }
+        /* Lazy load: skeleton pulse until image loads */
+        .catalog-card:not(.catalog-card--loaded) {
+            animation: shimmer-bg 1.8s ease-in-out infinite alternate;
+        }
+        @keyframes shimmer-bg {
+            0% { background-color: #e5e7eb; }
+            100% { background-color: #d1d5db; }
+        }
+        .catalog-card--loaded { background-color: transparent; }
+        .catalog-card:hover { transform: scale(1.02); box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
         .catalog-card::after {
             content: ''; position: absolute; inset: 0;
             background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.1) 50%, transparent 100%);
@@ -160,13 +217,33 @@
         #globalSearchBox { background: white; border-radius: 16px; width: 90%; max-width: 600px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.3); animation: confirmSlideUp 0.25s ease; }
         #globalSearchInput:focus { outline: none; }
 
-        /* Table row hover */
+        /* SaaS Table styling */
+        table { border-collapse: separate; border-spacing: 0; }
+        thead th { border-bottom: 1px solid var(--card-border); }
         tbody tr { transition: background-color 0.15s ease; }
-        tbody tr:hover { background-color: #f9fafb; }
+        tbody tr:hover { background-color: #f8fafc; }
+        tbody td { border-bottom: 1px solid #f1f5f9; }
 
-        /* Admin table improvements */
+        /* Admin list items */
         .divide-y > div { transition: background-color 0.15s ease; }
-        .divide-y > div:hover { background-color: #fafafa; }
+        .divide-y > div:hover { background-color: #fafbfc; }
+
+        /* SaaS Card containers */
+        .saas-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            box-shadow: var(--card-shadow);
+        }
+        .saas-card h3, .saas-card h4 {
+            color: var(--heading-color);
+            font-weight: 600;
+        }
+
+        /* Lazy-load fade-in for catalog background images */
+        .catalog-card {
+            transition: transform 0.25s ease, box-shadow 0.25s ease, opacity 0.4s ease;
+        }
     </style>
 </head>
 <body class="flex h-screen overflow-hidden text-gray-800">
@@ -190,119 +267,119 @@
     </div>
 
     <!-- SIDEBAR -->
-    <aside id="sidebar" class="sidebar w-64 flex-shrink-0 flex flex-col text-white shadow-2xl" role="navigation" aria-label="Menu principal">
-        <div class="p-5 border-b border-gray-700">
+    <aside id="sidebar" class="sidebar w-64 flex-shrink-0 flex flex-col" role="navigation" aria-label="Menu principal">
+        <div class="p-5 border-b border-gray-100">
             <div class="flex items-center gap-3">
-                <svg width="48" height="48" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                <svg width="40" height="40" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
                     <rect width="100" height="100" rx="16" fill="#111827"/>
                     <rect x="4" y="4" width="92" height="92" rx="12" fill="none" stroke="#DC2626" stroke-width="2.5"/>
                     <text x="50" y="52" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="38" fill="#DC2626" text-anchor="middle" dominant-baseline="central" letter-spacing="2">HDV</text>
                     <text x="50" y="78" font-family="Arial, sans-serif" font-weight="700" font-size="9.5" fill="#FFFFFF" text-anchor="middle" letter-spacing="4">DISTRIBUCIONES</text>
                 </svg>
                 <div>
-                    <h1 class="text-lg font-bold tracking-tight leading-tight">HDV Admin</h1>
+                    <h1 class="text-base font-bold tracking-tight leading-tight text-gray-900">HDV Admin</h1>
                     <p class="text-[10px] text-gray-400 mt-0.5 uppercase tracking-wider">Panel de Gestion</p>
                 </div>
             </div>
         </div>
-        
-        <nav class="flex-1 overflow-y-auto py-4">
-            <div class="px-4 mb-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Datos</div>
-            <button onclick="cambiarSeccion('dashboard')" class="nav-item w-full flex items-center px-6 py-3 text-sm transition-colors">
+
+        <nav class="flex-1 overflow-y-auto py-4 px-2">
+            <div class="px-3 mb-2 text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Datos</div>
+            <button onclick="cambiarSeccion('dashboard')" class="nav-item w-full flex items-center text-sm">
                 <i data-lucide="layout-dashboard" class="w-4 h-4 mr-3 text-gray-400"></i> Dashboard
             </button>
-            <button onclick="cambiarSeccion('pedidos')" class="nav-item w-full flex items-center px-6 py-3 text-sm transition-colors active">
+            <button onclick="cambiarSeccion('pedidos')" class="nav-item w-full flex items-center text-sm active">
                 <i data-lucide="package" class="w-4 h-4 mr-3 text-gray-400"></i> Pedidos
             </button>
-            <button onclick="cambiarSeccion('creditos')" class="nav-item w-full flex items-center px-6 py-3 text-sm transition-colors">
+            <button onclick="cambiarSeccion('creditos')" class="nav-item w-full flex items-center text-sm">
                 <i data-lucide="credit-card" class="w-4 h-4 mr-3 text-gray-400"></i> Creditos
             </button>
-            <button onclick="cambiarSeccion('reportes')" class="nav-item w-full flex items-center px-6 py-3 text-sm transition-colors">
+            <button onclick="cambiarSeccion('reportes')" class="nav-item w-full flex items-center text-sm">
                 <i data-lucide="bar-chart-3" class="w-4 h-4 mr-3 text-gray-400"></i> Reportes
             </button>
-            <button onclick="cambiarSeccion('stock')" class="nav-item w-full flex items-center px-6 py-3 text-sm transition-colors">
+            <button onclick="cambiarSeccion('stock')" class="nav-item w-full flex items-center text-sm">
                 <i data-lucide="database" class="w-4 h-4 mr-3 text-gray-400"></i> Stock
             </button>
 
-            <div class="px-4 mt-6 mb-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Gestion</div>
-            <button onclick="cambiarSeccion('productos')" class="nav-item w-full flex items-center px-6 py-3 text-sm transition-colors">
+            <div class="px-3 mt-5 mb-2 text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Gestion</div>
+            <button onclick="cambiarSeccion('productos')" class="nav-item w-full flex items-center text-sm">
                 <i data-lucide="tag" class="w-4 h-4 mr-3 text-gray-400"></i> Productos
             </button>
-            <button onclick="cambiarSeccion('clientes')" class="nav-item w-full flex items-center px-6 py-3 text-sm transition-colors">
+            <button onclick="cambiarSeccion('clientes')" class="nav-item w-full flex items-center text-sm">
                 <i data-lucide="users" class="w-4 h-4 mr-3 text-gray-400"></i> Clientes
             </button>
-            <button onclick="cambiarSeccion('promociones')" class="nav-item w-full flex items-center px-6 py-3 text-sm transition-colors">
+            <button onclick="cambiarSeccion('promociones')" class="nav-item w-full flex items-center text-sm">
                 <i data-lucide="gift" class="w-4 h-4 mr-3 text-gray-400"></i> Promociones
             </button>
 
-            <div class="px-4 mt-6 mb-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Vendedores</div>
-            <button onclick="cambiarSeccion('rendiciones')" class="nav-item w-full flex items-center px-6 py-3 text-sm transition-colors">
+            <div class="px-3 mt-5 mb-2 text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Vendedores</div>
+            <button onclick="cambiarSeccion('rendiciones')" class="nav-item w-full flex items-center text-sm">
                 <i data-lucide="wallet" class="w-4 h-4 mr-3 text-gray-400"></i> Rendiciones
             </button>
-            <button onclick="cambiarSeccion('metas')" class="nav-item w-full flex items-center px-6 py-3 text-sm transition-colors">
+            <button onclick="cambiarSeccion('metas')" class="nav-item w-full flex items-center text-sm">
                 <i data-lucide="target" class="w-4 h-4 mr-3 text-gray-400"></i> Metas
             </button>
-            <button onclick="cambiarSeccion('inactivos')" class="nav-item w-full flex items-center px-6 py-3 text-sm transition-colors">
+            <button onclick="cambiarSeccion('inactivos')" class="nav-item w-full flex items-center text-sm">
                 <i data-lucide="alert-triangle" class="w-4 h-4 mr-3 text-gray-400"></i> Clientes en Riesgo
             </button>
 
-            <div class="px-4 mt-6 mb-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Opciones</div>
-            <button onclick="cambiarSeccion('herramientas')" class="nav-item w-full flex items-center px-6 py-3 text-sm transition-colors">
+            <div class="px-3 mt-5 mb-2 text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Opciones</div>
+            <button onclick="cambiarSeccion('herramientas')" class="nav-item w-full flex items-center text-sm">
                 <i data-lucide="settings" class="w-4 h-4 mr-3 text-gray-400"></i> Herramientas
             </button>
         </nav>
 
-        <div class="p-4 border-t border-gray-700 text-center">
-            <span class="text-xs text-gray-500">Version 7.5 - 2026</span>
+        <div class="p-4 border-t border-gray-100 text-center">
+            <span class="text-[10px] text-gray-400 font-medium">Version 7.5 - 2026</span>
         </div>
     </aside>
 
     <!-- MAIN CONTENT -->
-    <main class="flex-1 flex flex-col overflow-hidden">
-        <header class="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-4 md:px-8 shrink-0">
+    <main class="flex-1 flex flex-col overflow-hidden bg-[#f1f5f9]">
+        <header class="bg-white border-b border-gray-200/80 h-14 flex items-center justify-between px-4 md:px-8 shrink-0">
             <div class="flex items-center gap-3">
-                <button id="hamburgerBtn" onclick="toggleSidebar()" class="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500 hidden" title="Menu">
+                <button id="hamburgerBtn" onclick="toggleSidebar()" class="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-500 hidden" title="Menu">
                     <i data-lucide="menu" class="w-5 h-5"></i>
                 </button>
-                <h2 class="text-lg font-bold text-gray-800" id="currentSectionTitle">Gestion de Pedidos</h2>
+                <h2 class="text-base font-semibold text-gray-900" id="currentSectionTitle">Gestion de Pedidos</h2>
             </div>
-            <div class="flex items-center gap-2 md:gap-4">
-                <button onclick="abrirBusquedaGlobal()" class="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500" title="Buscar (Ctrl+K)">
-                    <i data-lucide="search" class="w-5 h-5"></i>
+            <div class="flex items-center gap-1.5 md:gap-3">
+                <button onclick="abrirBusquedaGlobal()" class="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-400" title="Buscar (Ctrl+K)">
+                    <i data-lucide="search" class="w-4 h-4"></i>
                 </button>
-                <button onclick="forzarActualizacionAdmin()" class="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500" title="Forzar actualizacion (limpia cache)">
-                    <i data-lucide="refresh-cw" class="w-5 h-5"></i>
+                <button onclick="forzarActualizacionAdmin()" class="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-400" title="Forzar actualizacion">
+                    <i data-lucide="refresh-cw" class="w-4 h-4"></i>
                 </button>
-                <div class="h-8 w-px bg-gray-200"></div>
+                <div class="h-6 w-px bg-gray-200 mx-1"></div>
                 <div class="flex items-center gap-2">
-                    <svg width="28" height="28" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                    <svg width="24" height="24" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
                         <rect width="100" height="100" rx="16" fill="#111827"/>
                         <rect x="4" y="4" width="92" height="92" rx="12" fill="none" stroke="#DC2626" stroke-width="3"/>
                         <text x="50" y="55" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="42" fill="#DC2626" text-anchor="middle" dominant-baseline="central" letter-spacing="2">HDV</text>
                     </svg>
-                    <span class="text-sm font-medium text-gray-600">HDV Distribuciones</span>
+                    <span class="text-sm font-medium text-gray-500 hidden md:inline">HDV Distribuciones</span>
                 </div>
             </div>
         </header>
 
-        <div class="flex-1 overflow-y-auto p-8">
+        <div class="flex-1 overflow-y-auto p-6 md:p-8">
             
             <!-- DASHBOARD -->
             <section id="seccion-dashboard" class="tab-content space-y-6">
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                    <div class="saas-card p-6">
                         <p class="text-sm text-gray-500 font-medium">Ventas del Mes</p>
                         <p class="text-2xl font-bold mt-1 text-green-700" id="dashVentasMes">Gs. 0</p>
                     </div>
-                    <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                    <div class="saas-card p-6">
                         <p class="text-sm text-gray-500 font-medium">Pedidos del Mes</p>
                         <p class="text-2xl font-bold mt-1" id="dashPedidosMes">0</p>
                     </div>
-                    <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                    <div class="saas-card p-6">
                         <p class="text-sm text-gray-500 font-medium">Clientes Activos</p>
                         <p class="text-2xl font-bold mt-1 text-blue-700" id="dashClientesActivos">0</p>
                     </div>
-                    <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                    <div class="saas-card p-6">
                         <p class="text-sm text-gray-500 font-medium">Ticket Promedio</p>
                         <p class="text-2xl font-bold mt-1 text-purple-700" id="dashTicketPromedio">Gs. 0</p>
                     </div>
@@ -325,21 +402,21 @@
                     </div>
                 </div>
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                    <div class="saas-card p-6">
                         <h3 class="font-bold text-gray-800 mb-4">Ventas Ultimos 7 Dias</h3>
                         <canvas id="chartVentas7Dias" height="200"></canvas>
                     </div>
-                    <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                    <div class="saas-card p-6">
                         <h3 class="font-bold text-gray-800 mb-4">Top 5 Productos del Mes</h3>
                         <canvas id="chartTopProductos" height="200"></canvas>
                     </div>
                 </div>
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                    <div class="saas-card p-6">
                         <h3 class="font-bold text-gray-800 mb-4">Ranking Clientes (Semana)</h3>
                         <div id="rankingClientes" class="space-y-3"></div>
                     </div>
-                    <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                    <div class="saas-card p-6">
                         <h3 class="font-bold text-gray-800 mb-4">Resumen Mensual</h3>
                         <div class="flex flex-wrap gap-3 mb-4">
                             <select id="dashMesSelect" onchange="cargarResumenMensual()" class="border border-gray-300 rounded-lg px-3 py-2 text-sm"></select>
@@ -354,25 +431,25 @@
                         <!-- PEDIDOS -->
             <section id="seccion-pedidos" class="tab-content active space-y-6">
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                    <div class="saas-card p-6">
                         <p class="text-sm text-gray-500 font-medium">Total Hoy</p>
                         <p class="text-2xl font-bold mt-1" id="statTotalPedidos">0</p>
                     </div>
-                    <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                    <div class="saas-card p-6">
                         <p class="text-sm text-yellow-600 font-medium">Pendientes</p>
                         <p class="text-2xl font-bold mt-1 text-yellow-700" id="statPendientes">0</p>
                     </div>
-                    <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                    <div class="saas-card p-6">
                         <p class="text-sm text-green-600 font-medium">Entregados</p>
                         <p class="text-2xl font-bold mt-1 text-green-700" id="statEntregados">0</p>
                     </div>
-                    <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                    <div class="saas-card p-6">
                         <p class="text-sm text-blue-600 font-medium">Recaudacion</p>
                         <p class="text-2xl font-bold mt-1 text-blue-700" id="statRecaudacion">Gs. 0</p>
                     </div>
                 </div>
 
-                <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-wrap gap-4 items-end">
+                <div class="saas-card p-4 flex flex-wrap gap-4 items-end">
                     <div class="flex-1 min-w-[150px]">
                         <label class="block text-xs font-bold text-gray-500 mb-1">FECHA</label>
                         <input type="date" id="filtroFecha" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none">
@@ -387,7 +464,7 @@
                     <button onclick="exportarExcelPedidos()" class="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-50">Excel</button>
                 </div>
 
-                <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                <div class="saas-card overflow-hidden">
                     <div id="listaPedidos" class="divide-y divide-gray-100">
                         <p class="p-8 text-center text-gray-400 italic">Cargando pedidos...</p>
                     </div>
@@ -397,25 +474,25 @@
             <!-- CREDITOS -->
             <section id="seccion-creditos" class="tab-content space-y-6">
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                    <div class="saas-card p-6">
                         <p class="text-sm text-gray-500">Total Creditos Activos</p>
                         <p class="text-2xl font-bold mt-1 text-red-600" id="totalCreditos">Gs. 0</p>
                     </div>
-                    <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                    <div class="saas-card p-6">
                         <p class="text-sm text-gray-500">Total Cobrado</p>
                         <p class="text-2xl font-bold mt-1 text-green-600" id="totalCobrado">Gs. 0</p>
                     </div>
-                    <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                    <div class="saas-card p-6">
                         <p class="text-sm text-gray-500">Clientes con Credito</p>
                         <p class="text-2xl font-bold mt-1" id="clientesConCredito">0</p>
                     </div>
-                    <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                    <div class="saas-card p-6">
                         <p class="text-sm text-gray-500">Pedidos a Credito</p>
                         <p class="text-2xl font-bold mt-1" id="pedidosCredito">0</p>
                     </div>
                 </div>
 
-                <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-wrap gap-3">
+                <div class="saas-card p-4 flex flex-wrap gap-3">
                     <button onclick="agregarCreditoManual()" class="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-bold">+ Credito Manual</button>
                     <button onclick="editarMensajeRecordatorio()" class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold">Editar Mensaje WhatsApp</button>
                     <button onclick="toggleVistaCreditos('resumen')" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold">Resumen por Cliente</button>
@@ -424,14 +501,14 @@
                 </div>
 
                 <!-- Lista de creditos -->
-                <div id="vistaListaCreditos" class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                <div id="vistaListaCreditos" class="saas-card overflow-hidden">
                     <div id="listaCreditos" class="divide-y divide-gray-100">
                         <p class="p-8 text-center text-gray-400 italic">Sin creditos pendientes</p>
                     </div>
                 </div>
 
                 <!-- Resumen por cliente -->
-                <div id="vistaResumenCreditos" class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden" style="display:none;">
+                <div id="vistaResumenCreditos" class="saas-card overflow-hidden" style="display:none;">
                     <div class="p-4 border-b border-gray-200 bg-gray-50">
                         <h3 class="font-bold text-gray-800">Deuda por Cliente</h3>
                     </div>
@@ -440,11 +517,11 @@
 
                 <!-- Graficos de creditos -->
                 <div id="vistaGraficosCreditos" class="grid grid-cols-1 lg:grid-cols-2 gap-6" style="display:none;">
-                    <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                    <div class="saas-card p-6">
                         <h3 class="font-bold text-gray-800 mb-4">Deuda por Cliente (Top 10)</h3>
                         <canvas id="chartCreditos" height="250"></canvas>
                     </div>
-                    <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                    <div class="saas-card p-6">
                         <h3 class="font-bold text-gray-800 mb-4">Cobrado vs Pendiente</h3>
                         <canvas id="chartCreditosPagados" height="250"></canvas>
                     </div>
@@ -453,7 +530,7 @@
 
             <!-- REPORTES -->
             <section id="seccion-reportes" class="tab-content space-y-6">
-                <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                <div class="saas-card p-6">
                     <h3 class="font-bold text-gray-800 mb-4">Generar Reporte</h3>
                     <div class="flex flex-wrap gap-4 items-end">
                         <div class="flex-1 min-w-[150px]">
@@ -468,7 +545,7 @@
                         <button onclick="generarReporte('producto')" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold">Por Producto</button>
                     </div>
                 </div>
-                <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                <div class="saas-card overflow-hidden">
                     <div id="contenidoReporte" class="p-6">
                         <p class="text-center text-gray-400 italic">Selecciona un rango de fechas y tipo de reporte</p>
                     </div>
@@ -478,7 +555,7 @@
             <!-- STOCK -->
             <section id="seccion-stock" class="tab-content space-y-4">
                 <!-- Toolbar -->
-                <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-wrap gap-3 items-center justify-between">
+                <div class="saas-card p-4 flex flex-wrap gap-3 items-center justify-between">
                     <div class="flex items-center gap-2 text-sm text-gray-500">
                         <button onclick="stockNavegar('inicio')" id="stock-breadcrumb-inicio" class="hover:text-gray-800 font-bold">Stock</button>
                         <span id="stock-breadcrumb-sep1" class="hidden">/</span>
@@ -505,7 +582,7 @@
 
             <!-- PRODUCTOS -->
             <section id="seccion-productos" class="tab-content space-y-4">
-                <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-wrap gap-3 items-center justify-between">
+                <div class="saas-card p-4 flex flex-wrap gap-3 items-center justify-between">
                     <div class="flex items-center gap-2 text-sm text-gray-500">
                         <button onclick="productosNavegar('inicio')" id="prod-breadcrumb-inicio" class="hover:text-gray-800 font-bold">Catalogo</button>
                         <span id="prod-breadcrumb-sep1" class="hidden">/</span>
@@ -557,9 +634,9 @@
                         <button onclick="abrirModalCliente()" class="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-bold">+ Nuevo Cliente</button>
                     </div>
                 </div>
-                <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-x-auto">
+                <div class="saas-card overflow-x-auto">
                     <table class="w-full text-left text-sm">
-                        <thead class="bg-gray-50 border-b border-gray-200 text-gray-500 font-bold uppercase text-[11px] tracking-wider">
+                        <thead class="text-gray-400 font-semibold uppercase text-[11px] tracking-wider">
                             <tr>
                                 <th class="px-4 py-3 cursor-pointer hover:text-gray-800" onclick="ordenarClientes('nombre')">Nombre</th>
                                 <th class="px-4 py-3 cursor-pointer hover:text-gray-800" onclick="ordenarClientes('zona')">Zona</th>
@@ -579,7 +656,7 @@
                     <h3 class="text-xl font-bold text-gray-800">Motor de Promociones</h3>
                     <button onclick="abrirModalPromocion()" class="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-bold">+ Nueva Promocion</button>
                 </div>
-                <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                <div class="saas-card overflow-hidden">
                     <div id="promocionesContainer" class="divide-y divide-gray-100">
                         <p class="p-8 text-center text-gray-400 italic">Sin promociones configuradas</p>
                     </div>
@@ -698,27 +775,27 @@
                     </div>
                 </div>
                 <!-- Filtro de semana -->
-                <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4 flex items-center gap-4 flex-wrap">
+                <div class="saas-card p-4 flex items-center gap-4 flex-wrap">
                     <label class="text-sm font-bold text-gray-600">Semana:</label>
                     <input type="week" id="rendSemana" class="border border-gray-300 rounded-lg px-3 py-2 text-sm" onchange="cargarRendiciones()">
                     <button onclick="cargarRendiciones()" class="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-bold">Calcular</button>
                 </div>
                 <!-- Detalle gastos -->
-                <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                <div class="saas-card overflow-hidden">
                     <div class="p-4 bg-gray-50 border-b border-gray-200 font-bold text-sm text-gray-600">Gastos Registrados</div>
                     <div id="rendGastosLista" class="divide-y divide-gray-100">
                         <p class="p-6 text-center text-gray-400 italic">Sin gastos registrados esta semana</p>
                     </div>
                 </div>
                 <!-- Historial rendiciones -->
-                <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                <div class="saas-card overflow-hidden">
                     <div class="p-4 bg-gray-50 border-b border-gray-200 font-bold text-sm text-gray-600">Historial de Rendiciones</div>
                     <div id="rendHistorial" class="divide-y divide-gray-100">
                         <p class="p-6 text-center text-gray-400 italic">Sin rendiciones anteriores</p>
                     </div>
                 </div>
                 <!-- Cuentas bancarias vista -->
-                <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                <div class="saas-card overflow-hidden">
                     <div class="p-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
                         <span class="font-bold text-sm text-gray-600">Cuentas Bancarias de la Empresa</span>
                         <button onclick="abrirModalCuentaBancaria()" class="text-blue-600 text-sm font-bold">+ Agregar</button>
@@ -803,7 +880,7 @@
                     </div>
                 </div>
                 <!-- Barra de progreso -->
-                <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+                <div class="saas-card p-6">
                     <div class="flex justify-between items-center mb-3">
                         <span class="text-sm font-bold text-gray-600">Progreso del Mes</span>
                         <span class="text-lg font-bold" id="metaPorcentaje">0%</span>
@@ -814,7 +891,7 @@
                     <p class="text-xs text-gray-400 mt-2" id="metaFaltante">Faltan Gs. 0 para alcanzar la meta</p>
                 </div>
                 <!-- Lista de metas configuradas -->
-                <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                <div class="saas-card overflow-hidden">
                     <div class="p-4 bg-gray-50 border-b border-gray-200 font-bold text-sm text-gray-600">Metas Configuradas</div>
                     <div id="metasContainer" class="divide-y divide-gray-100">
                         <p class="p-6 text-center text-gray-400 italic">Sin metas configuradas</p>
@@ -900,7 +977,7 @@
                     </div>
                 </div>
                 <!-- Lista de clientes -->
-                <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                <div class="saas-card overflow-hidden">
                     <div id="inactivosContainer" class="divide-y divide-gray-100">
                         <p class="p-8 text-center text-gray-400 italic">Cargando clientes...</p>
                     </div>
@@ -910,7 +987,7 @@
             <section id="seccion-herramientas" class="tab-content space-y-6">
                 <div class="max-w-3xl space-y-4">
                     <!-- Estado de Backups -->
-                    <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                    <div class="saas-card p-6">
                         <div class="flex justify-between items-start mb-4">
                             <h3 class="font-bold text-gray-800 flex items-center gap-2"><i data-lucide="hard-drive" class="w-5 h-5 text-gray-500"></i> Backup y Restauracion</h3>
                             <span class="text-xs text-gray-400" id="adminUltimoBackup">Sin backups</span>
@@ -960,7 +1037,7 @@
                         </div>
                     </div>
 
-                    <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                    <div class="saas-card p-6">
                         <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2"><i data-lucide="upload" class="w-5 h-5 text-gray-500"></i> Importar desde Excel/CSV</h3>
                         <div class="flex gap-3 flex-wrap">
                             <button onclick="document.getElementById('importarFile').click()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold inline-flex items-center gap-1.5"><i data-lucide="upload" class="w-4 h-4"></i> Importar Productos</button>
@@ -978,7 +1055,7 @@
                         </div>
                     </div>
 
-                    <div class="bg-white p-6 rounded-xl border border-red-200 shadow-sm">
+                    <div class="saas-card p-6 !border-red-200">
                         <h3 class="font-bold text-red-600 mb-4 flex items-center gap-2"><i data-lucide="trash-2" class="w-5 h-5"></i> Limpieza de Datos</h3>
                         <p class="text-sm text-gray-500 mb-4 flex items-center gap-1.5"><i data-lucide="alert-triangle" class="w-4 h-4 text-yellow-500"></i> Estas acciones son irreversibles. Se creara un auto-backup antes.</p>
                         <button onclick="limpiarPedidos()" class="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-bold">Borrar Todos los Pedidos</button>

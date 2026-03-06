@@ -297,7 +297,7 @@ function mostrarProductos() {
         card.onclick = () => mostrarDetalleProducto(prod);
 
         const imgContent = prod.imagen
-            ? `<img src="${prod.imagen}" class="w-full h-full object-contain" onerror="this.style.display='none';this.nextElementSibling.classList.remove('hidden');this.nextElementSibling.classList.add('flex')">
+            ? `<img data-src="${prod.imagen}" class="w-full h-full object-contain lazy-img" style="opacity:0;transition:opacity 0.3s ease" onerror="this.style.display='none';this.nextElementSibling.classList.remove('hidden');this.nextElementSibling.classList.add('flex')">
                <span class="hidden items-center justify-center w-full h-full">${obtenerEmoji(prod)}</span>`
             : `<span class="flex items-center justify-center w-full h-full">${obtenerEmoji(prod)}</span>`;
 
@@ -312,6 +312,28 @@ function mostrarProductos() {
 
     container.appendChild(grid);
     lucide.createIcons();
+    initLazyLoadImages(grid);
+}
+
+// ============================================
+// LAZY LOAD - IntersectionObserver for product images
+// ============================================
+function initLazyLoadImages(containerEl) {
+    const imgs = (containerEl || document).querySelectorAll('img.lazy-img[data-src]');
+    if (!imgs.length) return;
+
+    const observer = new IntersectionObserver((entries, obs) => {
+        entries.forEach(entry => {
+            if (!entry.isIntersecting) return;
+            const img = entry.target;
+            img.src = img.dataset.src;
+            img.onload = () => { img.style.opacity = '1'; };
+            img.removeAttribute('data-src');
+            obs.unobserve(img);
+        });
+    }, { rootMargin: '150px 0px', threshold: 0.01 });
+
+    imgs.forEach(img => observer.observe(img));
 }
 
 function obtenerEmoji(producto) {

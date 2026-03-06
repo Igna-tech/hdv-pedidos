@@ -33,6 +33,23 @@
             to { opacity: 1; transform: scale(1) translateY(0); }
         }
 
+        /* Lazy image container: skeleton pulse while loading */
+        .product-card .bg-gray-50 {
+            position: relative;
+            overflow: hidden;
+        }
+        .product-card .bg-gray-50::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            z-index: 0;
+        }
+        .product-card .bg-gray-50 img[src] { position: relative; z-index: 1; }
+        .product-card .bg-gray-50 span { position: relative; z-index: 1; }
+
         /* Category chip transitions */
         .category-btn {
             transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);

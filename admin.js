@@ -10,6 +10,37 @@ let cambiosSinGuardar = 0;
 let stockFiltrado = [];
 
 // ============================================
+// LAZY LOAD - IntersectionObserver for catalog cards
+// ============================================
+function initLazyLoadCards(containerEl) {
+    const cards = (containerEl || document).querySelectorAll('.catalog-card[data-bg]');
+    if (!cards.length) return;
+
+    const observer = new IntersectionObserver((entries, obs) => {
+        entries.forEach(entry => {
+            if (!entry.isIntersecting) return;
+            const card = entry.target;
+            const url = card.dataset.bg;
+            if (!url) return;
+            // Preload image then apply
+            const img = new Image();
+            img.onload = () => {
+                card.style.backgroundImage = `url('${url}')`;
+                card.classList.add('catalog-card--loaded');
+            };
+            img.src = url;
+            obs.unobserve(card);
+        });
+    }, { rootMargin: '200px 0px', threshold: 0.01 });
+
+    cards.forEach(card => {
+        // Mark cards without images as loaded immediately
+        if (!card.dataset.bg) { card.classList.add('catalog-card--loaded'); return; }
+        observer.observe(card);
+    });
+}
+
+// ============================================
 // SVG EMPTY STATE ILLUSTRATIONS & SKELETONS
 // ============================================
 const SVG_ADMIN_EMPTY_ORDERS = `<svg viewBox="0 0 200 180" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -838,9 +869,8 @@ function renderizarCategoriasGestion(container) {
             const count = productosData.productos.filter(p => p.categoria === cat.id).length;
             const prods = productosData.productos.filter(p => p.categoria === cat.id && p.imagen);
             const img = prods.length > 0 ? prods[0].imagen : '';
-            const bgStyle = img ? `background-image:url('${img}')` : '';
             return `<div onclick="prodNavCatId='${cat.id}';prodNavNivel='subcategorias';actualizarBreadcrumbProductos();mostrarProductosGestion()"
-                class="catalog-card" style="${bgStyle}">
+                class="catalog-card" ${img ? `data-bg="${img}"` : ''}>
                 ${!img ? '<div class="catalog-card-noimg"><i data-lucide="folder-open" class="w-10 h-10 text-gray-400"></i></div>' : ''}
                 <div class="catalog-card-label">
                     <div>${cat.nombre}</div>
@@ -850,12 +880,13 @@ function renderizarCategoriasGestion(container) {
         }).join('')}
     </div>`;
     lucide.createIcons();
+    initLazyLoadCards(container);
 }
 
 function renderizarSubcategoriasGestion(container, subs) {
     container.innerHTML = `<div class="catalog-grid">
         <div onclick="prodNavSubId=null;prodNavNivel='productos';actualizarBreadcrumbProductos();mostrarProductosGestion()"
-            class="catalog-card" style="border:2px dashed rgba(255,255,255,0.3)">
+            class="catalog-card catalog-card--loaded" style="border:2px dashed rgba(255,255,255,0.3)">
             <div class="catalog-card-noimg" style="background:linear-gradient(135deg,#4b5563,#374151)"><i data-lucide="list" class="w-10 h-10 text-gray-400"></i></div>
             <div class="catalog-card-label"><div>Ver todos</div></div>
         </div>
@@ -864,9 +895,8 @@ function renderizarSubcategoriasGestion(container, subs) {
             const count = prods.length;
             const imgProd = prods.find(p => p.imagen);
             const img = imgProd ? imgProd.imagen : '';
-            const bgStyle = img ? `background-image:url('${img}')` : '';
             return `<div onclick="prodNavSubId='${sub}';prodNavNivel='productos';actualizarBreadcrumbProductos();mostrarProductosGestion()"
-                class="catalog-card" style="${bgStyle}">
+                class="catalog-card" ${img ? `data-bg="${img}"` : ''}>
                 ${!img ? '<div class="catalog-card-noimg"><i data-lucide="folder" class="w-10 h-10 text-gray-400"></i></div>' : ''}
                 <div class="catalog-card-label">
                     <div>${sub}</div>
@@ -876,6 +906,7 @@ function renderizarSubcategoriasGestion(container, subs) {
         }).join('')}
     </div>`;
     lucide.createIcons();
+    initLazyLoadCards(container);
 }
 
 function renderizarProductosGestionGrid(container, prods) {
@@ -893,9 +924,8 @@ function renderizarProductosGestionGrid(container, prods) {
             const estadoBg = estado === 'disponible' ? 'background:#059669;color:#fff' : estado === 'agotado' ? 'background:#d97706;color:#fff' : 'background:#dc2626;color:#fff';
             const oculto = prod.oculto || false;
             const img = prod.imagen || '';
-            const bgStyle = img ? `background-image:url('${img}')` : '';
             const precio = prod.presentaciones && prod.presentaciones.length > 0 ? (prod.presentaciones[0].precio_base || 0) : 0;
-            return `<div onclick="abrirPerfilProducto('${prod.id}')" class="catalog-card ${oculto ? 'oculto' : ''}" style="${bgStyle}">
+            return `<div onclick="abrirPerfilProducto('${prod.id}')" class="catalog-card ${oculto ? 'oculto' : ''}" ${img ? `data-bg="${img}"` : ''}>
                 ${!img ? '<div class="catalog-card-noimg"><i data-lucide="package" class="w-10 h-10 text-gray-400"></i></div>' : ''}
                 <span class="catalog-card-badge" style="${estadoBg}">${estado}</span>
                 <div class="catalog-card-label">
@@ -906,6 +936,7 @@ function renderizarProductosGestionGrid(container, prods) {
         }).join('')}
     </div>`;
     lucide.createIcons();
+    initLazyLoadCards(container);
 }
 
 function actualizarPaginacionProductos(total) {

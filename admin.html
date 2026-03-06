@@ -15,8 +15,60 @@
     <style>
         :root { --grafito-oscuro: #111827; --grafito-medio: #1f2937; --grafito-claro: #374151; }
         body { background-color: #f9fafb; }
+
+        /* A11Y - Focus visible & Microinteractions */
+        *:focus-visible {
+            outline: 2px solid #6366f1;
+            outline-offset: 2px;
+            border-radius: 4px;
+        }
+        button, [role="button"], a, select, label[for], .cursor-pointer { cursor: pointer; }
+        button:active:not(:disabled) { transform: scale(0.98); }
+
+        input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+        textarea, select {
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+        input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):focus,
+        textarea:focus, select:focus {
+            border-color: #6366f1 !important;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+        }
+
+        /* Skeleton loaders */
+        .skeleton {
+            background: #e5e7eb;
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
+        }
+        .skeleton::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent);
+            animation: shimmer 1.5s infinite;
+        }
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        /* Empty state */
+        .empty-state { display: flex; flex-direction: column; align-items: center; padding: 3rem 1.5rem; }
+        .empty-state svg { width: 140px; height: 140px; margin-bottom: 1.25rem; opacity: 0.5; }
+        .empty-state p { color: #6b7280; font-weight: 600; font-size: 0.9375rem; text-align: center; }
+        .empty-state .empty-sub { color: #9ca3af; font-weight: 400; font-size: 0.8125rem; margin-top: 0.25rem; }
+        .empty-state .empty-action {
+            margin-top: 1rem; padding: 0.625rem 1.5rem; border-radius: 0.75rem;
+            background: var(--grafito-oscuro); color: white; font-weight: 700;
+            font-size: 0.8125rem; transition: background 0.2s;
+        }
+        .empty-state .empty-action:hover { background: var(--grafito-medio); }
         .sidebar { background-color: var(--grafito-oscuro); transition: all 0.3s; }
+        .nav-item { cursor: pointer; transition: background-color 0.15s ease, border-color 0.15s ease; }
         .nav-item:hover { background-color: var(--grafito-claro); }
+        .nav-item:focus-visible { outline: 2px solid #818cf8; outline-offset: -2px; border-radius: 0; }
         .nav-item.active { background-color: var(--grafito-medio); border-left: 4px solid #ffffff; }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
@@ -83,9 +135,9 @@
         .catalog-card-label {
             position: absolute; bottom: 12px; left: 12px; right: 12px; z-index: 1;
             color: white; font-weight: 700; font-size: 14px; line-height: 1.3;
-            text-shadow: 0 1px 4px rgba(0,0,0,0.4);
+            text-shadow: 0 1px 3px rgba(0,0,0,0.6), 0 0 8px rgba(0,0,0,0.3);
         }
-        .catalog-card-label .card-sub { font-size: 11px; font-weight: 500; opacity: 0.85; margin-top: 2px; }
+        .catalog-card-label .card-sub { font-size: 11px; font-weight: 600; opacity: 0.9; margin-top: 2px; }
         .catalog-card-badge {
             position: absolute; top: 10px; right: 10px; z-index: 1;
             font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 999px;
@@ -102,7 +154,8 @@
         /* Global search */
         #globalSearchOverlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 3000; display: none; align-items: flex-start; justify-content: center; padding-top: 10vh; }
         #globalSearchOverlay.show { display: flex; }
-        #globalSearchBox { background: white; border-radius: 16px; width: 90%; max-width: 600px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+        #globalSearchBox { background: white; border-radius: 16px; width: 90%; max-width: 600px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.3); animation: confirmSlideUp 0.25s ease; }
+        #globalSearchInput:focus { outline: none; }
     </style>
 </head>
 <body class="flex h-screen overflow-hidden text-gray-800">
@@ -126,7 +179,7 @@
     </div>
 
     <!-- SIDEBAR -->
-    <aside id="sidebar" class="sidebar w-64 flex-shrink-0 flex flex-col text-white shadow-2xl">
+    <aside id="sidebar" class="sidebar w-64 flex-shrink-0 flex flex-col text-white shadow-2xl" role="navigation" aria-label="Menu principal">
         <div class="p-5 border-b border-gray-700">
             <div class="flex items-center gap-3">
                 <svg width="48" height="48" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">

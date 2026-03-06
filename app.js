@@ -3,6 +3,53 @@
 // ============================================
 let productos = [];
 let categorias = [];
+
+// ============================================
+// SVG EMPTY STATE ILLUSTRATIONS
+// ============================================
+const SVG_EMPTY_CART = `<svg viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect x="40" y="60" width="120" height="90" rx="12" stroke="#d1d5db" stroke-width="3" fill="#f3f4f6"/>
+  <path d="M70 80h60M70 100h40M70 120h50" stroke="#d1d5db" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="140" cy="160" r="12" stroke="#d1d5db" stroke-width="3" fill="#f9fafb"/>
+  <circle cx="80" cy="160" r="12" stroke="#d1d5db" stroke-width="3" fill="#f9fafb"/>
+  <path d="M50 50l10 10M100 35v15M150 50l-10 10" stroke="#e5e7eb" stroke-width="2" stroke-linecap="round"/>
+</svg>`;
+
+const SVG_EMPTY_ORDERS = `<svg viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect x="45" y="30" width="110" height="140" rx="10" stroke="#d1d5db" stroke-width="3" fill="#f3f4f6"/>
+  <path d="M65 60h70M65 80h50M65 100h60M65 120h35" stroke="#d1d5db" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="150" cy="150" r="25" stroke="#e5e7eb" stroke-width="3" fill="#f9fafb"/>
+  <path d="M143 150h14M150 143v14" stroke="#d1d5db" stroke-width="2.5" stroke-linecap="round"/>
+</svg>`;
+
+const SVG_EMPTY_SEARCH = `<svg viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="90" cy="85" r="40" stroke="#d1d5db" stroke-width="3" fill="#f3f4f6"/>
+  <path d="M118 113l30 30" stroke="#d1d5db" stroke-width="4" stroke-linecap="round"/>
+  <path d="M75 80h30M80 95h20" stroke="#e5e7eb" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M60 155h80" stroke="#e5e7eb" stroke-width="2" stroke-linecap="round" stroke-dasharray="6 4"/>
+</svg>`;
+
+function generarEmptyState(svgIcon, titulo, subtitulo, botonTexto, botonOnclick) {
+    return `<div class="empty-state">
+        ${svgIcon}
+        <p>${titulo}</p>
+        ${subtitulo ? `<p class="empty-sub">${subtitulo}</p>` : ''}
+        ${botonTexto ? `<button onclick="${botonOnclick}" class="mt-4 px-5 py-3 bg-[#111827] text-white rounded-xl font-bold text-sm active:scale-95 transition-transform">${botonTexto}</button>` : ''}
+    </div>`;
+}
+
+function generarSkeletonProductos(count = 6) {
+    let html = '<div class="grid grid-cols-2 sm:grid-cols-3 gap-3">';
+    for (let i = 0; i < count; i++) {
+        html += `<div class="bg-white rounded-xl p-3 shadow-sm border border-gray-100">
+            <div class="skeleton w-full h-28 mb-2"></div>
+            <div class="skeleton h-4 w-3/4 mb-1"></div>
+            <div class="skeleton h-3 w-1/2"></div>
+        </div>`;
+    }
+    html += '</div>';
+    return html;
+}
 let clientes = [];
 let clienteActual = null;
 let carrito = [];
@@ -109,7 +156,11 @@ async function cargarDatos() {
         document.getElementById('searchInput').disabled = false;
     } catch (e) {
         console.error('Error cargando datos:', e);
-        document.getElementById('productsContainer').innerHTML = '<div class="text-center text-red-500 mt-10 font-bold">Error al cargar catalogo. Verifica tu conexion.</div>';
+        document.getElementById('productsContainer').innerHTML = generarEmptyState(
+            `<svg viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="100" cy="80" r="35" stroke="#fca5a5" stroke-width="3" fill="#fef2f2"/><path d="M88 70l24 20M112 70L88 90" stroke="#f87171" stroke-width="3" stroke-linecap="round"/><path d="M60 140h80" stroke="#fca5a5" stroke-width="2" stroke-linecap="round"/><path d="M75 155h50" stroke="#fecaca" stroke-width="2" stroke-linecap="round"/></svg>`,
+            'Error al cargar catalogo', 'Verifica tu conexion a internet e intenta de nuevo',
+            'Reintentar', 'location.reload()'
+        );
     }
 }
 
@@ -199,7 +250,8 @@ function mostrarProductos() {
     }
 
     if (filtrados.length === 0) {
-        container.innerHTML = (typeof generarWidgetMeta === 'function' ? generarWidgetMeta() : '') + '<div class="text-center text-gray-400 mt-10"><div class="text-4xl mb-3">🔍</div><p class="font-bold">No se encontraron productos</p></div>';
+        container.innerHTML = (typeof generarWidgetMeta === 'function' ? generarWidgetMeta() : '') +
+            generarEmptyState(SVG_EMPTY_SEARCH, 'No se encontraron productos', busqueda ? 'Intenta con otro termino de busqueda' : 'No hay productos en esta categoria');
         return;
     }
     
@@ -1032,7 +1084,7 @@ function mostrarMisPedidos() {
     let misPedidos = pedidos.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
     
     if (misPedidos.length === 0) {
-        container.innerHTML = '<div class="text-center text-gray-400 mt-10"><div class="text-4xl mb-3">📋</div><p class="font-bold">No hay pedidos registrados</p></div>';
+        container.innerHTML = generarEmptyState(SVG_EMPTY_ORDERS, 'No hay pedidos registrados', 'Los pedidos que realices apareceran aqui', 'Ir al catalogo', "cambiarVistaVendedor('lista')");
         return;
     }
     
@@ -1813,7 +1865,7 @@ function mostrarRutaHoy() {
     html += `<p class="text-sm text-gray-500 mb-4">${clientesZona.length} clientes en esta zona</p>`;
 
     if (clientesZona.length === 0) {
-        html += '<p class="text-center text-gray-400 mt-10">No hay clientes en esta zona</p>';
+        html += generarEmptyState(SVG_EMPTY_SEARCH, 'No hay clientes en esta zona', 'Selecciona otra zona para continuar');
     } else {
         clientesZona.forEach((c, i) => {
             const tienePedidoHoy = pedidosHoy.some(p => p.cliente?.id === c.id && p.fecha && p.fecha.startsWith(hoy));

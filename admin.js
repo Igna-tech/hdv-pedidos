@@ -10,6 +10,75 @@ let cambiosSinGuardar = 0;
 let stockFiltrado = [];
 
 // ============================================
+// SVG EMPTY STATE ILLUSTRATIONS & SKELETONS
+// ============================================
+const SVG_ADMIN_EMPTY_ORDERS = `<svg viewBox="0 0 200 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect x="30" y="20" width="140" height="30" rx="8" stroke="#d1d5db" stroke-width="2" fill="#f3f4f6"/>
+  <rect x="30" y="60" width="140" height="22" rx="6" stroke="#e5e7eb" stroke-width="1.5" fill="#f9fafb"/>
+  <rect x="30" y="88" width="140" height="22" rx="6" stroke="#e5e7eb" stroke-width="1.5" fill="#f9fafb"/>
+  <rect x="30" y="116" width="140" height="22" rx="6" stroke="#e5e7eb" stroke-width="1.5" fill="#f9fafb"/>
+  <circle cx="160" cy="155" r="20" stroke="#d1d5db" stroke-width="2" fill="#f3f4f6"/>
+  <path d="M153 155h14M160 148v14" stroke="#9ca3af" stroke-width="2" stroke-linecap="round"/>
+</svg>`;
+
+const SVG_ADMIN_EMPTY_PRODUCTS = `<svg viewBox="0 0 200 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect x="25" y="25" width="65" height="65" rx="12" stroke="#d1d5db" stroke-width="2" fill="#f3f4f6"/>
+  <rect x="110" y="25" width="65" height="65" rx="12" stroke="#d1d5db" stroke-width="2" fill="#f3f4f6"/>
+  <rect x="25" y="105" width="65" height="65" rx="12" stroke="#e5e7eb" stroke-width="1.5" fill="#f9fafb" stroke-dasharray="5 3"/>
+  <path d="M50 130h15M57 123v14" stroke="#d1d5db" stroke-width="2" stroke-linecap="round"/>
+  <rect x="35" y="45" width="20" height="3" rx="1.5" fill="#d1d5db"/><rect x="35" y="52" width="30" height="3" rx="1.5" fill="#e5e7eb"/>
+  <rect x="120" y="45" width="25" height="3" rx="1.5" fill="#d1d5db"/><rect x="120" y="52" width="35" height="3" rx="1.5" fill="#e5e7eb"/>
+</svg>`;
+
+const SVG_ADMIN_EMPTY_CLIENTS = `<svg viewBox="0 0 200 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="100" cy="60" r="28" stroke="#d1d5db" stroke-width="2.5" fill="#f3f4f6"/>
+  <circle cx="100" cy="52" r="10" stroke="#d1d5db" stroke-width="2" fill="#f9fafb"/>
+  <path d="M80 75c0-11 8.9-20 20-20s20 9 20 20" stroke="#d1d5db" stroke-width="2" fill="none"/>
+  <path d="M60 120h80M70 135h60" stroke="#e5e7eb" stroke-width="2" stroke-linecap="round"/>
+  <path d="M75 150h50" stroke="#e5e7eb" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="4 3"/>
+</svg>`;
+
+function generarAdminEmptyState(svgIcon, titulo, subtitulo, botonTexto, botonOnclick) {
+    return `<div class="empty-state">
+        ${svgIcon}
+        <p>${titulo}</p>
+        ${subtitulo ? `<p class="empty-sub">${subtitulo}</p>` : ''}
+        ${botonTexto ? `<button onclick="${botonOnclick}" class="empty-action">${botonTexto}</button>` : ''}
+    </div>`;
+}
+
+function generarSkeletonTabla(filas = 5, columnas = 4) {
+    let html = '<div class="overflow-hidden rounded-xl border border-gray-200 bg-white">';
+    html += '<div class="flex gap-4 p-4 bg-gray-50 border-b border-gray-200">';
+    for (let c = 0; c < columnas; c++) {
+        const w = c === 0 ? 'w-1/4' : c === columnas - 1 ? 'w-16' : 'w-1/5';
+        html += `<div class="skeleton h-4 ${w}"></div>`;
+    }
+    html += '</div>';
+    for (let r = 0; r < filas; r++) {
+        html += '<div class="flex gap-4 p-4 border-b border-gray-100">';
+        for (let c = 0; c < columnas; c++) {
+            const w = c === 0 ? 'w-1/3' : c === columnas - 1 ? 'w-16' : 'w-1/4';
+            html += `<div class="skeleton h-3.5 ${w}"></div>`;
+        }
+        html += '</div>';
+    }
+    html += '</div>';
+    return html;
+}
+
+function generarSkeletonCards(count = 6) {
+    let html = '<div class="catalog-grid">';
+    for (let i = 0; i < count; i++) {
+        html += `<div class="rounded-2xl overflow-hidden bg-white shadow-sm border border-gray-100">
+            <div class="skeleton w-full" style="aspect-ratio:1/1"></div>
+        </div>`;
+    }
+    html += '</div>';
+    return html;
+}
+
+// ============================================
 // NAVEGACION
 // ============================================
 function cambiarSeccion(seccionId) {
@@ -37,7 +106,11 @@ function cambiarSeccion(seccionId) {
     if (titleEl) titleEl.textContent = titulos[seccionId] || 'Panel Admin';
     
     // Cargar datos al entrar
-    if (seccionId === 'pedidos') cargarPedidos();
+    if (seccionId === 'pedidos') {
+        const listaPed = document.getElementById('listaPedidos');
+        if (listaPed && todosLosPedidos.length === 0) listaPed.innerHTML = generarSkeletonTabla(5, 4);
+        cargarPedidos();
+    }
     if (seccionId === 'productos') { productosFiltrados = [...productosData.productos]; mostrarProductosGestion(); }
     if (seccionId === 'clientes') { clientesFiltrados = [...productosData.clientes]; mostrarClientesGestion(); }
     if (seccionId === 'creditos') cargarCreditos();
@@ -252,7 +325,7 @@ function mostrarPedidos(pedidos) {
     const container = document.getElementById('listaPedidos');
     if (!container) return;
     if (pedidos.length === 0) {
-        container.innerHTML = '<div class="p-8 text-center"><div class="text-5xl mb-3">📦</div><p class="text-gray-400 font-medium">No hay pedidos para mostrar</p></div>';
+        container.innerHTML = generarAdminEmptyState(SVG_ADMIN_EMPTY_ORDERS, 'No hay pedidos para mostrar', 'Los pedidos nuevos apareceran aqui automaticamente');
         return;
     }
     container.innerHTML = '';
@@ -380,7 +453,7 @@ function generarReporte(tipo) {
     if (!container) return;
     
     if (filtrados.length === 0) {
-        container.innerHTML = '<p class="text-center text-gray-400 py-8">No hay datos para el rango seleccionado</p>';
+        container.innerHTML = '<p class="text-center text-gray-500 py-8 font-medium">No hay datos para el rango seleccionado</p>';
         return;
     }
     
@@ -560,7 +633,7 @@ function renderizarProductosStock(container, prods, filtro) {
     }
 
     if (prods.length === 0) {
-        container.innerHTML = '<div class="bg-white rounded-xl border border-gray-200 p-8 text-center text-gray-400">Sin productos en esta categoria</div>';
+        container.innerHTML = generarAdminEmptyState(SVG_ADMIN_EMPTY_PRODUCTS, 'Sin productos en esta categoria', 'Agrega productos usando el formulario');
         return;
     }
 
@@ -804,7 +877,7 @@ function renderizarSubcategoriasGestion(container, subs) {
 
 function renderizarProductosGestionGrid(container, prods) {
     if (prods.length === 0) {
-        container.innerHTML = '<div class="bg-white rounded-xl border border-gray-200 p-8 text-center text-gray-400">Sin productos encontrados</div>';
+        container.innerHTML = generarAdminEmptyState(SVG_ADMIN_EMPTY_PRODUCTS, 'Sin productos encontrados', 'Intenta con otro termino de busqueda');
         return;
     }
     const total = prods.length;
@@ -1235,6 +1308,12 @@ function mostrarClientesGestion() {
     mostrarClientesPendientes();
 
     const total = clientesFiltrados.length;
+    if (total === 0) {
+        tbody.innerHTML = `<tr><td colspan="5">${generarAdminEmptyState(SVG_ADMIN_EMPTY_CLIENTS, 'Sin clientes encontrados', 'Agrega clientes o ajusta los filtros de busqueda')}</td></tr>`;
+        const pag = document.getElementById('paginacionClientes');
+        if (pag) pag.innerHTML = '';
+        return;
+    }
     const inicio = (paginaClientes - 1) * clientesPorPagina;
     const paginados = clientesFiltrados.slice(inicio, inicio + clientesPorPagina);
 
@@ -1248,7 +1327,7 @@ function mostrarClientesGestion() {
         tr.innerHTML = `
             <td class="px-4 py-3" onclick="abrirPerfilCliente('${c.id}')">
                 <p class="font-medium text-gray-800">${nombre}</p>
-                <p class="text-xs text-gray-400">${c.ruc || ''} ${c.encargado ? '| ' + c.encargado : ''}</p>
+                <p class="text-xs text-gray-500">${c.ruc || ''} ${c.encargado ? '| ' + c.encargado : ''}</p>
             </td>
             <td class="px-4 py-3 text-sm text-gray-500">${c.zona || c.direccion || '-'}</td>
             <td class="px-4 py-3 text-sm text-gray-500">${tel || '-'}</td>
@@ -2862,7 +2941,7 @@ function cargarCreditos() {
     if (!container) return;
 
     if (pedidosCredito.length === 0 && creditosManuales.length === 0) {
-        container.innerHTML = '<div class="p-8 text-center text-gray-400">Sin creditos pendientes</div>';
+        container.innerHTML = generarAdminEmptyState(SVG_ADMIN_EMPTY_ORDERS, 'Sin creditos pendientes', 'No hay pedidos a credito pendientes de pago');
         return;
     }
 
@@ -3301,7 +3380,7 @@ function cargarPromociones() {
     const promos = cargarPromocionesDesdeStorage();
 
     if (promos.length === 0) {
-        container.innerHTML = '<p class="p-8 text-center text-gray-400 italic">Sin promociones configuradas. Crea una nueva.</p>';
+        container.innerHTML = generarAdminEmptyState(SVG_ADMIN_EMPTY_ORDERS, 'Sin promociones configuradas', 'Crea una nueva promocion para tus productos');
         return;
     }
 
@@ -3528,7 +3607,7 @@ function cargarRendiciones() {
     // Mostrar gastos
     const gastosEl = document.getElementById('rendGastosLista');
     if (gastosSemana.length === 0) {
-        gastosEl.innerHTML = '<p class="p-6 text-center text-gray-400 italic">Sin gastos registrados esta semana</p>';
+        gastosEl.innerHTML = '<p class="p-6 text-center text-gray-500 font-medium">Sin gastos registrados esta semana</p>';
     } else {
         gastosEl.innerHTML = gastosSemana.map(g => `
             <div class="p-4 flex justify-between items-center">
@@ -3548,7 +3627,7 @@ function cargarRendiciones() {
     const rendiciones = JSON.parse(localStorage.getItem('hdv_rendiciones') || '[]');
     const histEl = document.getElementById('rendHistorial');
     if (rendiciones.length === 0) {
-        histEl.innerHTML = '<p class="p-6 text-center text-gray-400 italic">Sin rendiciones anteriores</p>';
+        histEl.innerHTML = '<p class="p-6 text-center text-gray-500 font-medium">Sin rendiciones anteriores</p>';
     } else {
         histEl.innerHTML = rendiciones.sort((a, b) => new Date(b.fecha) - new Date(a.fecha)).map(r => `
             <div class="p-4 flex justify-between items-center">
@@ -3582,7 +3661,7 @@ function cargarCuentasBancariasAdmin() {
     const cuentas = JSON.parse(localStorage.getItem('hdv_cuentas_bancarias') || '[]');
     const el = document.getElementById('cuentasBancariasAdmin');
     if (cuentas.length === 0) {
-        el.innerHTML = '<p class="p-6 text-center text-gray-400 italic">Sin cuentas configuradas</p>';
+        el.innerHTML = '<p class="p-6 text-center text-gray-500 font-medium">Sin cuentas bancarias configuradas</p>';
         return;
     }
     el.innerHTML = cuentas.map(c => `
@@ -3709,7 +3788,7 @@ function cargarMetas() {
     // Lista de metas
     const container = document.getElementById('metasContainer');
     if (metas.length === 0) {
-        container.innerHTML = '<p class="p-6 text-center text-gray-400 italic">Sin metas configuradas</p>';
+        container.innerHTML = generarAdminEmptyState(SVG_ADMIN_EMPTY_ORDERS, 'Sin metas configuradas', 'Crea metas mensuales para los vendedores');
     } else {
         container.innerHTML = metas.map(m => {
             const pedMes = pedidos.filter(p => p.fecha && p.fecha.startsWith(m.mes));
@@ -3862,7 +3941,15 @@ function cargarClientesInactivos() {
     // Renderizar lista
     const container = document.getElementById('inactivosContainer');
     if (inactivos.length === 0) {
-        container.innerHTML = '<p class="p-8 text-center text-gray-400 italic">Todos los clientes estan activos. Excelente!</p>';
+        container.innerHTML = `<div class="empty-state">
+            <svg viewBox="0 0 200 180" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:120px;height:120px">
+                <circle cx="100" cy="80" r="40" stroke="#86efac" stroke-width="3" fill="#f0fdf4"/>
+                <path d="M82 80l12 12 24-24" stroke="#22c55e" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M60 145h80" stroke="#bbf7d0" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            <p style="color:#166534">Todos los clientes estan activos</p>
+            <p class="empty-sub">No hay clientes en riesgo de inactividad</p>
+        </div>`;
         return;
     }
 
@@ -4018,7 +4105,7 @@ function abrirBusquedaGlobal() {
     const input = document.getElementById('globalSearchInput');
     input.value = '';
     input.focus();
-    document.getElementById('globalSearchResults').innerHTML = '<p class="p-6 text-center text-gray-400 text-sm">Escribe para buscar en productos, clientes y pedidos</p>';
+    document.getElementById('globalSearchResults').innerHTML = '<p class="p-6 text-center text-gray-500 text-sm">Escribe para buscar en productos, clientes y pedidos</p>';
 }
 
 function cerrarBusquedaGlobal(e) {
@@ -4030,7 +4117,7 @@ function ejecutarBusquedaGlobal() {
     const q = document.getElementById('globalSearchInput').value.toLowerCase().trim();
     const results = document.getElementById('globalSearchResults');
     if (q.length < 2) {
-        results.innerHTML = '<p class="p-6 text-center text-gray-400 text-sm">Escribe al menos 2 caracteres</p>';
+        results.innerHTML = '<p class="p-6 text-center text-gray-500 text-sm">Escribe al menos 2 caracteres</p>';
         return;
     }
 
@@ -4072,7 +4159,7 @@ function ejecutarBusquedaGlobal() {
         });
     }
 
-    if (!html) html = '<p class="p-6 text-center text-gray-400 text-sm">Sin resultados</p>';
+    if (!html) html = '<p class="p-6 text-center text-gray-500 text-sm font-medium">Sin resultados para esta busqueda</p>';
     results.innerHTML = html;
 }
 

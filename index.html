@@ -18,14 +18,62 @@
             --grafito: #1f2937;
             --grafito-oscuro: #111827;
         }
-        
+
         body { background-color: #f3f4f6; -webkit-tap-highlight-color: transparent; }
-        
+
         .dark-mode { background-color: var(--grafito-oscuro) !important; color: white; }
         .dark-mode .bg-white { background-color: var(--grafito) !important; color: white; border-color: #374151; }
         .dark-mode .text-gray-800 { color: #f3f4f6 !important; }
         .dark-mode .text-gray-500 { color: #9ca3af !important; }
+        .dark-mode .skeleton { background: #374151 !important; }
+        .dark-mode .skeleton::after { background: linear-gradient(90deg, transparent, rgba(255,255,255,0.04), transparent) !important; }
 
+        /* ==========================================
+           A11Y - Focus visible & Microinteractions
+           ========================================== */
+        *:focus-visible {
+            outline: 2px solid #6366f1;
+            outline-offset: 2px;
+            border-radius: 4px;
+        }
+        button, [role="button"], a, select, label[for], .cursor-pointer { cursor: pointer; }
+        button:active:not(:disabled) { transform: scale(0.97); }
+
+        /* Form inputs focus */
+        input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+        textarea, select {
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+        input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):focus,
+        textarea:focus, select:focus {
+            border-color: #6366f1 !important;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+        }
+
+        /* ==========================================
+           Skeleton Loaders
+           ========================================== */
+        .skeleton {
+            background: #e5e7eb;
+            border-radius: 12px;
+            position: relative;
+            overflow: hidden;
+        }
+        .skeleton::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent);
+            animation: shimmer 1.5s infinite;
+        }
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        /* ==========================================
+           Animations & Transitions
+           ========================================== */
         #cart-count { animation: bounce 0.3s ease; }
         @keyframes bounce {
             0%, 100% { transform: scale(1); }
@@ -33,7 +81,7 @@
         }
 
         .no-scrollbar::-webkit-scrollbar { display: none; }
-        
+
         /* Toast notifications */
         #toastContainer {
             position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
@@ -67,6 +115,12 @@
         }
         @keyframes confirmFadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes confirmSlideUp { from { opacity: 0; transform: scale(0.9) translateY(20px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+
+        /* Empty state */
+        .empty-state { display: flex; flex-direction: column; align-items: center; padding: 3rem 1rem; }
+        .empty-state svg { width: 120px; height: 120px; margin-bottom: 1rem; opacity: 0.6; }
+        .empty-state p { color: #6b7280; font-weight: 600; font-size: 0.875rem; text-align: center; }
+        .empty-state .empty-sub { color: #9ca3af; font-weight: 400; font-size: 0.75rem; margin-top: 0.25rem; }
     </style>
 </head>
 <body class="pb-24 transition-colors duration-200">
@@ -88,8 +142,8 @@
                 </div>
             </div>
             <div class="flex gap-2">
-                <button onclick="forzarActualizacion()" class="p-2 bg-gray-800 rounded-full text-xs text-gray-300 font-bold">🔄</button>
-                <button onclick="toggleDarkMode()" class="p-2 bg-gray-800 rounded-full dark-mode-toggle">🌙</button>
+                <button onclick="forzarActualizacion()" class="p-2 bg-gray-800 rounded-full text-xs text-gray-300 font-bold" aria-label="Forzar actualizacion">🔄</button>
+                <button onclick="toggleDarkMode()" class="p-2 bg-gray-800 rounded-full dark-mode-toggle" aria-label="Cambiar modo oscuro">🌙</button>
             </div>
         </div>
         
@@ -97,7 +151,7 @@
             <div class="flex items-center w-full">
                 <i data-lucide="user" class="w-4 h-4 mr-3 text-gray-400"></i>
                 <div class="w-full relative" id="clienteSelectContainer">
-                    <select id="clienteSelect" class="w-full bg-transparent text-sm font-medium outline-none text-white appearance-none">
+                    <select id="clienteSelect" aria-label="Seleccionar cliente" class="w-full bg-transparent text-sm font-medium outline-none text-white appearance-none">
                         <option value="" class="text-black">-- Seleccione Cliente --</option>
                     </select>
                 </div>
@@ -115,16 +169,23 @@
     <div class="p-4" id="searchContainer">
         <div class="relative">
             <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"></i>
-            <input type="text" id="searchInput" placeholder="Buscar producto..." disabled
-                   class="w-full bg-white border border-gray-300 rounded-xl py-3 pl-10 pr-4 text-sm focus:ring-2 focus:ring-gray-800 outline-none transition-all shadow-sm">
+            <input type="text" id="searchInput" placeholder="Buscar producto..." disabled aria-label="Buscar producto"
+                   class="w-full bg-white border border-gray-300 rounded-xl py-3 pl-10 pr-4 text-sm outline-none transition-all shadow-sm">
         </div>
     </div>
 
-    <main class="px-4 space-y-4 pb-10" id="productsContainer">
-        <div class="text-center text-gray-500 mt-10 font-bold">Cargando catalogo...</div>
+    <main class="px-4 space-y-4 pb-10" id="productsContainer" role="main">
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3" aria-label="Cargando catalogo">
+            <div class="bg-white rounded-xl p-3 shadow-sm border border-gray-100"><div class="skeleton w-full h-28 mb-2"></div><div class="skeleton h-4 w-3/4 mb-1"></div><div class="skeleton h-3 w-1/2"></div></div>
+            <div class="bg-white rounded-xl p-3 shadow-sm border border-gray-100"><div class="skeleton w-full h-28 mb-2"></div><div class="skeleton h-4 w-3/4 mb-1"></div><div class="skeleton h-3 w-1/2"></div></div>
+            <div class="bg-white rounded-xl p-3 shadow-sm border border-gray-100"><div class="skeleton w-full h-28 mb-2"></div><div class="skeleton h-4 w-3/4 mb-1"></div><div class="skeleton h-3 w-1/2"></div></div>
+            <div class="bg-white rounded-xl p-3 shadow-sm border border-gray-100"><div class="skeleton w-full h-28 mb-2"></div><div class="skeleton h-4 w-3/4 mb-1"></div><div class="skeleton h-3 w-1/2"></div></div>
+            <div class="bg-white rounded-xl p-3 shadow-sm border border-gray-100"><div class="skeleton w-full h-28 mb-2"></div><div class="skeleton h-4 w-3/4 mb-1"></div><div class="skeleton h-3 w-1/2"></div></div>
+            <div class="bg-white rounded-xl p-3 shadow-sm border border-gray-100"><div class="skeleton w-full h-28 mb-2"></div><div class="skeleton h-4 w-3/4 mb-1"></div><div class="skeleton h-3 w-1/2"></div></div>
+        </div>
     </main>
 
-    <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-3 flex justify-between items-center z-50 shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
+    <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-3 flex justify-between items-center z-50 shadow-[0_-4px_10px_rgba(0,0,0,0.05)]" role="navigation" aria-label="Navegacion principal">
         <button onclick="cambiarVistaVendedor('lista')" id="btn-tab-lista" class="flex flex-col items-center gap-1 text-gray-900 transition-colors">
             <i data-lucide="home" class="w-5 h-5"></i>
             <span class="text-[10px] font-bold">Inicio</span>
@@ -135,7 +196,7 @@
             <span class="text-[10px] font-bold">Zonas</span>
         </button>
 
-        <button onclick="mostrarModalCarrito()" id="viewCartBtn" class="relative -mt-12 bg-[#111827] text-white p-4 rounded-full shadow-xl border-4 border-gray-100 disabled:opacity-50 disabled:bg-gray-400">
+        <button onclick="mostrarModalCarrito()" id="viewCartBtn" aria-label="Ver carrito de compras" class="relative -mt-12 bg-[#111827] text-white p-4 rounded-full shadow-xl border-4 border-gray-100 disabled:opacity-50 disabled:bg-gray-400">
             <i data-lucide="shopping-cart" class="w-6 h-6"></i>
             <span id="cartItems" class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center border-2 border-white">0</span>
         </button>
@@ -157,7 +218,7 @@
             <div class="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-6"></div>
             <div class="flex justify-between items-center mb-6">
                 <h3 class="text-xl font-bold text-gray-900">Copia de Seguridad</h3>
-                <button onclick="cerrarModalBackup()" class="text-gray-400 p-2"><i data-lucide="x"></i></button>
+                <button onclick="cerrarModalBackup()" class="text-gray-400 p-2" aria-label="Cerrar"><i data-lucide="x"></i></button>
             </div>
 
             <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
@@ -207,7 +268,7 @@
             <div class="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-6"></div>
             <div class="flex justify-between items-center mb-6">
                 <h3 class="text-xl font-bold text-gray-900">Tu Pedido</h3>
-                <button onclick="closeCartModal()" class="text-gray-400 p-2"><i data-lucide="x"></i></button>
+                <button onclick="closeCartModal()" class="text-gray-400 p-2" aria-label="Cerrar"><i data-lucide="x"></i></button>
             </div>
             
             <div id="cartItemsList" class="space-y-4 mb-6"></div>

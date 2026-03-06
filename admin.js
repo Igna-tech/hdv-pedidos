@@ -343,7 +343,7 @@ function mostrarPedidos(pedidos) {
             <div class="flex justify-between items-start mb-3">
                 <div>
                     <h3 class="text-lg font-bold text-gray-800">${p.cliente?.nombre || 'Sin cliente'}</h3>
-                    <div class="text-sm text-gray-500 mt-1">📍 ${zona} • 🕐 ${new Date(p.fecha).toLocaleString('es-PY')}</div>
+                    <div class="text-sm text-gray-500 mt-1 flex items-center gap-1"><i data-lucide="map-pin" class="w-3 h-3"></i> ${zona} <span class="mx-1">·</span> <i data-lucide="clock" class="w-3 h-3"></i> ${new Date(p.fecha).toLocaleString('es-PY')}</div>
                 </div>
                 <span class="px-3 py-1 rounded-full text-xs font-bold ${colorEstado}">${estado.toUpperCase()}</span>
             </div>
@@ -354,22 +354,23 @@ function mostrarPedidos(pedidos) {
                     <strong>Gs. ${(i.subtotal || 0).toLocaleString()}</strong>
                 </div>`).join('')}
             </div>
-            ${p.notas ? `<div class="text-sm text-gray-500 italic mb-3">📝 ${p.notas}</div>` : ''}
+            ${p.notas ? `<div class="text-sm text-gray-500 italic mb-3 flex items-start gap-1.5"><i data-lucide="message-square" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i> ${p.notas}</div>` : ''}
             <div class="flex justify-between items-center pt-3 border-t border-gray-100">
                 <span class="text-sm text-gray-500">${p.tipoPago || 'contado'}${p.descuento > 0 ? ` | ${p.descuento}% desc.` : ''}</span>
                 <span class="text-xl font-bold text-gray-900">Gs. ${(p.total || 0).toLocaleString()}</span>
             </div>
             <div class="flex gap-2 mt-4 flex-wrap">
                 ${estado === 'pendiente' ?
-                    `<button class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-green-700" onclick="marcarEntregado('${p.id}')">✓ Entregado</button>` :
-                    `<button class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-300" onclick="marcarPendiente('${p.id}')">↩ Pendiente</button>`}
-                <button class="bg-blue-50 text-blue-600 px-3 py-2 rounded-lg text-sm font-bold hover:bg-blue-100" onclick="abrirModalEditarPedido('${p.id}')">✏️ Editar</button>
-                <button class="bg-red-50 text-red-700 px-3 py-2 rounded-lg text-sm font-bold hover:bg-red-100" onclick="generarPDFRemision('${p.id}')">📄 PDF</button>
-                <button class="bg-purple-50 text-purple-700 px-3 py-2 rounded-lg text-sm font-bold hover:bg-purple-100" onclick="generarTicketTermico('${p.id}')">🖨️ Ticket</button>
-                <button class="bg-red-50 text-red-600 px-3 py-2 rounded-lg text-sm font-bold hover:bg-red-100" onclick="eliminarPedido('${p.id}')">🗑️</button>
+                    `<button class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-green-700 inline-flex items-center gap-1.5" onclick="marcarEntregado('${p.id}')"><i data-lucide="check" class="w-3.5 h-3.5"></i> Entregado</button>` :
+                    `<button class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-300 inline-flex items-center gap-1.5" onclick="marcarPendiente('${p.id}')"><i data-lucide="undo-2" class="w-3.5 h-3.5"></i> Pendiente</button>`}
+                <button class="bg-blue-50 text-blue-600 px-3 py-2 rounded-lg text-sm font-bold hover:bg-blue-100 inline-flex items-center gap-1" onclick="abrirModalEditarPedido('${p.id}')"><i data-lucide="pencil" class="w-3.5 h-3.5"></i> Editar</button>
+                <button class="bg-gray-50 text-gray-700 px-3 py-2 rounded-lg text-sm font-bold hover:bg-gray-100 inline-flex items-center gap-1" onclick="generarPDFRemision('${p.id}')"><i data-lucide="file-text" class="w-3.5 h-3.5"></i> PDF</button>
+                <button class="bg-gray-50 text-gray-700 px-3 py-2 rounded-lg text-sm font-bold hover:bg-gray-100 inline-flex items-center gap-1" onclick="generarTicketTermico('${p.id}')"><i data-lucide="printer" class="w-3.5 h-3.5"></i> Ticket</button>
+                <button class="bg-red-50 text-red-500 px-3 py-2 rounded-lg text-sm font-bold hover:bg-red-100 inline-flex items-center gap-1" onclick="eliminarPedido('${p.id}')"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
             </div>`;
         container.appendChild(div);
     });
+    lucide.createIcons();
 }
 
 function actualizarEstadisticasPedidos(pedidos) {
@@ -840,7 +841,7 @@ function renderizarCategoriasGestion(container) {
             const bgStyle = img ? `background-image:url('${img}')` : '';
             return `<div onclick="prodNavCatId='${cat.id}';prodNavNivel='subcategorias';actualizarBreadcrumbProductos();mostrarProductosGestion()"
                 class="catalog-card" style="${bgStyle}">
-                ${!img ? '<div class="catalog-card-noimg">📁</div>' : ''}
+                ${!img ? '<div class="catalog-card-noimg"><i data-lucide="folder-open" class="w-10 h-10 text-gray-400"></i></div>' : ''}
                 <div class="catalog-card-label">
                     <div>${cat.nombre}</div>
                     <div class="card-sub">${count} productos</div>
@@ -848,13 +849,14 @@ function renderizarCategoriasGestion(container) {
             </div>`;
         }).join('')}
     </div>`;
+    lucide.createIcons();
 }
 
 function renderizarSubcategoriasGestion(container, subs) {
     container.innerHTML = `<div class="catalog-grid">
         <div onclick="prodNavSubId=null;prodNavNivel='productos';actualizarBreadcrumbProductos();mostrarProductosGestion()"
             class="catalog-card" style="border:2px dashed rgba(255,255,255,0.3)">
-            <div class="catalog-card-noimg" style="background:linear-gradient(135deg,#4b5563,#374151)">📋</div>
+            <div class="catalog-card-noimg" style="background:linear-gradient(135deg,#4b5563,#374151)"><i data-lucide="list" class="w-10 h-10 text-gray-400"></i></div>
             <div class="catalog-card-label"><div>Ver todos</div></div>
         </div>
         ${subs.map(sub => {
@@ -865,7 +867,7 @@ function renderizarSubcategoriasGestion(container, subs) {
             const bgStyle = img ? `background-image:url('${img}')` : '';
             return `<div onclick="prodNavSubId='${sub}';prodNavNivel='productos';actualizarBreadcrumbProductos();mostrarProductosGestion()"
                 class="catalog-card" style="${bgStyle}">
-                ${!img ? '<div class="catalog-card-noimg">📂</div>' : ''}
+                ${!img ? '<div class="catalog-card-noimg"><i data-lucide="folder" class="w-10 h-10 text-gray-400"></i></div>' : ''}
                 <div class="catalog-card-label">
                     <div>${sub}</div>
                     <div class="card-sub">${count} productos</div>
@@ -873,6 +875,7 @@ function renderizarSubcategoriasGestion(container, subs) {
             </div>`;
         }).join('')}
     </div>`;
+    lucide.createIcons();
 }
 
 function renderizarProductosGestionGrid(container, prods) {
@@ -893,7 +896,7 @@ function renderizarProductosGestionGrid(container, prods) {
             const bgStyle = img ? `background-image:url('${img}')` : '';
             const precio = prod.presentaciones && prod.presentaciones.length > 0 ? (prod.presentaciones[0].precio_base || 0) : 0;
             return `<div onclick="abrirPerfilProducto('${prod.id}')" class="catalog-card ${oculto ? 'oculto' : ''}" style="${bgStyle}">
-                ${!img ? '<div class="catalog-card-noimg">📦</div>' : ''}
+                ${!img ? '<div class="catalog-card-noimg"><i data-lucide="package" class="w-10 h-10 text-gray-400"></i></div>' : ''}
                 <span class="catalog-card-badge" style="${estadoBg}">${estado}</span>
                 <div class="catalog-card-label">
                     <div>${prod.nombre}</div>
@@ -902,6 +905,7 @@ function renderizarProductosGestionGrid(container, prods) {
             </div>`;
         }).join('')}
     </div>`;
+    lucide.createIcons();
 }
 
 function actualizarPaginacionProductos(total) {
@@ -1366,7 +1370,7 @@ function mostrarClientesPendientes() {
     banner.innerHTML = `
         <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-4">
             <div class="flex justify-between items-center mb-3">
-                <h4 class="font-bold text-yellow-800">🕐 Clientes pendientes de aprobacion (${pendientes.length})</h4>
+                <h4 class="font-bold text-yellow-800 flex items-center gap-1.5"><i data-lucide="clock" class="w-4 h-4"></i> Clientes pendientes de aprobacion (${pendientes.length})</h4>
             </div>
             <div class="space-y-2">
                 ${pendientes.map(c => `
@@ -1533,7 +1537,7 @@ function abrirPerfilCliente(clienteId) {
 
     const ocultarBtn = document.getElementById('perfilClienteOcultarBtn');
     if (ocultarBtn) {
-        ocultarBtn.textContent = cliente.oculto ? '👁️ Mostrar' : '🙈 Ocultar';
+        ocultarBtn.textContent = cliente.oculto ? 'Mostrar' : 'Ocultar';
         ocultarBtn.className = cliente.oculto
             ? 'bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-bold'
             : 'bg-yellow-500 text-white px-4 py-2 rounded-lg text-sm font-bold';
@@ -2645,7 +2649,7 @@ function cargarDashboard() {
             const maxTotal = sorted[0][1].total;
             rankDiv.innerHTML = sorted.map(([nombre, data], i) => {
                 const pct = maxTotal > 0 ? (data.total / maxTotal * 100) : 0;
-                const medallas = ['🥇','🥈','🥉'];
+                const medallas = ['#1','#2','#3'];
                 const medal = i < 3 ? medallas[i] : `<span class="text-gray-400 text-xs">#${i+1}</span>`;
                 return `<div class="flex items-center gap-3">
                     <span class="text-xl w-8 text-center">${medal}</span>
@@ -3667,7 +3671,7 @@ function cargarCuentasBancariasAdmin() {
     el.innerHTML = cuentas.map(c => `
         <div class="p-4 flex justify-between items-center">
             <div>
-                <p class="font-bold text-gray-800">🏦 ${c.banco} - ${c.tipo === 'ahorro' ? 'Caja de Ahorro' : 'Cuenta Corriente'}${c.alias ? ` <span class="text-blue-600 font-medium">(${c.alias})</span>` : ''}</p>
+                <p class="font-bold text-gray-800">${c.banco} - ${c.tipo === 'ahorro' ? 'Caja de Ahorro' : 'Cuenta Corriente'}${c.alias ? ` <span class="text-blue-600 font-medium">(${c.alias})</span>` : ''}</p>
                 <p class="text-sm text-gray-600">Nro: ${c.numero} | ${c.moneda === 'USD' ? 'Dolares' : 'Guaranies'}</p>
                 <p class="text-xs text-gray-400">Titular: ${c.titular} | RUC: ${c.ruc || '-'}</p>
             </div>
@@ -3976,7 +3980,7 @@ function cargarClientesInactivos() {
                     <p class="text-xs text-blue-600 mt-1">Promedio mensual estimado: Gs. ${a.promedioMensual.toLocaleString()}</p>
                 </div>
                 <div class="flex gap-2 ml-4">
-                    ${tel ? `<button onclick="enviarWhatsAppReactivacion('${tel}', '${nombre.replace(/'/g, '')}')" class="bg-green-50 text-green-700 px-3 py-2 rounded-lg text-xs font-bold hover:bg-green-100">📲 WhatsApp</button>` : ''}
+                    ${tel ? `<button onclick="enviarWhatsAppReactivacion('${tel}', '${nombre.replace(/'/g, '')}')" class="bg-green-50 text-green-700 px-3 py-2 rounded-lg text-xs font-bold hover:bg-green-100 inline-flex items-center gap-1"><i data-lucide="send" class="w-3 h-3"></i> WhatsApp</button>` : ''}
                 </div>
             </div>
         </div>`;
@@ -4001,7 +4005,7 @@ function mostrarConfirmModal(mensaje, opciones = {}) {
             <div class="confirm-box">
                 <div class="text-center mb-5">
                     <div class="w-14 h-14 mx-auto mb-3 rounded-full ${opciones.destructivo ? 'bg-red-100' : 'bg-blue-100'} flex items-center justify-center">
-                        <span class="text-2xl">${opciones.destructivo ? '⚠️' : '❓'}</span>
+                        <i data-lucide="${opciones.destructivo ? 'alert-triangle' : 'help-circle'}" class="w-6 h-6 ${opciones.destructivo ? 'text-red-500' : 'text-blue-500'}"></i>
                     </div>
                     <p class="text-gray-800 font-semibold text-sm whitespace-pre-line leading-relaxed">${mensaje}</p>
                 </div>
@@ -4011,6 +4015,7 @@ function mostrarConfirmModal(mensaje, opciones = {}) {
                 </div>
             </div>`;
         document.body.appendChild(backdrop);
+        lucide.createIcons();
 
         const cerrar = (result) => { backdrop.remove(); resolve(result); };
         backdrop.querySelector('.confirm-cancel-btn').onclick = () => cerrar(false);
@@ -4129,7 +4134,7 @@ function ejecutarBusquedaGlobal() {
         html += '<p class="px-4 py-2 text-xs font-bold text-gray-500 uppercase">Productos</p>';
         prods.forEach(p => {
             html += `<button onclick="cerrarBusquedaGlobal({target:{currentTarget:{}}});cambiarSeccion('productos');setTimeout(()=>{document.getElementById('buscarProducto').value='${p.nombre.replace(/'/g, "\\'")}';filtrarProductos()},100)" class="w-full text-left px-4 py-3 hover:bg-gray-100 rounded-lg flex items-center gap-3">
-                <span class="text-lg">📦</span>
+                <i data-lucide="package" class="w-5 h-5 text-gray-400"></i>
                 <div><p class="font-medium text-gray-800 text-sm">${p.nombre}</p><p class="text-xs text-gray-400">${p.id} - ${p.categoria}</p></div>
             </button>`;
         });
@@ -4141,7 +4146,7 @@ function ejecutarBusquedaGlobal() {
         html += '<p class="px-4 py-2 text-xs font-bold text-gray-500 uppercase">Clientes</p>';
         clis.forEach(c => {
             html += `<button onclick="cerrarBusquedaGlobal({target:{currentTarget:{}}});cambiarSeccion('clientes');setTimeout(()=>abrirPerfilCliente('${c.id}'),200)" class="w-full text-left px-4 py-3 hover:bg-gray-100 rounded-lg flex items-center gap-3">
-                <span class="text-lg">👤</span>
+                <i data-lucide="user" class="w-5 h-5 text-gray-400"></i>
                 <div><p class="font-medium text-gray-800 text-sm">${c.razon_social || c.nombre}</p><p class="text-xs text-gray-400">${c.zona || ''} - ${c.telefono || ''}</p></div>
             </button>`;
         });
@@ -4153,7 +4158,7 @@ function ejecutarBusquedaGlobal() {
         html += '<p class="px-4 py-2 text-xs font-bold text-gray-500 uppercase">Pedidos</p>';
         peds.forEach(p => {
             html += `<button onclick="cerrarBusquedaGlobal({target:{currentTarget:{}}});cambiarSeccion('pedidos');setTimeout(()=>editarPedido('${p.id}'),200)" class="w-full text-left px-4 py-3 hover:bg-gray-100 rounded-lg flex items-center gap-3">
-                <span class="text-lg">📋</span>
+                <i data-lucide="clipboard-list" class="w-5 h-5 text-gray-400"></i>
                 <div><p class="font-medium text-gray-800 text-sm">${p.cliente?.nombre || 'N/A'}</p><p class="text-xs text-gray-400">${p.id} - Gs. ${(p.total || 0).toLocaleString()}</p></div>
             </button>`;
         });
@@ -4161,6 +4166,7 @@ function ejecutarBusquedaGlobal() {
 
     if (!html) html = '<p class="p-6 text-center text-gray-500 text-sm font-medium">Sin resultados para esta busqueda</p>';
     results.innerHTML = html;
+    lucide.createIcons();
 }
 
 // ============================================

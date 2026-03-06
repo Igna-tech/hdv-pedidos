@@ -290,16 +290,17 @@ function mostrarProductos() {
     const grid = document.createElement('div');
     grid.className = 'grid grid-cols-2 sm:grid-cols-3 gap-3';
 
-    filtrados.forEach(prod => {
+    filtrados.forEach((prod, i) => {
         const card = document.createElement('div');
-        card.className = 'bg-white rounded-xl p-3 shadow-sm border border-gray-100 active:scale-95 transition-transform cursor-pointer';
+        card.className = 'product-card bg-white rounded-xl p-3 shadow-sm border border-gray-100 active:scale-95 transition-transform cursor-pointer';
+        card.style.animationDelay = `${i * 0.04}s`;
         card.onclick = () => mostrarDetalleProducto(prod);
-        
+
         const imgContent = prod.imagen
-            ? `<img src="${prod.imagen}" class="w-full h-full object-contain" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-               <span class="text-4xl hidden items-center justify-center w-full h-full">${obtenerEmoji(prod)}</span>`
-            : `<span class="text-4xl">${obtenerEmoji(prod)}</span>`;
-        
+            ? `<img src="${prod.imagen}" class="w-full h-full object-contain" onerror="this.style.display='none';this.nextElementSibling.classList.remove('hidden');this.nextElementSibling.classList.add('flex')">
+               <span class="hidden items-center justify-center w-full h-full">${obtenerEmoji(prod)}</span>`
+            : `<span class="flex items-center justify-center w-full h-full">${obtenerEmoji(prod)}</span>`;
+
         const promoBadge = typeof mostrarPromocionesEnProducto === 'function' ? mostrarPromocionesEnProducto(prod.id) : '';
         card.innerHTML = `
             <div class="w-full h-28 bg-gray-50 rounded-lg mb-2 flex items-center justify-center overflow-hidden">${imgContent}</div>
@@ -308,21 +309,13 @@ function mostrarProductos() {
         `;
         grid.appendChild(card);
     });
-    
+
     container.appendChild(grid);
+    lucide.createIcons();
 }
 
 function obtenerEmoji(producto) {
-    const n = producto.nombre.toLowerCase();
-    if (n.includes('jabon') || n.includes('jabon')) return '🧼';
-    if (n.includes('shampoo')) return '🧴';
-    if (n.includes('desodorante')) return '💨';
-    if (n.includes('panal') || n.includes('panal')) return '🍼';
-    if (n.includes('toallita')) return '🧻';
-    if (n.includes('havaianas') || n.includes('ipanema')) return '🩴';
-    if (n.includes('aceite')) return '🫗';
-    if (n.includes('talco')) return '✨';
-    return '📦';
+    return '<i data-lucide="package" class="w-10 h-10 text-gray-300"></i>';
 }
 
 function obtenerPrecio(productoId, presentacion) {
@@ -356,7 +349,7 @@ function mostrarMatrizProducto(producto) {
     const existing = document.getElementById('productDetailModal');
     if (existing) existing.remove();
 
-    const emoji = obtenerEmoji(producto);
+    const iconHtml = producto.imagen ? `<img src="${producto.imagen}" class="w-10 h-10 rounded-lg object-contain">` : '<i data-lucide="package" class="w-8 h-8 text-gray-400"></i>';
     const catNombre = categorias.find(c => c.id === producto.categoria)?.nombre || '';
 
     const celdas = producto.presentaciones.map((pres, idx) => {
@@ -385,7 +378,7 @@ function mostrarMatrizProducto(producto) {
             <div class="bg-[#111827] text-white p-4 rounded-t-3xl">
                 <div class="w-12 h-1.5 bg-gray-600 rounded-full mx-auto mb-3"></div>
                 <div class="flex items-center gap-3">
-                    <span class="text-4xl">${emoji}</span>
+                    ${iconHtml}
                     <div>
                         <h3 class="text-lg font-bold">${producto.nombre}</h3>
                         <p class="text-xs text-gray-400">${catNombre} › ${producto.subcategoria}</p>
@@ -419,6 +412,7 @@ function mostrarMatrizProducto(producto) {
             </div>
         </div>`;
     document.body.appendChild(modal);
+    lucide.createIcons();
 
     // Hacer focus en la primera celda
     setTimeout(() => {
@@ -539,12 +533,11 @@ function mostrarDetalleMasivo(producto) {
     if (existing) existing.remove();
 
     const catNombre = categorias.find(c => c.id === producto.categoria)?.nombre || '';
-    const emoji = obtenerEmoji(producto);
 
     const imgContent = producto.imagen
-        ? `<img src="${producto.imagen}" class="w-full h-full object-contain" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-           <span class="text-6xl hidden items-center justify-center w-full h-full">${emoji}</span>`
-        : `<span class="text-6xl">${emoji}</span>`;
+        ? `<img src="${producto.imagen}" class="w-full h-full object-contain" onerror="this.style.display='none';this.nextElementSibling.classList.remove('hidden');this.nextElementSibling.classList.add('flex')">
+           <span class="hidden items-center justify-center w-full h-full"><i data-lucide="package" class="w-12 h-12 text-gray-300"></i></span>`
+        : `<span class="flex items-center justify-center w-full h-full"><i data-lucide="package" class="w-12 h-12 text-gray-300"></i></span>`;
 
     const presHTML = producto.presentaciones.map((pres, idx) => {
         const precio = obtenerPrecio(producto.id, pres);
@@ -591,6 +584,7 @@ function mostrarDetalleMasivo(producto) {
             </div>
         </div>`;
     document.body.appendChild(modal);
+    lucide.createIcons();
 }
 
 function recalcularTotalMasivo(productoId) {
@@ -750,36 +744,52 @@ function mostrarModalCarrito() {
         mostrarExito('El carrito esta vacio');
         return;
     }
-    
-    const modal = document.getElementById('cartModal');
-    modal.classList.remove('hidden');
+
+    const backdrop = document.getElementById('cartBackdrop');
+    const drawer = document.getElementById('cartDrawer');
+    backdrop.classList.remove('hidden');
+    requestAnimationFrame(() => {
+        backdrop.classList.add('open');
+        drawer.classList.add('open');
+    });
     renderizarCarrito();
+    lucide.createIcons();
 }
 
 function closeCartModal() {
-    document.getElementById('cartModal').classList.add('hidden');
+    const backdrop = document.getElementById('cartBackdrop');
+    const drawer = document.getElementById('cartDrawer');
+    backdrop.classList.remove('open');
+    drawer.classList.remove('open');
+    setTimeout(() => backdrop.classList.add('hidden'), 350);
 }
 
 function renderizarCarrito() {
     const container = document.getElementById('cartItemsList');
     container.innerHTML = '';
-    
+
+    // Update drawer count badge
+    const drawerCount = document.getElementById('drawerCartCount');
+    if (drawerCount) drawerCount.textContent = carrito.length;
+
     carrito.forEach((item, idx) => {
         const wrapper = document.createElement('div');
         wrapper.className = 'relative overflow-hidden rounded-xl';
         wrapper.innerHTML = `
-            <div class="absolute inset-y-0 right-0 w-20 bg-red-500 flex items-center justify-center text-white font-bold text-sm rounded-r-xl">Quitar</div>
-            <div class="cart-item-inner relative bg-gray-50 p-3 transition-transform" style="touch-action: pan-y;" data-idx="${idx}">
-                <div class="flex justify-between items-center">
-                    <div class="flex-1">
-                        <p class="font-bold text-gray-800 text-sm">${item.nombre}</p>
+            <div class="absolute inset-y-0 right-0 w-16 bg-red-500 flex items-center justify-center text-white rounded-r-xl">
+                <i data-lucide="trash-2" class="w-4 h-4"></i>
+            </div>
+            <div class="cart-item-inner relative bg-gray-50 p-3 transition-transform rounded-xl" style="touch-action: pan-y;" data-idx="${idx}">
+                <div class="flex justify-between items-center gap-2">
+                    <div class="flex-1 min-w-0">
+                        <p class="font-semibold text-gray-800 text-sm truncate">${item.nombre}</p>
                         <p class="text-xs text-gray-500">${item.presentacion}</p>
                     </div>
-                    <div class="flex items-center gap-2">
-                        <button onclick="cambiarCantidadCarrito(${idx},-1)" class="w-7 h-7 bg-gray-200 rounded-full font-bold text-sm">−</button>
+                    <div class="flex items-center gap-1.5 shrink-0">
+                        <button onclick="cambiarCantidadCarrito(${idx},-1)" class="w-7 h-7 bg-white border border-gray-200 rounded-lg font-bold text-sm flex items-center justify-center hover:bg-gray-50">-</button>
                         <span class="font-bold text-sm w-6 text-center">${item.cantidad}</span>
-                        <button onclick="cambiarCantidadCarrito(${idx},1)" class="w-7 h-7 bg-gray-200 rounded-full font-bold text-sm">+</button>
-                        <p class="font-bold text-gray-900 ml-2 w-24 text-right">Gs. ${item.subtotal.toLocaleString()}</p>
+                        <button onclick="cambiarCantidadCarrito(${idx},1)" class="w-7 h-7 bg-white border border-gray-200 rounded-lg font-bold text-sm flex items-center justify-center hover:bg-gray-50">+</button>
+                        <p class="font-bold text-gray-900 ml-1 text-sm text-right whitespace-nowrap">Gs. ${item.subtotal.toLocaleString()}</p>
                     </div>
                 </div>
             </div>`;
@@ -789,15 +799,16 @@ function renderizarCarrito() {
         inner.addEventListener('touchstart', e => { startX = e.touches[0].clientX; }, { passive: true });
         inner.addEventListener('touchmove', e => {
             currentX = e.touches[0].clientX - startX;
-            if (currentX < 0) inner.style.transform = `translateX(${Math.max(currentX, -80)}px)`;
+            if (currentX < 0) inner.style.transform = `translateX(${Math.max(currentX, -64)}px)`;
         }, { passive: true });
         inner.addEventListener('touchend', () => {
-            if (currentX < -50) { eliminarDelCarrito(idx); }
+            if (currentX < -40) { eliminarDelCarrito(idx); }
             else { inner.style.transform = ''; }
             currentX = 0;
         });
         container.appendChild(wrapper);
     });
+    lucide.createIcons();
     
     // Total
     const total = carrito.reduce((s, i) => s + i.subtotal, 0);
@@ -1114,13 +1125,14 @@ function mostrarMisPedidos() {
                 <span class="font-bold text-gray-900">Gs. ${p.total.toLocaleString()}</span>
             </div>
             <div class="flex gap-2 mt-3 pt-2 border-t border-gray-50">
-                <button onclick="imprimirTicketVendedor('${p.id}')" class="flex-1 bg-purple-50 text-purple-700 py-2 rounded-lg text-xs font-bold active:scale-95 transition-transform">🖨️ Ticket</button>
-                <button onclick="generarPDFVendedor('${p.id}')" class="flex-1 bg-red-50 text-red-700 py-2 rounded-lg text-xs font-bold active:scale-95 transition-transform">📄 PDF</button>
-                <button onclick="enviarPedidoWhatsApp('${p.id}')" class="flex-1 bg-green-50 text-green-700 py-2 rounded-lg text-xs font-bold active:scale-95 transition-transform">📲 WhatsApp</button>
+                <button onclick="imprimirTicketVendedor('${p.id}')" class="flex-1 bg-purple-50 text-purple-700 py-2 rounded-lg text-xs font-bold active:scale-95 transition-transform flex items-center justify-center gap-1"><i data-lucide="printer" class="w-3 h-3"></i> Ticket</button>
+                <button onclick="generarPDFVendedor('${p.id}')" class="flex-1 bg-red-50 text-red-700 py-2 rounded-lg text-xs font-bold active:scale-95 transition-transform flex items-center justify-center gap-1"><i data-lucide="file-text" class="w-3 h-3"></i> PDF</button>
+                <button onclick="enviarPedidoWhatsApp('${p.id}')" class="flex-1 bg-green-50 text-green-700 py-2 rounded-lg text-xs font-bold active:scale-95 transition-transform flex items-center justify-center gap-1"><i data-lucide="send" class="w-3 h-3"></i> WhatsApp</button>
             </div>
         `;
         container.appendChild(div);
     });
+    lucide.createIcons();
 }
 function mostrarToast(mensaje, tipo = 'info', duracion = 3500) {
     const container = document.getElementById('toastContainer');
@@ -1149,7 +1161,7 @@ function mostrarConfirmModal(mensaje, opciones = {}) {
             <div class="confirm-box">
                 <div class="text-center mb-5">
                     <div class="w-14 h-14 mx-auto mb-3 rounded-full ${opciones.destructivo ? 'bg-red-100' : 'bg-gray-100'} flex items-center justify-center">
-                        <span class="text-2xl">${opciones.destructivo ? '⚠️' : '❓'}</span>
+                        <i data-lucide="${opciones.destructivo ? 'alert-triangle' : 'help-circle'}" class="w-6 h-6 ${opciones.destructivo ? 'text-red-500' : 'text-gray-500'}"></i>
                     </div>
                     <p class="text-gray-800 font-semibold text-sm whitespace-pre-line leading-relaxed">${mensaje}</p>
                 </div>
@@ -1159,6 +1171,7 @@ function mostrarConfirmModal(mensaje, opciones = {}) {
                 </div>
             </div>`;
         document.body.appendChild(backdrop);
+        lucide.createIcons();
 
         const cerrar = (result) => { backdrop.remove(); resolve(result); };
         backdrop.querySelector('.confirm-cancel-btn').onclick = () => cerrar(false);
@@ -1787,7 +1800,7 @@ function mostrarFiltroZonas() {
     zonas.forEach((z, i) => {
         const color = colores[i % colores.length];
         html += `<button onclick="seleccionarZona('${z.zona}')" class="${color} border-2 rounded-xl p-4 text-center active:scale-95 transition-transform">
-            <p class="text-3xl mb-1">📍</p>
+            <p class="mb-1"><i data-lucide="map-pin" class="w-8 h-8 text-gray-400 mx-auto"></i></p>
             <p class="font-bold text-sm">${z.zona}</p>
             <p class="text-xs opacity-70">${z.cantidad} clientes</p>
         </button>`;
@@ -1844,7 +1857,7 @@ function actualizarIndicadorZona(zona) {
     }
     if (zona) {
         badge.className = 'bg-blue-600 text-white text-xs font-bold px-3 py-1 rounded-full mt-2 inline-block';
-        badge.textContent = '📍 ' + zona;
+        badge.textContent = zona;
         badge.style.display = '';
     } else {
         badge.style.display = 'none';
@@ -1859,7 +1872,7 @@ function mostrarRutaHoy() {
     const hoy = new Date().toISOString().split('T')[0];
 
     let html = `<div class="flex justify-between items-center mb-4">
-        <h3 class="text-lg font-bold text-gray-800">📍 ${zonaActiva}</h3>
+        <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2"><i data-lucide="map-pin" class="w-5 h-5 text-gray-500"></i> ${zonaActiva}</h3>
         <button onclick="mostrarFiltroZonas()" class="text-sm text-blue-600 font-bold">Cambiar Zona</button>
     </div>`;
     html += `<p class="text-sm text-gray-500 mb-4">${clientesZona.length} clientes en esta zona</p>`;
@@ -1877,7 +1890,7 @@ function mostrarRutaHoy() {
                         <div>
                             <p class="font-bold text-gray-800">${nombre}</p>
                             <p class="text-xs text-gray-500">${c.direccion || c.zona || ''}</p>
-                            ${c.telefono ? `<a href="tel:${c.telefono}" class="text-xs text-blue-600 font-bold">📞 ${c.telefono}</a>` : ''}
+                            ${c.telefono ? `<a href="tel:${c.telefono}" class="text-xs text-blue-600 font-bold inline-flex items-center gap-1"><i data-lucide="phone" class="w-3 h-3"></i> ${c.telefono}</a>` : ''}
                         </div>
                     </div>
                     <div class="flex flex-col items-end gap-1">
@@ -1962,16 +1975,16 @@ function mostrarPromocionesEnProducto(productoId) {
     if (promos.length === 0) return '';
     return promos.map(p => {
         if (p.tipo === 'combo') {
-            return `<span class="inline-block bg-green-100 text-green-700 text-[10px] font-bold px-2 py-1 rounded-full mt-1">🎁 Lleva ${p.cantidadMinima}+ y lleva gratis!</span>`;
+            return `<span class="inline-block bg-green-100 text-green-700 text-[10px] font-bold px-2 py-1 rounded-full mt-1">Lleva ${p.cantidadMinima}+ y lleva gratis!</span>`;
         }
-        return `<span class="inline-block bg-green-100 text-green-700 text-[10px] font-bold px-2 py-1 rounded-full mt-1">🏷 ${p.cantidadMinima}+ a Gs.${(p.precioEspecial || 0).toLocaleString()}</span>`;
+        return `<span class="inline-block bg-green-100 text-green-700 text-[10px] font-bold px-2 py-1 rounded-full mt-1">${p.cantidadMinima}+ a Gs.${(p.precioEspecial || 0).toLocaleString()}</span>`;
     }).join(' ');
 }
 
 function mostrarResumenPromociones(resultado) {
     if (!resultado || (resultado.promocionesAplicadas.length === 0 && resultado.itemsGratis.length === 0)) return '';
     let html = '<div class="bg-green-50 border border-green-200 rounded-xl p-4 mt-3">';
-    html += '<p class="font-bold text-green-800 text-sm mb-2">🎉 Promociones Aplicadas</p>';
+    html += '<p class="font-bold text-green-800 text-sm mb-2">Promociones Aplicadas</p>';
     resultado.promocionesAplicadas.forEach(p => {
         html += `<div class="text-sm text-green-700 mb-1">
             <strong>${p.nombre}</strong>: Ahorro Gs. ${p.ahorro.toLocaleString()}
@@ -1979,7 +1992,7 @@ function mostrarResumenPromociones(resultado) {
         </div>`;
     });
     resultado.itemsGratis.forEach(g => {
-        html += `<div class="text-sm text-green-700 mb-1">🎁 <strong>${g.nombre}</strong>: ${g.cantidad} unid. GRATIS</div>`;
+        html += `<div class="text-sm text-green-700 mb-1"><strong>${g.nombre}</strong>: ${g.cantidad} unid. GRATIS</div>`;
     });
     if (resultado.descuentoTotal > 0) {
         html += `<p class="font-bold text-green-800 text-sm mt-2 pt-2 border-t border-green-200">Total Ahorro: Gs. ${resultado.descuentoTotal.toLocaleString()}</p>`;
@@ -2109,7 +2122,7 @@ function mostrarMiCaja() {
             <p class="text-xs font-bold text-gray-500 uppercase tracking-wider p-3 bg-gray-50">Cuentas Bancarias de la Empresa</p>
             ${cuentas.map(c => `
                 <div class="p-3 border-t border-gray-100">
-                    <p class="text-sm font-bold text-gray-800">🏦 ${c.banco}</p>
+                    <p class="text-sm font-bold text-gray-800">${c.banco}</p>
                     <p class="text-xs text-gray-600">${c.tipo === 'ahorro' ? 'Caja de Ahorro' : 'Cta. Corriente'} | ${c.moneda === 'USD' ? 'USD' : 'Gs.'}</p>
                     <p class="text-xs text-gray-500">Nro: <strong>${c.numero}</strong></p>
                     <p class="text-xs text-gray-400">Titular: ${c.titular}${c.ruc ? ' | RUC: ' + c.ruc : ''}</p>
@@ -2222,12 +2235,12 @@ function generarWidgetMeta() {
     const comisionEstimada = Math.round(totalVendido * (comisionPct / 100));
 
     const barColor = porcentaje < 50 ? 'bg-red-500' : porcentaje < 80 ? 'bg-yellow-500' : 'bg-green-500';
-    const emoji = porcentaje >= 100 ? '🏆' : porcentaje >= 80 ? '🔥' : porcentaje >= 50 ? '💪' : '📈';
+    const iconName = porcentaje >= 100 ? 'trophy' : porcentaje >= 80 ? 'flame' : porcentaje >= 50 ? 'trending-up' : 'bar-chart-2';
 
     return `
     <div class="bg-gradient-to-r ${porcentaje >= 80 ? 'from-green-50 to-emerald-50 border-green-200' : porcentaje >= 50 ? 'from-yellow-50 to-amber-50 border-yellow-200' : 'from-red-50 to-orange-50 border-red-200'} rounded-xl p-4 shadow-sm border mb-3">
         <div class="flex justify-between items-center mb-2">
-            <p class="text-xs font-bold text-gray-600">${emoji} META DEL MES</p>
+            <p class="text-xs font-bold text-gray-600 flex items-center gap-1"><i data-lucide="${iconName}" class="w-4 h-4"></i> META DEL MES</p>
             <p class="text-lg font-bold ${porcentaje >= 80 ? 'text-green-700' : porcentaje >= 50 ? 'text-yellow-700' : 'text-red-700'}">${porcentaje}%</p>
         </div>
         <div class="w-full bg-gray-200 rounded-full h-4 mb-2 overflow-hidden">

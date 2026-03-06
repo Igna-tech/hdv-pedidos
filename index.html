@@ -6,6 +6,9 @@
     <meta name="theme-color" content="#111827">
     <title>HDV Pedidos - Vendedores</title>
     <link rel="manifest" href="manifest.json">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <!-- Firebase -->
@@ -19,7 +22,42 @@
             --grafito-oscuro: #111827;
         }
 
-        body { background-color: #f3f4f6; -webkit-tap-highlight-color: transparent; }
+        body { background-color: #f3f4f6; -webkit-tap-highlight-color: transparent; font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+
+        /* Product grid animations */
+        .product-card {
+            animation: cardFadeIn 0.3s ease both;
+        }
+        @keyframes cardFadeIn {
+            from { opacity: 0; transform: scale(0.95) translateY(8px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        /* Category chip transitions */
+        .category-btn {
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .category-btn.active {
+            box-shadow: 0 2px 8px rgba(17, 24, 39, 0.25);
+        }
+
+        /* Off-canvas cart drawer */
+        #cartDrawer {
+            transform: translateX(100%);
+            transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        #cartDrawer.open {
+            transform: translateX(0);
+        }
+        #cartBackdrop {
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+        }
+        #cartBackdrop.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
 
         .dark-mode { background-color: var(--grafito-oscuro) !important; color: white; }
         .dark-mode .bg-white { background-color: var(--grafito) !important; color: white; border-color: #374151; }
@@ -142,8 +180,8 @@
                 </div>
             </div>
             <div class="flex gap-2">
-                <button onclick="forzarActualizacion()" class="p-2 bg-gray-800 rounded-full text-xs text-gray-300 font-bold" aria-label="Forzar actualizacion">🔄</button>
-                <button onclick="toggleDarkMode()" class="p-2 bg-gray-800 rounded-full dark-mode-toggle" aria-label="Cambiar modo oscuro">🌙</button>
+                <button onclick="forzarActualizacion()" class="p-2 bg-gray-800 rounded-full text-gray-300 hover:text-white transition-colors" aria-label="Forzar actualizacion"><i data-lucide="refresh-cw" class="w-4 h-4"></i></button>
+                <button onclick="toggleDarkMode()" class="p-2 bg-gray-800 rounded-full text-gray-300 hover:text-white transition-colors dark-mode-toggle" aria-label="Cambiar modo oscuro"><i data-lucide="moon" class="w-4 h-4"></i></button>
             </div>
         </div>
         
@@ -239,16 +277,16 @@
 
             <div class="space-y-3">
                 <button onclick="exportarBackupVendedor()" class="w-full bg-green-600 text-white py-4 rounded-xl font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-transform">
-                    📥 Descargar Backup Completo
+                    <i data-lucide="download" class="w-4 h-4"></i> Descargar Backup Completo
                 </button>
                 <button onclick="exportarSoloPedidos()" class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-transform">
-                    📋 Descargar Solo Pedidos
+                    <i data-lucide="file-text" class="w-4 h-4"></i> Descargar Solo Pedidos
                 </button>
                 <button onclick="compartirBackupWhatsApp()" class="w-full bg-[#25D366] text-white py-4 rounded-xl font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-transform">
-                    📲 Enviar Resumen por WhatsApp
+                    <i data-lucide="send" class="w-4 h-4"></i> Enviar Resumen por WhatsApp
                 </button>
                 <button onclick="document.getElementById('restaurarFileVendedor').click()" class="w-full bg-yellow-500 text-white py-4 rounded-xl font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-transform">
-                    📤 Restaurar desde Backup
+                    <i data-lucide="upload" class="w-4 h-4"></i> Restaurar desde Backup
                 </button>
                 <input type="file" id="restaurarFileVendedor" accept=".json" style="display:none;" onchange="restaurarBackupVendedor(event)">
 
@@ -263,43 +301,57 @@
         </div>
     </div>
 
-    <div id="cartModal" class="fixed inset-0 bg-black/50 z-[100] hidden flex items-end">
-        <div class="bg-white w-full rounded-t-3xl max-h-[90vh] overflow-y-auto p-6 shadow-2xl pb-20">
-            <div class="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-6"></div>
-            <div class="flex justify-between items-center mb-6">
-                <h3 class="text-xl font-bold text-gray-900">Tu Pedido</h3>
-                <button onclick="closeCartModal()" class="text-gray-400 p-2" aria-label="Cerrar"><i data-lucide="x"></i></button>
+    <!-- Cart Drawer (Off-canvas right panel) -->
+    <div id="cartBackdrop" class="fixed inset-0 bg-black/50 z-[100] hidden" onclick="closeCartModal()"></div>
+    <div id="cartDrawer" class="fixed top-0 right-0 bottom-0 w-full max-w-md bg-white z-[101] flex flex-col shadow-2xl">
+        <!-- Fixed header -->
+        <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
+            <div class="flex items-center gap-3">
+                <i data-lucide="shopping-cart" class="w-5 h-5 text-gray-700"></i>
+                <h3 class="text-lg font-bold text-gray-900">Tu Pedido</h3>
+                <span id="drawerCartCount" class="bg-gray-100 text-gray-700 text-xs font-bold px-2 py-0.5 rounded-full">0</span>
             </div>
-            
-            <div id="cartItemsList" class="space-y-4 mb-6"></div>
-            <div id="totalSection" class="border-t border-gray-100 pt-4 space-y-3 mb-6 hidden"></div>
+            <button onclick="closeCartModal()" class="p-2 hover:bg-gray-100 rounded-full transition-colors" aria-label="Cerrar">
+                <i data-lucide="x" class="w-5 h-5 text-gray-500"></i>
+            </button>
+        </div>
 
-            <div class="space-y-4">
-                <div class="bg-gray-50 p-4 rounded-xl">
-                    <label class="block text-xs font-bold text-gray-500 mb-2">TIPO DE PAGO</label>
-                    <select id="tipoPago" class="w-full bg-white border border-gray-300 rounded-lg p-2 outline-none font-medium">
+        <!-- Scrollable content -->
+        <div class="flex-1 overflow-y-auto px-5 py-4 space-y-3">
+            <div id="cartItemsList" class="space-y-2"></div>
+
+            <div class="space-y-3 pt-3">
+                <div class="bg-gray-50 p-3 rounded-xl">
+                    <label class="block text-[11px] font-bold text-gray-500 mb-1.5 uppercase tracking-wider">Tipo de Pago</label>
+                    <select id="tipoPago" class="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none font-medium">
                         <option value="contado">Al Contado</option>
                         <option value="credito">A Credito</option>
                     </select>
                 </div>
-                
-                <div class="bg-gray-50 p-4 rounded-xl">
-                    <label class="block text-xs font-bold text-gray-500 mb-2">DESCUENTO (%)</label>
+
+                <div class="bg-gray-50 p-3 rounded-xl">
+                    <label class="block text-[11px] font-bold text-gray-500 mb-1.5 uppercase tracking-wider">Descuento (%)</label>
                     <div class="flex gap-2">
-                        <input type="number" id="descuento" value="0" min="0" max="100" class="flex-1 bg-white border border-gray-300 rounded-lg p-2 outline-none font-bold">
-                        <button onclick="aplicarDescuento()" class="bg-blue-600 text-white px-4 rounded-lg font-bold">Aplicar</button>
+                        <input type="number" id="descuento" value="0" min="0" max="100" class="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none font-bold">
+                        <button onclick="aplicarDescuento()" class="bg-gray-800 text-white px-4 rounded-lg text-sm font-bold hover:bg-gray-700 transition-colors">Aplicar</button>
                     </div>
                 </div>
 
-                <div class="bg-gray-50 p-4 rounded-xl">
-                    <label class="block text-xs font-bold text-gray-500 mb-2">NOTAS / OBSERVACIONES</label>
-                    <textarea id="notasPedido" rows="2" class="w-full bg-white border border-gray-300 rounded-lg p-2 outline-none text-sm" placeholder="Ej. Entregar de tarde..."></textarea>
+                <div class="bg-gray-50 p-3 rounded-xl">
+                    <label class="block text-[11px] font-bold text-gray-500 mb-1.5 uppercase tracking-wider">Notas</label>
+                    <textarea id="notasPedido" rows="2" class="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none" placeholder="Ej. Entregar de tarde..."></textarea>
                 </div>
             </div>
+        </div>
 
-            <div class="mt-8 flex gap-3">
-                <button onclick="closeCartModal()" class="flex-1 bg-gray-100 text-gray-700 py-4 rounded-xl font-bold">Volver</button>
-                <button onclick="confirmarPedido()" class="flex-1 bg-[#111827] text-white py-4 rounded-xl font-bold shadow-lg">Confirmar</button>
+        <!-- Sticky footer -->
+        <div class="border-t border-gray-100 px-5 py-4 space-y-3 shrink-0 bg-white">
+            <div id="totalSection" class="space-y-2 hidden"></div>
+            <div class="flex gap-3">
+                <button onclick="closeCartModal()" class="flex-1 bg-gray-100 text-gray-700 py-3.5 rounded-xl font-bold text-sm hover:bg-gray-200 transition-colors">Volver</button>
+                <button onclick="confirmarPedido()" class="flex-1 bg-[#111827] text-white py-3.5 rounded-xl font-bold text-sm shadow-lg hover:bg-gray-800 transition-colors">
+                    <span class="flex items-center justify-center gap-2"><i data-lucide="check" class="w-4 h-4"></i> Confirmar</span>
+                </button>
             </div>
         </div>
     </div>

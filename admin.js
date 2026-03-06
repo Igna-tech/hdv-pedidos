@@ -1246,15 +1246,7 @@ function mostrarClientesGestion() {
             </td>
             <td class="px-4 py-3 text-sm text-gray-500">${c.zona || c.direccion || '-'}</td>
             <td class="px-4 py-3 text-sm text-gray-500">${tel || '-'}</td>
-            <td class="px-4 py-3">${precios > 0 ? `<span class="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-bold">${precios}</span>` : '<span class="text-xs text-gray-300">0</span>'}</td>
-            <td class="px-4 py-3">
-                <div class="flex gap-1">
-                    <button onclick="event.stopPropagation();abrirPerfilCliente('${c.id}')" class="text-blue-600 text-xs font-bold px-2 py-1 rounded hover:bg-blue-50">Perfil</button>
-                    <button onclick="event.stopPropagation();editarCliente('${c.id}')" class="text-gray-600 text-xs font-bold px-2 py-1 rounded hover:bg-gray-100">Editar</button>
-                    ${tel ? `<button onclick="event.stopPropagation();enviarWhatsAppCliente('${tel}','${nombre.replace(/'/g, '')}')" class="text-green-600 text-xs font-bold px-2 py-1 rounded hover:bg-green-50">WA</button>` : ''}
-                    <button onclick="event.stopPropagation();toggleOcultarCliente('${c.id}')" class="text-xs px-2 py-1 rounded hover:bg-gray-100">${oculto ? '👁️' : '🙈'}</button>
-                </div>
-            </td>`;
+            <td class="px-4 py-3">${precios > 0 ? `<span class="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-bold">${precios}</span>` : '<span class="text-xs text-gray-300">0</span>'}</td>`;
         tbody.appendChild(tr);
     });
 
@@ -1449,6 +1441,22 @@ function abrirPerfilCliente(clienteId) {
     } else {
         waBtn.style.display = 'none';
     }
+
+    // Botones Editar / Ocultar / Eliminar
+    const editarBtn = document.getElementById('perfilClienteEditarBtn');
+    if (editarBtn) editarBtn.onclick = () => { cerrarPerfilCliente(); editarCliente(clienteId); };
+
+    const ocultarBtn = document.getElementById('perfilClienteOcultarBtn');
+    if (ocultarBtn) {
+        ocultarBtn.textContent = cliente.oculto ? '👁️ Mostrar' : '🙈 Ocultar';
+        ocultarBtn.className = cliente.oculto
+            ? 'bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-bold'
+            : 'bg-yellow-500 text-white px-4 py-2 rounded-lg text-sm font-bold';
+        ocultarBtn.onclick = () => { cerrarPerfilCliente(); toggleOcultarCliente(clienteId); };
+    }
+
+    const eliminarBtn = document.getElementById('perfilClienteEliminarBtn');
+    if (eliminarBtn) eliminarBtn.onclick = () => { cerrarPerfilCliente(); eliminarCliente(clienteId); };
 
     // Stats
     const totalComprado = pedidosCliente.reduce((s, p) => s + (p.total || 0), 0);

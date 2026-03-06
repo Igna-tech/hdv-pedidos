@@ -451,7 +451,6 @@
                                 <th class="px-4 py-3 cursor-pointer hover:text-gray-800" onclick="ordenarClientes('zona')">Zona</th>
                                 <th class="px-4 py-3">Telefono</th>
                                 <th class="px-4 py-3">Precios Esp.</th>
-                                <th class="px-4 py-3">Acciones</th>
                             </tr>
                         </thead>
                         <tbody id="tablaClientesCuerpo" class="divide-y divide-gray-100"></tbody>
@@ -1018,9 +1017,12 @@
                         <h3 class="text-xl font-bold text-gray-800" id="perfilClienteNombre">Cliente</h3>
                         <p class="text-sm text-gray-500" id="perfilClienteInfo"></p>
                     </div>
-                    <div class="flex gap-2">
+                    <div class="flex gap-2 flex-wrap justify-end">
                         <button id="perfilWhatsAppBtn" class="bg-green-500 text-white px-4 py-2 rounded-lg text-sm font-bold">WhatsApp</button>
-                        <button onclick="cerrarPerfilCliente()" class="text-gray-400 hover:text-gray-600 px-3 py-2 text-xl font-bold">x</button>
+                        <button id="perfilClienteEditarBtn" class="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-bold">Editar</button>
+                        <button id="perfilClienteOcultarBtn" class="bg-yellow-500 text-white px-4 py-2 rounded-lg text-sm font-bold">Ocultar</button>
+                        <button id="perfilClienteEliminarBtn" class="bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-bold">Eliminar</button>
+                        <button onclick="cerrarPerfilCliente()" class="text-gray-400 hover:text-gray-600 px-3 py-2 text-xl font-bold">✕</button>
                     </div>
                 </div>
                 <!-- Stats cards -->

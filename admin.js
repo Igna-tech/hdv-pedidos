@@ -759,30 +759,44 @@ function aplicarOrdenProductos(prods, orden) {
 
 function renderizarCategoriasGestion(container) {
     const cats = productosData.categorias || [];
-    container.innerHTML = `<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+    container.innerHTML = `<div class="catalog-grid">
         ${cats.map(cat => {
             const count = productosData.productos.filter(p => p.categoria === cat.id).length;
+            const prods = productosData.productos.filter(p => p.categoria === cat.id && p.imagen);
+            const img = prods.length > 0 ? prods[0].imagen : '';
+            const bgStyle = img ? `background-image:url('${img}')` : '';
             return `<div onclick="prodNavCatId='${cat.id}';prodNavNivel='subcategorias';actualizarBreadcrumbProductos();mostrarProductosGestion()"
-                class="bg-white border border-gray-200 rounded-xl p-5 cursor-pointer hover:shadow-md hover:border-gray-400 transition-all">
-                <p class="font-bold text-gray-800 text-lg mb-1">${cat.nombre}</p>
-                <p class="text-sm text-gray-500">${count} productos</p>
+                class="catalog-card" style="${bgStyle}">
+                ${!img ? '<div class="catalog-card-noimg">📁</div>' : ''}
+                <div class="catalog-card-label">
+                    <div>${cat.nombre}</div>
+                    <div class="card-sub">${count} productos</div>
+                </div>
             </div>`;
         }).join('')}
     </div>`;
 }
 
 function renderizarSubcategoriasGestion(container, subs) {
-    container.innerHTML = `<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+    container.innerHTML = `<div class="catalog-grid">
         <div onclick="prodNavSubId=null;prodNavNivel='productos';actualizarBreadcrumbProductos();mostrarProductosGestion()"
-            class="bg-gray-50 border border-dashed border-gray-300 rounded-xl p-5 cursor-pointer hover:shadow-md transition-all flex items-center justify-center">
-            <p class="font-bold text-gray-500 text-sm">Ver todos</p>
+            class="catalog-card" style="border:2px dashed rgba(255,255,255,0.3)">
+            <div class="catalog-card-noimg" style="background:linear-gradient(135deg,#4b5563,#374151)">📋</div>
+            <div class="catalog-card-label"><div>Ver todos</div></div>
         </div>
         ${subs.map(sub => {
-            const count = productosData.productos.filter(p => p.categoria === prodNavCatId && p.subcategoria === sub).length;
+            const prods = productosData.productos.filter(p => p.categoria === prodNavCatId && p.subcategoria === sub);
+            const count = prods.length;
+            const imgProd = prods.find(p => p.imagen);
+            const img = imgProd ? imgProd.imagen : '';
+            const bgStyle = img ? `background-image:url('${img}')` : '';
             return `<div onclick="prodNavSubId='${sub}';prodNavNivel='productos';actualizarBreadcrumbProductos();mostrarProductosGestion()"
-                class="bg-white border border-gray-200 rounded-xl p-5 cursor-pointer hover:shadow-md hover:border-gray-400 transition-all">
-                <p class="font-bold text-gray-800 mb-1">${sub}</p>
-                <p class="text-sm text-gray-500">${count} productos</p>
+                class="catalog-card" style="${bgStyle}">
+                ${!img ? '<div class="catalog-card-noimg">📂</div>' : ''}
+                <div class="catalog-card-label">
+                    <div>${sub}</div>
+                    <div class="card-sub">${count} productos</div>
+                </div>
             </div>`;
         }).join('')}
     </div>`;
@@ -797,28 +811,20 @@ function renderizarProductosGestionGrid(container, prods) {
     const inicio = (paginaProductos - 1) * productosPorPagina;
     const paginados = prods.slice(inicio, inicio + productosPorPagina);
 
-    container.innerHTML = `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+    container.innerHTML = `<div class="catalog-grid">
         ${paginados.map(prod => {
             const estado = prod.estado || 'disponible';
-            const estadoColor = estado === 'disponible' ? 'bg-green-100 text-green-700' : estado === 'agotado' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700';
+            const estadoBg = estado === 'disponible' ? 'background:#059669;color:#fff' : estado === 'agotado' ? 'background:#d97706;color:#fff' : 'background:#dc2626;color:#fff';
             const oculto = prod.oculto || false;
-            const imgHTML = prod.imagen ? `<img src="${prod.imagen}" class="w-12 h-12 object-contain rounded-lg" onerror="this.outerHTML='<span class=\\'text-3xl\\'>📦</span>'">` : '<span class="text-3xl">📦</span>';
-            const presHTML = prod.presentaciones.slice(0, 3).map(p => {
-                const precio = p.precio_base || 0;
-                return `<div class="text-xs text-gray-600 flex justify-between"><span>${p.tamano}</span><span class="font-medium">Gs. ${precio.toLocaleString()}</span></div>`;
-            }).join('');
-            return `<div onclick="abrirPerfilProducto('${prod.id}')" class="bg-white border border-gray-200 rounded-xl p-4 cursor-pointer hover:shadow-md hover:border-gray-400 transition-all ${oculto ? 'opacity-50' : ''}">
-                <div class="flex items-start gap-3 mb-3">
-                    ${imgHTML}
-                    <div class="flex-1 min-w-0">
-                        <p class="font-bold text-gray-800 text-sm leading-tight truncate">${prod.nombre}</p>
-                        <p class="text-xs text-gray-400">${prod.id}</p>
-                        <span class="text-[10px] px-1.5 py-0.5 rounded-full font-bold ${estadoColor}">${estado}</span>
-                    </div>
-                </div>
-                <div class="space-y-1 border-t border-gray-50 pt-2">
-                    ${presHTML}
-                    ${prod.presentaciones.length > 3 ? `<p class="text-xs text-gray-400">+${prod.presentaciones.length - 3} más</p>` : ''}
+            const img = prod.imagen || '';
+            const bgStyle = img ? `background-image:url('${img}')` : '';
+            const precio = prod.presentaciones && prod.presentaciones.length > 0 ? (prod.presentaciones[0].precio_base || 0) : 0;
+            return `<div onclick="abrirPerfilProducto('${prod.id}')" class="catalog-card ${oculto ? 'oculto' : ''}" style="${bgStyle}">
+                ${!img ? '<div class="catalog-card-noimg">📦</div>' : ''}
+                <span class="catalog-card-badge" style="${estadoBg}">${estado}</span>
+                <div class="catalog-card-label">
+                    <div>${prod.nombre}</div>
+                    <div class="card-sub">${precio > 0 ? 'Gs. ' + precio.toLocaleString() : prod.presentaciones.length + ' pres.'}</div>
                 </div>
             </div>`;
         }).join('')}

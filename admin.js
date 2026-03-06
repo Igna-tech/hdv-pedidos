@@ -93,24 +93,24 @@ function guardarTodosCambios() {
         const dataParaFirebase = { categorias: productosData.categorias, productos: productosData.productos, clientes: productosData.clientes };
         guardarCatalogoFirebase(dataParaFirebase).then(ok => {
             if (ok) {
-                alert('Cambios guardados y sincronizados. Los vendedores ya ven los cambios.');
+                mostrarToast('Cambios guardados y sincronizados. Los vendedores ya ven los cambios.', 'success');
             } else {
-                alert('Error al sincronizar con Firebase. Los cambios se guardaron localmente. Tambien se descarga el JSON como respaldo.');
+                mostrarToast('Error al sincronizar con Firebase. Cambios guardados localmente.', 'warning');
                 descargarJSON(productosData, 'productos.json');
             }
         }).catch(err => {
             console.error('[Admin] Error Firebase:', err);
-            alert('Error de Firebase: ' + err.message + '\nLos cambios estan guardados localmente.');
+            mostrarToast('Error de Firebase: ' + err.message, 'error');
             descargarJSON(productosData, 'productos.json');
         });
     } else {
         descargarJSON(productosData, 'productos.json');
-        alert('Firebase no disponible. JSON descargado como respaldo.');
+        mostrarToast('Firebase no disponible. JSON descargado como respaldo.', 'warning');
     }
 }
 
-function descartarCambios() {
-    if (!confirm('¿Descartar todos los cambios? Se perderan las modificaciones.')) return;
+async function descartarCambios() {
+    if (!await mostrarConfirmModal('¿Descartar todos los cambios? Se perderan las modificaciones.', { destructivo: true, textoConfirmar: 'Descartar' })) return;
     productosData = JSON.parse(JSON.stringify(productosDataOriginal));
     productosFiltrados = [...productosData.productos];
     clientesFiltrados = [...productosData.clientes];
@@ -334,8 +334,8 @@ function marcarPendiente(id) {
     }
 }
 
-function eliminarPedido(id) {
-    if (!confirm('¿Eliminar este pedido?')) return;
+async function eliminarPedido(id) {
+    if (!await mostrarConfirmModal('¿Eliminar este pedido?', { destructivo: true, textoConfirmar: 'Eliminar' })) return;
     let pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
     pedidos = pedidos.filter(p => p.id !== id);
     localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
@@ -348,7 +348,7 @@ function eliminarPedido(id) {
 
 function exportarExcelPedidos() {
     const pedidos = todosLosPedidos;
-    if (pedidos.length === 0) { alert('No hay pedidos para exportar'); return; }
+    if (pedidos.length === 0) { mostrarToast('No hay pedidos para exportar', 'error'); return; }
     let csv = 'Fecha,Cliente,Producto,Presentacion,Cantidad,Precio,Subtotal,Total Pedido,Estado,Pago\n';
     pedidos.forEach(p => {
         (p.items || []).forEach(i => {
@@ -368,7 +368,7 @@ function exportarExcelPedidos() {
 function generarReporte(tipo) {
     const desde = document.getElementById('reporteFechaDesde')?.value;
     const hasta = document.getElementById('reporteFechaHasta')?.value;
-    if (!desde || !hasta) { alert('Selecciona rango de fechas'); return; }
+    if (!desde || !hasta) { mostrarToast('Selecciona rango de fechas', 'error'); return; }
     
     const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
     const filtrados = pedidos.filter(p => {
@@ -926,7 +926,7 @@ function actualizarPresentacion(id, idx, campo, valor) {
 function eliminarPresentacion(id, idx) {
     const p = productosData.productos.find(x => x.id === id);
     if (p && p.presentaciones.length > 1) { p.presentaciones.splice(idx, 1); registrarCambio(); mostrarProductosGestion(); }
-    else alert('Debe tener al menos una presentacion');
+    else mostrarToast('Debe tener al menos una presentacion', 'error');
 }
 
 function agregarPresentacion(id) {
@@ -934,8 +934,8 @@ function agregarPresentacion(id) {
     if (p) { p.presentaciones.push({ tamano: '', precio_base: 0, costo: 0 }); registrarCambio(); mostrarProductosGestion(); }
 }
 
-function eliminarProducto(id) {
-    if (!confirm('Eliminar este producto?')) return;
+async function eliminarProducto(id) {
+    if (!await mostrarConfirmModal('¿Eliminar este producto?', { destructivo: true, textoConfirmar: 'Eliminar' })) return;
     productosData.productos = productosData.productos.filter(p => p.id !== id);
     productosFiltrados = productosFiltrados.filter(p => p.id !== id);
     registrarCambio();
@@ -1060,7 +1060,7 @@ function guardarProductoModal() {
         if (!subcategoria) return;
     }
 
-    if (!nombre) { alert('Ingresa el nombre del producto'); return; }
+    if (!nombre) { mostrarToast('Ingresa el nombre del producto', 'error'); return; }
 
     if (id) {
         // Edicion
@@ -1145,8 +1145,8 @@ function renderizarListaCategorias() {
 function agregarCategoriaModal() {
     const id = document.getElementById('nuevaCategoriaId')?.value.trim().toLowerCase().replace(/\s+/g, '_');
     const nombre = document.getElementById('nuevaCategoriaNombre')?.value.trim();
-    if (!id || !nombre) { alert('ID y nombre son obligatorios'); return; }
-    if (productosData.categorias.find(c => c.id === id)) { alert('Ya existe esta categoria'); return; }
+    if (!id || !nombre) { mostrarToast('ID y nombre son obligatorios', 'error'); return; }
+    if (productosData.categorias.find(c => c.id === id)) { mostrarToast('Ya existe esta categoria', 'error'); return; }
     productosData.categorias.push({ id, nombre, subcategorias: [] });
     registrarCambio();
     document.getElementById('nuevaCategoriaId').value = '';
@@ -1154,10 +1154,10 @@ function agregarCategoriaModal() {
     renderizarListaCategorias();
 }
 
-function eliminarCategoria(catId) {
+async function eliminarCategoria(catId) {
     const prods = productosData.productos.filter(p => p.categoria === catId);
-    if (prods.length > 0) { alert(`No se puede eliminar: ${prods.length} productos usan esta categoria`); return; }
-    if (!confirm('Eliminar esta categoria?')) return;
+    if (prods.length > 0) { mostrarToast(`No se puede eliminar: ${prods.length} productos usan esta categoria`, 'error'); return; }
+    if (!await mostrarConfirmModal('¿Eliminar esta categoria?', { destructivo: true, textoConfirmar: 'Eliminar' })) return;
     productosData.categorias = productosData.categorias.filter(c => c.id !== catId);
     registrarCambio();
     renderizarListaCategorias();
@@ -1170,7 +1170,7 @@ function agregarSubcategoria(catId) {
     const cat = productosData.categorias.find(c => c.id === catId);
     if (cat) {
         if (!cat.subcategorias) cat.subcategorias = [];
-        if (cat.subcategorias.includes(nombre)) { alert('Ya existe'); return; }
+        if (cat.subcategorias.includes(nombre)) { mostrarToast('Ya existe', 'error'); return; }
         cat.subcategorias.push(nombre);
         registrarCambio();
         input.value = '';
@@ -1325,8 +1325,8 @@ function aprobarClientePendiente(id) {
     mostrarClientesGestion();
 }
 
-function rechazarClientePendiente(id) {
-    if (!confirm('Rechazar esta solicitud de cliente?')) return;
+async function rechazarClientePendiente(id) {
+    if (!await mostrarConfirmModal('¿Rechazar esta solicitud de cliente?', { destructivo: true, textoConfirmar: 'Rechazar' })) return;
     const pendientes = JSON.parse(localStorage.getItem('hdv_clientes_pendientes') || '[]');
     const nuevos = pendientes.filter(c => c.id !== id);
     localStorage.setItem('hdv_clientes_pendientes', JSON.stringify(nuevos));
@@ -1345,8 +1345,8 @@ function toggleOcultarCliente(id) {
     if (c) { c.oculto = !c.oculto; registrarCambio(); filtrarClientes(); }
 }
 
-function eliminarCliente(id) {
-    if (!confirm('Eliminar este cliente y sus precios personalizados?')) return;
+async function eliminarCliente(id) {
+    if (!await mostrarConfirmModal('¿Eliminar este cliente y sus precios personalizados?', { destructivo: true, textoConfirmar: 'Eliminar' })) return;
     productosData.clientes = productosData.clientes.filter(c => c.id !== id);
     clientesFiltrados = clientesFiltrados.filter(c => c.id !== id);
     registrarCambio();
@@ -1393,7 +1393,7 @@ function guardarClienteModal() {
     const zona = document.getElementById('nuevoClienteZona')?.value.trim();
     const encargado = document.getElementById('nuevoClienteEncargado')?.value.trim();
 
-    if (!razon) { alert('Ingresa la razon social'); return; }
+    if (!razon) { mostrarToast('Ingresa la razon social', 'error'); return; }
 
     if (id) {
         // Edicion
@@ -1539,7 +1539,7 @@ function agregarPrecioEspecial() {
     const prodNombre = prompt('Nombre o ID del producto:');
     if (!prodNombre) return;
     const prod = productosData.productos.find(p => p.id === prodNombre || p.nombre.toLowerCase().includes(prodNombre.toLowerCase()));
-    if (!prod) { alert('Producto no encontrado'); return; }
+    if (!prod) { mostrarToast('Producto no encontrado', 'error'); return; }
 
     let tamano = prod.presentaciones[0]?.tamano;
     if (prod.presentaciones.length > 1) {
@@ -1554,7 +1554,7 @@ function agregarPrecioEspecial() {
     const precioStr = prompt(`Precio especial para ${prod.nombre} (${tamano})\nPrecio base: Gs. ${precioBase.toLocaleString()}\n\nNuevo precio:`);
     if (!precioStr) return;
     const precio = parseInt(precioStr);
-    if (isNaN(precio) || precio <= 0) { alert('Precio invalido'); return; }
+    if (isNaN(precio) || precio <= 0) { mostrarToast('Precio invalido', 'error'); return; }
 
     if (!clientePerfilActual.precios_personalizados) clientePerfilActual.precios_personalizados = {};
     if (!clientePerfilActual.precios_personalizados[prod.id]) clientePerfilActual.precios_personalizados[prod.id] = [];
@@ -1709,7 +1709,7 @@ function crearBackupSoloProductos() {
 
 function crearBackupSoloPedidos() {
     const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
-    if (pedidos.length === 0) { alert('No hay pedidos'); return; }
+    if (pedidos.length === 0) { mostrarToast('No hay pedidos', 'error'); return; }
     const backup = {
         tipo: 'backup_pedidos',
         fecha: new Date().toISOString(),
@@ -1719,10 +1719,10 @@ function crearBackupSoloPedidos() {
     descargarJSON(backup, `hdv_pedidos_${new Date().toISOString().split('T')[0]}.json`);
 }
 
-function restaurarBackup(event) {
+async function restaurarBackup(event) {
     const file = event.target.files[0];
     if (!file) return;
-    if (!confirm('¿Reemplazar todos los datos actuales con el backup?')) { event.target.value = ''; return; }
+    if (!await mostrarConfirmModal('¿Reemplazar todos los datos actuales con el backup?', { destructivo: true, textoConfirmar: 'Restaurar' })) { event.target.value = ''; return; }
 
     // Auto-backup antes de restaurar
     crearAutoBackupAdmin('Pre-restauracion');
@@ -1736,35 +1736,33 @@ function restaurarBackup(event) {
                 productosData = backup.datos.productos;
                 if (backup.datos.pedidos) localStorage.setItem('hdv_pedidos', JSON.stringify(backup.datos.pedidos));
                 productosDataOriginal = JSON.parse(JSON.stringify(productosData));
-                alert(`Backup completo restaurado.\n${backup.resumen?.totalProductos || '?'} productos, ${backup.resumen?.totalPedidos || '?'} pedidos`);
+                mostrarToast(`Backup completo restaurado. ${backup.resumen?.totalProductos || '?'} productos, ${backup.resumen?.totalPedidos || '?'} pedidos`, 'success');
                 setTimeout(() => location.reload(), 1000);
             } else if (backup.tipo === 'backup_catalogo' && backup.datos) {
                 productosData.categorias = backup.datos.categorias || productosData.categorias;
                 productosData.productos = backup.datos.productos || productosData.productos;
                 productosData.clientes = backup.datos.clientes || productosData.clientes;
                 productosDataOriginal = JSON.parse(JSON.stringify(productosData));
-                alert('Catalogo restaurado.');
+                mostrarToast('Catalogo restaurado.', 'success');
                 setTimeout(() => location.reload(), 1000);
             } else if (backup.tipo === 'backup_pedidos' && backup.pedidos) {
                 localStorage.setItem('hdv_pedidos', JSON.stringify(backup.pedidos));
-                alert(`${backup.pedidos.length} pedidos restaurados.`);
+                mostrarToast(`${backup.pedidos.length} pedidos restaurados.`, 'success');
                 cargarPedidos();
             } else if (backup.tipo === 'backup_vendedor_completo' && backup.datos?.pedidos) {
-                // Compatible con backups del vendedor
                 localStorage.setItem('hdv_pedidos', JSON.stringify(backup.datos.pedidos));
-                alert(`Pedidos del vendedor restaurados: ${backup.datos.pedidos.length}`);
+                mostrarToast(`Pedidos del vendedor restaurados: ${backup.datos.pedidos.length}`, 'success');
                 cargarPedidos();
             } else if (backup.datos) {
-                // Formato legacy v2.9
                 productosData = backup.datos.productos;
                 if (backup.datos.pedidos) localStorage.setItem('hdv_pedidos', JSON.stringify(backup.datos.pedidos));
                 productosDataOriginal = JSON.parse(JSON.stringify(productosData));
-                alert('Backup restaurado (formato anterior).');
+                mostrarToast('Backup restaurado (formato anterior).', 'success');
                 setTimeout(() => location.reload(), 1000);
             } else {
-                alert('Formato de backup no reconocido');
+                mostrarToast('Formato de backup no reconocido', 'error');
             }
-        } catch (err) { alert('Error: archivo invalido'); }
+        } catch (err) { mostrarToast('Error: archivo invalido', 'error'); }
         event.target.value = '';
     };
     reader.readAsText(file);
@@ -1849,14 +1847,14 @@ function mostrarHistorialBackupsAdmin() {
     });
 }
 
-function restaurarAutoBackupAdmin(idx) {
-    if (!confirm('¿Restaurar este auto-backup? Los datos actuales seran reemplazados.')) return;
+async function restaurarAutoBackupAdmin(idx) {
+    if (!await mostrarConfirmModal('¿Restaurar este auto-backup? Los datos actuales seran reemplazados.', { destructivo: true, textoConfirmar: 'Restaurar' })) return;
     const historial = JSON.parse(localStorage.getItem('hdv_admin_auto_backups') || '[]');
     if (historial[idx]?.datos) {
         productosData = historial[idx].datos.productos;
         if (historial[idx].datos.pedidos) localStorage.setItem('hdv_pedidos', JSON.stringify(historial[idx].datos.pedidos));
         productosDataOriginal = JSON.parse(JSON.stringify(productosData));
-        alert('Auto-backup restaurado. La pagina se recargara.');
+        mostrarToast('Auto-backup restaurado. Recargando...', 'success');
         setTimeout(() => location.reload(), 1000);
     }
 }
@@ -1875,7 +1873,7 @@ function importarProductosExcel(event) {
     reader.onload = (e) => {
         try {
             const lines = e.target.result.split('\n').filter(l => l.trim());
-            if (lines.length < 2) { alert('Archivo vacio o sin datos'); return; }
+            if (lines.length < 2) { mostrarToast('Archivo vacio o sin datos', 'error'); return; }
             
             let agregados = 0;
             const ultimoId = Math.max(...productosData.productos.map(p => parseInt(p.id.replace('P', '')) || 0), 0);
@@ -1899,9 +1897,9 @@ function importarProductosExcel(event) {
                 productosFiltrados = [...productosData.productos];
                 for (let i = 0; i < agregados; i++) registrarCambio();
                 mostrarProductosGestion();
-                alert(`${agregados} productos importados. Usa "Guardar y Descargar JSON" para aplicar.`);
+                mostrarToast(`${agregados} productos importados. Guarda para aplicar.`, 'success');
             }
-        } catch (err) { alert('Error al importar: ' + err.message); }
+        } catch (err) { mostrarToast('Error al importar: ' + err.message, 'error'); }
         event.target.value = '';
     };
     reader.readAsText(file);
@@ -1914,7 +1912,7 @@ function importarClientesExcel(event) {
     reader.onload = (e) => {
         try {
             const lines = e.target.result.split('\n').filter(l => l.trim());
-            if (lines.length < 2) { alert('Archivo vacio'); return; }
+            if (lines.length < 2) { mostrarToast('Archivo vacio', 'error'); return; }
             
             let agregados = 0;
             const ultimoId = Math.max(...productosData.clientes.map(c => parseInt(c.id.replace('C', '')) || 0), 0);
@@ -1938,9 +1936,9 @@ function importarClientesExcel(event) {
                 clientesFiltrados = [...productosData.clientes];
                 for (let i = 0; i < agregados; i++) registrarCambio();
                 mostrarClientesGestion();
-                alert(`${agregados} clientes importados. Usa "Guardar y Descargar JSON" para aplicar.`);
+                mostrarToast(`${agregados} clientes importados. Guarda para aplicar.`, 'success');
             }
-        } catch (err) { alert('Error al importar: ' + err.message); }
+        } catch (err) { mostrarToast('Error al importar: ' + err.message, 'error'); }
         event.target.value = '';
     };
     reader.readAsText(file);
@@ -1989,13 +1987,13 @@ function descargarPlantillaClientes() {
     descargarJSON(plantilla, 'plantilla_clientes.json');
 }
 
-function limpiarPedidos() {
-    if (!confirm('¿ELIMINAR TODOS LOS PEDIDOS? Esto no se puede deshacer.')) return;
-    if (!confirm('¿Estas seguro? Todos los datos de pedidos se perderan.')) return;
+async function limpiarPedidos() {
+    if (!await mostrarConfirmModal('¿ELIMINAR TODOS LOS PEDIDOS? Esto no se puede deshacer.', { destructivo: true, textoConfirmar: 'Eliminar Todo' })) return;
+    if (!await mostrarConfirmModal('¿Estas seguro? Todos los datos de pedidos se perderan.', { destructivo: true, textoConfirmar: 'Si, eliminar' })) return;
     crearAutoBackupAdmin('Pre-limpieza de pedidos');
     localStorage.removeItem('hdv_pedidos');
     todosLosPedidos = [];
-    alert('Pedidos eliminados. Se guardo un auto-backup por seguridad.');
+    mostrarToast('Pedidos eliminados. Se guardo un auto-backup por seguridad.', 'success');
     cargarPedidos();
 }
 
@@ -2027,9 +2025,9 @@ let pedidoEditandoId = null;
 
 function abrirModalEditarPedido(pedidoId) {
     const pedido = todosLosPedidos.find(p => p.id === pedidoId);
-    if (!pedido) { alert('Pedido no encontrado'); return; }
+    if (!pedido) { mostrarToast('Pedido no encontrado', 'error'); return; }
     pedidoEditandoId = pedidoId;
-    
+
     document.getElementById('editPedidoId').textContent = pedidoId;
     document.getElementById('editPedidoCliente').textContent = pedido.cliente?.nombre || 'N/A';
     document.getElementById('editPedidoTipoPago').value = pedido.tipoPago || 'contado';
@@ -2096,7 +2094,7 @@ function agregarItemEditPedido() {
 
 function eliminarItemEdicion(idx) {
     const container = document.getElementById('editPedidoItems');
-    if (container.children.length <= 1) { alert('Debe haber al menos un producto'); return; }
+    if (container.children.length <= 1) { mostrarToast('Debe haber al menos un producto', 'error'); return; }
     container.children[idx].remove();
     recalcularTotalEdicion();
 }
@@ -2146,7 +2144,7 @@ function guardarEdicionPedido() {
             });
         }
     });
-    if (items.length === 0) { alert('Agrega al menos un producto'); return; }
+    if (items.length === 0) { mostrarToast('Agrega al menos un producto', 'error'); return; }
     
     const descuento = parseFloat(document.getElementById('editPedidoDescuento')?.value) || 0;
     const subtotal = items.reduce((s, i) => s + i.subtotal, 0);
@@ -2182,8 +2180,8 @@ function guardarEdicionPedido() {
 
 function generarPDFRemision(pedidoId) {
     const pedido = todosLosPedidos.find(p => p.id === (pedidoId || pedidoEditandoId));
-    if (!pedido) { alert('Pedido no encontrado'); return; }
-    
+    if (!pedido) { mostrarToast('Pedido no encontrado', 'error'); return; }
+
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
     const clienteInfo = productosData.clientes.find(c => c.id === pedido.cliente?.id);
@@ -2301,10 +2299,10 @@ function generarPDFRemision(pedidoId) {
 
 function generarTicketTermico(pedidoId) {
     const pedido = todosLosPedidos.find(p => p.id === (pedidoId || pedidoEditandoId));
-    if (!pedido) { alert('Pedido no encontrado'); return; }
-    
+    if (!pedido) { mostrarToast('Pedido no encontrado', 'error'); return; }
+
     const clienteInfo = productosData.clientes.find(c => c.id === pedido.cliente?.id);
-    
+
     const ticketHTML = `<!DOCTYPE html>
 <html><head><meta charset="UTF-8">
 <style>
@@ -2788,12 +2786,12 @@ async function guardarResumenMensualFirebase() {
     if (typeof db !== 'undefined') {
         try {
             await db.collection('reportes_mensuales').doc(mesStr).set(resumen);
-            alert(`Resumen de ${mesStr} guardado en Firebase`);
+            mostrarToast(`Resumen de ${mesStr} guardado en Firebase`, 'success');
         } catch(e) {
-            alert('Error guardando: ' + e.message);
+            mostrarToast('Error guardando: ' + e.message, 'error');
         }
     } else {
-        alert('Firebase no disponible');
+        mostrarToast('Firebase no disponible', 'warning');
     }
 }
 
@@ -2961,8 +2959,8 @@ function registrarPagoCredito(pedidoId) {
     const montoStr = prompt(`Registrar pago para ${pedido.cliente?.nombre}\nSaldo pendiente: Gs. ${saldo.toLocaleString()}\n\nMonto del pago (Gs.):`);
     if (!montoStr) return;
     const monto = parseInt(montoStr);
-    if (isNaN(monto) || monto <= 0) { alert('Monto invalido'); return; }
-    if (monto > saldo) { alert('El monto excede el saldo pendiente'); return; }
+    if (isNaN(monto) || monto <= 0) { mostrarToast('Monto invalido', 'error'); return; }
+    if (monto > saldo) { mostrarToast('El monto excede el saldo pendiente', 'error'); return; }
 
     const nota = prompt('Nota del pago (opcional):') || '';
     const pago = { id: 'PAG' + Date.now(), pedidoId, monto, fecha: new Date().toISOString(), nota };
@@ -2970,17 +2968,15 @@ function registrarPagoCredito(pedidoId) {
     pagos.push(pago);
     localStorage.setItem('hdv_pagos_credito', JSON.stringify(pagos));
 
-    // Sincronizar pagos con Firebase
     if (typeof guardarPagosCreditoFirebase === 'function') {
         guardarPagosCreditoFirebase(pagos).catch(e => console.error(e));
     }
 
-    // Si saldo = 0, marcar pagado
     if (saldo - monto <= 0) {
         marcarPagado(pedidoId);
     }
 
-    alert(`Pago de Gs. ${monto.toLocaleString()} registrado exitosamente`);
+    mostrarToast(`Pago de Gs. ${monto.toLocaleString()} registrado exitosamente`, 'success');
     cargarCreditos();
 }
 
@@ -2992,18 +2988,17 @@ function registrarPagoManual(creditoId) {
     const montoStr = prompt(`Registrar pago para ${credito.clienteNombre}\nSaldo: Gs. ${saldo.toLocaleString()}\n\nMonto:`);
     if (!montoStr) return;
     const monto = parseInt(montoStr);
-    if (isNaN(monto) || monto <= 0 || monto > saldo) { alert('Monto invalido'); return; }
+    if (isNaN(monto) || monto <= 0 || monto > saldo) { mostrarToast('Monto invalido', 'error'); return; }
 
     const nota = prompt('Nota (opcional):') || '';
     if (!credito.pagos) credito.pagos = [];
     credito.pagos.push({ monto, fecha: new Date().toISOString(), nota });
     if (saldo - monto <= 0) credito.pagado = true;
     localStorage.setItem('hdv_creditos_manuales', JSON.stringify(creditos));
-    // Sincronizar con Firebase
     if (typeof guardarCreditosManualesFirebase === 'function') {
         guardarCreditosManualesFirebase(creditos).catch(e => console.error(e));
     }
-    alert(`Pago de Gs. ${monto.toLocaleString()} registrado`);
+    mostrarToast(`Pago de Gs. ${monto.toLocaleString()} registrado`, 'success');
     cargarCreditos();
 }
 
@@ -3020,14 +3015,14 @@ function marcarPagado(id) {
 
 function verHistorialPagos(pedidoId) {
     const pagos = obtenerPagosCredito(pedidoId);
-    if (pagos.length === 0) { alert('Sin pagos registrados para este credito'); return; }
+    if (pagos.length === 0) { mostrarToast('Sin pagos registrados para este credito', 'info'); return; }
     let msg = 'HISTORIAL DE PAGOS\n' + '='.repeat(30) + '\n';
     pagos.forEach((p, i) => {
         msg += `\n${i + 1}. Gs. ${p.monto.toLocaleString()} - ${new Date(p.fecha).toLocaleDateString('es-PY')}`;
         if (p.nota) msg += ` (${p.nota})`;
     });
     msg += `\n\nTotal pagado: Gs. ${pagos.reduce((s, p) => s + p.monto, 0).toLocaleString()}`;
-    alert(msg);
+    mostrarConfirmModal(msg, { textoConfirmar: 'Cerrar' });
 }
 
 function enviarRecordatorioWhatsApp(pedidoId) {
@@ -3035,7 +3030,7 @@ function enviarRecordatorioWhatsApp(pedidoId) {
     if (!pedido) return;
     const clienteInfo = productosData.clientes.find(c => c.id === pedido.cliente?.id);
     const telefono = clienteInfo?.telefono || '';
-    if (!telefono) { alert('Este cliente no tiene telefono registrado'); return; }
+    if (!telefono) { mostrarToast('Este cliente no tiene telefono registrado', 'error'); return; }
 
     const saldo = obtenerSaldoPendiente(pedido);
     const dias = calcularDiasDesde(pedido.fecha);
@@ -3070,7 +3065,7 @@ function enviarRecordatorioManualWhatsApp(creditoId) {
     if (!credito) return;
     const clienteInfo = productosData.clientes.find(c => c.id === credito.clienteId);
     const telefono = clienteInfo?.telefono || '';
-    if (!telefono) { alert('Sin telefono'); return; }
+    if (!telefono) { mostrarToast('Sin telefono registrado', 'error'); return; }
 
     const saldo = obtenerSaldoManual(credito);
     const dias = calcularDiasDesde(credito.fecha);
@@ -3091,7 +3086,7 @@ function editarMensajeRecordatorio() {
         if (typeof guardarPlantillaWhatsAppFirebase === 'function') {
             guardarPlantillaWhatsAppFirebase(nueva).catch(e => console.error(e));
         }
-        alert('Mensaje actualizado');
+        mostrarToast('Mensaje actualizado', 'success');
     }
 }
 
@@ -3103,7 +3098,7 @@ function agregarCreditoManual() {
     const montoStr = prompt('Monto del credito (Gs.):');
     if (!montoStr) return;
     const monto = parseInt(montoStr);
-    if (isNaN(monto) || monto <= 0) { alert('Monto invalido'); return; }
+    if (isNaN(monto) || monto <= 0) { mostrarToast('Monto invalido', 'error'); return; }
     const descripcion = prompt('Descripcion:') || 'Credito manual';
 
     const creditos = obtenerCreditosManuales();
@@ -3118,11 +3113,10 @@ function agregarCreditoManual() {
     creditos.push(nuevo);
     localStorage.setItem('hdv_creditos_manuales', JSON.stringify(creditos));
 
-    // Sincronizar con Firebase
     if (typeof guardarCreditosManualesFirebase === 'function') {
         guardarCreditosManualesFirebase(creditos).catch(e => console.error(e));
     }
-    alert('Credito manual agregado');
+    mostrarToast('Credito manual agregado', 'success');
     cargarCreditos();
 }
 
@@ -3143,37 +3137,37 @@ function editarCreditoManualItem(creditoId) {
     cargarCreditos();
 }
 
-function eliminarCreditoManualItem(creditoId) {
+async function eliminarCreditoManualItem(creditoId) {
     const creditos = obtenerCreditosManuales();
     const c = creditos.find(x => x.id === creditoId);
     if (!c) return;
-    if (!confirm(`Eliminar credito manual de ${c.clienteNombre} (Gs. ${(c.monto || 0).toLocaleString()})?\nEsta accion es irreversible.`)) return;
+    if (!await mostrarConfirmModal(`¿Eliminar credito manual de ${c.clienteNombre} (Gs. ${(c.monto || 0).toLocaleString()})?\nEsta accion es irreversible.`, { destructivo: true, textoConfirmar: 'Eliminar' })) return;
     const nuevos = creditos.filter(x => x.id !== creditoId);
     localStorage.setItem('hdv_creditos_manuales', JSON.stringify(nuevos));
     if (typeof guardarCreditosManualesFirebase === 'function') guardarCreditosManualesFirebase(nuevos).catch(e => console.error(e));
     cargarCreditos();
 }
 
-function editarPagosCreditoPedido(pedidoId) {
+async function editarPagosCreditoPedido(pedidoId) {
     const allPagos = JSON.parse(localStorage.getItem('hdv_pagos_credito') || '[]');
     const pagos = allPagos.filter(p => p.pedidoId === pedidoId);
-    if (pagos.length === 0) { alert('Sin pagos registrados para este pedido.'); return; }
+    if (pagos.length === 0) { mostrarToast('Sin pagos registrados para este pedido', 'info'); return; }
     const lista = pagos.map((p, i) => `${i + 1}. Gs. ${(p.monto || 0).toLocaleString()} - ${new Date(p.fecha).toLocaleDateString('es-PY')}${p.nota ? ' - ' + p.nota : ''}`).join('\n');
     const eliminarIdx = prompt(`Pagos registrados:\n${lista}\n\nIngresa el numero del pago a eliminar (o Cancelar):`);
     if (!eliminarIdx) return;
     const idx = parseInt(eliminarIdx) - 1;
-    if (isNaN(idx) || idx < 0 || idx >= pagos.length) { alert('Numero invalido'); return; }
-    if (!confirm(`Eliminar pago de Gs. ${pagos[idx].monto.toLocaleString()}?`)) return;
+    if (isNaN(idx) || idx < 0 || idx >= pagos.length) { mostrarToast('Numero invalido', 'error'); return; }
+    if (!await mostrarConfirmModal(`¿Eliminar pago de Gs. ${pagos[idx].monto.toLocaleString()}?`, { destructivo: true, textoConfirmar: 'Eliminar' })) return;
     const pagoAEliminar = pagos[idx];
     const nuevosPagos = allPagos.filter(p => !(p.pedidoId === pedidoId && p.fecha === pagoAEliminar.fecha && p.monto === pagoAEliminar.monto));
     localStorage.setItem('hdv_pagos_credito', JSON.stringify(nuevosPagos));
     cargarCreditos();
 }
 
-function eliminarCreditoPedido(pedidoId) {
+async function eliminarCreditoPedido(pedidoId) {
     const pedido = todosLosPedidos.find(p => p.id === pedidoId);
     if (!pedido) return;
-    if (!confirm(`Marcar como pagado el credito de ${pedido.cliente?.nombre}?\nEsto lo marcara como pagado en el sistema.`)) return;
+    if (!await mostrarConfirmModal(`¿Marcar como pagado el credito de ${pedido.cliente?.nombre}?\nEsto lo marcara como pagado en el sistema.`, { textoConfirmar: 'Marcar Pagado' })) return;
     marcarPagado(pedidoId);
 }
 
@@ -3423,7 +3417,7 @@ function guardarPromocion() {
     const id = document.getElementById('formPromoId').value;
     const nombre = document.getElementById('formPromoNombre').value.trim();
     const productoId = document.getElementById('formPromoProducto').value;
-    if (!nombre || !productoId) { alert('Completa nombre y producto'); return; }
+    if (!nombre || !productoId) { mostrarToast('Completa nombre y producto', 'error'); return; }
 
     const promo = {
         id,
@@ -3453,7 +3447,7 @@ function guardarPromocion() {
 
     cerrarModalPromocion();
     cargarPromociones();
-    alert('Promocion guardada');
+    mostrarToast('Promocion guardada', 'success');
 }
 
 function togglePromocion(promoId) {
@@ -3462,8 +3456,8 @@ function togglePromocion(promoId) {
     if (p) { p.activa = !p.activa; guardarPromocionesEnStorage(promos); cargarPromociones(); }
 }
 
-function eliminarPromocion(promoId) {
-    if (!confirm('Eliminar esta promocion?')) return;
+async function eliminarPromocion(promoId) {
+    if (!await mostrarConfirmModal('¿Eliminar esta promocion?', { destructivo: true, textoConfirmar: 'Eliminar' })) return;
     let promos = cargarPromocionesDesdeStorage();
     promos = promos.filter(p => p.id !== promoId);
     guardarPromocionesEnStorage(promos);
@@ -3574,8 +3568,8 @@ function cargarRendiciones() {
     cargarCuentasBancariasAdmin();
 }
 
-function eliminarGastoAdmin(gastoId) {
-    if (!confirm('Eliminar este gasto?')) return;
+async function eliminarGastoAdmin(gastoId) {
+    if (!await mostrarConfirmModal('¿Eliminar este gasto?', { destructivo: true, textoConfirmar: 'Eliminar' })) return;
     let gastos = JSON.parse(localStorage.getItem('hdv_gastos') || '[]');
     gastos = gastos.filter(g => g.id !== gastoId);
     localStorage.setItem('hdv_gastos', JSON.stringify(gastos));
@@ -3650,7 +3644,7 @@ function guardarCuentaBancaria() {
         titular: document.getElementById('formCuentaTitular').value,
         ruc: document.getElementById('formCuentaRUC').value
     };
-    if (!cuenta.banco || !cuenta.numero) { alert('Banco y numero de cuenta son obligatorios'); return; }
+    if (!cuenta.banco || !cuenta.numero) { mostrarToast('Banco y numero de cuenta son obligatorios', 'error'); return; }
     let cuentas = JSON.parse(localStorage.getItem('hdv_cuentas_bancarias') || '[]');
     const idx = cuentas.findIndex(c => c.id === id);
     if (idx >= 0) cuentas[idx] = cuenta; else cuentas.push(cuenta);
@@ -3658,11 +3652,11 @@ function guardarCuentaBancaria() {
     if (typeof guardarCuentasBancariasFirebase === 'function') guardarCuentasBancariasFirebase(cuentas).catch(e => console.error(e));
     cerrarModalCuentaBancaria();
     cargarCuentasBancariasAdmin();
-    alert('Cuenta bancaria guardada');
+    mostrarToast('Cuenta bancaria guardada', 'success');
 }
 
-function eliminarCuentaBancaria(id) {
-    if (!confirm('Eliminar esta cuenta bancaria?')) return;
+async function eliminarCuentaBancaria(id) {
+    if (!await mostrarConfirmModal('¿Eliminar esta cuenta bancaria?', { destructivo: true, textoConfirmar: 'Eliminar' })) return;
     let cuentas = JSON.parse(localStorage.getItem('hdv_cuentas_bancarias') || '[]');
     cuentas = cuentas.filter(c => c.id !== id);
     localStorage.setItem('hdv_cuentas_bancarias', JSON.stringify(cuentas));
@@ -3776,7 +3770,7 @@ function guardarMeta() {
         mes: document.getElementById('formMetaMes').value,
         activa: document.getElementById('formMetaActiva').value === 'true'
     };
-    if (!meta.monto) { alert('Monto de meta es obligatorio'); return; }
+    if (!meta.monto) { mostrarToast('Monto de meta es obligatorio', 'error'); return; }
     let metas = JSON.parse(localStorage.getItem('hdv_metas') || '[]');
     const idx = metas.findIndex(m => m.id === id);
     if (idx >= 0) metas[idx] = meta; else metas.push(meta);
@@ -3784,11 +3778,11 @@ function guardarMeta() {
     if (typeof guardarMetasFirebase === 'function') guardarMetasFirebase(metas).catch(e => console.error(e));
     cerrarModalMeta();
     cargarMetas();
-    alert('Meta guardada');
+    mostrarToast('Meta guardada', 'success');
 }
 
-function eliminarMeta(id) {
-    if (!confirm('Eliminar esta meta?')) return;
+async function eliminarMeta(id) {
+    if (!await mostrarConfirmModal('¿Eliminar esta meta?', { destructivo: true, textoConfirmar: 'Eliminar' })) return;
     let metas = JSON.parse(localStorage.getItem('hdv_metas') || '[]');
     metas = metas.filter(m => m.id !== id);
     localStorage.setItem('hdv_metas', JSON.stringify(metas));
@@ -3912,6 +3906,32 @@ function enviarWhatsAppReactivacion(telefono, nombre) {
 // ============================================
 // TOAST NOTIFICATIONS
 // ============================================
+function mostrarConfirmModal(mensaje, opciones = {}) {
+    return new Promise((resolve) => {
+        const backdrop = document.createElement('div');
+        backdrop.className = 'confirm-backdrop';
+        backdrop.innerHTML = `
+            <div class="confirm-box">
+                <div class="text-center mb-5">
+                    <div class="w-14 h-14 mx-auto mb-3 rounded-full ${opciones.destructivo ? 'bg-red-100' : 'bg-blue-100'} flex items-center justify-center">
+                        <span class="text-2xl">${opciones.destructivo ? '⚠️' : '❓'}</span>
+                    </div>
+                    <p class="text-gray-800 font-semibold text-sm whitespace-pre-line leading-relaxed">${mensaje}</p>
+                </div>
+                <div class="flex gap-3">
+                    <button class="confirm-cancel-btn flex-1 bg-gray-100 text-gray-700 py-3 rounded-xl font-bold text-sm hover:bg-gray-200 transition-colors">Cancelar</button>
+                    <button class="confirm-ok-btn flex-1 ${opciones.destructivo ? 'bg-red-600 hover:bg-red-700' : 'bg-gray-900 hover:bg-gray-800'} text-white py-3 rounded-xl font-bold text-sm transition-colors">${opciones.textoConfirmar || 'Confirmar'}</button>
+                </div>
+            </div>`;
+        document.body.appendChild(backdrop);
+
+        const cerrar = (result) => { backdrop.remove(); resolve(result); };
+        backdrop.querySelector('.confirm-cancel-btn').onclick = () => cerrar(false);
+        backdrop.querySelector('.confirm-ok-btn').onclick = () => cerrar(true);
+        backdrop.onclick = (e) => { if (e.target === backdrop) cerrar(false); };
+    });
+}
+
 function mostrarToast(mensaje, tipo = 'info', duracion = 3500) {
     const container = document.getElementById('toastContainer');
     if (!container) return;

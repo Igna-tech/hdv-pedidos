@@ -117,12 +117,13 @@ function configurarEventos() {
     const searchInput = document.getElementById('searchInput');
     searchInput.addEventListener('input', () => mostrarProductos());
     
-    document.getElementById('clienteSelect').addEventListener('change', (e) => {
+    document.getElementById('clienteSelect').addEventListener('change', async (e) => {
         const id = e.target.value;
         if (id) {
             const nuevoCliente = clientes.find(c => c.id === id);
             if (clienteActual && clienteActual.id !== id && carrito.length > 0) {
-                if (!confirm('Cambiar de cliente vaciara el carrito actual. ¿Continuar?')) {
+                const ok = await mostrarConfirmModal('Cambiar de cliente vaciara el carrito actual. ¿Continuar?', { destructivo: true });
+                if (!ok) {
                     e.target.value = clienteActual.id;
                     return;
                 }
@@ -430,7 +431,7 @@ function limpiarMatriz(productoId) {
 
 function agregarMatrizAlCarrito(productoId) {
     if (!clienteActual) {
-        alert('Selecciona un cliente primero');
+        mostrarToast('Selecciona un cliente primero', 'error');
         return;
     }
 
@@ -466,7 +467,7 @@ function agregarMatrizAlCarrito(productoId) {
     });
 
     if (paresAgregados === 0) {
-        alert('Ingresa al menos 1 par');
+        mostrarToast('Ingresa al menos 1 par', 'error');
         return;
     }
 
@@ -565,7 +566,7 @@ function recalcularTotalMasivo(productoId) {
 
 function agregarMasivoAlCarrito(productoId) {
     if (!clienteActual) {
-        alert('Selecciona un cliente primero');
+        mostrarToast('Selecciona un cliente primero', 'error');
         return;
     }
 
@@ -601,7 +602,7 @@ function agregarMasivoAlCarrito(productoId) {
     });
 
     if (itemsAgregados === 0) {
-        alert('Ingresa al menos 1 unidad');
+        mostrarToast('Ingresa al menos 1 unidad', 'error');
         return;
     }
 
@@ -799,7 +800,7 @@ function cambiarCantidadCarrito(idx, delta) {
 
 function aplicarDescuento() {
     const desc = parseFloat(document.getElementById('descuento').value) || 0;
-    if (desc < 0 || desc > 100) { alert('Descuento invalido'); return; }
+    if (desc < 0 || desc > 100) { mostrarToast('Descuento invalido', 'error'); return; }
     
     const subtotal = carrito.reduce((s, i) => s + i.subtotal, 0);
     const totalConDesc = Math.round(subtotal * (1 - desc / 100));
@@ -822,7 +823,7 @@ function confirmarPedido() {
         mostrarModalSinCliente();
         return;
     }
-    if (carrito.length === 0) { alert('El carrito esta vacio'); return; }
+    if (carrito.length === 0) { mostrarToast('El carrito esta vacio', 'error'); return; }
 
     const descuento = parseFloat(document.getElementById('descuento').value) || 0;
     const tipoPago = document.getElementById('tipoPago').value;
@@ -953,9 +954,9 @@ function guardarNuevoClienteDesdeVendedor() {
     const ruc = document.getElementById('ncvRuc')?.value.trim();
     const encargado = document.getElementById('ncvEncargado')?.value.trim();
 
-    if (!nombre) { alert('El nombre es obligatorio'); return; }
-    if (!telefono) { alert('El telefono es obligatorio'); return; }
-    if (!zona) { alert('La zona es obligatoria'); return; }
+    if (!nombre) { mostrarToast('El nombre es obligatorio', 'error'); return; }
+    if (!telefono) { mostrarToast('El telefono es obligatorio', 'error'); return; }
+    if (!zona) { mostrarToast('La zona es obligatoria', 'error'); return; }
 
     const nuevoCliente = {
         id: 'CNUEVO-' + Date.now(),
@@ -1069,11 +1070,49 @@ function mostrarMisPedidos() {
         container.appendChild(div);
     });
 }
+function mostrarToast(mensaje, tipo = 'info', duracion = 3500) {
+    const container = document.getElementById('toastContainer');
+    if (!container) return;
+    const iconos = { success: '✓', error: '✕', info: 'ℹ', warning: '⚠' };
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${tipo}`;
+    toast.innerHTML = `<span style="font-size:18px">${iconos[tipo] || ''}</span><span>${mensaje}</span>`;
+    container.appendChild(toast);
+    requestAnimationFrame(() => toast.classList.add('show'));
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 400);
+    }, duracion);
+}
+
 function mostrarExito(msg) {
-    const el = document.getElementById('successMessage');
-    el.textContent = '✓ ' + msg;
-    el.classList.add('show');
-    setTimeout(() => el.classList.remove('show'), 2500);
+    mostrarToast(msg, 'success');
+}
+
+function mostrarConfirmModal(mensaje, opciones = {}) {
+    return new Promise((resolve) => {
+        const backdrop = document.createElement('div');
+        backdrop.className = 'confirm-backdrop';
+        backdrop.innerHTML = `
+            <div class="confirm-box">
+                <div class="text-center mb-5">
+                    <div class="w-14 h-14 mx-auto mb-3 rounded-full ${opciones.destructivo ? 'bg-red-100' : 'bg-gray-100'} flex items-center justify-center">
+                        <span class="text-2xl">${opciones.destructivo ? '⚠️' : '❓'}</span>
+                    </div>
+                    <p class="text-gray-800 font-semibold text-sm whitespace-pre-line leading-relaxed">${mensaje}</p>
+                </div>
+                <div class="flex gap-3">
+                    <button class="confirm-cancel-btn flex-1 bg-gray-100 text-gray-700 py-3 rounded-xl font-bold text-sm active:scale-95 transition-transform">Cancelar</button>
+                    <button class="confirm-ok-btn flex-1 ${opciones.destructivo ? 'bg-red-600' : 'bg-[#111827]'} text-white py-3 rounded-xl font-bold text-sm active:scale-95 transition-transform">${opciones.textoConfirmar || 'Confirmar'}</button>
+                </div>
+            </div>`;
+        document.body.appendChild(backdrop);
+
+        const cerrar = (result) => { backdrop.remove(); resolve(result); };
+        backdrop.querySelector('.confirm-cancel-btn').onclick = () => cerrar(false);
+        backdrop.querySelector('.confirm-ok-btn').onclick = () => cerrar(true);
+        backdrop.onclick = (e) => { if (e.target === backdrop) cerrar(false); };
+    });
 }
 
 function toggleDarkMode() {
@@ -1214,9 +1253,9 @@ function calcularAlmacenamiento() {
     if (el) el.textContent = `Usando ${kb} KB de localStorage`;
 }
 
-function limpiarTodosDatos() {
-    if (!confirm('¿BORRAR TODOS los pedidos? Esta accion no se puede deshacer.')) return;
-    if (!confirm('¿Estas completamente seguro?')) return;
+async function limpiarTodosDatos() {
+    if (!await mostrarConfirmModal('¿BORRAR TODOS los pedidos? Esta accion no se puede deshacer.', { destructivo: true, textoConfirmar: 'Eliminar Todo' })) return;
+    if (!await mostrarConfirmModal('¿Estas completamente seguro?', { destructivo: true, textoConfirmar: 'Si, eliminar' })) return;
     localStorage.removeItem('hdv_pedidos');
     // Limpiar carritos
     for (let key in localStorage) {
@@ -1298,7 +1337,7 @@ function exportarBackupVendedor() {
 // Exportar solo pedidos
 function exportarSoloPedidos() {
     const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
-    if (pedidos.length === 0) { alert('No hay pedidos para exportar'); return; }
+    if (pedidos.length === 0) { mostrarToast('No hay pedidos para exportar', 'error'); return; }
 
     const backup = {
         tipo: 'backup_pedidos',
@@ -1339,11 +1378,11 @@ function compartirBackupWhatsApp() {
 }
 
 // Restaurar backup
-function restaurarBackupVendedor(event) {
+async function restaurarBackupVendedor(event) {
     const file = event.target.files[0];
     if (!file) return;
 
-    if (!confirm('¿Restaurar datos desde este backup? Los datos actuales seran reemplazados.')) {
+    if (!await mostrarConfirmModal('¿Restaurar datos desde este backup? Los datos actuales seran reemplazados.', { destructivo: true, textoConfirmar: 'Restaurar' })) {
         event.target.value = '';
         return;
     }
@@ -1373,7 +1412,7 @@ function restaurarBackupVendedor(event) {
                 localStorage.setItem('hdv_pedidos', JSON.stringify(data.datos.pedidos));
                 mostrarExito('Backup admin restaurado');
             } else {
-                alert('Formato de backup no reconocido');
+                mostrarToast('Formato de backup no reconocido', 'error');
                 event.target.value = '';
                 return;
             }
@@ -1381,7 +1420,7 @@ function restaurarBackupVendedor(event) {
             cerrarModalBackup();
             if (vistaActual === 'pedidos') mostrarMisPedidos();
         } catch (err) {
-            alert('Error: El archivo no es valido');
+            mostrarToast('Error: El archivo no es valido', 'error');
         }
         event.target.value = '';
     };
@@ -1475,8 +1514,8 @@ function mostrarHistorialBackups() {
     });
 }
 
-function restaurarAutoBackup(idx) {
-    if (!confirm('¿Restaurar este auto-backup? Los pedidos actuales seran reemplazados.')) return;
+async function restaurarAutoBackup(idx) {
+    if (!await mostrarConfirmModal('¿Restaurar este auto-backup? Los pedidos actuales seran reemplazados.', { destructivo: true, textoConfirmar: 'Restaurar' })) return;
 
     const backups = JSON.parse(localStorage.getItem('hdv_auto_backups') || '[]');
     if (backups[idx] && backups[idx].pedidos) {
@@ -1485,7 +1524,7 @@ function restaurarAutoBackup(idx) {
         cerrarModalBackup();
         if (vistaActual === 'pedidos') mostrarMisPedidos();
     } else {
-        alert('Error al restaurar este backup');
+        mostrarToast('Error al restaurar este backup', 'error');
     }
 }
 
@@ -1570,7 +1609,7 @@ function generarPDFVendedor(pedidoId) {
     if (!pedido) return;
     
     if (typeof window.jspdf === 'undefined') {
-        alert('Cargando generador de PDF...');
+        mostrarToast('Cargando generador de PDF...', 'info');
         return;
     }
     
@@ -2036,7 +2075,7 @@ function agregarGastoVendedor() {
     const montoStr = prompt('Monto del gasto (Gs.):');
     if (!montoStr) return;
     const monto = parseInt(montoStr);
-    if (isNaN(monto) || monto <= 0) { alert('Monto invalido'); return; }
+    if (isNaN(monto) || monto <= 0) { mostrarToast('Monto invalido', 'error'); return; }
 
     const gasto = {
         id: 'G' + Date.now(),
@@ -2057,8 +2096,8 @@ function agregarGastoVendedor() {
     mostrarMiCaja();
 }
 
-function eliminarGastoVendedor(gastoId) {
-    if (!confirm('Eliminar este gasto?')) return;
+async function eliminarGastoVendedor(gastoId) {
+    if (!await mostrarConfirmModal('¿Eliminar este gasto?', { destructivo: true, textoConfirmar: 'Eliminar' })) return;
     let gastos = JSON.parse(localStorage.getItem('hdv_gastos') || '[]');
     gastos = gastos.filter(g => g.id !== gastoId);
     localStorage.setItem('hdv_gastos', JSON.stringify(gastos));
@@ -2066,7 +2105,7 @@ function eliminarGastoVendedor(gastoId) {
     mostrarMiCaja();
 }
 
-function cerrarSemanaVendedor(semana) {
+async function cerrarSemanaVendedor(semana) {
     const { inicio, fin } = obtenerRangoSemanaVendedor(semana);
     const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
     const gastos = JSON.parse(localStorage.getItem('hdv_gastos') || '[]');
@@ -2085,7 +2124,7 @@ function cerrarSemanaVendedor(semana) {
 
     const aRendir = totalContado - totalGastos;
 
-    if (!confirm(`Cerrar rendicion de la semana?\n\nContado cobrado: Gs. ${totalContado.toLocaleString()}\nGastos: Gs. ${totalGastos.toLocaleString()}\n\nA RENDIR: Gs. ${aRendir.toLocaleString()}`)) return;
+    if (!await mostrarConfirmModal(`Cerrar rendicion de la semana?\n\nContado cobrado: Gs. ${totalContado.toLocaleString()}\nGastos: Gs. ${totalGastos.toLocaleString()}\n\nA RENDIR: Gs. ${aRendir.toLocaleString()}`, { textoConfirmar: 'Cerrar Semana' })) return;
 
     const rendicion = {
         id: 'REND' + Date.now(),

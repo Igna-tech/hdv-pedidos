@@ -34,13 +34,39 @@
 
         .no-scrollbar::-webkit-scrollbar { display: none; }
         
-        .success-message {
-            position: fixed; top: 80px; left: 50%; transform: translateX(-50%);
-            background: #10b981; color: white; padding: 10px 20px; border-radius: 20px;
-            font-size: 14px; font-weight: bold; z-index: 1000; opacity: 0; pointer-events: none;
-            transition: all 0.3s ease;
+        /* Toast notifications */
+        #toastContainer {
+            position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
+            z-index: 9999; display: flex; flex-direction: column-reverse; gap: 10px;
+            pointer-events: none; width: 90%; max-width: 400px;
         }
-        .success-message.show { opacity: 1; top: 100px; }
+        .toast {
+            pointer-events: auto; padding: 14px 20px; border-radius: 14px;
+            font-size: 13px; font-weight: 600; color: white;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.18);
+            transform: translateY(30px); opacity: 0;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            display: flex; align-items: center; gap: 10px;
+        }
+        .toast.show { transform: translateY(0); opacity: 1; }
+        .toast-success { background: #059669; }
+        .toast-error { background: #dc2626; }
+        .toast-info { background: #374151; }
+        .toast-warning { background: #d97706; }
+
+        /* Confirm modal */
+        .confirm-backdrop {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+            z-index: 10000; display: flex; align-items: center; justify-content: center;
+            padding: 1rem; animation: confirmFadeIn 0.2s ease;
+        }
+        .confirm-box {
+            background: white; border-radius: 20px; max-width: 340px; width: 100%;
+            padding: 28px 24px 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            animation: confirmSlideUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        @keyframes confirmFadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes confirmSlideUp { from { opacity: 0; transform: scale(0.9) translateY(20px); } to { opacity: 1; transform: scale(1) translateY(0); } }
     </style>
 </head>
 <body class="pb-24 transition-colors duration-200">
@@ -80,7 +106,7 @@
         </div>
     </header>
 
-    <div class="success-message" id="successMessage">✓ Accion completada</div>
+    <div id="toastContainer"></div>
 
     <div class="bg-white border-b border-gray-200 sticky top-[125px] z-40 overflow-x-auto no-scrollbar flex p-3 gap-2" id="categoryFilters">
         <button class="px-4 py-2 bg-gray-900 text-white rounded-full text-xs font-bold whitespace-nowrap active category-btn">Todas</button>

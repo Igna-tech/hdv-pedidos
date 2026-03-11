@@ -1,12 +1,10 @@
 // ============================================
 // HDV Login - Autenticacion con Supabase Auth
+// Requiere supabase-init.js cargado antes
 // ============================================
 
-const SUPABASE_URL = 'https://ngtoshttgnfgbiurnrix.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5ndG9zaHR0Z25mZ2JpdXJucml4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMxODAwNjMsImV4cCI6MjA4ODc1NjA2M30.x_s34j_YOsMgxAhFPOUvGTIRaJoRRvOUfDqQGHNZdcM';
-
-const { createClient } = supabase;
-const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// Usa el supabaseClient global de supabase-init.js
+const sb = supabaseClient;
 
 // --- Elementos del DOM ---
 const loginForm = document.getElementById('login-form');

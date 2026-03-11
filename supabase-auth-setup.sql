@@ -1,10 +1,10 @@
 -- ============================================
 -- HDV Distribuciones - Setup de Autenticacion
--- Ejecutar en el SQL Editor de Supabase
+-- SEGURO: usa DROP IF EXISTS para evitar errores
+-- si ya se ejecuto parcialmente
 -- ============================================
 
 -- 1. CREAR TABLA DE PERFILES
--- Se conecta con auth.users via el campo id (UUID)
 CREATE TABLE IF NOT EXISTS public.perfiles (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     nombre_completo TEXT NOT NULL DEFAULT '',
@@ -14,21 +14,22 @@ CREATE TABLE IF NOT EXISTS public.perfiles (
     actualizado_en TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- 2. HABILITAR RLS (Row Level Security)
+-- 2. HABILITAR RLS
 ALTER TABLE public.perfiles ENABLE ROW LEVEL SECURITY;
 
--- 3. POLITICAS DE SEGURIDAD
+-- 3. BORRAR POLITICAS ANTERIORES (evita error "already exists")
+DROP POLICY IF EXISTS "Usuarios pueden ver su propio perfil" ON public.perfiles;
+DROP POLICY IF EXISTS "Admins pueden ver todos los perfiles" ON public.perfiles;
+DROP POLICY IF EXISTS "Admins pueden crear perfiles" ON public.perfiles;
+DROP POLICY IF EXISTS "Admins pueden actualizar perfiles" ON public.perfiles;
 
--- 3a. Cada usuario autenticado puede leer SU PROPIO perfil
+-- 4. CREAR POLITICAS DE SEGURIDAD
 CREATE POLICY "Usuarios pueden ver su propio perfil"
-    ON public.perfiles
-    FOR SELECT
+    ON public.perfiles FOR SELECT
     USING (auth.uid() = id);
 
--- 3b. Solo admins pueden ver TODOS los perfiles
 CREATE POLICY "Admins pueden ver todos los perfiles"
-    ON public.perfiles
-    FOR SELECT
+    ON public.perfiles FOR SELECT
     USING (
         EXISTS (
             SELECT 1 FROM public.perfiles
@@ -36,10 +37,8 @@ CREATE POLICY "Admins pueden ver todos los perfiles"
         )
     );
 
--- 3c. Solo admins pueden insertar perfiles
 CREATE POLICY "Admins pueden crear perfiles"
-    ON public.perfiles
-    FOR INSERT
+    ON public.perfiles FOR INSERT
     WITH CHECK (
         EXISTS (
             SELECT 1 FROM public.perfiles
@@ -47,10 +46,8 @@ CREATE POLICY "Admins pueden crear perfiles"
         )
     );
 
--- 3d. Solo admins pueden actualizar perfiles
 CREATE POLICY "Admins pueden actualizar perfiles"
-    ON public.perfiles
-    FOR UPDATE
+    ON public.perfiles FOR UPDATE
     USING (
         EXISTS (
             SELECT 1 FROM public.perfiles
@@ -58,9 +55,7 @@ CREATE POLICY "Admins pueden actualizar perfiles"
         )
     );
 
--- 4. FUNCION TRIGGER: Crear perfil automaticamente al registrar usuario
--- Esto crea un perfil con rol 'vendedor' por defecto cuando se registra
--- un nuevo usuario en auth.users
+-- 5. TRIGGER: Crear perfil automatico para usuarios NUEVOS
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -78,14 +73,13 @@ BEGIN
 END;
 $$;
 
--- 5. TRIGGER: Conectar la funcion con auth.users
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
     AFTER INSERT ON auth.users
     FOR EACH ROW
     EXECUTE FUNCTION public.handle_new_user();
 
--- 6. FUNCION para actualizar timestamp automaticamente
+-- 6. TRIGGER: Actualizar timestamp automaticamente
 CREATE OR REPLACE FUNCTION public.update_actualizado_en()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -102,27 +96,18 @@ CREATE TRIGGER set_actualizado_en
     FOR EACH ROW
     EXECUTE FUNCTION public.update_actualizado_en();
 
--- ============================================
--- 7. CREAR USUARIOS INICIALES
--- Ejecutar DESPUES de crear los usuarios desde
--- el Dashboard de Supabase (Authentication > Users > Add user)
--- ============================================
+-- 7. INSERTAR PERFILES PARA USUARIOS QUE YA EXISTEN
+-- (el trigger solo funciona para usuarios NUEVOS)
+INSERT INTO public.perfiles (id, nombre_completo, rol)
+SELECT id, COALESCE(raw_user_meta_data ->> 'nombre_completo', ''), 'vendedor'
+FROM auth.users
+WHERE id NOT IN (SELECT id FROM public.perfiles)
+ON CONFLICT (id) DO NOTHING;
 
--- IMPORTANTE: Primero crea los usuarios manualmente en:
--- Supabase Dashboard > Authentication > Users > Add user
--- Luego copia el UUID de cada usuario y ejecuta esto:
-
--- Ejemplo para el admin (reemplaza el UUID):
--- UPDATE public.perfiles
--- SET rol = 'admin', nombre_completo = 'Nombre del Admin'
--- WHERE id = 'UUID-DEL-USUARIO-ADMIN-AQUI';
-
--- Ejemplo para un vendedor (reemplaza el UUID):
--- UPDATE public.perfiles
--- SET nombre_completo = 'Nombre del Vendedor'
--- WHERE id = 'UUID-DEL-VENDEDOR-AQUI';
-
--- ============================================
--- 8. HABILITAR REALTIME PARA PERFILES (opcional)
--- ============================================
-ALTER PUBLICATION supabase_realtime ADD TABLE public.perfiles;
+-- 8. REALTIME (ignorar si ya existe)
+DO $$
+BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.perfiles;
+EXCEPTION WHEN duplicate_object THEN
+    NULL;
+END $$;

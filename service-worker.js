@@ -7,6 +7,7 @@ const urlsToCache = [
     './login.html',
     './login.js',
     './guard.js',
+    './supabase-init.js',
     './app.js',
     './admin.html',
     './admin.js',
@@ -26,6 +27,7 @@ const networkFirstFiles = [
     'admin.js',
     'login.js',
     'guard.js',
+    'supabase-init.js',
     'supabase-config.js',
     'productos.json'
 ];

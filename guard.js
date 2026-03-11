@@ -18,13 +18,18 @@
             return;
         }
 
-        const { data: perfil, error } = await sb
-            .from('perfiles')
-            .select('rol, nombre_completo')
-            .eq('id', session.user.id)
-            .single();
+        // Usar RPC SECURITY DEFINER para evitar problemas RLS
+        const { data: perfilData, error } = await sb.rpc('obtener_rol_usuario', { user_id: session.user.id });
 
-        if (error || !perfil) {
+        if (error || !perfilData || perfilData.length === 0) {
+            await sb.auth.signOut();
+            window.location.replace('/login.html');
+            return;
+        }
+
+        const perfil = perfilData[0];
+
+        if (!perfil.activo) {
             await sb.auth.signOut();
             window.location.replace('/login.html');
             return;

@@ -46,16 +46,13 @@ function redirigirPorRol(rol) {
     }
 }
 
-// --- Obtener rol del usuario ---
+// --- Obtener rol del usuario (usa RPC SECURITY DEFINER para evitar problemas RLS) ---
 async function obtenerRol(userId) {
-    const { data, error } = await sb
-        .from('perfiles')
-        .select('rol')
-        .eq('id', userId)
-        .single();
+    const { data, error } = await sb.rpc('obtener_rol_usuario', { user_id: userId });
 
-    if (error || !data) return null;
-    return data.rol;
+    if (error || !data || data.length === 0) return null;
+    if (!data[0].activo) return null; // Usuario desactivado
+    return data[0].rol;
 }
 
 // --- Verificar sesion existente al cargar ---

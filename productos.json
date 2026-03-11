@@ -868,6 +868,18 @@
       "zona": "Colonia Neuland",
       "tipo": "mayorista_estandar",
       "precios_personalizados": {}
+    },
+    {
+      "id": "C028",
+      "nombre": "IGNACIO DIAZ",
+      "razon_social": "IGNACIO DIAZ",
+      "ruc": "5554121-6",
+      "telefono": "0994354800",
+      "direccion": "Simon Bolivar General Genes 586",
+      "zona": "Lambare",
+      "encargado": "",
+      "tipo": "mayorista_estandar",
+      "precios_personalizados": {}
     }
   ]
 }

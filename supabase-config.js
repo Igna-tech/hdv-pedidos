@@ -411,4 +411,30 @@ setTimeout(() => {
     cargarDatosNegocioDesdeFirebase();
     iniciarListenersDatosNegocio();
 }, 1500);
+// ============================================
+// CERRAR SESION
+// ============================================
+
+async function cerrarSesion() {
+    try {
+        await supabaseClient.auth.signOut();
+        localStorage.removeItem('hdv_user_rol');
+        localStorage.removeItem('hdv_user_email');
+        localStorage.removeItem('hdv_user_nombre');
+        window.location.replace('/login.html');
+    } catch (err) {
+        console.error('[Supabase] Error cerrando sesion:', err);
+        // Forzar redireccion incluso si falla
+        window.location.replace('/login.html');
+    }
+}
+
+// Mostrar nombre de usuario en sidebar (admin)
+document.addEventListener('DOMContentLoaded', () => {
+    const sidebarName = document.getElementById('sidebar-user-name');
+    if (sidebarName && window.hdvUsuario) {
+        sidebarName.textContent = window.hdvUsuario.nombre;
+    }
+});
+
 console.log('[Supabase] HDV Distribuciones - Inicializado v1.0');

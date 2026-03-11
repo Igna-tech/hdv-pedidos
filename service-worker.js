@@ -1,13 +1,16 @@
-const VERSION = '7.5';
+const VERSION = '7.6';
 const CACHE_NAME = `hdv-pedidos-v${VERSION}`;
 
 const urlsToCache = [
     './',
     './index.html',
+    './login.html',
+    './login.js',
+    './guard.js',
     './app.js',
     './admin.html',
     './admin.js',
-    './firebase-config.js',
+    './supabase-config.js',
     './productos.json',
     './manifest.json',
     './icon-192.png',
@@ -17,10 +20,13 @@ const urlsToCache = [
 // Archivos que SIEMPRE deben buscar la version mas reciente de la red
 const networkFirstFiles = [
     'index.html',
+    'login.html',
     'admin.html',
     'app.js',
     'admin.js',
-    'firebase-config.js',
+    'login.js',
+    'guard.js',
+    'supabase-config.js',
     'productos.json'
 ];
 

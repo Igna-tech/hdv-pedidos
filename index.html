@@ -21,7 +21,7 @@
             --grafito-oscuro: #111827;
         }
 
-        body { background-color: #f3f4f6; -webkit-tap-highlight-color: transparent; font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+        body { background-color: #f3f4f6; -webkit-tap-highlight-color: transparent; font-family: 'Inter', system-ui, -apple-system, sans-serif; visibility: hidden; }
 
         /* Product grid animations */
         .product-card {
@@ -198,6 +198,7 @@
             <div class="flex gap-2">
                 <button onclick="forzarActualizacion()" class="p-2 bg-gray-800 rounded-full text-gray-300 hover:text-white transition-colors" aria-label="Forzar actualizacion"><i data-lucide="refresh-cw" class="w-4 h-4"></i></button>
                 <button onclick="toggleDarkMode()" class="p-2 bg-gray-800 rounded-full text-gray-300 hover:text-white transition-colors dark-mode-toggle" aria-label="Cambiar modo oscuro"><i data-lucide="moon" class="w-4 h-4"></i></button>
+                <button onclick="cerrarSesion()" class="p-2 bg-red-600/20 rounded-full text-red-400 hover:bg-red-600/40 hover:text-red-300 transition-colors" aria-label="Cerrar sesion"><i data-lucide="log-out" class="w-4 h-4"></i></button>
             </div>
         </div>
         
@@ -373,6 +374,7 @@
     </div>
 
     <script>lucide.createIcons();</script>
+    <script src="guard.js"></script>
     <script src="supabase-config.js"></script>
     <script src="app.js"></script>
     <iframe id="printFrameVendedor" style="display:none;"></iframe>

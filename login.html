@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#111827">
+    <title>Iniciar Sesion - HDV Distribuciones</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+            min-height: 100vh;
+        }
+        .login-card {
+            animation: slideUp 0.5s ease both;
+        }
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(24px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .input-field:focus {
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+        }
+        .btn-login {
+            background: linear-gradient(135deg, #4f46e5, #6366f1);
+            transition: all 0.2s ease;
+        }
+        .btn-login:hover:not(:disabled) {
+            background: linear-gradient(135deg, #4338ca, #4f46e5);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+        }
+        .btn-login:active:not(:disabled) {
+            transform: scale(0.98);
+        }
+        .btn-login:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+        .alert {
+            animation: fadeIn 0.3s ease;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        /* Pantalla de carga inicial */
+        #loading-screen {
+            position: fixed;
+            inset: 0;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+            transition: opacity 0.3s ease;
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center px-4">
+
+    <!-- Pantalla de carga mientras se verifica sesion -->
+    <div id="loading-screen">
+        <div class="text-center">
+            <div class="w-10 h-10 border-3 border-indigo-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p class="text-gray-400 text-sm">Verificando sesion...</p>
+        </div>
+    </div>
+
+    <!-- Formulario de Login -->
+    <div id="login-container" class="w-full max-w-sm login-card" style="display:none;">
+        <!-- Logo / Branding -->
+        <div class="text-center mb-8">
+            <div class="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-indigo-500/30">
+                <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                </svg>
+            </div>
+            <h1 class="text-2xl font-bold text-white">HDV Distribuciones</h1>
+            <p class="text-gray-400 text-sm mt-1">Ingresa a tu cuenta</p>
+        </div>
+
+        <!-- Alerta de errores -->
+        <div id="login-alert" class="hidden mb-4 p-3 rounded-xl text-sm font-medium alert"></div>
+
+        <!-- Formulario -->
+        <form id="login-form" class="space-y-4">
+            <div>
+                <label for="email" class="block text-sm font-medium text-gray-300 mb-1.5">Correo electronico</label>
+                <input
+                    type="email"
+                    id="email"
+                    required
+                    autocomplete="email"
+                    placeholder="tu@correo.com"
+                    class="input-field w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-500 outline-none transition-all"
+                >
+            </div>
+            <div>
+                <label for="password" class="block text-sm font-medium text-gray-300 mb-1.5">Contrasena</label>
+                <div class="relative">
+                    <input
+                        type="password"
+                        id="password"
+                        required
+                        autocomplete="current-password"
+                        placeholder="Tu contrasena"
+                        class="input-field w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-500 outline-none transition-all pr-12"
+                    >
+                    <button type="button" id="toggle-password" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200 transition-colors">
+                        <svg id="eye-icon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <button
+                type="submit"
+                id="btn-login"
+                class="btn-login w-full py-3.5 rounded-xl text-white font-bold text-sm shadow-lg"
+            >
+                Iniciar Sesion
+            </button>
+        </form>
+
+        <p class="text-center text-gray-500 text-xs mt-6">&copy; HDV Distribuciones</p>
+    </div>
+
+    <script src="login.js"></script>
+</body>
+</html>

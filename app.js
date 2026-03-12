@@ -427,8 +427,7 @@ function renderizarProductosVendedor(container, busqueda) {
         if (imgUrl) {
             imgContent = `<div class="relative w-full h-24 rounded-lg overflow-hidden bg-gray-100">
                 <div class="absolute inset-0 bg-gray-200 animate-pulse rounded-lg img-skeleton"></div>
-                <img data-src="${imgUrl}" class="absolute inset-0 w-full h-full object-contain lazy-img opacity-0 transition-opacity duration-300"
-                     onerror="this.style.display='none';this.closest('.relative').querySelector('.img-skeleton').innerHTML='${noImgSvg.replace(/'/g, "\\'")}';this.closest('.relative').querySelector('.img-skeleton').classList.remove('animate-pulse');this.closest('.relative').querySelector('.img-skeleton').classList.add('flex','items-center','justify-center','bg-gray-800')">
+                <img data-src="${imgUrl}" class="absolute inset-0 w-full h-full object-contain lazy-img opacity-0 transition-opacity duration-300">
             </div>`;
         } else {
             imgContent = `<div class="w-full h-24 rounded-lg bg-gray-800 flex items-center justify-center">${noImgSvg}</div>`;
@@ -461,6 +460,8 @@ function initLazyLoadImages(containerEl) {
     const imgs = (containerEl || document).querySelectorAll('img.lazy-img[data-src]');
     if (!imgs.length) return;
 
+    const noImgSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>`;
+
     function revelarImagen(img) {
         img.classList.remove('opacity-0');
         img.classList.add('opacity-100');
@@ -469,10 +470,21 @@ function initLazyLoadImages(containerEl) {
         if (skeleton) skeleton.style.display = 'none';
     }
 
+    function manejarErrorImagen(img) {
+        img.style.display = 'none';
+        const skeleton = img.closest('.relative')?.querySelector('.img-skeleton');
+        if (skeleton) {
+            skeleton.innerHTML = noImgSvg;
+            skeleton.classList.remove('animate-pulse');
+            skeleton.classList.add('flex', 'items-center', 'justify-center', 'bg-gray-800');
+        }
+    }
+
     const observer = new IntersectionObserver((entries, obs) => {
         entries.forEach(entry => {
             if (!entry.isIntersecting) return;
             const img = entry.target;
+            img.onerror = () => manejarErrorImagen(img);
             img.src = img.dataset.src;
             // Si ya estaba en cache del navegador
             if (img.complete && img.naturalWidth > 0) {

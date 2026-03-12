@@ -1111,6 +1111,7 @@ function confirmarPedido() {
         tipoPago,
         notas,
         estado: 'pendiente',
+        vendedor_id: window.hdvUsuario?.id || null,
         sincronizado: false
     };
 

@@ -54,13 +54,20 @@ window.addEventListener('offline', () => actualizarIndicadorConexion(false));
 
 async function guardarPedidoFirebase(pedido) {
     try {
-        const { error } = await supabaseClient.from('pedidos').upsert({
+        const row = {
             id: pedido.id,
             estado: pedido.estado || 'pendiente',
             fecha: pedido.fecha || null,
             datos: pedido,
             actualizado_en: new Date().toISOString()
-        }, { onConflict: 'id' });
+        };
+        // Asignar vendedor_id solo en creacion (no sobrescribir en updates del admin)
+        if (pedido.vendedor_id) {
+            row.vendedor_id = pedido.vendedor_id;
+        } else if (window.hdvUsuario?.id) {
+            row.vendedor_id = window.hdvUsuario.id;
+        }
+        const { error } = await supabaseClient.from('pedidos').upsert(row, { onConflict: 'id' });
         if (error) throw error;
         console.log('[Supabase] Pedido guardado:', pedido.id);
         return true;

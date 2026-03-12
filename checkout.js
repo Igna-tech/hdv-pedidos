@@ -96,6 +96,7 @@ async function procesarPedido() {
         tipoPago: datos.tipoPago,
         notas: datos.notas,
         estado: 'pedido_pendiente',
+        vendedor_id: window.hdvUsuario?.id || null,
         sincronizado: false
     };
 
@@ -136,6 +137,7 @@ async function procesarCobroInterno() {
         tipoPago: datos.tipoPago,
         notas: datos.notas,
         estado: 'cobrado_sin_factura',
+        vendedor_id: window.hdvUsuario?.id || null,
         sincronizado: false
     };
 
@@ -228,6 +230,7 @@ async function procesarFacturaMock() {
         estado: 'facturado_mock',
         numFactura,
         cdc,
+        vendedor_id: window.hdvUsuario?.id || null,
         sincronizado: false
     };
 

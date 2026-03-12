@@ -147,6 +147,7 @@ function escucharPedidosRealtime(callback) {
             } else {
                 console.warn('[Supabase] Realtime devolvio vacio pero hay datos locales, conservando');
                 callback(pedidosLocalRT, [{ type: 'modified' }]);
+            }
         })
         .subscribe();
 

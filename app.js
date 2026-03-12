@@ -70,12 +70,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     iniciarAutoBackup();
     actualizarInfoBackup();
 
-    // Sincronizar pedidos pendientes con Firebase
+    // Sincronizar pedidos pendientes con Supabase
     if (typeof sincronizarPedidosLocales === 'function') {
         setTimeout(() => sincronizarPedidosLocales(), 2000);
     }
 
-    // Escuchar catalogo en tiempo real desde Firebase
+    // Escuchar catalogo en tiempo real desde Supabase
     if (typeof escucharCatalogoRealtime === 'function') {
         escucharCatalogoRealtime((data) => {
             if (data && data.categorias && data.productos) {
@@ -93,7 +93,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         clientes: data.clientes
                     }));
                 } catch(e) {}
-                console.log('[Vendedor] Catalogo actualizado desde Firebase y cacheado');
+                console.log('[Vendedor] Catalogo actualizado desde Supabase y cacheado');
             }
         });
     }
@@ -101,13 +101,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function cargarDatos() {
     try {
-        // Prioridad 1: Firebase (datos mas recientes en la nube)
+        // Prioridad 1: Supabase (datos mas recientes en la nube)
         let data = null;
         if (typeof obtenerCatalogoFirebase === 'function') {
             try {
                 data = await obtenerCatalogoFirebase();
                 if (data && data.productos) {
-                    console.log('[Vendedor] Catalogo cargado desde Firebase');
+                    console.log('[Vendedor] Catalogo cargado desde Supabase');
                     // Guardar en localStorage como cache
                     try {
                         localStorage.setItem('hdv_catalogo_local', JSON.stringify({
@@ -120,7 +120,7 @@ async function cargarDatos() {
                     data = null;
                 }
             } catch (fbErr) {
-                console.warn('[Vendedor] Firebase no disponible:', fbErr.message);
+                console.warn('[Vendedor] Supabase no disponible:', fbErr.message);
                 data = null;
             }
         }
@@ -1072,13 +1072,13 @@ function confirmarPedido() {
     pedidos.push(pedido);
     localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
 
-    // Guardar en Firebase (sincronizacion en tiempo real)
+    // Guardar en Supabase (sincronizacion en tiempo real)
     if (typeof guardarPedidoFirebase === 'function') {
         guardarPedidoFirebase(pedido).then(ok => {
             if (ok) {
                 pedido.sincronizado = true;
                 localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
-                console.log('[Vendedor] Pedido sincronizado con Firebase');
+                console.log('[Vendedor] Pedido sincronizado con Supabase');
             }
         });
     }
@@ -1192,7 +1192,7 @@ function guardarNuevoClienteDesdeVendedor() {
     pendientes.push(nuevoCliente);
     localStorage.setItem('hdv_clientes_pendientes', JSON.stringify(pendientes));
 
-    // Intentar subir a Firebase si esta disponible
+    // Intentar subir a Supabase si esta disponible
     if (typeof db !== 'undefined') {
         db.collection('configuracion').doc('clientes_pendientes').set({ lista: pendientes })
           .catch(e => console.error('[Vendedor] Error al subir cliente pendiente:', e));

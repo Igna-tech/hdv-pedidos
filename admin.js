@@ -183,12 +183,12 @@ function actualizarBarraCambios() {
     }
 }
 
-function guardarTodosCambios() {
+async function guardarTodosCambios() {
     cambiosSinGuardar = 0;
     actualizarBarraCambios();
     productosDataOriginal = JSON.parse(JSON.stringify(productosData));
 
-    // PASO 1: Siempre guardar en localStorage como respaldo inmediato
+    // PASO 1: Guardar en localStorage como respaldo inmediato
     try {
         const dataLimpia = { categorias: productosData.categorias, productos: productosData.productos, clientes: productosData.clientes };
         localStorage.setItem('hdv_catalogo_local', JSON.stringify(dataLimpia));
@@ -197,24 +197,22 @@ function guardarTodosCambios() {
         console.error('[Admin] Error guardando en localStorage:', e);
     }
 
-    // PASO 2: Sincronizar con Firebase
+    // PASO 2: Sincronizar con Supabase
     if (typeof guardarCatalogoFirebase === 'function') {
-        const dataParaFirebase = { categorias: productosData.categorias, productos: productosData.productos, clientes: productosData.clientes };
-        guardarCatalogoFirebase(dataParaFirebase).then(ok => {
+        try {
+            const dataParaSync = { categorias: productosData.categorias, productos: productosData.productos, clientes: productosData.clientes };
+            const ok = await guardarCatalogoFirebase(dataParaSync);
             if (ok) {
                 mostrarToast('Cambios guardados y sincronizados. Los vendedores ya ven los cambios.', 'success');
             } else {
-                mostrarToast('Error al sincronizar con Firebase. Cambios guardados localmente.', 'warning');
-                descargarJSON(productosData, 'productos.json');
+                mostrarToast('Error al sincronizar con Supabase. Cambios guardados localmente.', 'warning');
             }
-        }).catch(err => {
-            console.error('[Admin] Error Firebase:', err);
-            mostrarToast('Error de Firebase: ' + err.message, 'error');
-            descargarJSON(productosData, 'productos.json');
-        });
+        } catch (err) {
+            console.error('[Admin] Error Supabase:', err);
+            mostrarToast('Error de sincronizacion: ' + err.message, 'error');
+        }
     } else {
-        descargarJSON(productosData, 'productos.json');
-        mostrarToast('Firebase no disponible. JSON descargado como respaldo.', 'warning');
+        mostrarToast('Cambios guardados localmente.', 'info');
     }
 }
 
@@ -288,16 +286,16 @@ async function cargarDatosIniciales() {
     try {
         let data = null;
 
-        // PRIORIDAD 1: Firebase (datos mas frescos, sincronizados)
+        // PRIORIDAD 1: Supabase (datos mas frescos, sincronizados)
         if (typeof obtenerCatalogoFirebase === 'function') {
             try {
                 data = await obtenerCatalogoFirebase();
                 if (data && data.productos) {
-                    console.log('[Admin] Catalogo cargado desde Firebase (' + data.productos.length + ' productos)');
+                    console.log('[Admin] Catalogo cargado desde Supabase (' + data.productos.length + ' productos)');
                 } else {
                     data = null;
                 }
-            } catch (e) { console.warn('[Admin] Firebase no disponible:', e.message); data = null; }
+            } catch (e) { console.warn('[Admin] Supabase no disponible:', e.message); data = null; }
         }
 
         // PRIORIDAD 2: localStorage (cambios guardados localmente)
@@ -1270,60 +1268,74 @@ async function guardarProductoModal() {
 
     if (!nombre) { mostrarToast('Ingresa el nombre del producto', 'error'); return; }
 
-    // Subir imagen si hay archivo seleccionado
-    let imagenUrl = imagen;
-    if (archivoImagenProducto) {
-        try {
-            mostrarToast('Subiendo imagen...', 'info');
+    // Bloquear boton para prevenir doble envio
+    const btnGuardar = document.getElementById('btnGuardarProducto');
+    const textoOriginalBtn = btnGuardar ? btnGuardar.innerHTML : 'Guardar';
+    if (btnGuardar) {
+        btnGuardar.disabled = true;
+        btnGuardar.classList.add('opacity-50', 'cursor-not-allowed');
+        btnGuardar.innerHTML = '<svg class="w-4 h-4 animate-spin inline mr-1.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Guardando...';
+    }
+
+    try {
+        // Subir imagen si hay archivo seleccionado
+        let imagenUrl = imagen;
+        if (archivoImagenProducto) {
             imagenUrl = await subirImagenProducto(archivoImagenProducto);
             archivoImagenProducto = null;
-            mostrarToast('Imagen subida correctamente', 'success');
-        } catch (err) {
-            console.error('[Admin] Error subiendo imagen:', err);
-            mostrarToast('Error al subir imagen: ' + err.message, 'error');
-            return;
+        }
+
+        if (id) {
+            // Edicion
+            const prod = productosData.productos.find(p => p.id === id);
+            if (!prod) return;
+            prod.nombre = nombre;
+            prod.imagen_url = imagenUrl || undefined;
+            prod.imagen = imagenUrl || undefined;
+            prod.categoria = categoria;
+            prod.subcategoria = subcategoria || 'General';
+            prod.estado = estado;
+            // Recoger presentaciones detalladas
+            const presContainer = document.getElementById('presentacionesDetalladas');
+            const presRows = presContainer.querySelectorAll('.bg-gray-50');
+            const nuevasPres = [];
+            presRows.forEach(row => {
+                const tamano = row.querySelector('[data-pres-field="tamano"]')?.value || '';
+                const precioVal = parseInt(row.querySelector('[data-pres-field="precio"]')?.value) || 0;
+                const costoVal = parseInt(row.querySelector('[data-pres-field="costo"]')?.value) || 0;
+                if (tamano) nuevasPres.push({ tamano, precio_base: precioVal, costo: costoVal });
+            });
+            if (nuevasPres.length > 0) prod.presentaciones = nuevasPres;
+        } else {
+            // Creacion
+            const ultimoId = productosData.productos.length > 0 ?
+                Math.max(...productosData.productos.map(p => parseInt(p.id.replace('P', '')) || 0)) : 0;
+            const nuevoId = `P${String(ultimoId + 1).padStart(3, '0')}`;
+            const presStr = document.getElementById('nuevoProductoPresentaciones')?.value.trim();
+            const presentaciones = presStr
+                ? presStr.split(',').map(p => ({ tamano: p.trim(), precio_base: precio, costo }))
+                : [{ tamano: 'Unidad', precio_base: precio, costo }];
+            const nuevo = { id: nuevoId, nombre, categoria: categoria || 'cuidado_personal', subcategoria: subcategoria || 'General', presentaciones, estado };
+            if (imagenUrl) { nuevo.imagen = imagenUrl; nuevo.imagen_url = imagenUrl; }
+            productosData.productos.push(nuevo);
+        }
+
+        productosFiltrados = [...productosData.productos];
+        registrarCambio();
+        mostrarProductosGestion();
+        cerrarModalProducto();
+        mostrarToast('Producto guardado correctamente', 'success');
+    } catch (err) {
+        console.error('[Admin] Error guardando producto:', err);
+        mostrarToast('Error al guardar: ' + err.message, 'error');
+    } finally {
+        // Restaurar boton siempre
+        if (btnGuardar) {
+            btnGuardar.disabled = false;
+            btnGuardar.classList.remove('opacity-50', 'cursor-not-allowed');
+            btnGuardar.innerHTML = textoOriginalBtn;
         }
     }
-
-    if (id) {
-        // Edicion
-        const prod = productosData.productos.find(p => p.id === id);
-        if (!prod) return;
-        prod.nombre = nombre;
-        prod.imagen_url = imagenUrl || undefined;
-        prod.imagen = imagenUrl || undefined;
-        prod.categoria = categoria;
-        prod.subcategoria = subcategoria || 'General';
-        prod.estado = estado;
-        // Recoger presentaciones detalladas
-        const presContainer = document.getElementById('presentacionesDetalladas');
-        const presRows = presContainer.querySelectorAll('.bg-gray-50');
-        const nuevasPres = [];
-        presRows.forEach(row => {
-            const tamano = row.querySelector('[data-pres-field="tamano"]')?.value || '';
-            const precioVal = parseInt(row.querySelector('[data-pres-field="precio"]')?.value) || 0;
-            const costoVal = parseInt(row.querySelector('[data-pres-field="costo"]')?.value) || 0;
-            if (tamano) nuevasPres.push({ tamano, precio_base: precioVal, costo: costoVal });
-        });
-        if (nuevasPres.length > 0) prod.presentaciones = nuevasPres;
-    } else {
-        // Creacion
-        const ultimoId = productosData.productos.length > 0 ?
-            Math.max(...productosData.productos.map(p => parseInt(p.id.replace('P', '')) || 0)) : 0;
-        const nuevoId = `P${String(ultimoId + 1).padStart(3, '0')}`;
-        const presStr = document.getElementById('nuevoProductoPresentaciones')?.value.trim();
-        const presentaciones = presStr
-            ? presStr.split(',').map(p => ({ tamano: p.trim(), precio_base: precio, costo }))
-            : [{ tamano: 'Unidad', precio_base: precio, costo }];
-        const nuevo = { id: nuevoId, nombre, categoria: categoria || 'cuidado_personal', subcategoria: subcategoria || 'General', presentaciones, estado };
-        if (imagenUrl) { nuevo.imagen = imagenUrl; nuevo.imagen_url = imagenUrl; }
-        productosData.productos.push(nuevo);
-    }
-
-    productosFiltrados = [...productosData.productos];
-    registrarCambio();
-    mostrarProductosGestion();
-    cerrarModalProducto();
 }
 
 // ============================================
@@ -3016,12 +3028,12 @@ async function guardarResumenMensualFirebase() {
     if (typeof db !== 'undefined') {
         try {
             await db.collection('reportes_mensuales').doc(mesStr).set(resumen);
-            mostrarToast(`Resumen de ${mesStr} guardado en Firebase`, 'success');
+            mostrarToast(`Resumen de ${mesStr} guardado`, 'success');
         } catch(e) {
-            mostrarToast('Error guardando: ' + e.message, 'error');
+            mostrarToast('Error guardando resumen: ' + e.message, 'error');
         }
     } else {
-        mostrarToast('Firebase no disponible', 'warning');
+        mostrarToast('Error: cliente de base de datos no disponible', 'error');
     }
 }
 

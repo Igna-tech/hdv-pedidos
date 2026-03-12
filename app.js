@@ -374,16 +374,12 @@ function renderizarProductosVendedor(container, busqueda) {
         filtrados = filtrados.filter(p => p.nombre.toLowerCase().includes(busqueda));
     }
 
-    // Filtrar solo activos con stock > 0 cuando se viene de una categoria
+    // Filtrar solo activos cuando se viene de una categoria
     if (categoriaSeleccionada && !busqueda && categoriaActual === 'todas') {
         filtrados = filtrados.filter(p => {
             const estado = p.estado || 'disponible';
             if (estado === 'discontinuado' || estado === 'agotado') return false;
-            // Verificar si tiene al menos una presentacion con stock
-            if (p.presentaciones && p.presentaciones.some(pr => typeof pr.stock === 'number')) {
-                return p.presentaciones.some(pr => (pr.stock || 0) > 0);
-            }
-            return true; // si no tiene campo stock, mostrar
+            return true;
         });
     }
 
@@ -540,19 +536,16 @@ function mostrarMatrizProducto(producto) {
     const celdas = producto.presentaciones.filter(p => p.activo !== false).map((pres, idx) => {
         const precio = obtenerPrecio(producto.id, pres);
         const estadoProd = producto.estado || 'disponible';
-        const stock = typeof pres.stock === 'number' ? pres.stock : null;
-        const sinStock = stock !== null && stock <= 0;
-        const esAgotado = estadoProd === 'agotado' || sinStock;
+        const esAgotado = estadoProd === 'agotado';
         return `
             <div class="matriz-celda bg-white rounded-xl border-2 border-gray-200 p-3 text-center transition-all ${esAgotado ? 'opacity-50' : ''}" id="celda-${producto.id}-${idx}">
                 <p class="text-xs font-bold text-gray-500 mb-1">${pres.tamano}</p>
-                <input type="number" id="mtz-${producto.id}-${idx}" value="0" min="0" ${stock !== null ? `max="${stock}"` : ''}
+                <input type="number" id="mtz-${producto.id}-${idx}" value="0" min="0"
                     ${esAgotado ? 'disabled' : ''}
                     class="w-full text-center text-2xl font-bold border-0 border-b-2 border-gray-200 focus:border-blue-500 outline-none bg-transparent py-1 mtz-input"
-                    data-idx="${idx}" data-precio="${precio}" data-stock="${stock !== null ? stock : ''}"
-                    oninput="validarStockMatriz(this);actualizarCeldaMatriz('${producto.id}',${idx})">
+                    data-idx="${idx}" data-precio="${precio}"
+                    oninput="actualizarCeldaMatriz('${producto.id}',${idx})">
                 <p class="text-[10px] text-blue-600 font-bold mt-1">Gs. ${precio.toLocaleString()}</p>
-                ${stock !== null ? `<p class="text-[10px] font-bold ${sinStock ? 'text-red-500' : 'text-gray-400'}">${sinStock ? 'SIN STOCK' : 'disp: ' + stock}</p>` : ''}
             </div>`;
     }).join('');
 
@@ -664,16 +657,6 @@ function limpiarMatriz(productoId) {
     });
 }
 
-function validarStockMatriz(input) {
-    const maxStock = input.dataset.stock;
-    if (maxStock === '' || maxStock === undefined) return;
-    let val = parseInt(input.value) || 0;
-    if (val > parseInt(maxStock)) {
-        input.value = parseInt(maxStock);
-        mostrarToast(`Stock maximo: ${maxStock}`, 'warning');
-    }
-}
-
 function agregarMatrizAlCarrito(productoId) {
     if (!clienteActual) {
         mostrarToast('Selecciona un cliente primero', 'error');
@@ -742,23 +725,20 @@ function mostrarDetalleMasivo(producto) {
 
     const presHTML = producto.presentaciones.map((pres, idx) => {
         const precio = obtenerPrecio(producto.id, pres);
-        const stock = typeof pres.stock === 'number' ? pres.stock : null;
-        const sinStock = stock !== null && stock <= 0;
         const activo = pres.activo !== false;
-        if (!activo) return ''; // No mostrar variantes inactivas
+        if (!activo) return '';
         return `
-            <div class="flex items-center justify-between py-3 px-4 ${sinStock ? 'opacity-40' : ''}">
+            <div class="flex items-center justify-between py-3 px-4">
                 <div class="flex-1 min-w-0">
                     <p class="font-bold text-gray-800">${pres.tamano}</p>
                     <p class="text-blue-600 font-bold text-sm">Gs. ${precio.toLocaleString()}</p>
-                    ${stock !== null ? `<p class="text-[10px] font-bold ${stock <= 0 ? 'text-red-500' : stock < 10 ? 'text-yellow-600' : 'text-green-600'}">${stock <= 0 ? 'Sin stock' : stock + ' disponibles'}</p>` : ''}
                 </div>
                 <div class="flex items-center gap-2">
-                    <button onclick="ajustarQty('${producto.id}',${idx},-1)" class="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center font-bold text-lg text-gray-700 active:scale-90 transition-transform" ${sinStock ? 'disabled' : ''}>-</button>
-                    <input type="number" id="qty-${producto.id}-${idx}" value="0" min="0" ${stock !== null ? `max="${stock}"` : ''} data-precio="${precio}" data-stock="${stock !== null ? stock : ''}"
+                    <button onclick="ajustarQty('${producto.id}',${idx},-1)" class="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center font-bold text-lg text-gray-700 active:scale-90 transition-transform">-</button>
+                    <input type="number" id="qty-${producto.id}-${idx}" value="0" min="0" data-precio="${precio}"
                         class="w-14 text-center border border-gray-200 rounded-xl py-1.5 font-bold text-lg masivo-input"
-                        oninput="validarStockInput(this);recalcularTotalMasivo('${producto.id}')" ${sinStock ? 'disabled' : ''}>
-                    <button onclick="ajustarQty('${producto.id}',${idx},1)" class="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center font-bold text-lg text-gray-700 active:scale-90 transition-transform" ${sinStock ? 'disabled' : ''} id="btnPlus-${producto.id}-${idx}">+</button>
+                        oninput="recalcularTotalMasivo('${producto.id}')">
+                    <button onclick="ajustarQty('${producto.id}',${idx},1)" class="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center font-bold text-lg text-gray-700 active:scale-90 transition-transform">+</button>
                 </div>
             </div>`;
     }).join('');
@@ -876,51 +856,11 @@ function agregarMasivoAlCarrito(productoId) {
 
 function ajustarQty(prodId, idx, delta) {
     const input = document.getElementById(`qty-${prodId}-${idx}`);
-    if (!input || input.disabled) return;
+    if (!input) return;
     let val = parseInt(input.value) || 0;
     val = Math.max(0, val + delta);
-    // Validar contra stock maximo
-    const maxStock = input.dataset.stock;
-    if (maxStock !== '' && val > parseInt(maxStock)) {
-        val = parseInt(maxStock);
-        mostrarToast(`Stock maximo: ${maxStock}`, 'warning');
-    }
     input.value = val;
-    actualizarEstadoBtnPlus(prodId, idx);
     recalcularTotalMasivo(prodId);
-}
-
-function validarStockInput(input) {
-    const maxStock = input.dataset.stock;
-    if (maxStock === '' || maxStock === undefined) return;
-    let val = parseInt(input.value) || 0;
-    if (val > parseInt(maxStock)) {
-        input.value = parseInt(maxStock);
-        mostrarToast(`Stock maximo: ${maxStock}`, 'warning');
-    }
-    // Actualizar estado del boton +
-    const parts = input.id.replace('qty-', '').split('-');
-    if (parts.length >= 2) {
-        const prodId = parts.slice(0, -1).join('-');
-        const idx = parts[parts.length - 1];
-        actualizarEstadoBtnPlus(prodId, idx);
-    }
-}
-
-function actualizarEstadoBtnPlus(prodId, idx) {
-    const input = document.getElementById(`qty-${prodId}-${idx}`);
-    const btn = document.getElementById(`btnPlus-${prodId}-${idx}`);
-    if (!input || !btn) return;
-    const maxStock = input.dataset.stock;
-    if (maxStock === '' || maxStock === undefined) return;
-    const val = parseInt(input.value) || 0;
-    if (val >= parseInt(maxStock)) {
-        btn.disabled = true;
-        btn.classList.add('opacity-30');
-    } else {
-        btn.disabled = false;
-        btn.classList.remove('opacity-30');
-    }
 }
 
 // ============================================

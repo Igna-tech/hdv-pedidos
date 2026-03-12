@@ -200,19 +200,22 @@ async function guardarTodosCambios() {
     // PASO 2: Sincronizar con Supabase
     if (typeof guardarCatalogoFirebase === 'function') {
         try {
+            console.log('[Admin] Llamando guardarCatalogoFirebase...');
             const dataParaSync = { categorias: productosData.categorias, productos: productosData.productos, clientes: productosData.clientes };
             const ok = await guardarCatalogoFirebase(dataParaSync);
+            console.log('[Admin] Resultado guardarCatalogoFirebase:', ok);
             if (ok) {
                 mostrarToast('Cambios guardados y sincronizados. Los vendedores ya ven los cambios.', 'success');
             } else {
-                mostrarToast('Error al sincronizar con Supabase. Cambios guardados localmente.', 'warning');
+                mostrarToast('Error al sincronizar con Supabase. Revisa la consola (F12) para mas detalles. Cambios guardados localmente.', 'warning');
             }
         } catch (err) {
             console.error('[Admin] Error Supabase:', err);
             mostrarToast('Error de sincronizacion: ' + err.message, 'error');
         }
     } else {
-        mostrarToast('Cambios guardados localmente.', 'info');
+        console.error('[Admin] guardarCatalogoFirebase no esta definida. supabase-config.js puede tener un error de carga.');
+        mostrarToast('Error: modulo de sincronizacion no cargado. Cambios guardados localmente.', 'error');
     }
 }
 

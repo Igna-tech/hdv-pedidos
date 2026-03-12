@@ -177,15 +177,24 @@ async function sincronizarPedidosLocales() {
 
 async function guardarCatalogoFirebase(productosData) {
     try {
-        const { error } = await supabaseClient.from('catalogo').upsert({
+        console.log('[Supabase] Intentando guardar catalogo...', {
+            categorias: (productosData.categorias || []).length,
+            productos: (productosData.productos || []).length,
+            clientes: (productosData.clientes || []).length
+        });
+        const payload = {
             id: 'principal',
             categorias: productosData.categorias || [],
             productos: productosData.productos || [],
             clientes: productosData.clientes || [],
             actualizado_en: new Date().toISOString()
-        }, { onConflict: 'id' });
-        if (error) throw error;
-        console.log('[Supabase] Catalogo guardado');
+        };
+        const { error } = await supabaseClient.from('catalogo').upsert(payload, { onConflict: 'id' });
+        if (error) {
+            console.error('[Supabase] Error detallado guardando catalogo:', error.message, error.details, error.hint, error.code);
+            throw error;
+        }
+        console.log('[Supabase] Catalogo guardado exitosamente');
         return true;
     } catch (error) {
         console.error('[Supabase] Error guardando catalogo:', error);

@@ -39,7 +39,7 @@ function generarEmptyState(svgIcon, titulo, subtitulo, botonTexto, botonOnclick)
 }
 
 function generarSkeletonProductos(count = 6) {
-    let html = '<div class="grid grid-cols-2 sm:grid-cols-3 gap-3">';
+    let html = '<div class="grid grid-cols-2 gap-2">';
     for (let i = 0; i < count; i++) {
         html += `<div class="bg-white rounded-xl p-3 shadow-sm border border-gray-100">
             <div class="skeleton w-full h-28 mb-2"></div>
@@ -537,20 +537,22 @@ function mostrarMatrizProducto(producto) {
     const iconHtml = (producto.imagen_url || producto.imagen) ? `<img src="${producto.imagen_url || producto.imagen}" class="w-10 h-10 rounded-lg object-contain">` : '<i data-lucide="package" class="w-8 h-8 text-gray-400"></i>';
     const catNombre = categorias.find(c => c.id === producto.categoria)?.nombre || '';
 
-    const celdas = producto.presentaciones.map((pres, idx) => {
+    const celdas = producto.presentaciones.filter(p => p.activo !== false).map((pres, idx) => {
         const precio = obtenerPrecio(producto.id, pres);
         const estadoProd = producto.estado || 'disponible';
-        const esAgotado = estadoProd === 'agotado';
+        const stock = typeof pres.stock === 'number' ? pres.stock : null;
+        const sinStock = stock !== null && stock <= 0;
+        const esAgotado = estadoProd === 'agotado' || sinStock;
         return `
             <div class="matriz-celda bg-white rounded-xl border-2 border-gray-200 p-3 text-center transition-all ${esAgotado ? 'opacity-50' : ''}" id="celda-${producto.id}-${idx}">
                 <p class="text-xs font-bold text-gray-500 mb-1">${pres.tamano}</p>
-                <input type="number" id="mtz-${producto.id}-${idx}" value="0" min="0"
+                <input type="number" id="mtz-${producto.id}-${idx}" value="0" min="0" ${stock !== null ? `max="${stock}"` : ''}
                     ${esAgotado ? 'disabled' : ''}
                     class="w-full text-center text-2xl font-bold border-0 border-b-2 border-gray-200 focus:border-blue-500 outline-none bg-transparent py-1 mtz-input"
-                    data-idx="${idx}" data-precio="${precio}"
-                    oninput="actualizarCeldaMatriz('${producto.id}',${idx})">
+                    data-idx="${idx}" data-precio="${precio}" data-stock="${stock !== null ? stock : ''}"
+                    oninput="validarStockMatriz(this);actualizarCeldaMatriz('${producto.id}',${idx})">
                 <p class="text-[10px] text-blue-600 font-bold mt-1">Gs. ${precio.toLocaleString()}</p>
-                ${esAgotado ? '<p class="text-[10px] text-red-500 font-bold">AGOTADO</p>' : ''}
+                ${stock !== null ? `<p class="text-[10px] font-bold ${sinStock ? 'text-red-500' : 'text-gray-400'}">${sinStock ? 'SIN STOCK' : 'disp: ' + stock}</p>` : ''}
             </div>`;
     }).join('');
 
@@ -627,8 +629,9 @@ function recalcularTotalesMatriz(productoId) {
 
     let totalPares = 0;
     let totalGs = 0;
+    const presActivas = producto.presentaciones.filter(p => p.activo !== false);
 
-    producto.presentaciones.forEach((pres, idx) => {
+    presActivas.forEach((pres, idx) => {
         const input = document.getElementById(`mtz-${productoId}-${idx}`);
         if (!input) return;
         const cant = parseInt(input.value) || 0;
@@ -650,14 +653,25 @@ function recalcularTotalesMatriz(productoId) {
 function limpiarMatriz(productoId) {
     const producto = productos.find(p => p.id === productoId);
     if (!producto) return;
+    const presActivas = producto.presentaciones.filter(p => p.activo !== false);
 
-    producto.presentaciones.forEach((pres, idx) => {
+    presActivas.forEach((pres, idx) => {
         const input = document.getElementById(`mtz-${productoId}-${idx}`);
         if (input) {
             input.value = 0;
             actualizarCeldaMatriz(productoId, idx);
         }
     });
+}
+
+function validarStockMatriz(input) {
+    const maxStock = input.dataset.stock;
+    if (maxStock === '' || maxStock === undefined) return;
+    let val = parseInt(input.value) || 0;
+    if (val > parseInt(maxStock)) {
+        input.value = parseInt(maxStock);
+        mostrarToast(`Stock maximo: ${maxStock}`, 'warning');
+    }
 }
 
 function agregarMatrizAlCarrito(productoId) {
@@ -670,8 +684,9 @@ function agregarMatrizAlCarrito(productoId) {
     if (!producto) return;
 
     let paresAgregados = 0;
+    const presActivas = producto.presentaciones.filter(p => p.activo !== false);
 
-    producto.presentaciones.forEach((pres, idx) => {
+    presActivas.forEach((pres, idx) => {
         const input = document.getElementById(`mtz-${productoId}-${idx}`);
         if (!input) return;
         const cantidad = parseInt(input.value) || 0;
@@ -727,18 +742,23 @@ function mostrarDetalleMasivo(producto) {
 
     const presHTML = producto.presentaciones.map((pres, idx) => {
         const precio = obtenerPrecio(producto.id, pres);
+        const stock = typeof pres.stock === 'number' ? pres.stock : null;
+        const sinStock = stock !== null && stock <= 0;
+        const activo = pres.activo !== false;
+        if (!activo) return ''; // No mostrar variantes inactivas
         return `
-            <div class="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
-                <div class="flex-1">
+            <div class="flex items-center justify-between py-3 px-4 ${sinStock ? 'opacity-40' : ''}">
+                <div class="flex-1 min-w-0">
                     <p class="font-bold text-gray-800">${pres.tamano}</p>
                     <p class="text-blue-600 font-bold text-sm">Gs. ${precio.toLocaleString()}</p>
+                    ${stock !== null ? `<p class="text-[10px] font-bold ${stock <= 0 ? 'text-red-500' : stock < 10 ? 'text-yellow-600' : 'text-green-600'}">${stock <= 0 ? 'Sin stock' : stock + ' disponibles'}</p>` : ''}
                 </div>
                 <div class="flex items-center gap-2">
-                    <button onclick="ajustarQty('${producto.id}',${idx},-1)" class="w-8 h-8 rounded-lg border-2 border-gray-300 flex items-center justify-center font-bold text-lg">-</button>
-                    <input type="number" id="qty-${producto.id}-${idx}" value="0" min="0" data-precio="${precio}"
-                        class="w-14 text-center border border-gray-300 rounded-lg py-1 font-bold masivo-input"
-                        oninput="recalcularTotalMasivo('${producto.id}')">
-                    <button onclick="ajustarQty('${producto.id}',${idx},1);recalcularTotalMasivo('${producto.id}')" class="w-8 h-8 rounded-lg border-2 border-gray-300 flex items-center justify-center font-bold text-lg">+</button>
+                    <button onclick="ajustarQty('${producto.id}',${idx},-1)" class="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center font-bold text-lg text-gray-700 active:scale-90 transition-transform" ${sinStock ? 'disabled' : ''}>-</button>
+                    <input type="number" id="qty-${producto.id}-${idx}" value="0" min="0" ${stock !== null ? `max="${stock}"` : ''} data-precio="${precio}" data-stock="${stock !== null ? stock : ''}"
+                        class="w-14 text-center border border-gray-200 rounded-xl py-1.5 font-bold text-lg masivo-input"
+                        oninput="validarStockInput(this);recalcularTotalMasivo('${producto.id}')" ${sinStock ? 'disabled' : ''}>
+                    <button onclick="ajustarQty('${producto.id}',${idx},1)" class="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center font-bold text-lg text-gray-700 active:scale-90 transition-transform" ${sinStock ? 'disabled' : ''} id="btnPlus-${producto.id}-${idx}">+</button>
                 </div>
             </div>`;
     }).join('');
@@ -748,25 +768,33 @@ function mostrarDetalleMasivo(producto) {
     modal.className = 'fixed inset-0 bg-black/50 z-[100] flex items-end';
     modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
     modal.innerHTML = `
-        <div class="bg-white w-full rounded-t-3xl max-h-[85vh] overflow-y-auto p-6 shadow-2xl" onclick="event.stopPropagation()">
-            <div class="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-4"></div>
-            <div class="w-full h-32 bg-gray-50 rounded-xl mb-3 flex items-center justify-center overflow-hidden">${imgContent}</div>
-            <h3 class="text-xl font-bold text-gray-900">${producto.nombre}</h3>
-            <p class="text-sm text-gray-500 mb-1">${catNombre} › ${producto.subcategoria}</p>
-
-            <div class="bg-blue-50 rounded-xl p-3 mb-4 flex justify-between items-center">
-                <div>
-                    <p class="text-xs text-gray-500 font-bold">TOTAL</p>
-                    <p class="text-lg font-bold text-blue-800" id="masivoTotal-${producto.id}">Gs. 0</p>
+        <div class="bg-gray-50 w-full rounded-t-3xl max-h-[90vh] overflow-y-auto shadow-2xl" onclick="event.stopPropagation()">
+            <div class="bg-[#111827] text-white p-4 rounded-t-3xl">
+                <div class="w-12 h-1.5 bg-gray-600 rounded-full mx-auto mb-3"></div>
+                <div class="flex items-center gap-3">
+                    ${imgUrlMasivo ? `<img src="${imgUrlMasivo}" class="w-12 h-12 rounded-xl object-contain bg-white/10">` : '<i data-lucide="package" class="w-10 h-10 text-gray-400"></i>'}
+                    <div class="min-w-0 flex-1">
+                        <h3 class="text-lg font-bold leading-tight truncate">${producto.nombre}</h3>
+                        <p class="text-xs text-gray-400">${catNombre}${producto.subcategoria ? ' › ' + producto.subcategoria : ''}</p>
+                    </div>
                 </div>
-                <p class="text-sm font-bold text-gray-600"><span id="masivoItems-${producto.id}">0</span> items</p>
+                <div class="flex items-center justify-between mt-3 bg-gray-800 rounded-xl p-3">
+                    <div>
+                        <p class="text-xs text-gray-400 font-bold">TOTAL</p>
+                        <p class="text-lg font-bold text-green-400" id="masivoTotal-${producto.id}">Gs. 0</p>
+                    </div>
+                    <p class="text-sm font-bold text-gray-300"><span id="masivoItems-${producto.id}">0</span> items</p>
+                </div>
             </div>
 
-            <div class="space-y-1">${presHTML}</div>
+            <div class="p-4">
+                <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Selecciona variantes</p>
+                <div class="bg-white rounded-xl divide-y divide-gray-100 shadow-sm">${presHTML}</div>
+            </div>
 
-            <div class="flex gap-3 mt-6">
-                <button onclick="document.getElementById('productDetailModal').remove()" class="flex-1 bg-gray-100 text-gray-700 py-3 rounded-xl font-bold">Cancelar</button>
-                <button onclick="agregarMasivoAlCarrito('${producto.id}')" class="flex-1 bg-[#111827] text-white py-3 rounded-xl font-bold">Agregar Todo</button>
+            <div class="sticky bottom-0 bg-white border-t border-gray-200 p-4 flex gap-3">
+                <button onclick="document.getElementById('productDetailModal').remove()" class="flex-1 bg-gray-100 text-gray-700 py-4 rounded-xl font-bold">Cancelar</button>
+                <button onclick="agregarMasivoAlCarrito('${producto.id}')" class="flex-1 bg-[#111827] text-white py-4 rounded-xl font-bold shadow-lg">Agregar al carrito</button>
             </div>
         </div>`;
     document.body.appendChild(modal);
@@ -848,11 +876,50 @@ function agregarMasivoAlCarrito(productoId) {
 
 function ajustarQty(prodId, idx, delta) {
     const input = document.getElementById(`qty-${prodId}-${idx}`);
-    if (input) {
-        let val = parseInt(input.value) || 0;
-        val = Math.max(0, val + delta);
-        input.value = val;
-        recalcularTotalMasivo(prodId);
+    if (!input || input.disabled) return;
+    let val = parseInt(input.value) || 0;
+    val = Math.max(0, val + delta);
+    // Validar contra stock maximo
+    const maxStock = input.dataset.stock;
+    if (maxStock !== '' && val > parseInt(maxStock)) {
+        val = parseInt(maxStock);
+        mostrarToast(`Stock maximo: ${maxStock}`, 'warning');
+    }
+    input.value = val;
+    actualizarEstadoBtnPlus(prodId, idx);
+    recalcularTotalMasivo(prodId);
+}
+
+function validarStockInput(input) {
+    const maxStock = input.dataset.stock;
+    if (maxStock === '' || maxStock === undefined) return;
+    let val = parseInt(input.value) || 0;
+    if (val > parseInt(maxStock)) {
+        input.value = parseInt(maxStock);
+        mostrarToast(`Stock maximo: ${maxStock}`, 'warning');
+    }
+    // Actualizar estado del boton +
+    const parts = input.id.replace('qty-', '').split('-');
+    if (parts.length >= 2) {
+        const prodId = parts.slice(0, -1).join('-');
+        const idx = parts[parts.length - 1];
+        actualizarEstadoBtnPlus(prodId, idx);
+    }
+}
+
+function actualizarEstadoBtnPlus(prodId, idx) {
+    const input = document.getElementById(`qty-${prodId}-${idx}`);
+    const btn = document.getElementById(`btnPlus-${prodId}-${idx}`);
+    if (!input || !btn) return;
+    const maxStock = input.dataset.stock;
+    if (maxStock === '' || maxStock === undefined) return;
+    const val = parseInt(input.value) || 0;
+    if (val >= parseInt(maxStock)) {
+        btn.disabled = true;
+        btn.classList.add('opacity-30');
+    } else {
+        btn.disabled = false;
+        btn.classList.remove('opacity-30');
     }
 }
 

@@ -1283,6 +1283,7 @@ function abrirModalProducto(productoId) {
             document.getElementById('camposVariantes').classList.add('hidden');
             document.getElementById('nuevoProductoPrecio').value = prod.presentaciones[0]?.precio_base || 0;
             document.getElementById('nuevoProductoCosto').value = prod.presentaciones[0]?.costo || 0;
+            document.getElementById('nuevoProductoStock').value = prod.presentaciones[0]?.stock || 0;
             document.getElementById('nuevoProductoPresentaciones').value = prod.presentaciones[0]?.tamano || 'Unidad';
             document.getElementById('listaVariantes').innerHTML = '';
         }
@@ -1291,7 +1292,7 @@ function abrirModalProducto(productoId) {
         // Modo creacion
         titulo.textContent = 'Nuevo Producto';
         formId.value = '';
-        ['nuevoProductoNombre','nuevoProductoImagen','nuevoProductoPresentaciones','nuevoProductoPrecio','nuevoProductoCosto'].forEach(id => {
+        ['nuevoProductoNombre','nuevoProductoImagen','nuevoProductoPresentaciones','nuevoProductoPrecio','nuevoProductoCosto','nuevoProductoStock'].forEach(id => {
             const el = document.getElementById(id); if (el) el.value = '';
         });
         document.getElementById('nuevoProductoEstado').value = 'disponible';
@@ -1352,6 +1353,7 @@ async function guardarProductoModal() {
     const estado = document.getElementById('nuevoProductoEstado')?.value || 'disponible';
     const precio = parseInt(document.getElementById('nuevoProductoPrecio')?.value) || 0;
     const costo = parseInt(document.getElementById('nuevoProductoCosto')?.value) || 0;
+    const stockSimple = parseInt(document.getElementById('nuevoProductoStock')?.value) || 0;
 
     if (subcategoria === '__otra__') {
         subcategoria = prompt('Nombre de la nueva subcategoria:');
@@ -1389,8 +1391,8 @@ async function guardarProductoModal() {
         } else {
             const presStr = document.getElementById('nuevoProductoPresentaciones')?.value.trim();
             presentaciones = presStr
-                ? presStr.split(',').map(p => ({ tamano: p.trim(), precio_base: precio, costo }))
-                : [{ tamano: 'Unidad', precio_base: precio, costo }];
+                ? presStr.split(',').map(p => ({ tamano: p.trim(), precio_base: precio, costo, stock: stockSimple }))
+                : [{ tamano: 'Unidad', precio_base: precio, costo, stock: stockSimple }];
         }
 
         if (id) {

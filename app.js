@@ -103,9 +103,9 @@ async function cargarDatos() {
     try {
         // Prioridad 1: Supabase (datos mas recientes en la nube)
         let data = null;
-        if (typeof obtenerCatalogoFirebase === 'function') {
+        if (typeof obtenerCatalogo === 'function') {
             try {
-                data = await obtenerCatalogoFirebase();
+                data = await obtenerCatalogo();
                 if (data && data.productos) {
                     console.log('[Vendedor] Catalogo cargado desde Supabase');
                     // Guardar en localStorage como cache
@@ -169,6 +169,16 @@ async function cargarDatos() {
 function configurarEventos() {
     const searchInput = document.getElementById('searchInput');
     searchInput.addEventListener('input', () => mostrarProductos());
+
+    // Busqueda de clientes por nombre o RUC
+    const clienteSearch = document.getElementById('clienteSearchInput');
+    if (clienteSearch) {
+        let debounceCliente;
+        clienteSearch.addEventListener('input', () => {
+            clearTimeout(debounceCliente);
+            debounceCliente = setTimeout(() => poblarClientes(clienteSearch.value), 200);
+        });
+    }
     
     document.getElementById('clienteSelect').addEventListener('change', async (e) => {
         const id = e.target.value;
@@ -185,9 +195,11 @@ function configurarEventos() {
                 guardarCarrito();
             }
             clienteActual = nuevoCliente;
+            mostrarInfoCliente(clienteActual);
             mostrarProductos();
         } else {
             clienteActual = null;
+            mostrarInfoCliente(null);
         }
     });
 }
@@ -195,16 +207,81 @@ function configurarEventos() {
 // ============================================
 // CLIENTES
 // ============================================
-function poblarClientes() {
+function poblarClientes(filtro) {
     const select = document.getElementById('clienteSelect');
+    const valorActual = select.value;
     select.innerHTML = '<option value="" class="text-black">-- Seleccione Cliente --</option>';
-    clientes.forEach(c => {
+    const q = (filtro || '').toLowerCase().trim();
+    const lista = q ? clientes.filter(c =>
+        (c.razon_social || c.nombre || '').toLowerCase().includes(q) ||
+        (c.ruc || '').toLowerCase().includes(q) ||
+        (c.id || '').toLowerCase().includes(q)
+    ) : clientes;
+    lista.forEach(c => {
         const opt = document.createElement('option');
         opt.value = c.id;
-        opt.textContent = c.razon_social || c.nombre || c.id;
+        const rucTag = c.ruc ? ` [${c.ruc}]` : '';
+        opt.textContent = (c.razon_social || c.nombre || c.id) + rucTag;
         opt.className = 'text-black';
         select.appendChild(opt);
     });
+    if (valorActual && !filtro) select.value = valorActual;
+}
+
+function mostrarInfoCliente(cliente) {
+    const panel = document.getElementById('clienteInfo');
+    if (!panel) return;
+    if (!cliente) { panel.classList.add('hidden'); return; }
+    panel.classList.remove('hidden');
+
+    document.getElementById('clienteInfoNombre').textContent = cliente.razon_social || cliente.nombre;
+    document.getElementById('clienteInfoRuc').textContent = cliente.ruc || 'Sin RUC';
+
+    // Dias desde ultimo pedido
+    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    const pedidosCliente = pedidos.filter(p => p.cliente && p.cliente.id === cliente.id);
+    const elDias = document.getElementById('clienteInfoDias');
+    if (pedidosCliente.length > 0) {
+        const fechas = pedidosCliente.map(p => new Date(p.fecha)).sort((a, b) => b - a);
+        const dias = Math.floor((Date.now() - fechas[0]) / 86400000);
+        elDias.innerHTML = `<i data-lucide="calendar" class="w-3 h-3"></i> ${dias === 0 ? 'Hoy' : dias + 'd'}`;
+        elDias.className = 'flex items-center gap-1 ' + (dias > 15 ? 'text-red-500' : dias > 7 ? 'text-amber-500' : 'text-green-600');
+    } else {
+        elDias.innerHTML = '<i data-lucide="calendar" class="w-3 h-3"></i> Sin pedidos';
+        elDias.className = 'flex items-center gap-1 text-gray-400';
+    }
+
+    // Saldo de deuda
+    const pagos = JSON.parse(localStorage.getItem('hdv_pagos_credito') || '{}');
+    const creditos = pedidosCliente.filter(p => p.tipoPago === 'credito');
+    let deudaTotal = 0;
+    creditos.forEach(p => {
+        const pagosP = (pagos[p.id] || []).reduce((s, pg) => s + (pg.monto || 0), 0);
+        deudaTotal += (p.total || 0) - pagosP;
+    });
+    const elDeuda = document.getElementById('clienteInfoDeuda');
+    if (deudaTotal > 0) {
+        elDeuda.innerHTML = `<i data-lucide="credit-card" class="w-3 h-3"></i> Gs.${deudaTotal.toLocaleString()}`;
+        elDeuda.className = 'flex items-center gap-1 text-red-500 font-bold';
+    } else {
+        elDeuda.innerHTML = '<i data-lucide="credit-card" class="w-3 h-3"></i> Al dia';
+        elDeuda.className = 'flex items-center gap-1 text-green-600';
+    }
+
+    // Top 3 productos
+    const conteo = {};
+    pedidosCliente.forEach(p => (p.items || []).forEach(i => {
+        const key = i.nombre || i.productoId;
+        conteo[key] = (conteo[key] || 0) + (i.cantidad || 1);
+    }));
+    const top3 = Object.entries(conteo).sort((a, b) => b[1] - a[1]).slice(0, 3);
+    const elTop = document.getElementById('clienteInfoTop');
+    elTop.innerHTML = top3.length > 0
+        ? top3.map(([n, q]) => `${q}x ${n}`).join('<br>')
+        : '<span class="text-gray-300">Sin historial</span>';
+
+    // Re-render lucide icons
+    if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 // ============================================
@@ -1121,8 +1198,8 @@ function confirmarPedido() {
     localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
 
     // Guardar en Supabase (sincronizacion en tiempo real)
-    if (typeof guardarPedidoFirebase === 'function') {
-        guardarPedidoFirebase(pedido).then(ok => {
+    if (typeof guardarPedido === 'function') {
+        guardarPedido(pedido).then(ok => {
             if (ok) {
                 pedido.sincronizado = true;
                 localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
@@ -2363,8 +2440,8 @@ function agregarGastoVendedor() {
     gastos.push(gasto);
     localStorage.setItem('hdv_gastos', JSON.stringify(gastos));
 
-    if (typeof guardarGastosFirebase === 'function') {
-        guardarGastosFirebase(gastos).catch(e => console.error(e));
+    if (typeof guardarGastos === 'function') {
+        guardarGastos(gastos).catch(e => console.error(e));
     }
 
     mostrarExito('Gasto registrado');
@@ -2376,7 +2453,7 @@ async function eliminarGastoVendedor(gastoId) {
     let gastos = JSON.parse(localStorage.getItem('hdv_gastos') || '[]');
     gastos = gastos.filter(g => g.id !== gastoId);
     localStorage.setItem('hdv_gastos', JSON.stringify(gastos));
-    if (typeof guardarGastosFirebase === 'function') guardarGastosFirebase(gastos).catch(e => console.error(e));
+    if (typeof guardarGastos === 'function') guardarGastos(gastos).catch(e => console.error(e));
     mostrarMiCaja();
 }
 
@@ -2416,8 +2493,8 @@ async function cerrarSemanaVendedor(semana) {
     rendiciones.push(rendicion);
     localStorage.setItem('hdv_rendiciones', JSON.stringify(rendiciones));
 
-    if (typeof guardarRendicionesFirebase === 'function') {
-        guardarRendicionesFirebase(rendiciones).catch(e => console.error(e));
+    if (typeof guardarRendiciones === 'function') {
+        guardarRendiciones(rendiciones).catch(e => console.error(e));
     }
 
     mostrarExito('Semana cerrada exitosamente');

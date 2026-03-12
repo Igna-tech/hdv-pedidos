@@ -158,8 +158,8 @@ async function facturarPedidoAdmin(pedidoId) {
     localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
 
     // Sincronizar con Supabase
-    if (typeof guardarPedidoFirebase === 'function') {
-        guardarPedidoFirebase(pedido).then(ok => {
+    if (typeof guardarPedido === 'function') {
+        guardarPedido(pedido).then(ok => {
             if (ok) {
                 pedido.sincronizado = true;
                 localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));

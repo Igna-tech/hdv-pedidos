@@ -229,8 +229,8 @@ async function procesarNotaCredito() {
     localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
 
     // Sincronizar con Supabase
-    if (typeof guardarPedidoFirebase === 'function') {
-        guardarPedidoFirebase(notaCredito).then(ok => {
+    if (typeof guardarPedido === 'function') {
+        guardarPedido(notaCredito).then(ok => {
             if (ok) {
                 notaCredito.sincronizado = true;
                 const p = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');

@@ -1,7 +1,6 @@
 // ============================================
 // HDV Supabase - Configuracion y Sincronizacion
-// Reemplaza firebase-config.js manteniendo
-// las mismas funciones para compatibilidad
+// Capa de datos: CRUD + Realtime + Sync
 // ============================================
 
 // Usa supabaseClient global de supabase-init.js
@@ -43,16 +42,25 @@ function actualizarIndicadorConexion(conectado) {
     } else {
         badge.innerHTML = '<span class="w-2 h-2 bg-red-500 rounded-full mr-2 animate-pulse"></span> Sin conexion';
     }
+    // Banner offline (solo en app vendedor)
+    const banner = document.getElementById('offline-banner');
+    if (banner) {
+        banner.classList.toggle('hidden', conectado && enLinea);
+    }
 }
 
-window.addEventListener('online', () => monitorearConexion());
+window.addEventListener('online', () => {
+    monitorearConexion();
+    // Auto-sync pedidos pendientes al recuperar conexion
+    setTimeout(() => sincronizarPedidosLocales(), 2000);
+});
 window.addEventListener('offline', () => actualizarIndicadorConexion(false));
 
 // ============================================
 // FUNCIONES PARA PEDIDOS
 // ============================================
 
-async function guardarPedidoFirebase(pedido) {
+async function guardarPedido(pedido) {
     try {
         const row = {
             id: pedido.id,
@@ -77,7 +85,7 @@ async function guardarPedidoFirebase(pedido) {
     }
 }
 
-async function actualizarEstadoPedidoFirebase(pedidoId, nuevoEstado) {
+async function actualizarEstadoPedido(pedidoId, nuevoEstado) {
     try {
         // Obtener pedido actual para actualizar datos completos
         const { data: rows, error: fetchError } = await supabaseClient
@@ -99,7 +107,7 @@ async function actualizarEstadoPedidoFirebase(pedidoId, nuevoEstado) {
     }
 }
 
-async function eliminarPedidoFirebase(pedidoId) {
+async function eliminarPedido(pedidoId) {
     try {
         const { error } = await supabaseClient.from('pedidos').delete().eq('id', pedidoId);
         if (error) throw error;
@@ -111,7 +119,7 @@ async function eliminarPedidoFirebase(pedidoId) {
     }
 }
 
-async function obtenerPedidosFirebase() {
+async function obtenerPedidos() {
     try {
         const { data, error } = await supabaseClient
             .from('pedidos')
@@ -177,7 +185,7 @@ async function sincronizarPedidosLocales() {
     console.log(`[Supabase] Sincronizando ${sinSincronizar.length} pedidos locales...`);
     let sincronizados = 0;
     for (const pedido of sinSincronizar) {
-        const ok = await guardarPedidoFirebase(pedido);
+        const ok = await guardarPedido(pedido);
         if (ok) { pedido.sincronizado = true; sincronizados++; }
     }
     if (sincronizados > 0) {
@@ -213,7 +221,7 @@ function _mapProductoRelacional(p) {
     };
 }
 
-async function obtenerCatalogoFirebase() {
+async function obtenerCatalogo() {
     try {
         const [catRes, cliRes, prodRes] = await Promise.all([
             supabaseClient.from('categorias').select('*'),
@@ -243,7 +251,7 @@ async function obtenerCatalogoFirebase() {
     }
 }
 
-async function guardarCatalogoFirebase(dataCatalogo) {
+async function guardarCatalogo(dataCatalogo) {
     try {
         const cats = dataCatalogo.categorias || [];
         const clis = dataCatalogo.clientes || [];
@@ -354,7 +362,7 @@ async function guardarCatalogoFirebase(dataCatalogo) {
 
 function escucharCatalogoRealtime(callback) {
     // Carga inicial
-    obtenerCatalogoFirebase().then(data => { if (data) callback(data); });
+    obtenerCatalogo().then(data => { if (data) callback(data); });
 
     // Handler comun: recargar todo el catalogo
     let reloadTimeout = null;
@@ -362,7 +370,7 @@ function escucharCatalogoRealtime(callback) {
         // Debounce: si llegan muchos cambios seguidos, solo recargamos una vez
         clearTimeout(reloadTimeout);
         reloadTimeout = setTimeout(async () => {
-            const data = await obtenerCatalogoFirebase();
+            const data = await obtenerCatalogo();
             if (data) callback(data);
         }, 500);
     };
@@ -393,7 +401,7 @@ function escucharCatalogoRealtime(callback) {
 // FUNCIONES PARA CONFIGURACION
 // ============================================
 
-async function guardarConfigFirebase(docId, datos) {
+async function guardarConfig(docId, datos) {
     try {
         const { error } = await supabaseClient.from('configuracion').upsert({
             doc_id: docId,
@@ -409,7 +417,7 @@ async function guardarConfigFirebase(docId, datos) {
     }
 }
 
-async function obtenerConfigFirebase(docId) {
+async function obtenerConfig(docId) {
     try {
         const { data, error } = await supabaseClient
             .from('configuracion').select('datos').eq('doc_id', docId).maybeSingle();
@@ -427,7 +435,7 @@ function escucharConfigRealtime(docId, localStorageKey) {
         .on('postgres_changes',
             { event: '*', schema: 'public', table: 'configuracion', filter: `doc_id=eq.${docId}` },
             async () => {
-                const datos = await obtenerConfigFirebase(docId);
+                const datos = await obtenerConfig(docId);
                 if (datos !== null) {
                     try {
                         if (typeof datos === 'string') {
@@ -446,29 +454,29 @@ function escucharConfigRealtime(docId, localStorageKey) {
 
 // --- Funciones especificas ---
 
-function guardarPagosCreditoFirebase(pagos) { return guardarConfigFirebase('pagos_credito', pagos); }
-async function obtenerPagosCreditoFirebase() { return await obtenerConfigFirebase('pagos_credito'); }
+function guardarPagosCredito(pagos) { return guardarConfig('pagos_credito', pagos); }
+async function obtenerPagosCredito() { return await obtenerConfig('pagos_credito'); }
 
-function guardarCreditosManualesFirebase(creditos) { return guardarConfigFirebase('creditos_manuales', creditos); }
-async function obtenerCreditosManualesFirebase() { return await obtenerConfigFirebase('creditos_manuales'); }
+function guardarCreditosManuales(creditos) { return guardarConfig('creditos_manuales', creditos); }
+async function obtenerCreditosManuales() { return await obtenerConfig('creditos_manuales'); }
 
-function guardarPromocionesFirebase(promos) { return guardarConfigFirebase('promociones', promos); }
-async function obtenerPromocionesFirebase() { return await obtenerConfigFirebase('promociones'); }
+function guardarPromociones(promos) { return guardarConfig('promociones', promos); }
+async function obtenerPromociones() { return await obtenerConfig('promociones'); }
 
-function guardarPlantillaWhatsAppFirebase(plantilla) { return guardarConfigFirebase('whatsapp_plantilla', plantilla); }
-async function obtenerPlantillaWhatsAppFirebase() { return await obtenerConfigFirebase('whatsapp_plantilla'); }
+function guardarPlantillaWhatsApp(plantilla) { return guardarConfig('whatsapp_plantilla', plantilla); }
+async function obtenerPlantillaWhatsApp() { return await obtenerConfig('whatsapp_plantilla'); }
 
-function guardarGastosFirebase(gastos) { return guardarConfigFirebase('gastos_vendedor', gastos); }
-async function obtenerGastosFirebase() { return await obtenerConfigFirebase('gastos_vendedor'); }
+function guardarGastos(gastos) { return guardarConfig('gastos_vendedor', gastos); }
+async function obtenerGastos() { return await obtenerConfig('gastos_vendedor'); }
 
-function guardarRendicionesFirebase(rendiciones) { return guardarConfigFirebase('rendiciones', rendiciones); }
-async function obtenerRendicionesFirebase() { return await obtenerConfigFirebase('rendiciones'); }
+function guardarRendiciones(rendiciones) { return guardarConfig('rendiciones', rendiciones); }
+async function obtenerRendiciones() { return await obtenerConfig('rendiciones'); }
 
-function guardarCuentasBancariasFirebase(cuentas) { return guardarConfigFirebase('cuentas_bancarias', cuentas); }
-async function obtenerCuentasBancariasFirebase() { return await obtenerConfigFirebase('cuentas_bancarias'); }
+function guardarCuentasBancarias(cuentas) { return guardarConfig('cuentas_bancarias', cuentas); }
+async function obtenerCuentasBancarias() { return await obtenerConfig('cuentas_bancarias'); }
 
-function guardarMetasFirebase(metas) { return guardarConfigFirebase('metas_vendedor', metas); }
-async function obtenerMetasFirebase() { return await obtenerConfigFirebase('metas_vendedor'); }
+function guardarMetas(metas) { return guardarConfig('metas_vendedor', metas); }
+async function obtenerMetas() { return await obtenerConfig('metas_vendedor'); }
 
 // ============================================
 // COMPATIBILIDAD: shim para llamadas directas db.collection()
@@ -479,7 +487,7 @@ const db = {
         doc: (docId) => ({
             set: async (data) => {
                 if (collectionName === 'configuracion') {
-                    return guardarConfigFirebase(docId, data);
+                    return guardarConfig(docId, data);
                 } else if (collectionName === 'reportes_mensuales') {
                     const { error } = await supabaseClient.from('reportes_mensuales').upsert({
                         mes: docId,
@@ -493,7 +501,7 @@ const db = {
                     const promos = JSON.parse(localStorage.getItem('hdv_promociones') || '[]');
                     const idx = promos.findIndex(p => p.id === docId);
                     if (idx >= 0) promos[idx] = data; else promos.push(data);
-                    return guardarConfigFirebase('promociones', promos);
+                    return guardarConfig('promociones', promos);
                 }
             },
             get: async () => {
@@ -530,17 +538,17 @@ async function sincronizarDatosNegocio() {
             try {
                 const datos = JSON.parse(local);
                 if (datos && (Array.isArray(datos) ? datos.length > 0 : true)) {
-                    await guardarConfigFirebase(item.doc, datos);
+                    await guardarConfig(item.doc, datos);
                 }
             } catch(e) {
-                if (local.length > 0) await guardarConfigFirebase(item.doc, local);
+                if (local.length > 0) await guardarConfig(item.doc, local);
             }
         }
     }
     console.log('[Supabase] Datos de negocio sincronizados');
 }
 
-async function cargarDatosNegocioDesdeFirebase() {
+async function cargarDatosNegocio() {
     const mapeo = [
         { key: 'hdv_pagos_credito', doc: 'pagos_credito' },
         { key: 'hdv_creditos_manuales', doc: 'creditos_manuales' },
@@ -553,7 +561,7 @@ async function cargarDatosNegocioDesdeFirebase() {
     ];
     for (const item of mapeo) {
         try {
-            const datos = await obtenerConfigFirebase(item.doc);
+            const datos = await obtenerConfig(item.doc);
             if (datos !== null) {
                 if (typeof datos === 'string') {
                     localStorage.setItem(item.key, datos);
@@ -584,7 +592,7 @@ function iniciarListenersDatosNegocio() {
 // ============================================
 monitorearConexion();
 setTimeout(() => {
-    cargarDatosNegocioDesdeFirebase();
+    cargarDatosNegocio();
     iniciarListenersDatosNegocio();
 }, 1500);
 // ============================================

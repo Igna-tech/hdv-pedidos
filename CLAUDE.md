@@ -34,9 +34,9 @@ PWA mobile-first para vendedores de calle + panel admin de escritorio.
 ├── productos.json          → Fallback estatico del catalogo (offline/primera carga)
 ├── vercel.json             → Rutas de Vercel (/admin → admin.html, etc.)
 │
-├── supabase-schema.sql     → Schema original (pedidos, catalogo JSONB legacy, configuracion, reportes)
+├── supabase-schema.sql     → Schema completo (pedidos, catalogo JSONB legacy, configuracion, reportes, RLS, funciones)
 ├── supabase-auth-setup.sql → Setup auth: tabla perfiles, trigger auto-crear perfil, RLS, RPC
-├── firebase-config.js      → CODIGO MUERTO - no se carga en ningun HTML
+├── rls-remediation.sql     → Script de remediacion de seguridad RLS (ejecutar en SQL Editor)
 └── package.json            → Solo dependencia: @supabase/supabase-js (para script de migracion)
 ```
 
@@ -57,7 +57,7 @@ supabase CDN → Chart.js → supabase-init.js → guard.js → supabase-config.
 - `producto_variantes` (id UUID PK, producto_id FK→productos CASCADE, nombre_variante, precio, costo, stock, activo)
 
 ### Tablas operativas:
-- `pedidos` (id TEXT PK, estado, fecha, datos JSONB) — estados: pedido_pendiente, entregado, cobrado_sin_factura, facturado_mock, nota_credito_mock
+- `pedidos` (id TEXT PK, estado, fecha, datos JSONB, vendedor_id UUID FK→auth.users) — estados: pedido_pendiente, entregado, cobrado_sin_factura, facturado_mock, nota_credito_mock
 - `configuracion` (doc_id TEXT PK, datos JSONB) — docs: pagos_credito, creditos_manuales, promociones, whatsapp_plantilla, gastos_vendedor, rendiciones, cuentas_bancarias, metas_vendedor
 - `reportes_mensuales` (mes TEXT PK, datos JSONB)
 - `perfiles` (id UUID PK FK→auth.users, nombre_completo, rol CHECK('admin','vendedor'), activo, creado_en, actualizado_en)
@@ -66,40 +66,42 @@ supabase CDN → Chart.js → supabase-init.js → guard.js → supabase-config.
 - `catalogo` (id TEXT PK, categorias JSONB, productos JSONB, clientes JSONB) — reemplazada por tablas relacionales
 
 ### RLS:
-- Tablas catalogo/pedidos/configuracion/reportes: acceso total para authenticated
-- Tabla perfiles: usuarios ven su propio perfil, admins ven/crean/editan todos
-- RPC `obtener_rol_usuario(user_id)` con SECURITY DEFINER para bypass RLS en guard.js
+- Tablas catalogo/reportes: lectura authenticated, escritura solo admin
+- Tabla pedidos: admin ve todo, vendedor solo sus propios pedidos (via vendedor_id)
+- Tabla configuracion: lectura/escritura authenticated, borrado solo admin
+- Tablas categorias/clientes/productos/variantes: CRUD para authenticated
+- Tabla perfiles: usuarios ven/editan su perfil (sin cambiar rol), admins ven/editan todos
+- Funciones SECURITY DEFINER: `obtener_rol_usuario()`, `es_admin()`, `obtener_mi_rol()`
+- Sin acceso para rol `anon` en ninguna tabla
 
 ### Realtime:
 - Publicadas: categorias, clientes, productos, producto_variantes, pedidos, configuracion, perfiles
 
-## Capa de compatibilidad (supabase-config.js)
-
-Las funciones mantienen nombres `*Firebase` por compatibilidad historica pero son 100% Supabase:
+## Capa de datos (supabase-config.js)
 
 ### Catalogo (tablas relacionales):
-- `obtenerCatalogoFirebase()` → SELECT paralelo a categorias + clientes + productos(con variantes JOIN). Retorna `{categorias, productos, clientes}` en formato legacy
-- `guardarCatalogoFirebase(data)` → UPSERT batch a las 3 tablas + reconcilia eliminaciones + borra/reinserta variantes
+- `obtenerCatalogo()` → SELECT paralelo a categorias + clientes + productos(con variantes JOIN). Retorna `{categorias, productos, clientes}` en formato legacy
+- `guardarCatalogo(data)` → UPSERT batch a las 3 tablas + reconcilia eliminaciones + borra/reinserta variantes
 - `escucharCatalogoRealtime(cb)` → Escucha 4 tablas con debounce 500ms
 - `_mapProductoRelacional(p)` → Convierte fila DB a formato legacy: categoria_id→categoria, producto_variantes→presentaciones (nombre_variante→tamano, precio→precio_base)
 
 ### Pedidos:
-- `guardarPedidoFirebase(pedido)` → upsert a tabla pedidos
-- `actualizarEstadoPedidoFirebase(id, estado)` → update estado + datos JSONB
-- `eliminarPedidoFirebase(id)` → delete pedido
-- `obtenerPedidosFirebase()` → select todos ordenados por fecha
+- `guardarPedido(pedido)` → upsert a tabla pedidos (incluye vendedor_id)
+- `actualizarEstadoPedido(id, estado)` → update estado + datos JSONB
+- `eliminarPedido(id)` → delete pedido
+- `obtenerPedidos()` → select todos ordenados por fecha
 - `escucharPedidosRealtime(cb)` → carga inicial + suscripcion realtime con proteccion anti-vaciado
 
 ### Configuracion (8 pares guardar/obtener):
-- `guardarConfigFirebase(docId, datos)` / `obtenerConfigFirebase(docId)` → CRUD generico
+- `guardarConfig(docId, datos)` / `obtenerConfig(docId)` → CRUD generico
 - Funciones especificas: pagos_credito, creditos_manuales, promociones, whatsapp_plantilla, gastos_vendedor, rendiciones, cuentas_bancarias, metas_vendedor
 - `escucharConfigRealtime(docId, localStorageKey)` → sync realtime a localStorage
 - `sincronizarDatosNegocio()` → push localStorage → Supabase (8 configs)
-- `cargarDatosNegocioDesdeFirebase()` → pull Supabase → localStorage (8 configs)
+- `cargarDatosNegocio()` → pull Supabase → localStorage (8 configs)
 - `iniciarListenersDatosNegocio()` → activa 8 listeners realtime
 
 ### Shim de compatibilidad:
-- `db.collection().doc().set/get()` → shim para codigo legacy que usaba Firestore API
+- `db.collection().doc().set/get()` → shim para codigo legacy menor
 
 ### Conexion:
 - `monitorearConexion()` → ping cada 30s a tabla categorias, actualiza badge verde/amarillo/rojo
@@ -126,6 +128,7 @@ clientes = [...] // filtrado: !oculto
 pedido = {
   id, fecha, cliente: { id, nombre, ... }, items: [{ productoId, nombre, presentacion, precio, cantidad, subtotal }],
   total, tipoPago: 'contado'|'credito', descuento, notas, estado,
+  vendedor_id, // UUID del vendedor que creo el pedido
   numFactura?, cdc?, facturaFecha? // solo si facturado
 }
 ```
@@ -140,6 +143,8 @@ pedido = {
 - Bottom sheet para seleccion de variantes con steppers [-] qty [+]
 - Modo matriz (grid 3 cols) para 6+ variantes (ej: talles de calzado)
 - Busqueda por nombre, filtro por categoria
+- Busqueda de clientes por nombre o RUC (input con debounce en header)
+- Mini-perfil cliente: dias desde ultimo pedido, saldo deuda, top 3 productos
 - Productos frecuentes del cliente actual
 
 **Carrito:**
@@ -176,7 +181,8 @@ pedido = {
 
 **Otros:**
 - Dark mode con persistencia
-- Service worker con deteccion de nueva version
+- Service worker con deteccion de nueva version + cache dedicado para imagenes Supabase Storage
+- Banner offline visible cuando se pierde conexion, auto-sync pedidos al reconectar
 - Confirm modal reutilizable con opcion destructiva
 - Toast notifications (success, error, warning, info)
 
@@ -274,8 +280,8 @@ pedido = {
 - Info de backup con fecha ultimo backup
 - Backup completo / solo productos / solo pedidos (JSON download)
 - Auto-backup con rotacion (max 50 snapshots)
-- Import productos/clientes desde Excel
-- Templates Excel descargables
+- Importacion masiva CSV/XLSX con SheetJS: modal de mapeo de columnas, upsert por nombre/RUC (no duplica)
+- Plantillas CSV y JSON descargables para productos y clientes
 - Forzar actualizacion (limpiar caches)
 
 ## localStorage keys
@@ -304,8 +310,8 @@ pedido = {
 
 ## Flujo de datos
 
-1. **Carga**: `obtenerCatalogoFirebase()` → 3 queries paralelas → mapeo a formato legacy → `productosData` (admin) o variables globales (vendedor) + cache en localStorage
-2. **Edicion (admin)**: Modifica `productosData` en memoria → `registrarCambio()` (auto-backup al primer cambio) → usuario clickea "Guardar y Sincronizar" → `guardarTodosCambios()` → localStorage + `guardarCatalogoFirebase()` (upsert batch relacional)
+1. **Carga**: `obtenerCatalogo()` → 3 queries paralelas → mapeo a formato legacy → `productosData` (admin) o variables globales (vendedor) + cache en localStorage
+2. **Edicion (admin)**: Modifica `productosData` en memoria → `registrarCambio()` (auto-backup al primer cambio) → usuario clickea "Guardar y Sincronizar" → `guardarTodosCambios()` → localStorage + `guardarCatalogo()` (upsert batch relacional)
 3. **Realtime vendedor**: `escucharCatalogoRealtime()` → 4 canales (categorias, clientes, productos, variantes) con debounce 500ms → actualiza UI + cache localStorage
 4. **Realtime pedidos**: `escucharPedidosRealtime()` → notifica nuevos pedidos al admin en vivo
 5. **Sync configuracion**: 8 listeners realtime (pagos, creditos, promos, etc.) → sync bidireccional localStorage ↔ Supabase
@@ -341,8 +347,7 @@ pedido = {
 
 - **NO bloquear por stock en la app del vendedor**. El vendedor puede cargar cualquier cantidad. El flujo es: levantar pedido → comprar mercaderia → entregar.
 - Service worker: incrementar `VERSION` en cada deploy para forzar actualizacion del cache.
-- Todas las funciones de datos usan nombres `*Firebase` por compatibilidad historica — internamente son 100% Supabase.
-- `firebase-config.js` es codigo muerto, no se carga en ningun HTML.
+- `firebase-config.js` fue eliminado — el proyecto es 100% Supabase.
 - `productos.json` es fallback estatico, no es la fuente de verdad.
 - Al guardar catalogo, se reconcilian eliminaciones (compara IDs en DB vs en memoria, borra los que faltan).
 - Las variantes se borran y reinsertan completas en cada guardado (no update individual).

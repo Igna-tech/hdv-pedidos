@@ -198,12 +198,12 @@ async function guardarTodosCambios() {
     }
 
     // PASO 2: Sincronizar con Supabase
-    if (typeof guardarCatalogoFirebase === 'function') {
+    if (typeof guardarCatalogo === 'function') {
         try {
-            console.log('[Admin] Llamando guardarCatalogoFirebase...');
+            console.log('[Admin] Llamando guardarCatalogo...');
             const dataParaSync = { categorias: productosData.categorias, productos: productosData.productos, clientes: productosData.clientes };
-            const ok = await guardarCatalogoFirebase(dataParaSync);
-            console.log('[Admin] Resultado guardarCatalogoFirebase:', ok);
+            const ok = await guardarCatalogo(dataParaSync);
+            console.log('[Admin] Resultado guardarCatalogo:', ok);
             if (ok) {
                 mostrarToast('Cambios guardados y sincronizados. Los vendedores ya ven los cambios.', 'success');
             } else {
@@ -214,7 +214,7 @@ async function guardarTodosCambios() {
             mostrarToast('Error de sincronizacion: ' + err.message, 'error');
         }
     } else {
-        console.error('[Admin] guardarCatalogoFirebase no esta definida. supabase-config.js puede tener un error de carga.');
+        console.error('[Admin] guardarCatalogo no esta definida. supabase-config.js puede tener un error de carga.');
         mostrarToast('Error: modulo de sincronizacion no cargado. Cambios guardados localmente.', 'error');
     }
 }
@@ -237,12 +237,12 @@ window.addEventListener('beforeunload', (e) => {
 // ============================================
 // INICIALIZACION
 // ============================================
-let unsubscribePedidos = null; // Listener de Firebase
+let unsubscribePedidos = null; // Listener de Supabase
 
 document.addEventListener('DOMContentLoaded', async () => {
     await cargarDatosIniciales();
 
-    // Intentar escuchar pedidos en tiempo real desde Firebase
+    // Intentar escuchar pedidos en tiempo real desde Supabase
     if (typeof escucharPedidosRealtime === 'function') {
         unsubscribePedidos = escucharPedidosRealtime((pedidos, cambios) => {
             todosLosPedidos = pedidos;
@@ -261,9 +261,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
             console.log(`[Admin] Pedidos actualizados en tiempo real: ${pedidos.length}`);
         });
-        console.log('[Admin] Escuchando pedidos en tiempo real desde Firebase');
+        console.log('[Admin] Escuchando pedidos en tiempo real desde Supabase');
     } else {
-        // Fallback sin Firebase
+        // Fallback sin Supabase
         cargarPedidos();
         setInterval(cargarPedidos, 30000);
     }
@@ -290,9 +290,9 @@ async function cargarDatosIniciales() {
         let data = null;
 
         // PRIORIDAD 1: Supabase (datos mas frescos, sincronizados)
-        if (typeof obtenerCatalogoFirebase === 'function') {
+        if (typeof obtenerCatalogo === 'function') {
             try {
-                data = await obtenerCatalogoFirebase();
+                data = await obtenerCatalogo();
                 if (data && data.productos) {
                     console.log('[Admin] Catalogo cargado desde Supabase (' + data.productos.length + ' productos)');
                 } else {
@@ -426,9 +426,9 @@ function marcarEntregado(id) {
     if (p) {
         p.estado = 'entregado';
         localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
-        // Sincronizar con Firebase
-        if (typeof actualizarEstadoPedidoFirebase === 'function') {
-            actualizarEstadoPedidoFirebase(id, 'entregado');
+        // Sincronizar con Supabase
+        if (typeof actualizarEstadoPedido === 'function') {
+            actualizarEstadoPedido(id, 'entregado');
         }
         if (!unsubscribePedidos) cargarPedidos(); // Solo recargar manual si no hay listener
     }
@@ -440,8 +440,8 @@ function marcarPendiente(id) {
     if (p) {
         p.estado = 'pendiente';
         localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
-        if (typeof actualizarEstadoPedidoFirebase === 'function') {
-            actualizarEstadoPedidoFirebase(id, 'pendiente');
+        if (typeof actualizarEstadoPedido === 'function') {
+            actualizarEstadoPedido(id, 'pendiente');
         }
         if (!unsubscribePedidos) cargarPedidos();
     }
@@ -452,9 +452,9 @@ async function eliminarPedido(id) {
     let pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
     pedidos = pedidos.filter(p => p.id !== id);
     localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
-    // Eliminar de Firebase
-    if (typeof eliminarPedidoFirebase === 'function') {
-        eliminarPedidoFirebase(id);
+    // Eliminar de Supabase
+    if (typeof eliminarPedido === 'function') {
+        eliminarPedido(id);
     }
     if (!unsubscribePedidos) cargarPedidos();
 }
@@ -2204,82 +2204,244 @@ function descargarAutoBackupAdmin(idx) {
     }
 }
 
-function importarProductosExcel(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        try {
-            const lines = e.target.result.split('\n').filter(l => l.trim());
-            if (lines.length < 2) { mostrarToast('Archivo vacio o sin datos', 'error'); return; }
-            
-            let agregados = 0;
-            const ultimoId = Math.max(...productosData.productos.map(p => parseInt(p.id.replace('P', '')) || 0), 0);
-            
-            lines.slice(1).forEach((line, i) => {
-                const cols = line.split(/[,;|\t]/).map(c => c.trim().replace(/^"|"$/g, ''));
-                if (cols.length < 2) return;
-                const [nombre, categoria, subcategoria, presentacion, precio] = cols;
-                if (!nombre) return;
-                
-                const nuevoId = `P${String(ultimoId + agregados + 1).padStart(3, '0')}`;
-                productosData.productos.push({
-                    id: nuevoId, nombre, categoria: categoria || 'cuidado_personal',
-                    subcategoria: subcategoria || 'General',
-                    presentaciones: [{ tamano: presentacion || 'Unidad', precio_base: parseInt(precio) || 0 }]
-                });
-                agregados++;
-            });
-            
-            if (agregados > 0) {
-                productosFiltrados = [...productosData.productos];
-                for (let i = 0; i < agregados; i++) registrarCambio();
-                mostrarProductosGestion();
-                mostrarToast(`${agregados} productos importados. Guarda para aplicar.`, 'success');
-            }
-        } catch (err) { mostrarToast('Error al importar: ' + err.message, 'error'); }
-        event.target.value = '';
-    };
-    reader.readAsText(file);
+// ============================================
+// IMPORTACION MASIVA CSV/XLSX (SheetJS)
+// ============================================
+
+let _importData = null; // datos parseados pendientes de confirmar
+let _importType = null; // 'productos' | 'clientes'
+
+function _parsearArchivo(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                if (typeof XLSX !== 'undefined' && /\.(xlsx|xls)$/i.test(file.name)) {
+                    const wb = XLSX.read(e.target.result, { type: 'array' });
+                    const ws = wb.Sheets[wb.SheetNames[0]];
+                    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+                    resolve(rows);
+                } else {
+                    // CSV/TSV fallback
+                    const lines = e.target.result.split('\n').filter(l => l.trim());
+                    const rows = lines.map(l => l.split(/[,;\t]/).map(c => c.trim().replace(/^"|"$/g, '')));
+                    resolve(rows);
+                }
+            } catch (err) { reject(err); }
+        };
+        if (/\.(xlsx|xls)$/i.test(file.name)) {
+            reader.readAsArrayBuffer(file);
+        } else {
+            reader.readAsText(file);
+        }
+    });
 }
 
-function importarClientesExcel(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        try {
-            const lines = e.target.result.split('\n').filter(l => l.trim());
-            if (lines.length < 2) { mostrarToast('Archivo vacio', 'error'); return; }
-            
-            let agregados = 0;
-            const ultimoId = Math.max(...productosData.clientes.map(c => parseInt(c.id.replace('C', '')) || 0), 0);
-            
-            lines.slice(1).forEach((line, i) => {
-                const cols = line.split(/[,;|\t]/).map(c => c.trim().replace(/^"|"$/g, ''));
-                if (cols.length < 1) return;
-                const [razon, ruc, telefono, direccion, encargado] = cols;
-                if (!razon) return;
-                
-                const nuevoId = `C${String(ultimoId + agregados + 1).padStart(3, '0')}`;
-                productosData.clientes.push({
-                    id: nuevoId, nombre: razon, razon_social: razon, ruc: ruc || '',
-                    telefono: telefono || '', direccion: direccion || '', zona: direccion || '',
-                    encargado: encargado || '', tipo: 'mayorista_estandar', precios_personalizados: {}
+function _mostrarModalMapeo(headers, rowCount, tipo) {
+    _importType = tipo;
+    const campos = tipo === 'productos'
+        ? [
+            { key: 'nombre', label: 'Nombre *', required: true },
+            { key: 'categoria', label: 'Categoria' },
+            { key: 'subcategoria', label: 'Subcategoria' },
+            { key: 'presentacion', label: 'Presentacion/Variante' },
+            { key: 'precio', label: 'Precio' },
+            { key: 'costo', label: 'Costo' },
+            { key: 'stock', label: 'Stock' }
+          ]
+        : [
+            { key: 'nombre', label: 'Nombre/Razon Social *', required: true },
+            { key: 'ruc', label: 'RUC' },
+            { key: 'telefono', label: 'Telefono' },
+            { key: 'direccion', label: 'Direccion' },
+            { key: 'zona', label: 'Zona' },
+            { key: 'encargado', label: 'Encargado' }
+          ];
+
+    const contenido = document.getElementById('mapeoContenido');
+    document.getElementById('mapeoTitulo').textContent = tipo === 'productos' ? 'Mapear Columnas — Productos' : 'Mapear Columnas — Clientes';
+    document.getElementById('mapeoPreview').textContent = `${rowCount} filas detectadas`;
+
+    contenido.innerHTML = campos.map(campo => `
+        <div class="flex items-center gap-3">
+            <label class="text-sm font-medium text-gray-700 w-40 shrink-0">${campo.label}</label>
+            <select id="map_${campo.key}" class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                <option value="-1">-- No importar --</option>
+                ${headers.map((h, i) => `<option value="${i}" ${h.toString().toLowerCase().includes(campo.key) || h.toString().toLowerCase().includes(campo.label.replace(' *', '').toLowerCase()) ? 'selected' : ''}>${h || 'Col ' + (i + 1)}</option>`).join('')}
+            </select>
+        </div>
+    `).join('');
+
+    const modal = document.getElementById('modalMapeoImport');
+    modal.style.display = 'flex';
+    modal.classList.remove('hidden');
+}
+
+function cerrarModalMapeo() {
+    const modal = document.getElementById('modalMapeoImport');
+    modal.style.display = 'none';
+    modal.classList.add('hidden');
+    _importData = null;
+    _importType = null;
+}
+
+function confirmarImportacion() {
+    if (!_importData || !_importType) return;
+    const rows = _importData;
+    const getCol = (key) => parseInt(document.getElementById('map_' + key)?.value ?? -1);
+
+    if (_importType === 'productos') {
+        const colNombre = getCol('nombre');
+        if (colNombre < 0) { mostrarToast('Debes mapear al menos el campo Nombre', 'error'); return; }
+
+        let agregados = 0, actualizados = 0;
+        const ultimoId = Math.max(...productosData.productos.map(p => parseInt(p.id.replace('P', '')) || 0), 0);
+        const colCat = getCol('categoria'), colSub = getCol('subcategoria');
+        const colPres = getCol('presentacion'), colPrecio = getCol('precio');
+        const colCosto = getCol('costo'), colStock = getCol('stock');
+
+        rows.slice(1).forEach(cols => {
+            const nombre = String(cols[colNombre] || '').trim();
+            if (!nombre) return;
+
+            // Upsert: buscar por nombre exacto
+            const existente = productosData.productos.find(p => p.nombre.toLowerCase() === nombre.toLowerCase());
+            const pres = {
+                tamano: colPres >= 0 ? String(cols[colPres] || 'Unidad') : 'Unidad',
+                precio_base: colPrecio >= 0 ? parseInt(cols[colPrecio]) || 0 : 0,
+                costo: colCosto >= 0 ? parseInt(cols[colCosto]) || 0 : 0,
+                stock: colStock >= 0 ? parseInt(cols[colStock]) || 0 : 0,
+                activo: true
+            };
+
+            if (existente) {
+                // Actualizar: agregar variante si no existe, o actualizar precio/stock
+                const presExist = existente.presentaciones.find(p => p.tamano === pres.tamano);
+                if (presExist) {
+                    if (colPrecio >= 0) presExist.precio_base = pres.precio_base;
+                    if (colCosto >= 0) presExist.costo = pres.costo;
+                    if (colStock >= 0) presExist.stock = pres.stock;
+                } else {
+                    existente.presentaciones.push(pres);
+                }
+                actualizados++;
+            } else {
+                const nuevoId = `P${String(ultimoId + agregados + 1).padStart(3, '0')}`;
+                productosData.productos.push({
+                    id: nuevoId, nombre,
+                    categoria: colCat >= 0 ? String(cols[colCat] || '') : '',
+                    subcategoria: colSub >= 0 ? String(cols[colSub] || 'General') : 'General',
+                    estado: 'disponible', oculto: false, tipo_impuesto: 'iva10',
+                    presentaciones: [pres]
                 });
                 agregados++;
-            });
-            
-            if (agregados > 0) {
-                clientesFiltrados = [...productosData.clientes];
-                for (let i = 0; i < agregados; i++) registrarCambio();
-                mostrarClientesGestion();
-                mostrarToast(`${agregados} clientes importados. Guarda para aplicar.`, 'success');
             }
-        } catch (err) { mostrarToast('Error al importar: ' + err.message, 'error'); }
-        event.target.value = '';
-    };
-    reader.readAsText(file);
+        });
+
+        if (agregados > 0 || actualizados > 0) {
+            productosFiltrados = [...productosData.productos];
+            registrarCambio();
+            mostrarProductosGestion();
+            mostrarToast(`${agregados} nuevos, ${actualizados} actualizados. Guarda para aplicar.`, 'success');
+        } else {
+            mostrarToast('No se encontraron datos validos', 'warning');
+        }
+    } else {
+        const colNombre = getCol('nombre');
+        if (colNombre < 0) { mostrarToast('Debes mapear al menos el campo Nombre', 'error'); return; }
+
+        let agregados = 0, actualizados = 0;
+        const ultimoId = Math.max(...productosData.clientes.map(c => parseInt(c.id.replace('C', '')) || 0), 0);
+        const colRuc = getCol('ruc'), colTel = getCol('telefono');
+        const colDir = getCol('direccion'), colZona = getCol('zona'), colEnc = getCol('encargado');
+
+        rows.slice(1).forEach(cols => {
+            const nombre = String(cols[colNombre] || '').trim();
+            if (!nombre) return;
+
+            // Upsert: buscar por RUC primero, luego por nombre
+            const ruc = colRuc >= 0 ? String(cols[colRuc] || '').trim() : '';
+            const existente = ruc
+                ? productosData.clientes.find(c => c.ruc && c.ruc === ruc)
+                : productosData.clientes.find(c => (c.razon_social || c.nombre || '').toLowerCase() === nombre.toLowerCase());
+
+            if (existente) {
+                if (colTel >= 0 && cols[colTel]) existente.telefono = String(cols[colTel]);
+                if (colDir >= 0 && cols[colDir]) existente.direccion = String(cols[colDir]);
+                if (colZona >= 0 && cols[colZona]) existente.zona = String(cols[colZona]);
+                if (colEnc >= 0 && cols[colEnc]) existente.encargado = String(cols[colEnc]);
+                actualizados++;
+            } else {
+                const nuevoId = `C${String(ultimoId + agregados + 1).padStart(3, '0')}`;
+                productosData.clientes.push({
+                    id: nuevoId, nombre, razon_social: nombre, ruc,
+                    telefono: colTel >= 0 ? String(cols[colTel] || '') : '',
+                    direccion: colDir >= 0 ? String(cols[colDir] || '') : '',
+                    zona: colZona >= 0 ? String(cols[colZona] || '') : '',
+                    encargado: colEnc >= 0 ? String(cols[colEnc] || '') : '',
+                    tipo: 'minorista', oculto: false, precios_personalizados: {}
+                });
+                agregados++;
+            }
+        });
+
+        if (agregados > 0 || actualizados > 0) {
+            clientesFiltrados = [...productosData.clientes];
+            registrarCambio();
+            mostrarClientesGestion();
+            mostrarToast(`${agregados} nuevos, ${actualizados} actualizados. Guarda para aplicar.`, 'success');
+        } else {
+            mostrarToast('No se encontraron datos validos', 'warning');
+        }
+    }
+
+    cerrarModalMapeo();
+}
+
+async function importarProductosExcel(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    try {
+        const rows = await _parsearArchivo(file);
+        if (rows.length < 2) { mostrarToast('Archivo vacio o sin datos', 'error'); return; }
+        _importData = rows;
+        crearAutoBackupAdmin('Pre-importacion productos');
+        _mostrarModalMapeo(rows[0], rows.length - 1, 'productos');
+    } catch (err) { mostrarToast('Error al leer archivo: ' + err.message, 'error'); }
+    event.target.value = '';
+}
+
+async function importarClientesExcel(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    try {
+        const rows = await _parsearArchivo(file);
+        if (rows.length < 2) { mostrarToast('Archivo vacio o sin datos', 'error'); return; }
+        _importData = rows;
+        crearAutoBackupAdmin('Pre-importacion clientes');
+        _mostrarModalMapeo(rows[0], rows.length - 1, 'clientes');
+    } catch (err) { mostrarToast('Error al leer archivo: ' + err.message, 'error'); }
+    event.target.value = '';
+}
+
+function descargarPlantillaProductosCSV() {
+    const header = 'nombre,categoria,subcategoria,presentacion,precio,costo,stock';
+    const ejemplo = 'Shampoo Sedal,cuidado_personal,Cabello,500ml,15000,10000,50\nShampoo Sedal,cuidado_personal,Cabello,1L,25000,18000,30';
+    const bom = '\uFEFF';
+    const blob = new Blob([bom + header + '\n' + ejemplo], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'plantilla_productos.csv'; a.click();
+    URL.revokeObjectURL(url);
+}
+
+function descargarPlantillaClientesCSV() {
+    const header = 'nombre,ruc,telefono,direccion,zona,encargado';
+    const ejemplo = 'Distribuidora Lopez,80012345-6,0981234567,Av. Mariscal Lopez 1234,Centro,Juan Lopez';
+    const bom = '\uFEFF';
+    const blob = new Blob([bom + header + '\n' + ejemplo], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'plantilla_clientes.csv'; a.click();
+    URL.revokeObjectURL(url);
 }
 
 function descargarPlantillaProductos() {
@@ -2502,9 +2664,9 @@ function guardarEdicionPedido() {
         pedidos[idx].fechaEdicion = new Date().toISOString();
         localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
         
-        // Sync with Firebase
-        if (typeof guardarPedidoFirebase === 'function') {
-            guardarPedidoFirebase(pedidos[idx]);
+        // Sync con Supabase
+        if (typeof guardarPedido === 'function') {
+            guardarPedido(pedidos[idx]);
         }
     }
     
@@ -3098,7 +3260,7 @@ function exportarResumenMensualPDF() {
     doc.save(`hdv_reporte_${mesStr}.pdf`);
 }
 
-async function guardarResumenMensualFirebase() {
+async function guardarResumenMensual() {
     const mesStr = document.getElementById('dashMesSelect')?.value;
     if (!mesStr) return;
     const [anio, mes] = mesStr.split('-').map(Number);
@@ -3306,8 +3468,8 @@ function registrarPagoCredito(pedidoId) {
     pagos.push(pago);
     localStorage.setItem('hdv_pagos_credito', JSON.stringify(pagos));
 
-    if (typeof guardarPagosCreditoFirebase === 'function') {
-        guardarPagosCreditoFirebase(pagos).catch(e => console.error(e));
+    if (typeof guardarPagosCredito === 'function') {
+        guardarPagosCredito(pagos).catch(e => console.error(e));
     }
 
     if (saldo - monto <= 0) {
@@ -3333,8 +3495,8 @@ function registrarPagoManual(creditoId) {
     credito.pagos.push({ monto, fecha: new Date().toISOString(), nota });
     if (saldo - monto <= 0) credito.pagado = true;
     localStorage.setItem('hdv_creditos_manuales', JSON.stringify(creditos));
-    if (typeof guardarCreditosManualesFirebase === 'function') {
-        guardarCreditosManualesFirebase(creditos).catch(e => console.error(e));
+    if (typeof guardarCreditosManuales === 'function') {
+        guardarCreditosManuales(creditos).catch(e => console.error(e));
     }
     mostrarToast(`Pago de Gs. ${monto.toLocaleString()} registrado`, 'success');
     cargarCreditos();
@@ -3346,7 +3508,7 @@ function marcarPagado(id) {
     if (p) {
         p.estado = 'pagado';
         localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
-        if (typeof actualizarEstadoPedidoFirebase === 'function') actualizarEstadoPedidoFirebase(id, 'pagado');
+        if (typeof actualizarEstadoPedido === 'function') actualizarEstadoPedido(id, 'pagado');
     }
     cargarCreditos();
 }
@@ -3420,9 +3582,9 @@ function editarMensajeRecordatorio() {
     const nueva = prompt('Editar mensaje de recordatorio WhatsApp:\nPlaceholders: {cliente}, {monto}, {saldo}, {dias}, {fecha}', plantilla);
     if (nueva) {
         localStorage.setItem('hdv_whatsapp_mensaje_credito', nueva);
-        // Sincronizar con Firebase
-        if (typeof guardarPlantillaWhatsAppFirebase === 'function') {
-            guardarPlantillaWhatsAppFirebase(nueva).catch(e => console.error(e));
+        // Sincronizar con Supabase
+        if (typeof guardarPlantillaWhatsApp === 'function') {
+            guardarPlantillaWhatsApp(nueva).catch(e => console.error(e));
         }
         mostrarToast('Mensaje actualizado', 'success');
     }
@@ -3451,8 +3613,8 @@ function agregarCreditoManual() {
     creditos.push(nuevo);
     localStorage.setItem('hdv_creditos_manuales', JSON.stringify(creditos));
 
-    if (typeof guardarCreditosManualesFirebase === 'function') {
-        guardarCreditosManualesFirebase(creditos).catch(e => console.error(e));
+    if (typeof guardarCreditosManuales === 'function') {
+        guardarCreditosManuales(creditos).catch(e => console.error(e));
     }
     mostrarToast('Credito manual agregado', 'success');
     cargarCreditos();
@@ -3471,7 +3633,7 @@ function editarCreditoManualItem(creditoId) {
     const nuevaDesc = prompt('Nueva descripcion (dejar en blanco para mantener):', c.descripcion || '');
     if (nuevaDesc !== null && nuevaDesc.trim() !== '') c.descripcion = nuevaDesc;
     localStorage.setItem('hdv_creditos_manuales', JSON.stringify(creditos));
-    if (typeof guardarCreditosManualesFirebase === 'function') guardarCreditosManualesFirebase(creditos).catch(e => console.error(e));
+    if (typeof guardarCreditosManuales === 'function') guardarCreditosManuales(creditos).catch(e => console.error(e));
     cargarCreditos();
 }
 
@@ -3482,7 +3644,7 @@ async function eliminarCreditoManualItem(creditoId) {
     if (!await mostrarConfirmModal(`¿Eliminar credito manual de ${c.clienteNombre} (Gs. ${(c.monto || 0).toLocaleString()})?\nEsta accion es irreversible.`, { destructivo: true, textoConfirmar: 'Eliminar' })) return;
     const nuevos = creditos.filter(x => x.id !== creditoId);
     localStorage.setItem('hdv_creditos_manuales', JSON.stringify(nuevos));
-    if (typeof guardarCreditosManualesFirebase === 'function') guardarCreditosManualesFirebase(nuevos).catch(e => console.error(e));
+    if (typeof guardarCreditosManuales === 'function') guardarCreditosManuales(nuevos).catch(e => console.error(e));
     cargarCreditos();
 }
 
@@ -3621,9 +3783,9 @@ function cargarPromocionesDesdeStorage() {
 
 function guardarPromocionesEnStorage(promos) {
     localStorage.setItem('hdv_promociones', JSON.stringify(promos));
-    // Sincronizar con Firebase
-    if (typeof guardarPromocionesFirebase === 'function') {
-        guardarPromocionesFirebase(promos).catch(e => console.error(e));
+    // Sincronizar con Supabase
+    if (typeof guardarPromociones === 'function') {
+        guardarPromociones(promos).catch(e => console.error(e));
     }
 }
 
@@ -3911,7 +4073,7 @@ async function eliminarGastoAdmin(gastoId) {
     let gastos = JSON.parse(localStorage.getItem('hdv_gastos') || '[]');
     gastos = gastos.filter(g => g.id !== gastoId);
     localStorage.setItem('hdv_gastos', JSON.stringify(gastos));
-    if (typeof guardarGastosFirebase === 'function') guardarGastosFirebase(gastos).catch(e => console.error(e));
+    if (typeof guardarGastos === 'function') guardarGastos(gastos).catch(e => console.error(e));
     cargarRendiciones();
 }
 
@@ -3987,7 +4149,7 @@ function guardarCuentaBancaria() {
     const idx = cuentas.findIndex(c => c.id === id);
     if (idx >= 0) cuentas[idx] = cuenta; else cuentas.push(cuenta);
     localStorage.setItem('hdv_cuentas_bancarias', JSON.stringify(cuentas));
-    if (typeof guardarCuentasBancariasFirebase === 'function') guardarCuentasBancariasFirebase(cuentas).catch(e => console.error(e));
+    if (typeof guardarCuentasBancarias === 'function') guardarCuentasBancarias(cuentas).catch(e => console.error(e));
     cerrarModalCuentaBancaria();
     cargarCuentasBancariasAdmin();
     mostrarToast('Cuenta bancaria guardada', 'success');
@@ -3998,7 +4160,7 @@ async function eliminarCuentaBancaria(id) {
     let cuentas = JSON.parse(localStorage.getItem('hdv_cuentas_bancarias') || '[]');
     cuentas = cuentas.filter(c => c.id !== id);
     localStorage.setItem('hdv_cuentas_bancarias', JSON.stringify(cuentas));
-    if (typeof guardarCuentasBancariasFirebase === 'function') guardarCuentasBancariasFirebase(cuentas).catch(e => console.error(e));
+    if (typeof guardarCuentasBancarias === 'function') guardarCuentasBancarias(cuentas).catch(e => console.error(e));
     cargarCuentasBancariasAdmin();
 }
 
@@ -4113,7 +4275,7 @@ function guardarMeta() {
     const idx = metas.findIndex(m => m.id === id);
     if (idx >= 0) metas[idx] = meta; else metas.push(meta);
     localStorage.setItem('hdv_metas', JSON.stringify(metas));
-    if (typeof guardarMetasFirebase === 'function') guardarMetasFirebase(metas).catch(e => console.error(e));
+    if (typeof guardarMetas === 'function') guardarMetas(metas).catch(e => console.error(e));
     cerrarModalMeta();
     cargarMetas();
     mostrarToast('Meta guardada', 'success');
@@ -4124,7 +4286,7 @@ async function eliminarMeta(id) {
     let metas = JSON.parse(localStorage.getItem('hdv_metas') || '[]');
     metas = metas.filter(m => m.id !== id);
     localStorage.setItem('hdv_metas', JSON.stringify(metas));
-    if (typeof guardarMetasFirebase === 'function') guardarMetasFirebase(metas).catch(e => console.error(e));
+    if (typeof guardarMetas === 'function') guardarMetas(metas).catch(e => console.error(e));
     cargarMetas();
 }
 

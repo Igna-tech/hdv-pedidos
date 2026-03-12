@@ -1,4 +1,4 @@
-const VERSION = '15.0';
+const VERSION = '16.0';
 const CACHE_NAME = `hdv-pedidos-v${VERSION}`;
 
 const urlsToCache = [
@@ -67,6 +67,11 @@ self.addEventListener('activate', event => {
     return self.clients.claim();
 });
 
+// Imagenes de productos en Supabase Storage (cache-first, larga duracion)
+function esImagenProducto(url) {
+    return url.includes('supabase.co/storage/v1/object/public/productos_img');
+}
+
 // Determinar si un request debe usar network-first
 function esNetworkFirst(url) {
     return networkFirstFiles.some(file => url.includes(file));
@@ -74,6 +79,24 @@ function esNetworkFirst(url) {
 
 self.addEventListener('fetch', event => {
     const requestUrl = event.request.url;
+
+    // IMAGENES DE PRODUCTOS: cache-first con cache dedicado (no se purga con VERSION)
+    if (esImagenProducto(requestUrl)) {
+        event.respondWith(
+            caches.open('hdv-imagenes').then(cache => {
+                return cache.match(event.request).then(cached => {
+                    if (cached) return cached;
+                    return fetch(event.request).then(response => {
+                        if (response && response.status === 200) {
+                            cache.put(event.request, response.clone());
+                        }
+                        return response;
+                    }).catch(() => new Response('', { status: 404 }));
+                });
+            })
+        );
+        return;
+    }
 
     if (esNetworkFirst(requestUrl)) {
         // NETWORK-FIRST: Intenta red primero, cache como fallback offline

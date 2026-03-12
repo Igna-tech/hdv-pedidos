@@ -1,4 +1,4 @@
-const VERSION = '7.9';
+const VERSION = '8.0';
 const CACHE_NAME = `hdv-pedidos-v${VERSION}`;
 
 const urlsToCache = [
@@ -14,6 +14,7 @@ const urlsToCache = [
     './admin.js',
     './admin-ventas.js',
     './admin-devoluciones.js',
+    './admin-contabilidad.js',
     './supabase-config.js',
     './productos.json',
     './manifest.json',
@@ -31,6 +32,7 @@ const networkFirstFiles = [
     'admin.js',
     'admin-ventas.js',
     'admin-devoluciones.js',
+    'admin-contabilidad.js',
     'login.js',
     'guard.js',
     'supabase-init.js',

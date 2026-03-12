@@ -127,7 +127,8 @@ function cambiarSeccion(seccionId) {
     
     const titulos = {
         'dashboard': 'Dashboard', 'pedidos': 'Pedidos Entrantes', 'ventas': 'Ventas',
-        'devoluciones': 'Devoluciones (NC)', 'creditos': 'Control de Creditos',
+        'devoluciones': 'Devoluciones (NC)', 'cierre': 'Cierre Mensual',
+        'creditos': 'Control de Creditos',
         'reportes': 'Analisis y Reportes', 'stock': 'Inventario',
         'productos': 'Catalogo de Productos', 'clientes': 'Base de Datos de Clientes',
         'promociones': 'Motor de Promociones',
@@ -155,6 +156,7 @@ function cambiarSeccion(seccionId) {
     if (seccionId === 'metas') cargarMetas();
     if (seccionId === 'ventas' && typeof cargarVentas === 'function') cargarVentas();
     if (seccionId === 'devoluciones' && typeof cargarHistorialNC === 'function') cargarHistorialNC();
+    if (seccionId === 'cierre' && typeof inicializarCierreMensual === 'function') inicializarCierreMensual();
     if (seccionId === 'inactivos') cargarClientesInactivos();
 
     if (typeof lucide !== 'undefined') lucide.createIcons();

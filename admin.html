@@ -13,6 +13,7 @@
     <!-- Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     
     <style>
         :root {
@@ -350,6 +351,11 @@
             </button>
             <button onclick="cambiarSeccion('inactivos')" class="nav-item w-full flex items-center text-sm">
                 <i data-lucide="alert-triangle" class="w-4 h-4 mr-3 text-gray-400"></i> Clientes en Riesgo
+            </button>
+
+            <div class="px-3 mt-5 mb-2 text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Contabilidad</div>
+            <button onclick="cambiarSeccion('cierre')" class="nav-item w-full flex items-center text-sm">
+                <i data-lucide="calculator" class="w-4 h-4 mr-3 text-gray-400"></i> Cierre Mensual
             </button>
 
             <div class="px-3 mt-5 mb-2 text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Opciones</div>
@@ -1166,6 +1172,121 @@
                 </div>
             </section>
 
+            <!-- CIERRE MENSUAL -->
+            <section id="seccion-cierre" class="tab-content space-y-6">
+                <div class="max-w-4xl space-y-6">
+                    <!-- Selector de periodo -->
+                    <div class="saas-card p-6">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4">Periodo Contable</h3>
+                        <div class="flex flex-wrap gap-4 items-end">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 mb-1">MES</label>
+                                <select id="cierreMes" class="border border-gray-300 rounded-lg px-4 py-2.5 text-sm outline-none font-medium">
+                                    <option value="1">Enero</option><option value="2">Febrero</option>
+                                    <option value="3">Marzo</option><option value="4">Abril</option>
+                                    <option value="5">Mayo</option><option value="6">Junio</option>
+                                    <option value="7">Julio</option><option value="8">Agosto</option>
+                                    <option value="9">Septiembre</option><option value="10">Octubre</option>
+                                    <option value="11">Noviembre</option><option value="12">Diciembre</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 mb-1">AÑO</label>
+                                <select id="cierreAnio" class="border border-gray-300 rounded-lg px-4 py-2.5 text-sm outline-none font-medium"></select>
+                            </div>
+                            <button onclick="previsualizarCierre()" class="bg-gray-800 text-white px-6 py-2.5 rounded-lg text-sm font-bold hover:bg-gray-700 inline-flex items-center gap-2">
+                                <i data-lucide="eye" class="w-4 h-4"></i> Previsualizar
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Resumen del periodo -->
+                    <div id="cierreResumen" class="hidden">
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                            <div class="saas-card p-5">
+                                <p class="text-xs text-gray-500 font-medium">Facturas Emitidas</p>
+                                <p class="text-2xl font-bold mt-1 text-emerald-700" id="cierreFacturas">0</p>
+                            </div>
+                            <div class="saas-card p-5">
+                                <p class="text-xs text-gray-500 font-medium">Notas de Credito</p>
+                                <p class="text-2xl font-bold mt-1 text-red-600" id="cierreNCs">0</p>
+                            </div>
+                            <div class="saas-card p-5">
+                                <p class="text-xs text-gray-500 font-medium">Total Bruto</p>
+                                <p class="text-2xl font-bold mt-1 text-gray-900" id="cierreTotalBruto">Gs. 0</p>
+                            </div>
+                            <div class="saas-card p-5">
+                                <p class="text-xs text-gray-500 font-medium">Total Neto (- NC)</p>
+                                <p class="text-2xl font-bold mt-1 text-blue-700" id="cierreTotalNeto">Gs. 0</p>
+                            </div>
+                        </div>
+
+                        <!-- Tarjetas de exportacion -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- Libro RG90 -->
+                            <div class="saas-card p-6 border-t-4 border-t-blue-500">
+                                <div class="flex items-center gap-3 mb-3">
+                                    <div class="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+                                        <i data-lucide="table" class="w-5 h-5 text-blue-600"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-bold text-gray-800">Libro RG90</h4>
+                                        <p class="text-xs text-gray-500">Registro de ventas para la SET</p>
+                                    </div>
+                                </div>
+                                <p class="text-sm text-gray-500 mb-4">Exporta todas las facturas y notas de credito del periodo en formato CSV compatible con el sistema contable. Incluye desglose IVA 5%, 10% y exentas.</p>
+                                <button onclick="exportarLibroRG90()" id="btnRG90" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold text-sm hover:bg-blue-700 transition-colors shadow-sm inline-flex items-center justify-center gap-2">
+                                    <i data-lucide="download" class="w-4 h-4"></i> Exportar Libro RG90 (CSV)
+                                </button>
+                            </div>
+
+                            <!-- Paquete ZIP -->
+                            <div class="saas-card p-6 border-t-4 border-t-purple-500">
+                                <div class="flex items-center gap-3 mb-3">
+                                    <div class="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
+                                        <i data-lucide="archive" class="w-5 h-5 text-purple-600"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-bold text-gray-800">Paquete Tributario</h4>
+                                        <p class="text-xs text-gray-500">KuDE + XML por documento</p>
+                                    </div>
+                                </div>
+                                <p class="text-sm text-gray-500 mb-4">Descarga un archivo ZIP con el KuDE (PDF) y el XML de cada factura y nota de credito emitida en el periodo. Listo para enviar a la contadora.</p>
+                                <button onclick="exportarPaqueteZIP()" id="btnZIP" class="w-full bg-purple-600 text-white py-3 rounded-xl font-bold text-sm hover:bg-purple-700 transition-colors shadow-sm inline-flex items-center justify-center gap-2">
+                                    <i data-lucide="file-archive" class="w-4 h-4"></i> Descargar Paquete Tributario (ZIP)
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Preview tabla -->
+                        <div class="saas-card overflow-hidden mt-6">
+                            <div class="p-4 border-b border-gray-100 flex justify-between items-center">
+                                <h4 class="text-sm font-bold text-gray-700">Vista Previa del Libro</h4>
+                                <span class="text-xs text-gray-400" id="cierreRegistrosCount">0 registros</span>
+                            </div>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left text-sm">
+                                    <thead class="text-gray-400 font-semibold uppercase text-[11px] tracking-wider">
+                                        <tr>
+                                            <th class="px-4 py-3">Fecha</th>
+                                            <th class="px-4 py-3">RUC</th>
+                                            <th class="px-4 py-3">Cliente</th>
+                                            <th class="px-4 py-3">Nro Comprobante</th>
+                                            <th class="px-4 py-3">Tipo</th>
+                                            <th class="px-4 py-3 text-right">Exentas</th>
+                                            <th class="px-4 py-3 text-right">IVA 5%</th>
+                                            <th class="px-4 py-3 text-right">IVA 10%</th>
+                                            <th class="px-4 py-3 text-right">Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="cierreTablaBody" class="divide-y divide-gray-100"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
             <section id="seccion-herramientas" class="tab-content space-y-6">
                 <div class="max-w-3xl space-y-4">
                     <!-- Estado de Backups -->
@@ -1619,6 +1740,7 @@
     <script src="admin.js"></script>
     <script src="admin-ventas.js"></script>
     <script src="admin-devoluciones.js"></script>
+    <script src="admin-contabilidad.js"></script>
     <script>lucide.createIcons();</script>
 </body>
 </html>

@@ -54,6 +54,8 @@ let clientes = [];
 let clienteActual = null;
 let carrito = [];
 let categoriaActual = 'todas';
+let vistaCatalogo = 'categorias'; // 'categorias' o 'productos'
+let categoriaSeleccionada = null; // categoria clickeada en el grid
 let vistaActual = 'lista'; // 'lista', 'pedidos' o 'config'
 let autoBackupInterval = null;
 
@@ -223,6 +225,14 @@ function crearFiltrosCategorias() {
 
 function filtrarCategoria(catId) {
     categoriaActual = catId;
+    // Al usar chip de categoria, resetear la seleccion de tarjeta
+    if (catId === 'todas') {
+        categoriaSeleccionada = null;
+        vistaCatalogo = 'categorias';
+    } else {
+        categoriaSeleccionada = null;
+        vistaCatalogo = 'productos';
+    }
     document.querySelectorAll('.category-btn').forEach((btn, i) => {
         if ((catId === 'todas' && i === 0) || btn.textContent === categorias.find(c => c.id === catId)?.nombre) {
             btn.className = 'px-4 py-2 bg-gray-900 text-white rounded-full text-xs font-bold whitespace-nowrap category-btn';
@@ -240,33 +250,35 @@ function mostrarProductos() {
     const container = document.getElementById('productsContainer');
     const busqueda = document.getElementById('searchInput').value.toLowerCase().trim();
 
-    let filtrados = productos;
-
-    if (categoriaActual !== 'todas') {
-        filtrados = filtrados.filter(p => p.categoria === categoriaActual);
-    }
-    if (busqueda) {
-        filtrados = filtrados.filter(p => p.nombre.toLowerCase().includes(busqueda));
-    }
-
-    if (filtrados.length === 0) {
-        container.innerHTML = (typeof generarWidgetMeta === 'function' ? generarWidgetMeta() : '') +
-            generarEmptyState(SVG_EMPTY_SEARCH, 'No se encontraron productos', busqueda ? 'Intenta con otro termino de busqueda' : 'No hay productos en esta categoria');
+    // Si hay busqueda activa o filtro de categoria por chip, ir directo a productos
+    if (busqueda || categoriaActual !== 'todas') {
+        vistaCatalogo = 'productos';
+        renderizarProductosVendedor(container, busqueda);
         return;
     }
-    
+
+    // Vista de categorias (home sin busqueda ni filtro)
+    if (vistaCatalogo === 'categorias') {
+        renderizarCategoriasVendedor(container);
+    } else {
+        renderizarProductosVendedor(container, busqueda);
+    }
+}
+
+function renderizarCategoriasVendedor(container) {
     container.innerHTML = '';
-    // Widget de meta al inicio de la lista
+
+    // Widget de meta al inicio
     const metaHtml = typeof generarWidgetMeta === 'function' ? generarWidgetMeta() : '';
-    if (metaHtml && !busqueda && categoriaActual === 'todas') {
+    if (metaHtml) {
         const metaDiv = document.createElement('div');
         metaDiv.innerHTML = metaHtml;
         container.appendChild(metaDiv);
     }
 
     // Productos frecuentes del cliente actual
-    if (!busqueda && categoriaActual === 'todas' && clienteActual) {
-        const frecuentes = obtenerProductosFrecuentes(clienteActual.id, 6);
+    if (clienteActual) {
+        const frecuentes = typeof obtenerProductosFrecuentes === 'function' ? obtenerProductosFrecuentes(clienteActual.id, 6) : [];
         if (frecuentes.length > 0) {
             const frecDiv = document.createElement('div');
             frecDiv.className = 'mb-4';
@@ -287,6 +299,122 @@ function mostrarProductos() {
         }
     }
 
+    // Titulo
+    const titulo = document.createElement('p');
+    titulo.className = 'text-xs font-bold text-gray-500 uppercase tracking-wider mb-3';
+    titulo.textContent = 'Categorias';
+    container.appendChild(titulo);
+
+    // Grid de categorias
+    const grid = document.createElement('div');
+    grid.className = 'vendor-catalog-grid';
+
+    categorias.forEach(cat => {
+        const prodsEnCat = productos.filter(p => p.categoria === cat.id);
+        const count = prodsEnCat.length;
+        if (count === 0) return; // No mostrar categorias vacias
+
+        const imgProd = prodsEnCat.find(p => p.imagen || p.imagen_url);
+        const img = imgProd ? (imgProd.imagen_url || imgProd.imagen) : '';
+
+        const card = document.createElement('div');
+        card.className = 'vendor-cat-card';
+        if (img) {
+            card.setAttribute('data-bg', img);
+        }
+        card.onclick = () => {
+            categoriaSeleccionada = cat.id;
+            vistaCatalogo = 'productos';
+            mostrarProductos();
+        };
+
+        card.innerHTML = `
+            ${!img ? '<div class="vendor-cat-card-noimg"><svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><rect width="7" height="5" x="7" y="7" rx="1"/><rect width="7" height="5" x="10" y="12" rx="1"/></svg></div>' : ''}
+            <div class="vendor-cat-card-label">
+                <div>${cat.nombre}</div>
+                <div class="card-sub">${count} producto${count !== 1 ? 's' : ''}</div>
+            </div>`;
+        grid.appendChild(card);
+    });
+
+    container.appendChild(grid);
+    initLazyLoadCatCards(grid);
+}
+
+function initLazyLoadCatCards(containerEl) {
+    const cards = containerEl.querySelectorAll('.vendor-cat-card[data-bg]');
+    if (!cards.length) return;
+    const observer = new IntersectionObserver((entries, obs) => {
+        entries.forEach(entry => {
+            if (!entry.isIntersecting) return;
+            const card = entry.target;
+            const url = card.dataset.bg;
+            const img = new Image();
+            img.onload = () => {
+                card.style.backgroundImage = `url('${url}')`;
+                card.classList.add('vendor-cat-card--loaded');
+            };
+            img.src = url;
+            card.removeAttribute('data-bg');
+            obs.unobserve(card);
+        });
+    }, { rootMargin: '150px 0px', threshold: 0.01 });
+    cards.forEach(c => observer.observe(c));
+}
+
+function renderizarProductosVendedor(container, busqueda) {
+    let filtrados = productos;
+
+    // Filtrar por categoria seleccionada (click en tarjeta) o por chip
+    const catFiltro = categoriaActual !== 'todas' ? categoriaActual : categoriaSeleccionada;
+    if (catFiltro) {
+        filtrados = filtrados.filter(p => p.categoria === catFiltro);
+    }
+    if (busqueda) {
+        filtrados = filtrados.filter(p => p.nombre.toLowerCase().includes(busqueda));
+    }
+
+    // Filtrar solo activos con stock > 0 cuando se viene de una categoria
+    if (categoriaSeleccionada && !busqueda && categoriaActual === 'todas') {
+        filtrados = filtrados.filter(p => {
+            const estado = p.estado || 'disponible';
+            if (estado === 'discontinuado' || estado === 'agotado') return false;
+            // Verificar si tiene al menos una presentacion con stock
+            if (p.presentaciones && p.presentaciones.some(pr => typeof pr.stock === 'number')) {
+                return p.presentaciones.some(pr => (pr.stock || 0) > 0);
+            }
+            return true; // si no tiene campo stock, mostrar
+        });
+    }
+
+    if (filtrados.length === 0) {
+        const catNombre = categorias.find(c => c.id === catFiltro)?.nombre || '';
+        container.innerHTML = generarEmptyState(SVG_EMPTY_SEARCH, 'No se encontraron productos',
+            busqueda ? 'Intenta con otro termino de busqueda' : `No hay productos disponibles en ${catNombre}`);
+        // Boton volver
+        if (categoriaSeleccionada) {
+            container.innerHTML += `<div class="text-center mt-2"><button onclick="volverACategorias()" class="px-5 py-3 bg-[#111827] text-white rounded-xl font-bold text-sm active:scale-95 transition-transform">Volver a Categorias</button></div>`;
+        }
+        return;
+    }
+
+    container.innerHTML = '';
+
+    // Boton "Volver a Categorias" si estamos dentro de una categoria
+    if (categoriaSeleccionada && categoriaActual === 'todas') {
+        const catNombre = categorias.find(c => c.id === categoriaSeleccionada)?.nombre || '';
+        const backBar = document.createElement('div');
+        backBar.className = 'flex items-center gap-3 mb-3';
+        backBar.innerHTML = `
+            <button onclick="volverACategorias()" class="flex items-center gap-2 text-sm font-bold text-gray-600 hover:text-gray-900 active:scale-95 transition-all bg-white border border-gray-200 rounded-xl px-3 py-2 shadow-sm">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                Categorias
+            </button>
+            <span class="text-sm font-bold text-gray-800">${catNombre}</span>
+            <span class="text-xs text-gray-400">${filtrados.length} producto${filtrados.length !== 1 ? 's' : ''}</span>`;
+        container.appendChild(backBar);
+    }
+
     const grid = document.createElement('div');
     grid.className = 'grid grid-cols-2 sm:grid-cols-3 gap-3';
 
@@ -296,10 +424,11 @@ function mostrarProductos() {
         card.style.animationDelay = `${i * 0.04}s`;
         card.onclick = () => mostrarDetalleProducto(prod);
 
-        const imgContent = prod.imagen
-            ? `<img data-src="${prod.imagen}" class="w-full h-full object-contain lazy-img" style="opacity:0;transition:opacity 0.3s ease" onerror="this.style.display='none';this.nextElementSibling.classList.remove('hidden');this.nextElementSibling.classList.add('flex')">
-               <span class="hidden items-center justify-center w-full h-full">${obtenerEmoji(prod)}</span>`
-            : `<span class="flex items-center justify-center w-full h-full">${obtenerEmoji(prod)}</span>`;
+        const imgUrl = prod.imagen_url || prod.imagen;
+        const imgContent = imgUrl
+            ? `<img data-src="${imgUrl}" class="w-full h-full object-contain lazy-img" style="opacity:0;transition:opacity 0.3s ease" onerror="this.style.display='none';this.nextElementSibling.classList.remove('hidden');this.nextElementSibling.classList.add('flex')">
+               <span class="hidden items-center justify-center w-full h-full bg-gray-800 rounded-lg"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg></span>`
+            : `<span class="flex items-center justify-center w-full h-full bg-gray-800 rounded-lg"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg></span>`;
 
         const promoBadge = typeof mostrarPromocionesEnProducto === 'function' ? mostrarPromocionesEnProducto(prod.id) : '';
         card.innerHTML = `
@@ -313,6 +442,12 @@ function mostrarProductos() {
     container.appendChild(grid);
     lucide.createIcons();
     initLazyLoadImages(grid);
+}
+
+function volverACategorias() {
+    categoriaSeleccionada = null;
+    vistaCatalogo = 'categorias';
+    mostrarProductos();
 }
 
 // ============================================
@@ -371,7 +506,7 @@ function mostrarMatrizProducto(producto) {
     const existing = document.getElementById('productDetailModal');
     if (existing) existing.remove();
 
-    const iconHtml = producto.imagen ? `<img src="${producto.imagen}" class="w-10 h-10 rounded-lg object-contain">` : '<i data-lucide="package" class="w-8 h-8 text-gray-400"></i>';
+    const iconHtml = (producto.imagen_url || producto.imagen) ? `<img src="${producto.imagen_url || producto.imagen}" class="w-10 h-10 rounded-lg object-contain">` : '<i data-lucide="package" class="w-8 h-8 text-gray-400"></i>';
     const catNombre = categorias.find(c => c.id === producto.categoria)?.nombre || '';
 
     const celdas = producto.presentaciones.map((pres, idx) => {
@@ -556,8 +691,9 @@ function mostrarDetalleMasivo(producto) {
 
     const catNombre = categorias.find(c => c.id === producto.categoria)?.nombre || '';
 
-    const imgContent = producto.imagen
-        ? `<img src="${producto.imagen}" class="w-full h-full object-contain" onerror="this.style.display='none';this.nextElementSibling.classList.remove('hidden');this.nextElementSibling.classList.add('flex')">
+    const imgUrlMasivo = producto.imagen_url || producto.imagen;
+    const imgContent = imgUrlMasivo
+        ? `<img src="${imgUrlMasivo}" class="w-full h-full object-contain" onerror="this.style.display='none';this.nextElementSibling.classList.remove('hidden');this.nextElementSibling.classList.add('flex')">
            <span class="hidden items-center justify-center w-full h-full"><i data-lucide="package" class="w-12 h-12 text-gray-300"></i></span>`
         : `<span class="flex items-center justify-center w-full h-full"><i data-lucide="package" class="w-12 h-12 text-gray-300"></i></span>`;
 
@@ -1090,6 +1226,12 @@ function cambiarVistaVendedor(vista) {
         btnLista.className = 'flex flex-col items-center gap-1 text-gray-900 transition-colors';
         catFilters.style.display = '';
         searchBox.style.display = '';
+        // Resetear a vista de categorias
+        vistaCatalogo = 'categorias';
+        categoriaSeleccionada = null;
+        categoriaActual = 'todas';
+        document.getElementById('searchInput').value = '';
+        crearFiltrosCategorias();
         mostrarProductos();
     } else if (vista === 'pedidos') {
         btnPedidos.className = 'flex flex-col items-center gap-1 text-gray-900 transition-colors';

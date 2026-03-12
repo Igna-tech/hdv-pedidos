@@ -874,8 +874,8 @@ function renderizarCategoriasGestion(container) {
     container.innerHTML = `<div class="catalog-grid">
         ${cats.map(cat => {
             const count = productosData.productos.filter(p => p.categoria === cat.id).length;
-            const prods = productosData.productos.filter(p => p.categoria === cat.id && p.imagen);
-            const img = prods.length > 0 ? prods[0].imagen : '';
+            const prods = productosData.productos.filter(p => p.categoria === cat.id && (p.imagen_url || p.imagen));
+            const img = prods.length > 0 ? (prods[0].imagen_url || prods[0].imagen) : '';
             return `<div onclick="prodNavCatId='${cat.id}';prodNavNivel='subcategorias';actualizarBreadcrumbProductos();mostrarProductosGestion()"
                 class="catalog-card" ${img ? `data-bg="${img}"` : ''}>
                 ${!img ? '<div class="catalog-card-noimg"><i data-lucide="folder-open" class="w-10 h-10 text-gray-400"></i></div>' : ''}
@@ -900,8 +900,8 @@ function renderizarSubcategoriasGestion(container, subs) {
         ${subs.map(sub => {
             const prods = productosData.productos.filter(p => p.categoria === prodNavCatId && p.subcategoria === sub);
             const count = prods.length;
-            const imgProd = prods.find(p => p.imagen);
-            const img = imgProd ? imgProd.imagen : '';
+            const imgProd = prods.find(p => p.imagen_url || p.imagen);
+            const img = imgProd ? (imgProd.imagen_url || imgProd.imagen) : '';
             return `<div onclick="prodNavSubId='${sub}';prodNavNivel='productos';actualizarBreadcrumbProductos();mostrarProductosGestion()"
                 class="catalog-card" ${img ? `data-bg="${img}"` : ''}>
                 ${!img ? '<div class="catalog-card-noimg"><i data-lucide="folder" class="w-10 h-10 text-gray-400"></i></div>' : ''}
@@ -930,10 +930,10 @@ function renderizarProductosGestionGrid(container, prods) {
             const estado = prod.estado || 'disponible';
             const estadoBg = estado === 'disponible' ? 'background:#059669;color:#fff' : estado === 'agotado' ? 'background:#d97706;color:#fff' : 'background:#dc2626;color:#fff';
             const oculto = prod.oculto || false;
-            const img = prod.imagen || '';
+            const img = prod.imagen_url || prod.imagen || '';
             const precio = prod.presentaciones && prod.presentaciones.length > 0 ? (prod.presentaciones[0].precio_base || 0) : 0;
             return `<div onclick="abrirPerfilProducto('${prod.id}')" class="catalog-card ${oculto ? 'oculto' : ''}" ${img ? `data-bg="${img}"` : ''}>
-                ${!img ? '<div class="catalog-card-noimg"><i data-lucide="package" class="w-10 h-10 text-gray-400"></i></div>' : ''}
+                ${!img ? '<div class="catalog-card-noimg"><svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg></div>' : ''}
                 <span class="catalog-card-badge" style="${estadoBg}">${estado}</span>
                 <div class="catalog-card-label">
                     <div>${prod.nombre}</div>
@@ -968,7 +968,8 @@ function abrirPerfilProducto(prodId) {
     const oculto = prod.oculto || false;
 
     const img = document.getElementById('perfilProductoImg');
-    if (img) { img.src = prod.imagen || ''; img.style.display = prod.imagen ? '' : 'none'; }
+    const imgSrc = prod.imagen_url || prod.imagen || '';
+    if (img) { img.src = imgSrc; img.style.display = imgSrc ? '' : 'none'; }
     document.getElementById('perfilProductoNombre').textContent = prod.nombre;
     const catObj = productosData.categorias.find(c => c.id === prod.categoria);
     document.getElementById('perfilProductoCategoria').textContent = `${catObj?.nombre || prod.categoria}${prod.subcategoria ? ' / ' + prod.subcategoria : ''}`;
@@ -1062,6 +1063,82 @@ function toggleOcultarProducto(id) {
     if (prod) { prod.oculto = !prod.oculto; registrarCambio(); mostrarProductosGestion(); }
 }
 
+// ============================================
+// IMAGEN DE PRODUCTO - Compresion y Upload
+// ============================================
+let archivoImagenProducto = null; // File seleccionado pendiente de subir
+
+function previsualizarImagenProducto(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    archivoImagenProducto = file;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const preview = document.getElementById('productImagePreview');
+        preview.innerHTML = `<img src="${e.target.result}" class="w-full h-full object-cover">`;
+        document.getElementById('btnQuitarImagen').classList.remove('hidden');
+    };
+    reader.readAsDataURL(file);
+}
+
+function quitarImagenProducto() {
+    archivoImagenProducto = null;
+    document.getElementById('productImageInput').value = '';
+    document.getElementById('nuevoProductoImagen').value = '';
+    document.getElementById('productImagePreview').innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>`;
+    document.getElementById('btnQuitarImagen').classList.add('hidden');
+}
+
+async function comprimirImagen(file, maxSize = 800, quality = 0.8) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let w = img.width;
+                let h = img.height;
+                // Redimensionar manteniendo aspecto
+                if (w > maxSize || h > maxSize) {
+                    if (w > h) {
+                        h = Math.round((h * maxSize) / w);
+                        w = maxSize;
+                    } else {
+                        w = Math.round((w * maxSize) / h);
+                        h = maxSize;
+                    }
+                }
+                canvas.width = w;
+                canvas.height = h;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, w, h);
+                canvas.toBlob(
+                    (blob) => blob ? resolve(blob) : reject(new Error('Error comprimiendo imagen')),
+                    'image/webp',
+                    quality
+                );
+            };
+            img.onerror = () => reject(new Error('Error cargando imagen'));
+            img.src = e.target.result;
+        };
+        reader.onerror = () => reject(new Error('Error leyendo archivo'));
+        reader.readAsDataURL(file);
+    });
+}
+
+async function subirImagenProducto(file) {
+    const blob = await comprimirImagen(file);
+    const fileName = `prod_${Date.now()}.webp`;
+    const { data, error } = await supabaseClient.storage
+        .from('productos_img')
+        .upload(fileName, blob, { contentType: 'image/webp', upsert: false });
+    if (error) throw new Error('Error subiendo imagen: ' + error.message);
+    const { data: urlData } = supabaseClient.storage
+        .from('productos_img')
+        .getPublicUrl(fileName);
+    return urlData.publicUrl;
+}
+
 // Modal Producto (crear/editar)
 function abrirModalProducto(productoId) {
     const titulo = document.getElementById('modalProductoTitulo');
@@ -1079,6 +1156,11 @@ function abrirModalProducto(productoId) {
         });
     }
 
+    // Reset imagen
+    archivoImagenProducto = null;
+    document.getElementById('productImageInput').value = '';
+    document.getElementById('btnQuitarImagen').classList.add('hidden');
+
     if (productoId) {
         // Modo edicion
         const prod = productosData.productos.find(p => p.id === productoId);
@@ -1086,7 +1168,16 @@ function abrirModalProducto(productoId) {
         titulo.textContent = 'Editar Producto';
         formId.value = prod.id;
         document.getElementById('nuevoProductoNombre').value = prod.nombre;
-        document.getElementById('nuevoProductoImagen').value = prod.imagen || '';
+        const imgActual = prod.imagen_url || prod.imagen || '';
+        document.getElementById('nuevoProductoImagen').value = imgActual;
+        // Mostrar preview si tiene imagen
+        const preview = document.getElementById('productImagePreview');
+        if (imgActual) {
+            preview.innerHTML = `<img src="${imgActual}" class="w-full h-full object-cover">`;
+            document.getElementById('btnQuitarImagen').classList.remove('hidden');
+        } else {
+            preview.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>`;
+        }
         document.getElementById('nuevoProductoCategoria').value = prod.categoria;
         actualizarSubcategoriasModal();
         document.getElementById('nuevoProductoSubcategoria').value = prod.subcategoria || '';
@@ -1120,6 +1211,8 @@ function abrirModalProducto(productoId) {
         presInput.style.display = '';
         presInfo.style.display = '';
         presDetalladas.style.display = 'none';
+        // Reset preview imagen
+        document.getElementById('productImagePreview').innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>`;
         actualizarSubcategoriasModal();
     }
     document.getElementById('modalProducto')?.classList.add('show');
@@ -1160,10 +1253,10 @@ function cerrarModalProducto() {
     document.getElementById('modalProducto')?.classList.remove('show');
 }
 
-function guardarProductoModal() {
+async function guardarProductoModal() {
     const id = document.getElementById('formProductoId')?.value;
     const nombre = document.getElementById('nuevoProductoNombre')?.value.trim();
-    const imagen = document.getElementById('nuevoProductoImagen')?.value.trim();
+    let imagen = document.getElementById('nuevoProductoImagen')?.value.trim();
     const categoria = document.getElementById('nuevoProductoCategoria')?.value;
     let subcategoria = document.getElementById('nuevoProductoSubcategoria')?.value;
     const estado = document.getElementById('nuevoProductoEstado')?.value || 'disponible';
@@ -1177,12 +1270,28 @@ function guardarProductoModal() {
 
     if (!nombre) { mostrarToast('Ingresa el nombre del producto', 'error'); return; }
 
+    // Subir imagen si hay archivo seleccionado
+    let imagenUrl = imagen;
+    if (archivoImagenProducto) {
+        try {
+            mostrarToast('Subiendo imagen...', 'info');
+            imagenUrl = await subirImagenProducto(archivoImagenProducto);
+            archivoImagenProducto = null;
+            mostrarToast('Imagen subida correctamente', 'success');
+        } catch (err) {
+            console.error('[Admin] Error subiendo imagen:', err);
+            mostrarToast('Error al subir imagen: ' + err.message, 'error');
+            return;
+        }
+    }
+
     if (id) {
         // Edicion
         const prod = productosData.productos.find(p => p.id === id);
         if (!prod) return;
         prod.nombre = nombre;
-        prod.imagen = imagen || undefined;
+        prod.imagen_url = imagenUrl || undefined;
+        prod.imagen = imagenUrl || undefined;
         prod.categoria = categoria;
         prod.subcategoria = subcategoria || 'General';
         prod.estado = estado;
@@ -1207,7 +1316,7 @@ function guardarProductoModal() {
             ? presStr.split(',').map(p => ({ tamano: p.trim(), precio_base: precio, costo }))
             : [{ tamano: 'Unidad', precio_base: precio, costo }];
         const nuevo = { id: nuevoId, nombre, categoria: categoria || 'cuidado_personal', subcategoria: subcategoria || 'General', presentaciones, estado };
-        if (imagen) nuevo.imagen = imagen;
+        if (imagenUrl) { nuevo.imagen = imagenUrl; nuevo.imagen_url = imagenUrl; }
         productosData.productos.push(nuevo);
     }
 

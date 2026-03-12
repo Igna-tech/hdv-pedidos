@@ -402,6 +402,64 @@ function ejecutarReimpresion(formato) {
 // ENVIAR WHATSAPP DESDE VENTAS
 // ============================================
 
+// ============================================
+// EXPORTAR VENTAS SEMANALES A CSV
+// ============================================
+
+function exportarVentasSemanalesCSV() {
+    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+
+    // Calcular rango de la semana actual (lunes a domingo)
+    const hoy = new Date();
+    const diaSemana = hoy.getDay(); // 0=dom, 1=lun...
+    const diffLunes = diaSemana === 0 ? -6 : 1 - diaSemana;
+    const lunes = new Date(hoy);
+    lunes.setDate(hoy.getDate() + diffLunes);
+    lunes.setHours(0, 0, 0, 0);
+
+    const domingo = new Date(lunes);
+    domingo.setDate(lunes.getDate() + 6);
+    domingo.setHours(23, 59, 59, 999);
+
+    // Filtrar ventas de la semana (cobrado o facturado)
+    const ventasSemana = pedidos.filter(p => {
+        if (p.estado !== 'cobrado_sin_factura' && p.estado !== 'facturado_mock') return false;
+        const fecha = new Date(p.fecha);
+        return fecha >= lunes && fecha <= domingo;
+    });
+
+    if (ventasSemana.length === 0) {
+        mostrarToast('No hay ventas esta semana para exportar', 'error');
+        return;
+    }
+
+    // BOM para Excel reconozca UTF-8
+    let csv = '\uFEFF';
+    csv += '"Fecha","Cliente","Producto","Presentacion","Cantidad","P. Unitario","Subtotal","Total Pedido","Estado","Tipo Pago","N° Factura","Notas"\n';
+
+    ventasSemana.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+
+    ventasSemana.forEach(p => {
+        const estado = p.estado === 'facturado_mock' ? 'Facturado' : 'Recibo';
+        const numFact = p.numFactura || '';
+        const notas = (p.notas || '').replace(/"/g, '""');
+        const clienteNombre = (p.cliente?.nombre || 'Sin cliente').replace(/"/g, '""');
+        const fechaStr = new Date(p.fecha).toLocaleDateString('es-PY', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+        (p.items || []).forEach(i => {
+            csv += `"${fechaStr}","${clienteNombre}","${(i.nombre || '').replace(/"/g, '""')}","${(i.presentacion || '').replace(/"/g, '""')}",${i.cantidad || 0},${i.precio || 0},${i.subtotal || 0},${p.total || 0},"${estado}","${p.tipoPago || 'contado'}","${numFact}","${notas}"\n`;
+        });
+    });
+
+    const rangoTexto = lunes.toLocaleDateString('es-PY', { day: '2-digit', month: '2-digit' }) + '_al_' + domingo.toLocaleDateString('es-PY', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    descargarCSV(csv, `ventas_semana_${rangoTexto}.csv`);
+    mostrarToast(`Exportadas ${ventasSemana.length} ventas de la semana`, 'success');
+}
+
+// ============================================
+// ENVIAR WHATSAPP DESDE VENTAS
+// ============================================
+
 function enviarWhatsAppVenta(ventaId) {
     const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
     const pedido = pedidos.find(p => p.id === ventaId);

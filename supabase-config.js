@@ -13,6 +13,14 @@ let supabaseConectado = false;
 
 async function monitorearConexion() {
     try {
+        // Esperar a que la sesion de auth este lista antes de la primera verificacion
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (!session) {
+            supabaseConectado = false;
+            actualizarIndicadorConexion(false);
+            setTimeout(monitorearConexion, 5000);
+            return;
+        }
         const { error } = await supabaseClient.from('categorias').select('id').limit(1);
         supabaseConectado = !error;
         actualizarIndicadorConexion(supabaseConectado);
@@ -397,7 +405,7 @@ async function guardarConfigFirebase(docId, datos) {
 async function obtenerConfigFirebase(docId) {
     try {
         const { data, error } = await supabaseClient
-            .from('configuracion').select('datos').eq('doc_id', docId).single();
+            .from('configuracion').select('datos').eq('doc_id', docId).maybeSingle();
         if (error) throw error;
         return data?.datos ?? null;
     } catch (error) {

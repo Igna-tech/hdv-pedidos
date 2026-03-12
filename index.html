@@ -32,22 +32,8 @@
             to { opacity: 1; transform: scale(1) translateY(0); }
         }
 
-        /* Lazy image container: skeleton pulse while loading */
-        .product-card .bg-gray-50 {
-            position: relative;
-            overflow: hidden;
-        }
-        .product-card .bg-gray-50::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
-            background-size: 200% 100%;
-            animation: shimmer 1.5s infinite;
-            z-index: 0;
-        }
-        .product-card .bg-gray-50 img[src] { position: relative; z-index: 1; }
-        .product-card .bg-gray-50 span { position: relative; z-index: 1; }
+        /* Skeleton para imagenes de producto - se oculta con JS al cargar */
+        .img-skeleton { transition: opacity 0.2s ease; }
 
         /* Category chip transitions */
         .category-btn {
@@ -177,7 +163,7 @@
         .empty-state .empty-sub { color: #9ca3af; font-weight: 400; font-size: 0.75rem; margin-top: 0.25rem; }
 
         /* Catalog category grid (vendor) */
-        .vendor-catalog-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+        .vendor-catalog-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
         @media (min-width: 768px) { .vendor-catalog-grid { grid-template-columns: repeat(3, 1fr); } }
         @media (min-width: 1024px) { .vendor-catalog-grid { grid-template-columns: repeat(4, 1fr); } }
         .vendor-cat-card {
@@ -269,26 +255,25 @@
 
     <div id="toastContainer"></div>
 
-    <div class="bg-white border-b border-gray-200 sticky top-[125px] z-40 overflow-x-auto no-scrollbar flex p-3 gap-2" id="categoryFilters">
-        <button class="px-4 py-2 bg-gray-900 text-white rounded-full text-xs font-bold whitespace-nowrap active category-btn">Todas</button>
-    </div>
+    <!-- Filtros de categoria ocultos (controlados por JS) -->
+    <div class="hidden" id="categoryFilters"></div>
 
-    <div class="p-4" id="searchContainer">
+    <div class="px-3 pt-3 pb-1" id="searchContainer">
         <div class="relative">
             <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"></i>
             <input type="text" id="searchInput" placeholder="Buscar producto..." disabled aria-label="Buscar producto"
-                   class="w-full bg-white border border-gray-300 rounded-xl py-3 pl-10 pr-4 text-sm outline-none transition-all shadow-sm">
+                   class="w-full bg-white border border-gray-300 rounded-xl py-2.5 pl-10 pr-4 text-sm outline-none transition-all shadow-sm">
         </div>
     </div>
 
-    <main class="px-4 space-y-4 pb-10" id="productsContainer" role="main">
-        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3" aria-label="Cargando catalogo">
-            <div class="bg-white rounded-xl p-3 shadow-sm border border-gray-100"><div class="skeleton w-full h-28 mb-2"></div><div class="skeleton h-4 w-3/4 mb-1"></div><div class="skeleton h-3 w-1/2"></div></div>
-            <div class="bg-white rounded-xl p-3 shadow-sm border border-gray-100"><div class="skeleton w-full h-28 mb-2"></div><div class="skeleton h-4 w-3/4 mb-1"></div><div class="skeleton h-3 w-1/2"></div></div>
-            <div class="bg-white rounded-xl p-3 shadow-sm border border-gray-100"><div class="skeleton w-full h-28 mb-2"></div><div class="skeleton h-4 w-3/4 mb-1"></div><div class="skeleton h-3 w-1/2"></div></div>
-            <div class="bg-white rounded-xl p-3 shadow-sm border border-gray-100"><div class="skeleton w-full h-28 mb-2"></div><div class="skeleton h-4 w-3/4 mb-1"></div><div class="skeleton h-3 w-1/2"></div></div>
-            <div class="bg-white rounded-xl p-3 shadow-sm border border-gray-100"><div class="skeleton w-full h-28 mb-2"></div><div class="skeleton h-4 w-3/4 mb-1"></div><div class="skeleton h-3 w-1/2"></div></div>
-            <div class="bg-white rounded-xl p-3 shadow-sm border border-gray-100"><div class="skeleton w-full h-28 mb-2"></div><div class="skeleton h-4 w-3/4 mb-1"></div><div class="skeleton h-3 w-1/2"></div></div>
+    <main class="px-2 space-y-2 pb-10" id="productsContainer" role="main">
+        <div class="grid grid-cols-2 gap-2" aria-label="Cargando catalogo">
+            <div class="bg-white rounded-xl p-2 shadow-sm border border-gray-100"><div class="skeleton w-full h-24 mb-1.5"></div><div class="skeleton h-3 w-3/4 mb-1"></div><div class="skeleton h-2.5 w-1/2"></div></div>
+            <div class="bg-white rounded-xl p-2 shadow-sm border border-gray-100"><div class="skeleton w-full h-24 mb-1.5"></div><div class="skeleton h-3 w-3/4 mb-1"></div><div class="skeleton h-2.5 w-1/2"></div></div>
+            <div class="bg-white rounded-xl p-2 shadow-sm border border-gray-100"><div class="skeleton w-full h-24 mb-1.5"></div><div class="skeleton h-3 w-3/4 mb-1"></div><div class="skeleton h-2.5 w-1/2"></div></div>
+            <div class="bg-white rounded-xl p-2 shadow-sm border border-gray-100"><div class="skeleton w-full h-24 mb-1.5"></div><div class="skeleton h-3 w-3/4 mb-1"></div><div class="skeleton h-2.5 w-1/2"></div></div>
+            <div class="bg-white rounded-xl p-2 shadow-sm border border-gray-100"><div class="skeleton w-full h-24 mb-1.5"></div><div class="skeleton h-3 w-3/4 mb-1"></div><div class="skeleton h-2.5 w-1/2"></div></div>
+            <div class="bg-white rounded-xl p-2 shadow-sm border border-gray-100"><div class="skeleton w-full h-24 mb-1.5"></div><div class="skeleton h-3 w-3/4 mb-1"></div><div class="skeleton h-2.5 w-1/2"></div></div>
         </div>
     </main>
 

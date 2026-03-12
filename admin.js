@@ -1065,6 +1065,87 @@ function toggleOcultarProducto(id) {
 }
 
 // ============================================
+// VARIANTES DE PRODUCTO
+// ============================================
+
+function toggleModoVariantes() {
+    const activo = document.getElementById('toggleVariantes').checked;
+    document.getElementById('camposSimple').classList.toggle('hidden', activo);
+    document.getElementById('camposVariantes').classList.toggle('hidden', !activo);
+    // Si se activa y no hay filas, agregar una vacia
+    if (activo && document.getElementById('listaVariantes').children.length === 0) {
+        agregarFilaVariante();
+    }
+}
+
+function agregarFilaVariante(datos) {
+    const container = document.getElementById('listaVariantes');
+    const idx = container.children.length;
+    const d = datos || { nombre: '', precio: '', costo: '', stock: '', activo: true };
+    const fila = document.createElement('div');
+    fila.className = 'bg-white border border-gray-200 rounded-lg p-3 space-y-2 variante-fila';
+    fila.innerHTML = `
+        <div class="flex items-center justify-between gap-2">
+            <input type="text" placeholder="Nombre (ej: 1 Litro, Talle 40)" value="${d.nombre}" class="flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-sm var-nombre" required>
+            <div class="flex items-center gap-2 shrink-0">
+                <label class="relative inline-flex items-center cursor-pointer" title="Activo/Inactivo">
+                    <input type="checkbox" class="sr-only peer var-activo" ${d.activo ? 'checked' : ''}>
+                    <div class="w-8 h-4.5 bg-gray-300 rounded-full peer peer-checked:bg-green-500 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:after:translate-x-3.5" style="height:18px"></div>
+                </label>
+                <button type="button" onclick="this.closest('.variante-fila').remove()" class="text-red-400 hover:text-red-600 p-1" title="Eliminar">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                </button>
+            </div>
+        </div>
+        <div class="grid grid-cols-3 gap-2">
+            <div>
+                <label class="block text-[10px] font-bold text-gray-400">PRECIO</label>
+                <input type="number" placeholder="0" value="${d.precio}" class="w-full border border-gray-300 rounded px-2 py-1 text-sm var-precio">
+            </div>
+            <div>
+                <label class="block text-[10px] font-bold text-gray-400">COSTO</label>
+                <input type="number" placeholder="0" value="${d.costo}" class="w-full border border-gray-300 rounded px-2 py-1 text-sm var-costo">
+            </div>
+            <div>
+                <label class="block text-[10px] font-bold text-gray-400">STOCK</label>
+                <input type="number" placeholder="0" value="${d.stock}" class="w-full border border-gray-300 rounded px-2 py-1 text-sm var-stock">
+            </div>
+        </div>`;
+    container.appendChild(fila);
+}
+
+function recogerVariantes() {
+    const filas = document.querySelectorAll('#listaVariantes .variante-fila');
+    const variantes = [];
+    filas.forEach(fila => {
+        const nombre = fila.querySelector('.var-nombre')?.value.trim();
+        if (!nombre) return;
+        variantes.push({
+            tamano: nombre,
+            precio_base: parseInt(fila.querySelector('.var-precio')?.value) || 0,
+            costo: parseInt(fila.querySelector('.var-costo')?.value) || 0,
+            stock: parseInt(fila.querySelector('.var-stock')?.value) || 0,
+            activo: fila.querySelector('.var-activo')?.checked ?? true
+        });
+    });
+    return variantes;
+}
+
+function cargarVariantesEnModal(presentaciones) {
+    const container = document.getElementById('listaVariantes');
+    container.innerHTML = '';
+    (presentaciones || []).forEach(p => {
+        agregarFilaVariante({
+            nombre: p.tamano || '',
+            precio: p.precio_base || 0,
+            costo: p.costo || 0,
+            stock: p.stock || 0,
+            activo: p.activo !== false
+        });
+    });
+}
+
+// ============================================
 // IMAGEN DE PRODUCTO - Compresion y Upload
 // ============================================
 let archivoImagenProducto = null; // File seleccionado pendiente de subir
@@ -1183,24 +1264,29 @@ function abrirModalProducto(productoId) {
         actualizarSubcategoriasModal();
         document.getElementById('nuevoProductoSubcategoria').value = prod.subcategoria || '';
         document.getElementById('nuevoProductoEstado').value = prod.estado || 'disponible';
-        document.getElementById('nuevoProductoPrecio').value = prod.presentaciones[0]?.precio_base || 0;
-        document.getElementById('nuevoProductoCosto').value = prod.presentaciones[0]?.costo || 0;
 
-        // Mostrar presentaciones detalladas
-        presInput.style.display = 'none';
-        presInfo.style.display = 'none';
-        presDetalladas.style.display = '';
-        presDetalladas.innerHTML = '<p class="text-xs font-bold text-gray-500 mb-2">PRESENTACIONES</p>' +
-            prod.presentaciones.map((p, i) => `
-            <div class="flex items-center gap-2 mb-2 bg-gray-50 p-2 rounded-lg">
-                <input type="text" value="${p.tamano}" data-pres-idx="${i}" data-pres-field="tamano" class="w-20 px-2 py-1 text-sm border rounded" placeholder="Tamano">
-                <label class="text-xs text-gray-400">Precio:</label>
-                <input type="number" value="${p.precio_base}" data-pres-idx="${i}" data-pres-field="precio" class="w-24 px-2 py-1 text-sm border rounded">
-                <label class="text-xs text-gray-400">Costo:</label>
-                <input type="number" value="${p.costo || 0}" data-pres-idx="${i}" data-pres-field="costo" class="w-24 px-2 py-1 text-sm border rounded">
-                ${prod.presentaciones.length > 1 ? `<button onclick="this.parentElement.remove()" class="text-red-400 font-bold">x</button>` : ''}
-            </div>`).join('') +
-            '<button onclick="agregarPresModal()" class="text-xs text-blue-600 font-bold mt-1">+ Agregar presentacion</button>';
+        // Determinar si tiene multiples variantes
+        const tieneVariantes = prod.presentaciones && prod.presentaciones.length > 1;
+        const toggle = document.getElementById('toggleVariantes');
+        toggle.checked = tieneVariantes;
+
+        if (tieneVariantes) {
+            // Modo variantes: cargar todas las presentaciones como filas
+            document.getElementById('camposSimple').classList.add('hidden');
+            document.getElementById('camposVariantes').classList.remove('hidden');
+            cargarVariantesEnModal(prod.presentaciones);
+            document.getElementById('nuevoProductoPrecio').value = '';
+            document.getElementById('nuevoProductoCosto').value = '';
+        } else {
+            // Modo simple: una sola presentacion
+            document.getElementById('camposSimple').classList.remove('hidden');
+            document.getElementById('camposVariantes').classList.add('hidden');
+            document.getElementById('nuevoProductoPrecio').value = prod.presentaciones[0]?.precio_base || 0;
+            document.getElementById('nuevoProductoCosto').value = prod.presentaciones[0]?.costo || 0;
+            document.getElementById('nuevoProductoPresentaciones').value = prod.presentaciones[0]?.tamano || 'Unidad';
+            document.getElementById('listaVariantes').innerHTML = '';
+        }
+        presDetalladas.style.display = 'none';
     } else {
         // Modo creacion
         titulo.textContent = 'Nuevo Producto';
@@ -1209,8 +1295,11 @@ function abrirModalProducto(productoId) {
             const el = document.getElementById(id); if (el) el.value = '';
         });
         document.getElementById('nuevoProductoEstado').value = 'disponible';
-        presInput.style.display = '';
-        presInfo.style.display = '';
+        // Reset variantes
+        document.getElementById('toggleVariantes').checked = false;
+        document.getElementById('camposSimple').classList.remove('hidden');
+        document.getElementById('camposVariantes').classList.add('hidden');
+        document.getElementById('listaVariantes').innerHTML = '';
         presDetalladas.style.display = 'none';
         // Reset preview imagen
         document.getElementById('productImagePreview').innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>`;
@@ -1288,6 +1377,22 @@ async function guardarProductoModal() {
             archivoImagenProducto = null;
         }
 
+        // Construir presentaciones segun el modo
+        const modoVariantes = document.getElementById('toggleVariantes').checked;
+        let presentaciones;
+        if (modoVariantes) {
+            presentaciones = recogerVariantes();
+            if (presentaciones.length === 0) {
+                mostrarToast('Agrega al menos una variante', 'error');
+                return;
+            }
+        } else {
+            const presStr = document.getElementById('nuevoProductoPresentaciones')?.value.trim();
+            presentaciones = presStr
+                ? presStr.split(',').map(p => ({ tamano: p.trim(), precio_base: precio, costo }))
+                : [{ tamano: 'Unidad', precio_base: precio, costo }];
+        }
+
         if (id) {
             // Edicion
             const prod = productosData.productos.find(p => p.id === id);
@@ -1298,26 +1403,12 @@ async function guardarProductoModal() {
             prod.categoria = categoria;
             prod.subcategoria = subcategoria || 'General';
             prod.estado = estado;
-            // Recoger presentaciones detalladas
-            const presContainer = document.getElementById('presentacionesDetalladas');
-            const presRows = presContainer.querySelectorAll('.bg-gray-50');
-            const nuevasPres = [];
-            presRows.forEach(row => {
-                const tamano = row.querySelector('[data-pres-field="tamano"]')?.value || '';
-                const precioVal = parseInt(row.querySelector('[data-pres-field="precio"]')?.value) || 0;
-                const costoVal = parseInt(row.querySelector('[data-pres-field="costo"]')?.value) || 0;
-                if (tamano) nuevasPres.push({ tamano, precio_base: precioVal, costo: costoVal });
-            });
-            if (nuevasPres.length > 0) prod.presentaciones = nuevasPres;
+            prod.presentaciones = presentaciones;
         } else {
             // Creacion
             const ultimoId = productosData.productos.length > 0 ?
                 Math.max(...productosData.productos.map(p => parseInt(p.id.replace('P', '')) || 0)) : 0;
             const nuevoId = `P${String(ultimoId + 1).padStart(3, '0')}`;
-            const presStr = document.getElementById('nuevoProductoPresentaciones')?.value.trim();
-            const presentaciones = presStr
-                ? presStr.split(',').map(p => ({ tamano: p.trim(), precio_base: precio, costo }))
-                : [{ tamano: 'Unidad', precio_base: precio, costo }];
             const nuevo = { id: nuevoId, nombre, categoria: categoria || 'cuidado_personal', subcategoria: subcategoria || 'General', presentaciones, estado };
             if (imagenUrl) { nuevo.imagen = imagenUrl; nuevo.imagen_url = imagenUrl; }
             productosData.productos.push(nuevo);

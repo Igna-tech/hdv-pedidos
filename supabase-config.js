@@ -13,7 +13,7 @@ let supabaseConectado = false;
 
 async function monitorearConexion() {
     try {
-        const { error } = await supabaseClient.from('catalogo').select('id').limit(1);
+        const { error } = await supabaseClient.from('categorias').select('id').limit(1);
         supabaseConectado = !error;
         actualizarIndicadorConexion(supabaseConectado);
     } catch {
@@ -172,29 +172,164 @@ async function sincronizarPedidosLocales() {
 }
 
 // ============================================
-// FUNCIONES PARA CATALOGO
+// FUNCIONES PARA CATALOGO (Tablas Relacionales)
 // ============================================
 
-async function guardarCatalogoFirebase(productosData) {
+// Helper: convierte fila de producto + variantes al formato legacy
+function _mapProductoRelacional(p) {
+    return {
+        id: p.id,
+        nombre: p.nombre,
+        categoria: p.categoria_id,
+        subcategoria: p.subcategoria || 'General',
+        imagen: p.imagen_url || '',
+        imagen_url: p.imagen_url || '',
+        estado: p.estado || 'disponible',
+        oculto: p.oculto || false,
+        tipo_impuesto: p.tipo_impuesto || 'iva10',
+        presentaciones: (p.producto_variantes || []).map(v => ({
+            variante_id: v.id,
+            tamano: v.nombre_variante,
+            precio_base: v.precio,
+            costo: v.costo,
+            stock: v.stock,
+            activo: v.activo !== false
+        }))
+    };
+}
+
+async function obtenerCatalogoFirebase() {
     try {
-        console.log('[Supabase] Intentando guardar catalogo...', {
-            categorias: (productosData.categorias || []).length,
-            productos: (productosData.productos || []).length,
-            clientes: (productosData.clientes || []).length
+        const [catRes, cliRes, prodRes] = await Promise.all([
+            supabaseClient.from('categorias').select('*'),
+            supabaseClient.from('clientes').select('*'),
+            supabaseClient.from('productos').select('*, producto_variantes(*)')
+        ]);
+        if (catRes.error) throw catRes.error;
+        if (cliRes.error) throw cliRes.error;
+        if (prodRes.error) throw prodRes.error;
+
+        const productos = (prodRes.data || []).map(_mapProductoRelacional);
+
+        console.log('[Supabase] Catalogo cargado desde tablas relacionales:', {
+            categorias: (catRes.data || []).length,
+            productos: productos.length,
+            clientes: (cliRes.data || []).length
         });
-        const payload = {
-            id: 'principal',
-            categorias: productosData.categorias || [],
-            productos: productosData.productos || [],
-            clientes: productosData.clientes || [],
-            actualizado_en: new Date().toISOString()
+
+        return {
+            categorias: catRes.data || [],
+            clientes: cliRes.data || [],
+            productos
         };
-        const { error } = await supabaseClient.from('catalogo').upsert(payload, { onConflict: 'id' });
-        if (error) {
-            console.error('[Supabase] Error detallado guardando catalogo:', error.message, error.details, error.hint, error.code);
-            throw error;
+    } catch (error) {
+        console.error('[Supabase] Error obteniendo catalogo:', error);
+        return null;
+    }
+}
+
+async function guardarCatalogoFirebase(dataCatalogo) {
+    try {
+        const cats = dataCatalogo.categorias || [];
+        const clis = dataCatalogo.clientes || [];
+        const prods = dataCatalogo.productos || [];
+
+        console.log('[Supabase] Guardando catalogo relacional...', {
+            categorias: cats.length, productos: prods.length, clientes: clis.length
+        });
+
+        // 1. Categorias - upsert batch
+        if (cats.length > 0) {
+            const catRows = cats.map(c => ({
+                id: c.id,
+                nombre: c.nombre || c.id,
+                subcategorias: c.subcategorias || [],
+                estado: c.estado || 'activa'
+            }));
+            const { error } = await supabaseClient.from('categorias').upsert(catRows, { onConflict: 'id' });
+            if (error) throw new Error('Error categorias: ' + error.message);
         }
-        console.log('[Supabase] Catalogo guardado exitosamente');
+        // Eliminar categorias que ya no existen
+        const { data: dbCats } = await supabaseClient.from('categorias').select('id');
+        const catIds = new Set(cats.map(c => c.id));
+        const catsEliminar = (dbCats || []).filter(c => !catIds.has(c.id)).map(c => c.id);
+        if (catsEliminar.length > 0) {
+            await supabaseClient.from('categorias').delete().in('id', catsEliminar);
+        }
+
+        // 2. Clientes - upsert batch
+        if (clis.length > 0) {
+            const cliRows = clis.map(c => ({
+                id: c.id,
+                nombre: c.nombre || '',
+                razon_social: c.razon_social || null,
+                ruc: c.ruc || null,
+                telefono: c.telefono || null,
+                direccion: c.direccion || null,
+                zona: c.zona || null,
+                encargado: c.encargado || null,
+                tipo: c.tipo || 'minorista',
+                oculto: c.oculto || false,
+                precios_personalizados: c.precios_personalizados || null
+            }));
+            const { error } = await supabaseClient.from('clientes').upsert(cliRows, { onConflict: 'id' });
+            if (error) throw new Error('Error clientes: ' + error.message);
+        }
+        // Eliminar clientes que ya no existen
+        const { data: dbClis } = await supabaseClient.from('clientes').select('id');
+        const cliIds = new Set(clis.map(c => c.id));
+        const clisEliminar = (dbClis || []).filter(c => !cliIds.has(c.id)).map(c => c.id);
+        if (clisEliminar.length > 0) {
+            await supabaseClient.from('clientes').delete().in('id', clisEliminar);
+        }
+
+        // 3. Productos + Variantes
+        if (prods.length > 0) {
+            const prodRows = prods.map(p => ({
+                id: p.id,
+                nombre: p.nombre || '',
+                categoria_id: p.categoria || null,
+                subcategoria: p.subcategoria || 'General',
+                imagen_url: p.imagen_url || p.imagen || null,
+                estado: p.estado || 'disponible',
+                oculto: p.oculto || false,
+                tipo_impuesto: p.tipo_impuesto || 'iva10'
+            }));
+            const { error } = await supabaseClient.from('productos').upsert(prodRows, { onConflict: 'id' });
+            if (error) throw new Error('Error productos: ' + error.message);
+        }
+        // Eliminar productos que ya no existen (CASCADE borra variantes)
+        const { data: dbProds } = await supabaseClient.from('productos').select('id');
+        const prodIds = new Set(prods.map(p => p.id));
+        const prodsEliminar = (dbProds || []).filter(p => !prodIds.has(p.id)).map(p => p.id);
+        if (prodsEliminar.length > 0) {
+            await supabaseClient.from('productos').delete().in('id', prodsEliminar);
+        }
+
+        // Variantes: borrar todas las existentes y reinsertar
+        const allProdIds = prods.map(p => p.id);
+        if (allProdIds.length > 0) {
+            await supabaseClient.from('producto_variantes').delete().in('producto_id', allProdIds);
+        }
+        const varRows = [];
+        for (const prod of prods) {
+            for (const pres of (prod.presentaciones || [])) {
+                varRows.push({
+                    producto_id: prod.id,
+                    nombre_variante: pres.tamano || 'Unidad',
+                    precio: pres.precio_base || 0,
+                    costo: pres.costo || 0,
+                    stock: pres.stock || 0,
+                    activo: pres.activo !== undefined ? pres.activo : true
+                });
+            }
+        }
+        if (varRows.length > 0) {
+            const { error } = await supabaseClient.from('producto_variantes').insert(varRows);
+            if (error) throw new Error('Error variantes: ' + error.message);
+        }
+
+        console.log('[Supabase] Catalogo guardado exitosamente en tablas relacionales');
         return true;
     } catch (error) {
         console.error('[Supabase] Error guardando catalogo:', error);
@@ -202,34 +337,41 @@ async function guardarCatalogoFirebase(productosData) {
     }
 }
 
-async function obtenerCatalogoFirebase() {
-    try {
-        const { data, error } = await supabaseClient
-            .from('catalogo').select('*').eq('id', 'principal').single();
-        if (error) throw error;
-        return data || null;
-    } catch (error) {
-        console.error('[Supabase] Error obteniendo catalogo:', error);
-        return null;
-    }
-}
-
 function escucharCatalogoRealtime(callback) {
     // Carga inicial
-    supabaseClient.from('catalogo').select('*').eq('id', 'principal').single()
-        .then(({ data }) => { if (data) callback(data); });
+    obtenerCatalogoFirebase().then(data => { if (data) callback(data); });
 
-    // Suscripcion realtime
-    const channel = supabaseClient
-        .channel('catalogo-realtime')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'catalogo' }, async () => {
-            const { data } = await supabaseClient
-                .from('catalogo').select('*').eq('id', 'principal').single();
+    // Handler comun: recargar todo el catalogo
+    let reloadTimeout = null;
+    const recargar = () => {
+        // Debounce: si llegan muchos cambios seguidos, solo recargamos una vez
+        clearTimeout(reloadTimeout);
+        reloadTimeout = setTimeout(async () => {
+            const data = await obtenerCatalogoFirebase();
             if (data) callback(data);
-        })
+        }, 500);
+    };
+
+    // Escuchar las 4 tablas
+    const ch1 = supabaseClient.channel('cat-rt')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'categorias' }, recargar)
+        .subscribe();
+    const ch2 = supabaseClient.channel('cli-rt')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'clientes' }, recargar)
+        .subscribe();
+    const ch3 = supabaseClient.channel('prod-rt')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'productos' }, recargar)
+        .subscribe();
+    const ch4 = supabaseClient.channel('var-rt')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'producto_variantes' }, recargar)
         .subscribe();
 
-    return () => supabaseClient.removeChannel(channel);
+    return () => {
+        supabaseClient.removeChannel(ch1);
+        supabaseClient.removeChannel(ch2);
+        supabaseClient.removeChannel(ch3);
+        supabaseClient.removeChannel(ch4);
+    };
 }
 
 // ============================================

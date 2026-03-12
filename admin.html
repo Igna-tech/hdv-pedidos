@@ -1420,30 +1420,61 @@
                         <select id="nuevoProductoSubcategoria" class="w-full border border-gray-300 rounded-lg px-4 py-2"></select>
                     </div>
                 </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">ESTADO</label>
-                        <select id="nuevoProductoEstado" class="w-full border border-gray-300 rounded-lg px-4 py-2">
-                            <option value="disponible">Disponible</option>
-                            <option value="agotado">Agotado</option>
-                            <option value="discontinuado">Discontinuado</option>
-                        </select>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-1">ESTADO</label>
+                    <select id="nuevoProductoEstado" class="w-full border border-gray-300 rounded-lg px-4 py-2">
+                        <option value="disponible">Disponible</option>
+                        <option value="agotado">Agotado</option>
+                        <option value="discontinuado">Discontinuado</option>
+                    </select>
+                </div>
+
+                <!-- Toggle: Producto simple vs variantes -->
+                <div class="bg-gray-50 rounded-xl p-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-bold text-gray-700">Multiples variantes</p>
+                            <p class="text-[11px] text-gray-400">Medidas, litros, talles, etc.</p>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="toggleVariantes" class="sr-only peer" onchange="toggleModoVariantes()">
+                            <div class="w-11 h-6 bg-gray-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Modo SIMPLE (sin variantes) -->
+                <div id="camposSimple">
+                    <div class="grid grid-cols-2 gap-4 mb-3">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1">PRECIO</label>
+                            <input type="number" id="nuevoProductoPrecio" class="w-full border border-gray-300 rounded-lg px-4 py-2" placeholder="1000">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1">COSTO</label>
+                            <input type="number" id="nuevoProductoCosto" class="w-full border border-gray-300 rounded-lg px-4 py-2" placeholder="800">
+                        </div>
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">PRECIO BASE</label>
-                        <input type="number" id="nuevoProductoPrecio" class="w-full border border-gray-300 rounded-lg px-4 py-2" placeholder="1000">
+                        <label class="block text-xs font-bold text-gray-500 mb-1">PRESENTACION</label>
+                        <input type="text" id="nuevoProductoPresentaciones" class="w-full border border-gray-300 rounded-lg px-4 py-2" placeholder="Ej: Unidad, 125g">
+                        <p class="text-xs text-gray-400 mt-1" id="modalProductoPresInfo">Separar por coma para varias (mismo precio)</p>
                     </div>
                 </div>
-                <div>
-                    <label class="block text-xs font-bold text-gray-500 mb-1">COSTO (precio de compra)</label>
-                    <input type="number" id="nuevoProductoCosto" class="w-full border border-gray-300 rounded-lg px-4 py-2" placeholder="800">
+
+                <!-- Modo VARIANTES (multiples SKUs) -->
+                <div id="camposVariantes" class="hidden">
+                    <div class="flex items-center justify-between mb-2">
+                        <p class="text-xs font-bold text-gray-500 uppercase">VARIANTES</p>
+                        <button type="button" onclick="agregarFilaVariante()" class="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
+                            Agregar variante
+                        </button>
+                    </div>
+                    <div id="listaVariantes" class="space-y-2 max-h-60 overflow-y-auto"></div>
                 </div>
-                <div>
-                    <label class="block text-xs font-bold text-gray-500 mb-1">PRESENTACIONES (separadas por coma)</label>
-                    <input type="text" id="nuevoProductoPresentaciones" class="w-full border border-gray-300 rounded-lg px-4 py-2" placeholder="Ej: 125g, 90g">
-                    <p class="text-xs text-gray-400 mt-1" id="modalProductoPresInfo">Cada presentacion usara el precio base y costo indicados</p>
-                </div>
-                <!-- Presentaciones detalladas (modo edicion) -->
+
+                <!-- Presentaciones detalladas (modo edicion legacy) -->
                 <div id="presentacionesDetalladas" style="display:none;"></div>
             </div>
             <div class="p-6 bg-gray-50 flex justify-end gap-3">

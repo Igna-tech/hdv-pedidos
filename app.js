@@ -416,24 +416,32 @@ function renderizarProductosVendedor(container, busqueda) {
     }
 
     const grid = document.createElement('div');
-    grid.className = 'grid grid-cols-2 sm:grid-cols-3 gap-3';
+    grid.className = 'grid grid-cols-2 gap-2';
+
+    const noImgSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>`;
 
     filtrados.forEach((prod, i) => {
         const card = document.createElement('div');
-        card.className = 'product-card bg-white rounded-xl p-3 shadow-sm border border-gray-100 active:scale-95 transition-transform cursor-pointer';
-        card.style.animationDelay = `${i * 0.04}s`;
+        card.className = 'product-card bg-white rounded-xl p-2 shadow-sm border border-gray-100 active:scale-95 transition-transform cursor-pointer';
+        card.style.animationDelay = `${i * 0.03}s`;
         card.onclick = () => mostrarDetalleProducto(prod);
 
         const imgUrl = prod.imagen_url || prod.imagen;
-        const imgContent = imgUrl
-            ? `<img data-src="${imgUrl}" class="w-full h-full object-contain lazy-img" style="opacity:0;transition:opacity 0.3s ease" onerror="this.style.display='none';this.nextElementSibling.classList.remove('hidden');this.nextElementSibling.classList.add('flex')">
-               <span class="hidden items-center justify-center w-full h-full bg-gray-800 rounded-lg"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg></span>`
-            : `<span class="flex items-center justify-center w-full h-full bg-gray-800 rounded-lg"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg></span>`;
+        let imgContent;
+        if (imgUrl) {
+            imgContent = `<div class="relative w-full h-24 rounded-lg overflow-hidden bg-gray-100">
+                <div class="absolute inset-0 bg-gray-200 animate-pulse rounded-lg img-skeleton"></div>
+                <img data-src="${imgUrl}" class="absolute inset-0 w-full h-full object-contain lazy-img opacity-0 transition-opacity duration-300"
+                     onerror="this.style.display='none';this.closest('.relative').querySelector('.img-skeleton').innerHTML='${noImgSvg.replace(/'/g, "\\'")}';this.closest('.relative').querySelector('.img-skeleton').classList.remove('animate-pulse');this.closest('.relative').querySelector('.img-skeleton').classList.add('flex','items-center','justify-center','bg-gray-800')">
+            </div>`;
+        } else {
+            imgContent = `<div class="w-full h-24 rounded-lg bg-gray-800 flex items-center justify-center">${noImgSvg}</div>`;
+        }
 
         const promoBadge = typeof mostrarPromocionesEnProducto === 'function' ? mostrarPromocionesEnProducto(prod.id) : '';
         card.innerHTML = `
-            <div class="w-full h-28 bg-gray-50 rounded-lg mb-2 flex items-center justify-center overflow-hidden">${imgContent}</div>
-            <p class="text-sm font-bold text-gray-800 leading-tight">${prod.nombre}</p>
+            ${imgContent}
+            <p class="text-xs font-bold text-gray-800 leading-tight mt-1.5">${prod.nombre}</p>
             ${promoBadge}
         `;
         grid.appendChild(card);
@@ -457,18 +465,38 @@ function initLazyLoadImages(containerEl) {
     const imgs = (containerEl || document).querySelectorAll('img.lazy-img[data-src]');
     if (!imgs.length) return;
 
+    function revelarImagen(img) {
+        img.classList.remove('opacity-0');
+        img.classList.add('opacity-100');
+        // Ocultar skeleton
+        const skeleton = img.closest('.relative')?.querySelector('.img-skeleton');
+        if (skeleton) skeleton.style.display = 'none';
+    }
+
     const observer = new IntersectionObserver((entries, obs) => {
         entries.forEach(entry => {
             if (!entry.isIntersecting) return;
             const img = entry.target;
             img.src = img.dataset.src;
-            img.onload = () => { img.style.opacity = '1'; };
+            // Si ya estaba en cache del navegador
+            if (img.complete && img.naturalWidth > 0) {
+                revelarImagen(img);
+            } else {
+                img.onload = () => revelarImagen(img);
+            }
             img.removeAttribute('data-src');
             obs.unobserve(img);
         });
     }, { rootMargin: '150px 0px', threshold: 0.01 });
 
-    imgs.forEach(img => observer.observe(img));
+    imgs.forEach(img => {
+        // Verificar si ya esta en cache
+        if (img.complete && img.naturalWidth > 0) {
+            revelarImagen(img);
+        } else {
+            observer.observe(img);
+        }
+    });
 }
 
 function obtenerEmoji(producto) {
@@ -1224,14 +1252,12 @@ function cambiarVistaVendedor(vista) {
 
     if (vista === 'lista') {
         btnLista.className = 'flex flex-col items-center gap-1 text-gray-900 transition-colors';
-        catFilters.style.display = '';
         searchBox.style.display = '';
         // Resetear a vista de categorias
         vistaCatalogo = 'categorias';
         categoriaSeleccionada = null;
         categoriaActual = 'todas';
         document.getElementById('searchInput').value = '';
-        crearFiltrosCategorias();
         mostrarProductos();
     } else if (vista === 'pedidos') {
         btnPedidos.className = 'flex flex-col items-center gap-1 text-gray-900 transition-colors';

@@ -243,6 +243,30 @@
         .catalog-card {
             transition: transform 0.25s ease, box-shadow 0.25s ease, opacity 0.4s ease;
         }
+
+        /* ==========================================
+           PRINT STYLES - Dual: Thermal + A4
+           ========================================== */
+        .print-only { display: none !important; }
+
+        @media print {
+            body > *:not(.print-only) { display: none !important; }
+            body, html { background: white !important; margin: 0 !important; padding: 0 !important; visibility: visible !important; overflow: visible !important; height: auto !important; }
+            .print-only.active { display: block !important; }
+            .no-print { display: none !important; }
+        }
+
+        /* Thermal 58mm mode */
+        body.print-thermal { }
+        @media print {
+            body.print-thermal { width: 58mm; }
+        }
+
+        /* A4 mode */
+        body.print-a4 { }
+        @media print {
+            body.print-a4 { width: 210mm; }
+        }
     </style>
 </head>
 <body class="flex h-screen overflow-hidden text-gray-800">
@@ -288,7 +312,10 @@
                 <i data-lucide="layout-dashboard" class="w-4 h-4 mr-3 text-gray-400"></i> Dashboard
             </button>
             <button onclick="cambiarSeccion('pedidos')" class="nav-item w-full flex items-center text-sm active">
-                <i data-lucide="package" class="w-4 h-4 mr-3 text-gray-400"></i> Pedidos
+                <i data-lucide="package" class="w-4 h-4 mr-3 text-gray-400"></i> Pedidos Entrantes
+            </button>
+            <button onclick="cambiarSeccion('ventas')" class="nav-item w-full flex items-center text-sm">
+                <i data-lucide="receipt" class="w-4 h-4 mr-3 text-gray-400"></i> Ventas
             </button>
             <button onclick="cambiarSeccion('creditos')" class="nav-item w-full flex items-center text-sm">
                 <i data-lucide="credit-card" class="w-4 h-4 mr-3 text-gray-400"></i> Creditos
@@ -475,6 +502,46 @@
                 <div class="saas-card overflow-hidden">
                     <div id="listaPedidos" class="divide-y divide-gray-100">
                         <p class="p-8 text-center text-gray-400 italic">Cargando pedidos...</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VENTAS (cobros + facturas) -->
+            <section id="seccion-ventas" class="tab-content space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="saas-card p-6">
+                        <p class="text-sm text-gray-500 font-medium">Total Ventas</p>
+                        <p class="text-2xl font-bold mt-1" id="statTotalVentas">0</p>
+                    </div>
+                    <div class="saas-card p-6">
+                        <p class="text-sm text-amber-600 font-medium">Recibos Internos</p>
+                        <p class="text-2xl font-bold mt-1 text-amber-700" id="statRecibos">0</p>
+                    </div>
+                    <div class="saas-card p-6">
+                        <p class="text-sm text-emerald-600 font-medium">Facturados SIFEN</p>
+                        <p class="text-2xl font-bold mt-1 text-emerald-700" id="statFacturados">0</p>
+                    </div>
+                </div>
+
+                <div class="saas-card p-4 flex flex-wrap gap-4 items-end">
+                    <div class="flex-1 min-w-[150px]">
+                        <label class="block text-xs font-bold text-gray-500 mb-1">FECHA</label>
+                        <input type="date" id="filtroFechaVentas" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none">
+                    </div>
+                    <div class="flex-1 min-w-[150px]">
+                        <label class="block text-xs font-bold text-gray-500 mb-1">TIPO</label>
+                        <select id="filtroTipoVenta" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none">
+                            <option value="">Todos</option>
+                            <option value="cobrado_sin_factura">Recibos Internos</option>
+                            <option value="facturado_mock">Facturados SIFEN</option>
+                        </select>
+                    </div>
+                    <button onclick="filtrarVentas()" class="bg-gray-800 text-white px-6 py-2 rounded-lg text-sm font-semibold hover:bg-gray-700">Aplicar</button>
+                </div>
+
+                <div class="saas-card overflow-hidden">
+                    <div id="listaVentas" class="divide-y divide-gray-100">
+                        <p class="p-8 text-center text-gray-400 italic">Cargando ventas...</p>
                     </div>
                 </div>
             </section>
@@ -1361,6 +1428,58 @@
         </div>
     </div>
 
+    <!-- MODAL FACTURA ADMIN -->
+    <div id="modalFacturaAdmin" class="modal-overlay">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center" style="animation: confirmSlideUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
+            <div class="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i data-lucide="check-circle" class="w-8 h-8 text-emerald-600"></i>
+            </div>
+            <h3 class="text-lg font-bold text-gray-900 mb-1">Factura Emitida</h3>
+            <p class="text-sm text-gray-500 mb-1">Documento electronico procesado</p>
+            <p class="text-xs font-mono bg-gray-100 rounded-lg p-2 mb-4 text-gray-700" id="adminFacturaNumero"></p>
+            <div class="space-y-2">
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="adminImprimirVenta('thermal')" class="bg-gray-900 text-white py-3 rounded-xl font-bold text-sm inline-flex items-center justify-center gap-1.5">
+                        <i data-lucide="printer" class="w-4 h-4"></i> Ticket 58mm
+                    </button>
+                    <button onclick="adminImprimirVenta('a4')" class="bg-gray-700 text-white py-3 rounded-xl font-bold text-sm inline-flex items-center justify-center gap-1.5">
+                        <i data-lucide="file-text" class="w-4 h-4"></i> Imprimir A4
+                    </button>
+                </div>
+                <a id="adminFacturaWhatsApp" href="#" target="_blank" class="block w-full bg-[#25D366] text-white py-3 rounded-xl font-bold text-sm text-center">
+                    <span class="flex items-center justify-center gap-2"><i data-lucide="message-circle" class="w-4 h-4"></i> Enviar por WhatsApp</span>
+                </a>
+                <button onclick="cerrarModalFacturaAdmin()" class="w-full bg-gray-100 text-gray-700 py-3 rounded-xl font-bold text-sm">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL ELEGIR FORMATO IMPRESION (re-imprimir desde ventas) -->
+    <div id="modalElegirImpresion" class="modal-overlay">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-xs w-full p-6 text-center" style="animation: confirmSlideUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
+            <h3 class="text-lg font-bold text-gray-900 mb-4">Formato de Impresion</h3>
+            <div class="space-y-2">
+                <button onclick="ejecutarReimpresion('thermal')" class="w-full bg-gray-900 text-white py-3 rounded-xl font-bold text-sm inline-flex items-center justify-center gap-2">
+                    <i data-lucide="printer" class="w-4 h-4"></i> Ticket Termico (58mm)
+                </button>
+                <button onclick="ejecutarReimpresion('a4')" class="w-full bg-gray-700 text-white py-3 rounded-xl font-bold text-sm inline-flex items-center justify-center gap-2">
+                    <i data-lucide="file-text" class="w-4 h-4"></i> Hoja A4
+                </button>
+                <button onclick="cerrarModalElegirImpresion()" class="w-full bg-gray-100 text-gray-700 py-2.5 rounded-xl font-bold text-sm">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PRINT: Ticket Termico Admin -->
+    <div id="adminPrintThermal" class="print-only" style="display:none;">
+        <div id="adminPrintThermalContent" style="font-family: 'Courier New', monospace; font-size: 11px; width: 100%; max-width: 58mm; margin: 0 auto; padding: 4px;"></div>
+    </div>
+
+    <!-- PRINT: A4 Admin -->
+    <div id="adminPrintA4" class="print-only" style="display:none;">
+        <div id="adminPrintA4Content" style="font-family: 'Inter', Arial, sans-serif; font-size: 12px; max-width: 190mm; margin: 10mm auto; padding: 0;"></div>
+    </div>
+
     <!-- Iframe oculto para impresion -->
     <iframe id="printFrame" style="display:none;"></iframe>
 
@@ -1368,6 +1487,7 @@
     <script src="guard.js"></script>
     <script src="supabase-config.js"></script>
     <script src="admin.js"></script>
+    <script src="admin-ventas.js"></script>
     <script>lucide.createIcons();</script>
 </body>
 </html>

@@ -126,7 +126,8 @@ function cambiarSeccion(seccionId) {
     if (btn) btn.classList.add('active');
     
     const titulos = {
-        'dashboard': 'Dashboard', 'pedidos': 'Gestion de Pedidos', 'creditos': 'Control de Creditos',
+        'dashboard': 'Dashboard', 'pedidos': 'Pedidos Entrantes', 'ventas': 'Ventas',
+        'creditos': 'Control de Creditos',
         'reportes': 'Analisis y Reportes', 'stock': 'Inventario',
         'productos': 'Catalogo de Productos', 'clientes': 'Base de Datos de Clientes',
         'promociones': 'Motor de Promociones',
@@ -152,6 +153,7 @@ function cambiarSeccion(seccionId) {
     if (seccionId === 'promociones') cargarPromociones();
     if (seccionId === 'rendiciones') cargarRendiciones();
     if (seccionId === 'metas') cargarMetas();
+    if (seccionId === 'ventas' && typeof cargarVentas === 'function') cargarVentas();
     if (seccionId === 'inactivos') cargarClientesInactivos();
 
     if (typeof lucide !== 'undefined') lucide.createIcons();
@@ -345,7 +347,8 @@ function filtrarPedidos() { aplicarFiltrosPedidos(); }
 function aplicarFiltrosPedidos() {
     const fecha = document.getElementById('filtroFecha')?.value;
     const cliente = document.getElementById('filtroCliente')?.value;
-    let filtrados = todosLosPedidos;
+    // Solo mostrar pedidos pendientes en esta seccion
+    let filtrados = todosLosPedidos.filter(p => p.estado === 'pedido_pendiente' || p.estado === 'pendiente');
     if (fecha) filtrados = filtrados.filter(p => new Date(p.fecha).toISOString().split('T')[0] === fecha);
     if (cliente) filtrados = filtrados.filter(p => p.cliente?.id === cliente);
     mostrarPedidos(filtrados);
@@ -391,7 +394,8 @@ function mostrarPedidos(pedidos) {
                 <span class="text-xl font-bold text-gray-900">Gs. ${(p.total || 0).toLocaleString()}</span>
             </div>
             <div class="flex gap-2 mt-4 flex-wrap">
-                ${estado === 'pendiente' ?
+                <button class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-emerald-700 inline-flex items-center gap-1.5" id="btnFacturar-${p.id}" onclick="facturarPedidoAdmin('${p.id}')"><i data-lucide="file-check" class="w-3.5 h-3.5"></i> Facturar (SIFEN)</button>
+                ${estado === 'pendiente' || estado === 'pedido_pendiente' ?
                     `<button class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-green-700 inline-flex items-center gap-1.5" onclick="marcarEntregado('${p.id}')"><i data-lucide="check" class="w-3.5 h-3.5"></i> Entregado</button>` :
                     `<button class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-300 inline-flex items-center gap-1.5" onclick="marcarPendiente('${p.id}')"><i data-lucide="undo-2" class="w-3.5 h-3.5"></i> Pendiente</button>`}
                 <button class="bg-blue-50 text-blue-600 px-3 py-2 rounded-lg text-sm font-bold hover:bg-blue-100 inline-flex items-center gap-1" onclick="abrirModalEditarPedido('${p.id}')"><i data-lucide="pencil" class="w-3.5 h-3.5"></i> Editar</button>

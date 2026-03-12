@@ -121,8 +121,15 @@ function escucharPedidosRealtime(callback) {
                 return;
             }
             const pedidos = (data || []).map(r => r.datos);
-            localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
-            callback(pedidos, []);
+            const pedidosLocal = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+            // No sobreescribir datos locales con resultado vacio de Supabase
+            if (pedidos.length > 0 || pedidosLocal.length === 0) {
+                localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
+                callback(pedidos, []);
+            } else {
+                console.warn('[Supabase] Carga inicial vacia pero hay datos locales, conservando localStorage');
+                callback(pedidosLocal, []);
+            }
         });
 
     // Suscripcion realtime
@@ -132,8 +139,14 @@ function escucharPedidosRealtime(callback) {
             const { data } = await supabaseClient
                 .from('pedidos').select('datos').order('fecha', { ascending: false });
             const pedidos = (data || []).map(r => r.datos);
-            localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
-            callback(pedidos, [{ type: 'modified' }]);
+            const pedidosLocalRT = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+            // No sobreescribir datos locales con resultado vacio
+            if (pedidos.length > 0 || pedidosLocalRT.length === 0) {
+                localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
+                callback(pedidos, [{ type: 'modified' }]);
+            } else {
+                console.warn('[Supabase] Realtime devolvio vacio pero hay datos locales, conservando');
+                callback(pedidosLocalRT, [{ type: 'modified' }]);
         })
         .subscribe();
 

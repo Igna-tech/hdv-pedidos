@@ -317,6 +317,9 @@
             <button onclick="cambiarSeccion('ventas')" class="nav-item w-full flex items-center text-sm">
                 <i data-lucide="receipt" class="w-4 h-4 mr-3 text-gray-400"></i> Ventas
             </button>
+            <button onclick="cambiarSeccion('devoluciones')" class="nav-item w-full flex items-center text-sm">
+                <i data-lucide="rotate-ccw" class="w-4 h-4 mr-3 text-gray-400"></i> Devoluciones (NC)
+            </button>
             <button onclick="cambiarSeccion('creditos')" class="nav-item w-full flex items-center text-sm">
                 <i data-lucide="credit-card" class="w-4 h-4 mr-3 text-gray-400"></i> Creditos
             </button>
@@ -542,6 +545,110 @@
                 <div class="saas-card overflow-hidden">
                     <div id="listaVentas" class="divide-y divide-gray-100">
                         <p class="p-8 text-center text-gray-400 italic">Cargando ventas...</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- DEVOLUCIONES (NC) -->
+            <section id="seccion-devoluciones" class="tab-content space-y-6">
+                <!-- Buscador -->
+                <div class="saas-card p-6">
+                    <h3 class="text-lg font-bold text-gray-800 mb-4">Buscar Factura para Devolucion</h3>
+                    <div class="flex flex-wrap gap-3 items-end">
+                        <div class="flex-1 min-w-[250px]">
+                            <label class="block text-xs font-bold text-gray-500 mb-1">N° COMPROBANTE, RUC O NOMBRE</label>
+                            <input type="text" id="devBuscarInput" placeholder="Ej: 001-001-0000123 o 80012345-6 o Juan..." class="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm outline-none">
+                        </div>
+                        <button onclick="buscarFacturaDevolucion()" class="bg-gray-800 text-white px-6 py-2.5 rounded-lg text-sm font-bold hover:bg-gray-700 inline-flex items-center gap-2">
+                            <i data-lucide="search" class="w-4 h-4"></i> Buscar
+                        </button>
+                    </div>
+                    <!-- Resultados de busqueda -->
+                    <div id="devResultados" class="mt-4 hidden">
+                        <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Resultados</p>
+                        <div id="devListaResultados" class="space-y-2"></div>
+                    </div>
+                </div>
+
+                <!-- Detalle de la factura seleccionada -->
+                <div id="devDetalleFactura" class="hidden space-y-4">
+                    <!-- Info de la venta -->
+                    <div class="saas-card p-6 border-l-4 border-l-emerald-500">
+                        <div class="flex justify-between items-start flex-wrap gap-3">
+                            <div>
+                                <h3 class="text-lg font-bold text-gray-800" id="devClienteNombre"></h3>
+                                <p class="text-sm text-gray-500 mt-1" id="devClienteMeta"></p>
+                                <p class="text-xs font-mono text-gray-400 mt-1" id="devFacturaNumero"></p>
+                            </div>
+                            <div class="text-right">
+                                <span class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">FACTURADO SIFEN</span>
+                                <p class="text-xl font-bold text-gray-900 mt-2" id="devFacturaTotal"></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tabla de productos con inputs de devolucion -->
+                    <div class="saas-card overflow-hidden">
+                        <div class="p-4 border-b border-gray-100 bg-gray-50">
+                            <h4 class="text-sm font-bold text-gray-700">Productos de la Factura - Ingrese cantidades a devolver</h4>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-sm">
+                                <thead class="text-gray-400 font-semibold uppercase text-[11px] tracking-wider">
+                                    <tr>
+                                        <th class="px-4 py-3">Producto</th>
+                                        <th class="px-4 py-3">Presentacion</th>
+                                        <th class="px-4 py-3 text-center">Cant. Original</th>
+                                        <th class="px-4 py-3 text-center">P. Unit.</th>
+                                        <th class="px-4 py-3 text-center">Devolver</th>
+                                        <th class="px-4 py-3 text-right">Monto NC</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="devTablaItems" class="divide-y divide-gray-100"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Motivo y totales -->
+                    <div class="saas-card p-6 space-y-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 mb-1">MOTIVO SIFEN (obligatorio)</label>
+                                <select id="devMotivo" class="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm outline-none">
+                                    <option value="">-- Seleccione motivo --</option>
+                                    <option value="devolucion_ajuste">Devolucion y Ajuste de precios</option>
+                                    <option value="descuento">Descuento</option>
+                                    <option value="mercaderia_danada">Mercaderia Danada</option>
+                                </select>
+                            </div>
+                            <div class="flex items-end justify-end">
+                                <div class="text-right">
+                                    <p class="text-xs text-gray-500 font-bold uppercase">Total Nota de Credito</p>
+                                    <p class="text-2xl font-bold text-red-600" id="devTotalNC">Gs. 0</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex gap-3 pt-2 flex-wrap">
+                            <button onclick="cancelarFactura48hs()" class="border-2 border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg text-sm font-bold hover:bg-gray-50 inline-flex items-center gap-2">
+                                <i data-lucide="x-circle" class="w-4 h-4"></i> Cancelar Factura (&lt;48hs)
+                            </button>
+                            <button onclick="procesarNotaCredito()" id="btnEmitirNC" class="bg-red-600 text-white px-6 py-2.5 rounded-lg text-sm font-bold hover:bg-red-700 shadow-lg inline-flex items-center gap-2">
+                                <i data-lucide="file-minus" class="w-4 h-4"></i> Emitir Nota de Credito (NC)
+                            </button>
+                            <button onclick="limpiarDevolucion()" class="text-gray-400 px-4 py-2.5 rounded-lg text-sm font-medium hover:text-gray-600 hover:bg-gray-50">Cancelar</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Historial de NC emitidas -->
+                <div class="saas-card overflow-hidden">
+                    <div class="p-4 border-b border-gray-100 flex justify-between items-center">
+                        <h4 class="text-sm font-bold text-gray-700">Historial de Notas de Credito</h4>
+                        <span class="text-xs text-gray-400" id="devHistorialCount">0 registros</span>
+                    </div>
+                    <div id="devHistorial" class="divide-y divide-gray-100">
+                        <p class="p-6 text-center text-gray-400 italic text-sm">Sin notas de credito emitidas</p>
                     </div>
                 </div>
             </section>
@@ -1470,6 +1577,29 @@
         </div>
     </div>
 
+    <!-- MODAL NC EXITOSA -->
+    <div id="modalNCExito" class="modal-overlay">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center" style="animation: confirmSlideUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
+            <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i data-lucide="file-minus" class="w-8 h-8 text-red-600"></i>
+            </div>
+            <h3 class="text-lg font-bold text-gray-900 mb-1">Nota de Credito Emitida</h3>
+            <p class="text-sm text-gray-500 mb-1">Documento electronico procesado</p>
+            <p class="text-xs font-mono bg-gray-100 rounded-lg p-2 mb-4 text-gray-700" id="ncNumeroDisplay"></p>
+            <div class="space-y-2">
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="imprimirNC('thermal')" class="bg-gray-900 text-white py-3 rounded-xl font-bold text-sm inline-flex items-center justify-center gap-1.5">
+                        <i data-lucide="printer" class="w-4 h-4"></i> Ticket 58mm
+                    </button>
+                    <button onclick="imprimirNC('a4')" class="bg-gray-700 text-white py-3 rounded-xl font-bold text-sm inline-flex items-center justify-center gap-1.5">
+                        <i data-lucide="file-text" class="w-4 h-4"></i> Imprimir A4
+                    </button>
+                </div>
+                <button onclick="cerrarModalNC()" class="w-full bg-gray-100 text-gray-700 py-3 rounded-xl font-bold text-sm">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
     <!-- PRINT: Ticket Termico Admin -->
     <div id="adminPrintThermal" class="print-only" style="display:none;">
         <div id="adminPrintThermalContent" style="font-family: 'Courier New', monospace; font-size: 11px; width: 100%; max-width: 58mm; margin: 0 auto; padding: 4px;"></div>
@@ -1488,6 +1618,7 @@
     <script src="supabase-config.js"></script>
     <script src="admin.js"></script>
     <script src="admin-ventas.js"></script>
+    <script src="admin-devoluciones.js"></script>
     <script>lucide.createIcons();</script>
 </body>
 </html>

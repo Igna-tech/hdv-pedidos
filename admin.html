@@ -1291,6 +1291,65 @@
 
             <section id="seccion-herramientas" class="tab-content space-y-6">
                 <div class="max-w-3xl space-y-4">
+
+                    <!-- Configuracion Empresa (SIFEN) -->
+                    <div class="saas-card p-6">
+                        <div class="flex justify-between items-start mb-4">
+                            <h3 class="font-bold text-gray-800 flex items-center gap-2"><i data-lucide="building-2" class="w-5 h-5 text-gray-500"></i> Datos Fiscales de la Empresa</h3>
+                            <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-bold">SIFEN</span>
+                        </div>
+                        <p class="text-xs text-gray-400 mb-4">Datos del emisor para Facturacion Electronica (e-Kuatia). Estos datos se usaran en los KuDE y XML.</p>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 mb-1">RUC EMPRESA</label>
+                                <input type="text" id="cfgEmpresaRuc" class="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm" placeholder="80000000-1">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 mb-1">RAZON SOCIAL</label>
+                                <input type="text" id="cfgEmpresaRazon" class="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm" placeholder="HDV Distribuciones S.A.">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 mb-1">NOMBRE FANTASIA</label>
+                                <input type="text" id="cfgEmpresaNombreFantasia" class="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm" placeholder="HDV Distribuciones">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 mb-1">ACTIVIDAD ECONOMICA</label>
+                                <input type="text" id="cfgEmpresaActividad" class="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm" placeholder="Venta al por mayor">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 mb-1">N° TIMBRADO</label>
+                                <input type="text" id="cfgEmpresaTimbrado" class="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm" placeholder="12345678">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 mb-1">VENCIMIENTO TIMBRADO</label>
+                                <input type="date" id="cfgEmpresaTimbradoVenc" class="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 mb-1">ESTABLECIMIENTO</label>
+                                <input type="text" id="cfgEmpresaEstablecimiento" class="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm" placeholder="001" maxlength="3">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 mb-1">PUNTO DE EXPEDICION</label>
+                                <input type="text" id="cfgEmpresaPuntoExp" class="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm" placeholder="001" maxlength="3">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 mb-1">DIRECCION FISCAL</label>
+                                <input type="text" id="cfgEmpresaDireccion" class="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm" placeholder="Av. Principal 123">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 mb-1">TELEFONO</label>
+                                <input type="text" id="cfgEmpresaTelefono" class="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm" placeholder="(021) 000-000">
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-xs font-bold text-gray-500 mb-1">EMAIL</label>
+                                <input type="email" id="cfgEmpresaEmail" class="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm" placeholder="facturacion@empresa.com.py">
+                            </div>
+                        </div>
+                        <button onclick="guardarConfigEmpresa()" class="bg-gray-800 text-white px-6 py-2.5 rounded-lg text-sm font-bold hover:bg-gray-900 inline-flex items-center gap-1.5">
+                            <i data-lucide="save" class="w-4 h-4"></i> Guardar Datos Fiscales
+                        </button>
+                    </div>
+
                     <!-- Estado de Backups -->
                     <div class="saas-card p-6">
                         <div class="flex justify-between items-start mb-4">
@@ -1442,6 +1501,21 @@
                         </select>
                     </div>
                 </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-1">UNIDAD DE MEDIDA (SET)</label>
+                    <select id="nuevoProductoUnidadMedida" class="w-full border border-gray-300 rounded-lg px-4 py-2">
+                        <option value="77">UNI — Unidad</option>
+                        <option value="83">KG — Kilogramo</option>
+                        <option value="87">LTR — Litro</option>
+                        <option value="76">CAJ — Caja</option>
+                        <option value="11">PAR — Par</option>
+                        <option value="06">BLS — Bolsa</option>
+                        <option value="14">DOC — Docena</option>
+                        <option value="26">GR — Gramo</option>
+                        <option value="48">ML — Mililitro</option>
+                        <option value="56">PCK — Pack</option>
+                    </select>
+                </div>
 
                 <!-- Toggle: Producto simple vs variantes -->
                 <div class="bg-gray-50 rounded-xl p-4">
@@ -1532,9 +1606,17 @@
                     <label class="block text-xs font-bold text-gray-500 mb-1">RAZON SOCIAL / NOMBRE</label>
                     <input type="text" id="nuevoClienteRazon" class="w-full border border-gray-300 rounded-lg px-4 py-2" placeholder="Ej: Supermercado Central S.A.">
                 </div>
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-3 gap-4">
                     <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">RUC</label>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">TIPO DOC.</label>
+                        <select id="nuevoClienteTipoDoc" class="w-full border border-gray-300 rounded-lg px-4 py-2">
+                            <option value="RUC">RUC</option>
+                            <option value="CEDULA">Cedula</option>
+                            <option value="PASAPORTE">Pasaporte</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">N° DOCUMENTO</label>
                         <input type="text" id="nuevoClienteRUC" class="w-full border border-gray-300 rounded-lg px-4 py-2" placeholder="80012345-6">
                     </div>
                     <div>

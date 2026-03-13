@@ -38,6 +38,33 @@ CREATE TABLE IF NOT EXISTS reportes_mensuales (
     creado_en TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- TABLA: configuracion_empresa (singleton — datos fiscales SIFEN)
+CREATE TABLE IF NOT EXISTS configuracion_empresa (
+    id INT PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+    ruc_empresa TEXT NOT NULL DEFAULT '',
+    razon_social TEXT NOT NULL DEFAULT '',
+    nombre_fantasia TEXT DEFAULT '',
+    timbrado_numero TEXT NOT NULL DEFAULT '',
+    timbrado_vencimiento DATE,
+    establecimiento TEXT NOT NULL DEFAULT '001',
+    punto_expedicion TEXT NOT NULL DEFAULT '001',
+    direccion_fiscal TEXT DEFAULT '',
+    telefono_empresa TEXT DEFAULT '',
+    email_empresa TEXT DEFAULT '',
+    actividad_economica TEXT DEFAULT '',
+    actualizado_en TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Insertar fila singleton si no existe
+INSERT INTO configuracion_empresa (id) VALUES (1) ON CONFLICT (id) DO NOTHING;
+
+-- Columnas SIFEN en clientes (retrocompatible, nullable)
+ALTER TABLE clientes ADD COLUMN IF NOT EXISTS tipo_documento TEXT DEFAULT 'RUC';
+ALTER TABLE clientes ADD COLUMN IF NOT EXISTS pais_documento TEXT DEFAULT 'PRY';
+
+-- Columna SIFEN en productos (retrocompatible, nullable)
+ALTER TABLE productos ADD COLUMN IF NOT EXISTS unidad_medida_set TEXT DEFAULT '77';
+
 -- ============================================
 -- INDICES para mejorar performance
 -- ============================================
@@ -85,6 +112,12 @@ ALTER TABLE pedidos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE catalogo ENABLE ROW LEVEL SECURITY;
 ALTER TABLE configuracion ENABLE ROW LEVEL SECURITY;
 ALTER TABLE reportes_mensuales ENABLE ROW LEVEL SECURITY;
+ALTER TABLE configuracion_empresa ENABLE ROW LEVEL SECURITY;
+
+-- CONFIGURACION EMPRESA: lectura authenticated, escritura solo admin
+CREATE POLICY "cfg_empresa_select" ON configuracion_empresa FOR SELECT TO authenticated USING (true);
+CREATE POLICY "cfg_empresa_update" ON configuracion_empresa FOR UPDATE TO authenticated USING (public.es_admin());
+CREATE POLICY "cfg_empresa_insert" ON configuracion_empresa FOR INSERT TO authenticated WITH CHECK (public.es_admin());
 
 -- PEDIDOS: admin ve todo, vendedor solo sus pedidos
 CREATE POLICY "pedidos_select" ON pedidos

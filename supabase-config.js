@@ -220,6 +220,7 @@ function _mapProductoRelacional(p) {
         estado: p.estado || 'disponible',
         oculto: p.oculto || false,
         tipo_impuesto: _normTipoImpuesto(p.tipo_impuesto),
+        unidad_medida_set: p.unidad_medida_set || '77',
         presentaciones: (p.producto_variantes || []).map(v => ({
             variante_id: v.id,
             tamano: v.nombre_variante,
@@ -315,7 +316,9 @@ async function guardarCatalogo(dataCatalogo) {
                     encargado: c.encargado || null,
                     tipo: c.tipo || 'minorista',
                     oculto: c.oculto || false,
-                    precios_personalizados: c.precios_personalizados || null
+                    precios_personalizados: c.precios_personalizados || null,
+                    tipo_documento: c.tipo_documento || 'RUC',
+                    pais_documento: c.pais_documento || 'PRY'
                 });
             }
             const { error } = await supabaseClient.from('clientes').upsert(cliRows, { onConflict: 'id' });
@@ -339,7 +342,8 @@ async function guardarCatalogo(dataCatalogo) {
                 imagen_url: p.imagen_url || p.imagen || null,
                 estado: p.estado || 'disponible',
                 oculto: p.oculto || false,
-                tipo_impuesto: _normTipoImpuesto(p.tipo_impuesto)
+                tipo_impuesto: _normTipoImpuesto(p.tipo_impuesto),
+                unidad_medida_set: p.unidad_medida_set || '77'
             }));
             const { error } = await supabaseClient.from('productos').upsert(prodRows, { onConflict: 'id' });
             if (error) throw new Error('Error productos: ' + error.message);

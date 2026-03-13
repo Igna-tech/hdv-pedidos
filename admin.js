@@ -241,6 +241,7 @@ let unsubscribePedidos = null; // Listener de Supabase
 
 document.addEventListener('DOMContentLoaded', async () => {
     await cargarDatosIniciales();
+    cargarConfigEmpresa();
 
     // Intentar escuchar pedidos en tiempo real desde Supabase
     if (typeof escucharPedidosRealtime === 'function') {
@@ -1308,6 +1309,7 @@ function abrirModalProducto(productoId) {
         document.getElementById('nuevoProductoSubcategoria').value = prod.subcategoria || '';
         document.getElementById('nuevoProductoEstado').value = prod.estado || 'disponible';
         document.getElementById('nuevoProductoTipoImpuesto').value = _normalizarTipoImpuesto(prod.tipo_impuesto);
+        document.getElementById('nuevoProductoUnidadMedida').value = prod.unidad_medida_set || '77';
 
         // Determinar si tiene multiples variantes
         const tieneVariantes = prod.presentaciones && prod.presentaciones.length > 1;
@@ -1341,6 +1343,7 @@ function abrirModalProducto(productoId) {
         });
         document.getElementById('nuevoProductoEstado').value = 'disponible';
         document.getElementById('nuevoProductoTipoImpuesto').value = '10';
+        document.getElementById('nuevoProductoUnidadMedida').value = '77';
         // Reset variantes
         document.getElementById('toggleVariantes').checked = false;
         document.getElementById('camposSimple').classList.remove('hidden');
@@ -1407,6 +1410,7 @@ async function guardarProductoModal() {
     let subcategoria = document.getElementById('nuevoProductoSubcategoria')?.value;
     const estado = document.getElementById('nuevoProductoEstado')?.value || 'disponible';
     const tipoImpuesto = document.getElementById('nuevoProductoTipoImpuesto')?.value || '10';
+    const unidadMedida = document.getElementById('nuevoProductoUnidadMedida')?.value || '77';
     const precio = parseInt(document.getElementById('nuevoProductoPrecio')?.value) || 0;
     const costo = parseInt(document.getElementById('nuevoProductoCosto')?.value) || 0;
     const stockSimple = parseInt(document.getElementById('nuevoProductoStock')?.value) || 0;
@@ -1468,13 +1472,14 @@ async function guardarProductoModal() {
             prod.subcategoria = subcategoria || 'General';
             prod.estado = estado;
             prod.tipo_impuesto = tipoImpuesto;
+            prod.unidad_medida_set = unidadMedida;
             prod.presentaciones = presentaciones;
         } else {
             // Creacion
             const ultimoId = productosData.productos.length > 0 ?
                 Math.max(...productosData.productos.map(p => parseInt(p.id.replace('P', '')) || 0)) : 0;
             const nuevoId = `P${String(ultimoId + 1).padStart(3, '0')}`;
-            const nuevo = { id: nuevoId, nombre, categoria: categoria || 'cuidado_personal', subcategoria: subcategoria || 'General', presentaciones, estado, tipo_impuesto: tipoImpuesto };
+            const nuevo = { id: nuevoId, nombre, categoria: categoria || 'cuidado_personal', subcategoria: subcategoria || 'General', presentaciones, estado, tipo_impuesto: tipoImpuesto, unidad_medida_set: unidadMedida };
             if (imagenUrl) { nuevo.imagen = imagenUrl; nuevo.imagen_url = imagenUrl; }
             productosData.productos.push(nuevo);
         }
@@ -1769,12 +1774,14 @@ function abrirModalCliente(clienteId) {
         document.getElementById('nuevoClienteDireccion').value = c.direccion || '';
         document.getElementById('nuevoClienteZona').value = c.zona || '';
         document.getElementById('nuevoClienteEncargado').value = c.encargado || '';
+        document.getElementById('nuevoClienteTipoDoc').value = c.tipo_documento || 'RUC';
     } else {
         titulo.textContent = 'Nuevo Cliente';
         formId.value = '';
         ['nuevoClienteRazon','nuevoClienteRUC','nuevoClienteTelefono','nuevoClienteDireccion','nuevoClienteZona','nuevoClienteEncargado'].forEach(id => {
             const el = document.getElementById(id); if (el) el.value = '';
         });
+        document.getElementById('nuevoClienteTipoDoc').value = 'RUC';
     }
     document.getElementById('modalCliente')?.classList.add('show');
 }
@@ -1793,6 +1800,7 @@ function guardarClienteModal() {
     const direccion = document.getElementById('nuevoClienteDireccion')?.value.trim();
     const zona = document.getElementById('nuevoClienteZona')?.value.trim();
     const encargado = document.getElementById('nuevoClienteEncargado')?.value.trim();
+    const tipoDocumento = document.getElementById('nuevoClienteTipoDoc')?.value || 'RUC';
 
     if (!razon) { mostrarToast('Ingresa la razon social', 'error'); return; }
 
@@ -1804,6 +1812,8 @@ function guardarClienteModal() {
             c.ruc = ruc; c.telefono = telefono;
             c.direccion = direccion; c.zona = zona || direccion;
             c.encargado = encargado;
+            c.tipo_documento = tipoDocumento;
+            c.pais_documento = c.pais_documento || 'PRY';
         }
     } else {
         // Creacion
@@ -1813,7 +1823,8 @@ function guardarClienteModal() {
         productosData.clientes.push({
             id: nuevoId, nombre: razon, razon_social: razon, ruc: ruc || '',
             telefono: telefono || '', direccion: direccion || '', zona: zona || direccion || '',
-            encargado: encargado || '', tipo: 'mayorista_estandar', precios_personalizados: {}
+            encargado: encargado || '', tipo: 'mayorista_estandar', precios_personalizados: {},
+            tipo_documento: tipoDocumento, pais_documento: 'PRY'
         });
     }
 
@@ -4813,6 +4824,67 @@ function mostrarToast(mensaje, tipo = 'info', duracion = 3500) {
         toast.classList.remove('show');
         setTimeout(() => toast.remove(), 400);
     }, duracion);
+}
+
+// ============================================
+// CONFIGURACION EMPRESA (SIFEN)
+// ============================================
+async function cargarConfigEmpresa() {
+    try {
+        const { data, error } = await supabaseClient.from('configuracion_empresa').select('*').eq('id', 1).single();
+        if (error) { console.log('[Config Empresa] No cargada:', error.message); return; }
+        if (!data) return;
+        const campos = {
+            cfgEmpresaRuc: data.ruc_empresa,
+            cfgEmpresaRazon: data.razon_social,
+            cfgEmpresaNombreFantasia: data.nombre_fantasia,
+            cfgEmpresaTimbrado: data.timbrado_numero,
+            cfgEmpresaTimbradoVenc: data.timbrado_vencimiento,
+            cfgEmpresaEstablecimiento: data.establecimiento,
+            cfgEmpresaPuntoExp: data.punto_expedicion,
+            cfgEmpresaDireccion: data.direccion_fiscal,
+            cfgEmpresaTelefono: data.telefono_empresa,
+            cfgEmpresaEmail: data.email_empresa,
+            cfgEmpresaActividad: data.actividad_economica
+        };
+        for (const [elId, valor] of Object.entries(campos)) {
+            const el = document.getElementById(elId);
+            if (el && valor) el.value = valor;
+        }
+        console.log('[Config Empresa] Datos cargados');
+    } catch (e) {
+        console.error('[Config Empresa] Error:', e);
+    }
+}
+
+async function guardarConfigEmpresa() {
+    const datos = {
+        id: 1,
+        ruc_empresa: document.getElementById('cfgEmpresaRuc')?.value.trim() || '',
+        razon_social: document.getElementById('cfgEmpresaRazon')?.value.trim() || '',
+        nombre_fantasia: document.getElementById('cfgEmpresaNombreFantasia')?.value.trim() || '',
+        timbrado_numero: document.getElementById('cfgEmpresaTimbrado')?.value.trim() || '',
+        timbrado_vencimiento: document.getElementById('cfgEmpresaTimbradoVenc')?.value || null,
+        establecimiento: document.getElementById('cfgEmpresaEstablecimiento')?.value.trim() || '001',
+        punto_expedicion: document.getElementById('cfgEmpresaPuntoExp')?.value.trim() || '001',
+        direccion_fiscal: document.getElementById('cfgEmpresaDireccion')?.value.trim() || '',
+        telefono_empresa: document.getElementById('cfgEmpresaTelefono')?.value.trim() || '',
+        email_empresa: document.getElementById('cfgEmpresaEmail')?.value.trim() || '',
+        actividad_economica: document.getElementById('cfgEmpresaActividad')?.value.trim() || '',
+        actualizado_en: new Date().toISOString()
+    };
+
+    if (!datos.ruc_empresa) { mostrarToast('Ingresa el RUC de la empresa', 'error'); return; }
+    if (!datos.razon_social) { mostrarToast('Ingresa la razon social', 'error'); return; }
+
+    try {
+        const { error } = await supabaseClient.from('configuracion_empresa').upsert(datos, { onConflict: 'id' });
+        if (error) throw error;
+        mostrarToast('Datos fiscales guardados correctamente', 'success');
+    } catch (e) {
+        console.error('[Config Empresa] Error guardando:', e);
+        mostrarToast('Error al guardar: ' + e.message, 'error');
+    }
 }
 
 // ============================================

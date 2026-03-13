@@ -53,14 +53,27 @@ function getNombreMes(mes) {
 
 // ============================================
 // DESGLOSE IVA (Paraguay: 10% general, 5% canasta basica)
-// Por ahora todo se asume IVA 10%
+// Usa desglose por item si esta guardado en el pedido, sino fallback a 10%
 // ============================================
 
-function calcularDesglose(total) {
-    // IVA 10%: base = total / 1.10, iva = total - base
+function calcularDesglose(total, pedido) {
+    // Si el pedido ya tiene desglose calculado por item, usarlo
+    if (pedido && pedido.desgloseIVA) {
+        const d = pedido.desgloseIVA;
+        return {
+            exentas: d.totalExentas || 0,
+            gravada5: d.totalGravada5 || 0,
+            iva5: d.liqIva5 || 0,
+            gravada10: d.totalGravada10 || 0,
+            iva10: d.liqIva10 || 0,
+            totalIva: d.totalIva || 0,
+            total: total
+        };
+    }
+    // Fallback: asumir todo IVA 10%
     const base10 = Math.round(total / 1.10);
     const iva10 = total - base10;
-    return { exentas: 0, iva5: 0, iva10: iva10, total: total };
+    return { exentas: 0, gravada5: 0, iva5: 0, gravada10: base10, iva10: iva10, totalIva: iva10, total: total };
 }
 
 // ============================================
@@ -99,7 +112,7 @@ function previsualizarCierre() {
         const esNC = r.estado === 'nota_credito_mock';
         const tipo = esNC ? 'NC' : 'Venta';
         const total = r.total || 0;
-        const desglose = calcularDesglose(total);
+        const desglose = calcularDesglose(total, r);
 
         const tr = document.createElement('tr');
         tr.className = esNC ? 'bg-red-50/50' : '';
@@ -154,8 +167,7 @@ async function exportarLibroRG90() {
         const esNC = r.estado === 'nota_credito_mock';
         const tipo = esNC ? 'Nota de Credito' : 'Factura Electronica';
         const total = r.total || 0;
-        const desglose = calcularDesglose(total);
-        const gravada10 = total - desglose.iva10;
+        const desglose = calcularDesglose(total, r);
 
         const fecha = new Date(r.fecha).toLocaleDateString('es-PY');
         const nombre = (r.cliente?.nombre || '').replace(/,/g, ' ');
@@ -163,7 +175,7 @@ async function exportarLibroRG90() {
         const cdc = r.cdc || '';
 
         csv += `${fecha},${ruc},"${nombre}",${numDoc},${tipo},${cdc},`;
-        csv += `${desglose.exentas},0,0,${gravada10},${desglose.iva10},${total}\n`;
+        csv += `${desglose.exentas},${desglose.gravada5 || 0},${desglose.iva5},${desglose.gravada10 || 0},${desglose.iva10},${total}\n`;
     });
 
     // Descargar

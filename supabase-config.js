@@ -198,6 +198,16 @@ async function sincronizarPedidosLocales() {
 // FUNCIONES PARA CATALOGO (Tablas Relacionales)
 // ============================================
 
+// Normaliza tipo_impuesto legacy ('iva10') a formato limpio ('10','5','exenta')
+function _normTipoImpuesto(val) {
+    if (!val) return '10';
+    const v = String(val).toLowerCase().trim();
+    if (v === 'iva10' || v === '10') return '10';
+    if (v === 'iva5' || v === '5') return '5';
+    if (v === 'exenta' || v === 'exento' || v === '0') return 'exenta';
+    return '10';
+}
+
 // Helper: convierte fila de producto + variantes al formato legacy
 function _mapProductoRelacional(p) {
     return {
@@ -209,7 +219,7 @@ function _mapProductoRelacional(p) {
         imagen_url: p.imagen_url || '',
         estado: p.estado || 'disponible',
         oculto: p.oculto || false,
-        tipo_impuesto: p.tipo_impuesto || 'iva10',
+        tipo_impuesto: _normTipoImpuesto(p.tipo_impuesto),
         presentaciones: (p.producto_variantes || []).map(v => ({
             variante_id: v.id,
             tamano: v.nombre_variante,
@@ -329,7 +339,7 @@ async function guardarCatalogo(dataCatalogo) {
                 imagen_url: p.imagen_url || p.imagen || null,
                 estado: p.estado || 'disponible',
                 oculto: p.oculto || false,
-                tipo_impuesto: p.tipo_impuesto || 'iva10'
+                tipo_impuesto: _normTipoImpuesto(p.tipo_impuesto)
             }));
             const { error } = await supabaseClient.from('productos').upsert(prodRows, { onConflict: 'id' });
             if (error) throw new Error('Error productos: ' + error.message);

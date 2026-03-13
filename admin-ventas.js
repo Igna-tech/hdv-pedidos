@@ -237,6 +237,20 @@ function construirTicketThermal(pedido, clienteInfo) {
         html += `<div style="font-size:10px; text-align:right;">Desc: ${pedido.descuento}%</div>`;
     }
     html += `<div style="font-size:12px; font-weight:bold; text-align:right;">TOTAL: Gs. ${(pedido.total || 0).toLocaleString()}</div>`;
+
+    // Desglose IVA solo para facturas
+    if (esFactura && pedido.desgloseIVA) {
+        const iva = pedido.desgloseIVA;
+        html += `<hr style="border:none; border-top:1px dashed #000; margin:4px 0;">`;
+        html += `<div style="font-size:9px;">`;
+        html += `<div style="display:flex; justify-content:space-between;"><span>Sub. Exentas:</span><span>Gs. ${(iva.totalExentas || 0).toLocaleString()}</span></div>`;
+        html += `<div style="display:flex; justify-content:space-between;"><span>Sub. IVA 5%:</span><span>Gs. ${(iva.totalGravada5 || 0).toLocaleString()}</span></div>`;
+        html += `<div style="display:flex; justify-content:space-between;"><span>Sub. IVA 10%:</span><span>Gs. ${(iva.totalGravada10 || 0).toLocaleString()}</span></div>`;
+        html += `<div style="display:flex; justify-content:space-between; font-weight:bold; border-top:1px dotted #000; padding-top:2px; margin-top:2px;"><span>Liq. IVA 5%:</span><span>Gs. ${(iva.liqIva5 || 0).toLocaleString()}</span></div>`;
+        html += `<div style="display:flex; justify-content:space-between; font-weight:bold;"><span>Liq. IVA 10%:</span><span>Gs. ${(iva.liqIva10 || 0).toLocaleString()}</span></div>`;
+        html += `<div style="display:flex; justify-content:space-between; font-weight:bold; border-top:1px dotted #000; padding-top:2px; margin-top:2px;"><span>Total IVA:</span><span>Gs. ${(iva.totalIva || 0).toLocaleString()}</span></div>`;
+        html += `</div>`;
+    }
     html += `<hr style="border:none; border-top:1px dashed #000; margin:4px 0;">`;
 
     if (esFactura && pedido.cdc) {
@@ -310,6 +324,18 @@ function construirDocA4(pedido, clienteInfo) {
             ` : ''}
             <p style="font-size:18px; font-weight:900; margin:8px 0 0; border-top:2px solid #111827; padding-top:8px;">TOTAL: Gs. ${(pedido.total || 0).toLocaleString()}</p>
         </div>
+        ${esFactura && pedido.desgloseIVA ? `
+            <div style="display:flex; justify-content:flex-end; margin-bottom:16px;">
+                <table style="border-collapse:collapse; font-size:11px;">
+                    <tr><td style="padding:2px 12px;">Sub. Exentas</td><td style="padding:2px 12px; text-align:right;">Gs. ${(pedido.desgloseIVA.totalExentas || 0).toLocaleString()}</td></tr>
+                    <tr><td style="padding:2px 12px;">Sub. Gravadas 5%</td><td style="padding:2px 12px; text-align:right;">Gs. ${(pedido.desgloseIVA.totalGravada5 || 0).toLocaleString()}</td></tr>
+                    <tr><td style="padding:2px 12px;">Sub. Gravadas 10%</td><td style="padding:2px 12px; text-align:right;">Gs. ${(pedido.desgloseIVA.totalGravada10 || 0).toLocaleString()}</td></tr>
+                    <tr style="border-top:1px solid #d1d5db;"><td style="padding:2px 12px; font-weight:bold;">Liquidacion IVA 5%</td><td style="padding:2px 12px; text-align:right; font-weight:bold;">Gs. ${(pedido.desgloseIVA.liqIva5 || 0).toLocaleString()}</td></tr>
+                    <tr><td style="padding:2px 12px; font-weight:bold;">Liquidacion IVA 10%</td><td style="padding:2px 12px; text-align:right; font-weight:bold;">Gs. ${(pedido.desgloseIVA.liqIva10 || 0).toLocaleString()}</td></tr>
+                    <tr style="border-top:2px solid #111827;"><td style="padding:4px 12px; font-weight:900;">Total IVA</td><td style="padding:4px 12px; text-align:right; font-weight:900;">Gs. ${(pedido.desgloseIVA.totalIva || 0).toLocaleString()}</td></tr>
+                </table>
+            </div>
+        ` : ''}
         ${pedido.notas ? `<p style="font-size:11px; color:#6b7280; border-top:1px solid #e5e7eb; padding-top:8px;">Notas: ${pedido.notas}</p>` : ''}
         ${esFactura && pedido.cdc ? `
             <div style="margin-top:20px; padding-top:12px; border-top:1px solid #e5e7eb; display:flex; align-items:center; gap:16px;">

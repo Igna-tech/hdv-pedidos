@@ -1307,6 +1307,7 @@ function abrirModalProducto(productoId) {
         actualizarSubcategoriasModal();
         document.getElementById('nuevoProductoSubcategoria').value = prod.subcategoria || '';
         document.getElementById('nuevoProductoEstado').value = prod.estado || 'disponible';
+        document.getElementById('nuevoProductoTipoImpuesto').value = _normalizarTipoImpuesto(prod.tipo_impuesto);
 
         // Determinar si tiene multiples variantes
         const tieneVariantes = prod.presentaciones && prod.presentaciones.length > 1;
@@ -1339,6 +1340,7 @@ function abrirModalProducto(productoId) {
             const el = document.getElementById(id); if (el) el.value = '';
         });
         document.getElementById('nuevoProductoEstado').value = 'disponible';
+        document.getElementById('nuevoProductoTipoImpuesto').value = '10';
         // Reset variantes
         document.getElementById('toggleVariantes').checked = false;
         document.getElementById('camposSimple').classList.remove('hidden');
@@ -1353,6 +1355,16 @@ function abrirModalProducto(productoId) {
 }
 
 function editarProducto(id) { abrirModalProducto(id); }
+
+// Normaliza valores legacy ('iva10','iva5') a formato limpio ('10','5','exenta')
+function _normalizarTipoImpuesto(val) {
+    if (!val) return '10';
+    const v = String(val).toLowerCase().trim();
+    if (v === 'iva10' || v === '10') return '10';
+    if (v === 'iva5' || v === '5') return '5';
+    if (v === 'exenta' || v === 'exento' || v === '0') return 'exenta';
+    return '10';
+}
 
 function agregarPresModal() {
     const container = document.getElementById('presentacionesDetalladas');
@@ -1394,6 +1406,7 @@ async function guardarProductoModal() {
     const categoria = document.getElementById('nuevoProductoCategoria')?.value;
     let subcategoria = document.getElementById('nuevoProductoSubcategoria')?.value;
     const estado = document.getElementById('nuevoProductoEstado')?.value || 'disponible';
+    const tipoImpuesto = document.getElementById('nuevoProductoTipoImpuesto')?.value || '10';
     const precio = parseInt(document.getElementById('nuevoProductoPrecio')?.value) || 0;
     const costo = parseInt(document.getElementById('nuevoProductoCosto')?.value) || 0;
     const stockSimple = parseInt(document.getElementById('nuevoProductoStock')?.value) || 0;
@@ -1454,13 +1467,14 @@ async function guardarProductoModal() {
             prod.categoria = categoria;
             prod.subcategoria = subcategoria || 'General';
             prod.estado = estado;
+            prod.tipo_impuesto = tipoImpuesto;
             prod.presentaciones = presentaciones;
         } else {
             // Creacion
             const ultimoId = productosData.productos.length > 0 ?
                 Math.max(...productosData.productos.map(p => parseInt(p.id.replace('P', '')) || 0)) : 0;
             const nuevoId = `P${String(ultimoId + 1).padStart(3, '0')}`;
-            const nuevo = { id: nuevoId, nombre, categoria: categoria || 'cuidado_personal', subcategoria: subcategoria || 'General', presentaciones, estado };
+            const nuevo = { id: nuevoId, nombre, categoria: categoria || 'cuidado_personal', subcategoria: subcategoria || 'General', presentaciones, estado, tipo_impuesto: tipoImpuesto };
             if (imagenUrl) { nuevo.imagen = imagenUrl; nuevo.imagen_url = imagenUrl; }
             productosData.productos.push(nuevo);
         }
@@ -2457,7 +2471,7 @@ function confirmarImportacion() {
                     id: nuevoId, nombre,
                     categoria: categoriaId,
                     subcategoria: subTexto,
-                    estado: 'disponible', oculto: false, tipo_impuesto: 'iva10',
+                    estado: 'disponible', oculto: false, tipo_impuesto: '10',
                     presentaciones: [pres]
                 });
                 agregados++;

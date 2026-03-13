@@ -781,7 +781,8 @@ function agregarMatrizAlCarrito(productoId) {
                 presentacion: pres.tamano,
                 precio,
                 cantidad,
-                subtotal: precio * cantidad
+                subtotal: precio * cantidad,
+                tipo_impuesto: producto.tipo_impuesto || '10'
             });
         }
 
@@ -927,7 +928,8 @@ function agregarMasivoAlCarrito(productoId) {
                 presentacion: pres.tamano,
                 precio,
                 cantidad,
-                subtotal: precio * cantidad
+                subtotal: precio * cantidad,
+                tipo_impuesto: producto.tipo_impuesto || '10'
             });
         }
 
@@ -954,6 +956,39 @@ function ajustarQty(prodId, idx, delta) {
     val = Math.max(0, val + delta);
     input.value = val;
     recalcularTotalMasivo(prodId);
+}
+
+// ============================================
+// DESGLOSE IVA (Paraguay — precios con IVA incluido)
+// ============================================
+function calcularDesgloseIVA(items) {
+    let totalExentas = 0, totalGravada5 = 0, totalGravada10 = 0;
+
+    items.forEach(item => {
+        const tipo = (item.tipo_impuesto || '10').toString();
+        if (tipo === 'exenta' || tipo === '0') {
+            totalExentas += item.subtotal;
+        } else if (tipo === '5') {
+            totalGravada5 += item.subtotal;
+        } else {
+            totalGravada10 += item.subtotal;
+        }
+    });
+
+    // Liquidacion IVA (IVA incluido en precio)
+    const liqIva5 = Math.round(totalGravada5 / 21);
+    const liqIva10 = Math.round(totalGravada10 / 11);
+    const totalIva = liqIva5 + liqIva10;
+
+    return {
+        totalExentas,
+        totalGravada5,
+        liqIva5,
+        totalGravada10,
+        liqIva10,
+        totalIva,
+        total: totalExentas + totalGravada5 + totalGravada10
+    };
 }
 
 // ============================================
@@ -987,7 +1022,8 @@ function agregarAlCarrito(productoId, presIdx) {
             precio,
             cantidad,
             subtotal: precio * cantidad,
-            precioEspecial: esPrecioEspecial
+            precioEspecial: esPrecioEspecial,
+            tipo_impuesto: producto.tipo_impuesto || '10'
         });
     }
     

@@ -1424,13 +1424,23 @@
                         <select id="nuevoProductoSubcategoria" class="w-full border border-gray-300 rounded-lg px-4 py-2"></select>
                     </div>
                 </div>
-                <div>
-                    <label class="block text-xs font-bold text-gray-500 mb-1">ESTADO</label>
-                    <select id="nuevoProductoEstado" class="w-full border border-gray-300 rounded-lg px-4 py-2">
-                        <option value="disponible">Disponible</option>
-                        <option value="agotado">Agotado</option>
-                        <option value="discontinuado">Discontinuado</option>
-                    </select>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">ESTADO</label>
+                        <select id="nuevoProductoEstado" class="w-full border border-gray-300 rounded-lg px-4 py-2">
+                            <option value="disponible">Disponible</option>
+                            <option value="agotado">Agotado</option>
+                            <option value="discontinuado">Discontinuado</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">TIPO IVA</label>
+                        <select id="nuevoProductoTipoImpuesto" class="w-full border border-gray-300 rounded-lg px-4 py-2">
+                            <option value="10">IVA 10%</option>
+                            <option value="5">IVA 5%</option>
+                            <option value="exenta">Exenta</option>
+                        </select>
+                    </div>
                 </div>
 
                 <!-- Toggle: Producto simple vs variantes -->

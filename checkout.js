@@ -9,16 +9,23 @@ function obtenerDatosVenta() {
     const descuento = parseFloat(document.getElementById('descuento').value) || 0;
     const tipoPago = document.getElementById('tipoPago').value;
     const notas = document.getElementById('notasPedido').value.trim();
-    const subtotal = carrito.reduce((s, i) => s + i.subtotal, 0);
+    const items = carrito.map(i => ({ ...i }));
+    const subtotal = items.reduce((s, i) => s + i.subtotal, 0);
     const total = Math.round(subtotal * (1 - descuento / 100));
 
+    // Calcular desglose IVA sobre items con descuento aplicado proporcionalmente
+    const factor = descuento > 0 ? (1 - descuento / 100) : 1;
+    const itemsAjustados = items.map(i => ({ ...i, subtotal: Math.round(i.subtotal * factor) }));
+    const desgloseIVA = typeof calcularDesgloseIVA === 'function' ? calcularDesgloseIVA(itemsAjustados) : null;
+
     return {
-        items: carrito.map(i => ({ ...i })),
+        items,
         subtotal,
         descuento,
         total,
         tipoPago,
         notas,
+        desgloseIVA,
         cliente: {
             id: clienteActual.id,
             nombre: clienteActual.razon_social || clienteActual.nombre,
@@ -96,6 +103,8 @@ async function procesarPedido() {
         tipoPago: datos.tipoPago,
         notas: datos.notas,
         estado: 'pedido_pendiente',
+        tipo_comprobante: 'pedido',
+        desgloseIVA: datos.desgloseIVA,
         vendedor_id: window.hdvUsuario?.id || null,
         sincronizado: false
     };
@@ -137,6 +146,8 @@ async function procesarCobroInterno() {
         tipoPago: datos.tipoPago,
         notas: datos.notas,
         estado: 'cobrado_sin_factura',
+        tipo_comprobante: 'recibo_interno',
+        desgloseIVA: datos.desgloseIVA,
         vendedor_id: window.hdvUsuario?.id || null,
         sincronizado: false
     };
@@ -228,6 +239,8 @@ async function procesarFacturaMock() {
         tipoPago: datos.tipoPago,
         notas: datos.notas,
         estado: 'facturado_mock',
+        tipo_comprobante: 'factura_electronica',
+        desgloseIVA: datos.desgloseIVA,
         numFactura,
         cdc,
         vendedor_id: window.hdvUsuario?.id || null,
@@ -265,6 +278,21 @@ async function procesarFacturaMock() {
                      <p style="font-size:10px;">Desc: ${datos.descuento}%</p>` + totalHTML;
     }
     document.getElementById('printKuDETotal').innerHTML = totalHTML;
+
+    // Desglose IVA para Factura Electronica (formato SET)
+    const iva = datos.desgloseIVA;
+    if (iva) {
+        document.getElementById('printKuDEIVA').innerHTML = `
+            <div style="display:flex; justify-content:space-between;"><span>Sub. Exentas:</span><span>Gs. ${iva.totalExentas.toLocaleString()}</span></div>
+            <div style="display:flex; justify-content:space-between;"><span>Sub. IVA 5%:</span><span>Gs. ${iva.totalGravada5.toLocaleString()}</span></div>
+            <div style="display:flex; justify-content:space-between;"><span>Sub. IVA 10%:</span><span>Gs. ${iva.totalGravada10.toLocaleString()}</span></div>
+            <div style="display:flex; justify-content:space-between; margin-top:2px; font-weight:bold; border-top:1px dotted #000; padding-top:2px;">
+                <span>Liq. IVA 5%:</span><span>Gs. ${iva.liqIva5.toLocaleString()}</span></div>
+            <div style="display:flex; justify-content:space-between; font-weight:bold;">
+                <span>Liq. IVA 10%:</span><span>Gs. ${iva.liqIva10.toLocaleString()}</span></div>
+            <div style="display:flex; justify-content:space-between; font-weight:bold; border-top:1px dotted #000; padding-top:2px; margin-top:2px;">
+                <span>Total IVA:</span><span>Gs. ${iva.totalIva.toLocaleString()}</span></div>`;
+    }
 
     // TODO: Fase Futura - Reemplazar con fetch a API FactPy enviando JSON estructurado.
     await new Promise(resolve => setTimeout(resolve, 2500));

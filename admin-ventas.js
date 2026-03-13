@@ -563,8 +563,8 @@ async function verXMLSifen(pedidoId) {
                 pedidos[idx].sifen_xml_generado = true;
                 pedidos[idx].sifen_fecha_generacion = new Date().toISOString();
                 localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
-                // Refrescar lista de ventas para mostrar boton KuDE
-                if (typeof filtrarVentas === 'function') filtrarVentas();
+                // Refrescar: cargarVentas() relee localStorage en todosLosPedidos y luego filtra
+                if (typeof cargarVentas === 'function') cargarVentas();
             }
         } catch (e) { console.warn('[SIFEN] Error guardando en localStorage:', e); }
 

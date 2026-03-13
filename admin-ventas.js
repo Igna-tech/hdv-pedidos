@@ -112,6 +112,7 @@ function mostrarVentas(ventas) {
             <div class="flex gap-2 mt-4 flex-wrap">
                 <button class="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-700 inline-flex items-center gap-1.5" onclick="abrirReimpresion('${v.id}')"><i data-lucide="printer" class="w-3.5 h-3.5"></i> Re-imprimir</button>
                 <button class="bg-[#25D366] text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-[#1fad55] inline-flex items-center gap-1.5" onclick="enviarWhatsAppVenta('${v.id}')"><i data-lucide="message-circle" class="w-3.5 h-3.5"></i> WhatsApp</button>
+                ${esFactura ? `<button class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-500 inline-flex items-center gap-1.5" onclick="verXMLSifen('${v.id}')"><i data-lucide="file-code" class="w-3.5 h-3.5"></i> XML SIFEN</button>` : ''}
             </div>`;
         container.appendChild(div);
     });
@@ -513,4 +514,111 @@ function enviarWhatsAppVenta(ventaId) {
         : `https://wa.me/?text=${texto}`;
 
     window.open(url, '_blank');
+}
+
+// ============================================
+// VER XML SIFEN (PRUEBA) — Edge Function
+// ============================================
+
+async function verXMLSifen(pedidoId) {
+    mostrarToast('Generando XML SIFEN...', 'info');
+
+    try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (!session) {
+            mostrarToast('Sesion expirada. Reingrese al sistema.', 'error');
+            return;
+        }
+
+        const response = await fetch(`${SUPABASE_URL}/functions/v1/sifen-generar-xml`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session.access_token}`,
+                'apikey': SUPABASE_ANON_KEY,
+            },
+            body: JSON.stringify({ pedido_id: pedidoId }),
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            mostrarToast(result.error || 'Error al generar XML', 'error');
+            return;
+        }
+
+        // Mostrar XML en modal
+        mostrarXMLSifenModal(result);
+
+    } catch (err) {
+        console.error('[SIFEN] Error:', err);
+        mostrarToast('Error de conexion al generar XML SIFEN', 'error');
+    }
+}
+
+function mostrarXMLSifenModal(result) {
+    // Eliminar modal previo si existe
+    let modal = document.getElementById('modalXMLSifen');
+    if (modal) modal.remove();
+
+    const xmlEscaped = (result.xml || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+    modal = document.createElement('div');
+    modal.id = 'modalXMLSifen';
+    modal.className = 'fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4';
+    modal.style.display = 'flex';
+    modal.innerHTML = `
+        <div class="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] flex flex-col" style="animation: slideUp 0.2s ease-out;">
+            <div class="flex justify-between items-center px-6 py-4 border-b border-gray-200">
+                <div>
+                    <h3 class="text-lg font-bold text-gray-800">XML SIFEN (Prueba)</h3>
+                    <p class="text-xs text-gray-500 mt-0.5">CDC: <span class="font-mono">${result.cdc || 'N/A'}</span></p>
+                    <p class="text-xs text-gray-500">Factura: ${result.numFactura || 'N/A'} | ${result.empresa || ''} → ${result.cliente || ''} | Gs. ${(result.total || 0).toLocaleString()}</p>
+                </div>
+                <button onclick="document.getElementById('modalXMLSifen').remove()" class="text-gray-400 hover:text-gray-600 p-1">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div class="p-4 overflow-auto flex-1">
+                <pre class="bg-gray-900 text-green-400 p-4 rounded-xl text-xs font-mono overflow-x-auto whitespace-pre-wrap leading-relaxed">${xmlEscaped}</pre>
+            </div>
+            <div class="flex gap-3 px-6 py-4 border-t border-gray-100">
+                <button onclick="copiarXMLSifen()" class="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-700 inline-flex items-center gap-1.5">
+                    <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copiar XML
+                </button>
+                <button onclick="descargarXMLSifen()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-500 inline-flex items-center gap-1.5">
+                    <i data-lucide="download" class="w-3.5 h-3.5"></i> Descargar .xml
+                </button>
+                <button onclick="document.getElementById('modalXMLSifen').remove()" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-300 ml-auto">Cerrar</button>
+            </div>
+        </div>
+    `;
+
+    // Guardar XML en variable temporal para copiar/descargar
+    window._lastSifenXML = result.xml || '';
+    window._lastSifenCDC = result.cdc || '';
+
+    document.body.appendChild(modal);
+    lucide.createIcons();
+}
+
+function copiarXMLSifen() {
+    if (!window._lastSifenXML) return;
+    navigator.clipboard.writeText(window._lastSifenXML).then(() => {
+        mostrarToast('XML copiado al portapapeles', 'success');
+    }).catch(() => {
+        mostrarToast('Error al copiar', 'error');
+    });
+}
+
+function descargarXMLSifen() {
+    if (!window._lastSifenXML) return;
+    const blob = new Blob([window._lastSifenXML], { type: 'application/xml' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `DTE_${window._lastSifenCDC || 'sifen'}.xml`;
+    a.click();
+    URL.revokeObjectURL(url);
+    mostrarToast('XML descargado', 'success');
 }

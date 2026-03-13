@@ -280,21 +280,34 @@ async function guardarCatalogo(dataCatalogo) {
             await supabaseClient.from('categorias').delete().in('id', catsEliminar);
         }
 
-        // 2. Clientes - upsert batch
+        // 2. Clientes - upsert batch (dedup por RUC antes de enviar)
         if (clis.length > 0) {
-            const cliRows = clis.map(c => ({
-                id: c.id,
-                nombre: c.nombre || '',
-                razon_social: c.razon_social || null,
-                ruc: c.ruc || null,
-                telefono: c.telefono || null,
-                direccion: c.direccion || null,
-                zona: c.zona || null,
-                encargado: c.encargado || null,
-                tipo: c.tipo || 'minorista',
-                oculto: c.oculto || false,
-                precios_personalizados: c.precios_personalizados || null
-            }));
+            const rucVisto = new Set();
+            const cliRows = [];
+            for (const c of clis) {
+                const rucLimpio = (c.ruc || '').trim() || null;
+                // Si hay RUC duplicado en memoria, quedarse con el primero
+                if (rucLimpio) {
+                    if (rucVisto.has(rucLimpio)) {
+                        console.warn(`[Supabase] RUC duplicado ignorado: ${rucLimpio} (cliente ${c.id})`);
+                        continue;
+                    }
+                    rucVisto.add(rucLimpio);
+                }
+                cliRows.push({
+                    id: c.id,
+                    nombre: c.nombre || '',
+                    razon_social: c.razon_social || null,
+                    ruc: rucLimpio,
+                    telefono: c.telefono || null,
+                    direccion: c.direccion || null,
+                    zona: c.zona || null,
+                    encargado: c.encargado || null,
+                    tipo: c.tipo || 'minorista',
+                    oculto: c.oculto || false,
+                    precios_personalizados: c.precios_personalizados || null
+                });
+            }
             const { error } = await supabaseClient.from('clientes').upsert(cliRows, { onConflict: 'id' });
             if (error) throw new Error('Error clientes: ' + error.message);
         }

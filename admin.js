@@ -2445,37 +2445,75 @@ function confirmarImportacion() {
         const colNombre = getCol('nombre');
         if (colNombre < 0) { mostrarToast('Debes mapear al menos el campo Nombre', 'error'); return; }
 
-        let agregados = 0, actualizados = 0;
+        let agregados = 0, actualizados = 0, duplicadosRuc = 0;
         const ultimoId = Math.max(...productosData.clientes.map(c => parseInt(c.id.replace('C', '')) || 0), 0);
         const colRuc = getCol('ruc'), colTel = getCol('telefono');
         const colDir = getCol('direccion'), colZona = getCol('zona'), colEnc = getCol('encargado');
+
+        // --- Indices para busqueda rapida ---
+        const _normRuc = (r) => (r || '').replace(/[^0-9a-zA-Z]/g, '').trim();
+        const indicePorRuc = new Map();
+        const indicePorNombre = new Map();
+        productosData.clientes.forEach(c => {
+            const rNorm = _normRuc(c.ruc);
+            if (rNorm) indicePorRuc.set(rNorm, c);
+            indicePorNombre.set((c.razon_social || c.nombre || '').toLowerCase().trim(), c);
+        });
+        // Set para detectar RUCs duplicados dentro del mismo CSV
+        const rucsEnCsv = new Set();
 
         rows.slice(1).forEach(cols => {
             const nombre = String(cols[colNombre] || '').trim();
             if (!nombre) return;
 
-            // Upsert: buscar por RUC primero, luego por nombre
-            const ruc = colRuc >= 0 ? String(cols[colRuc] || '').trim() : '';
-            const existente = ruc
-                ? productosData.clientes.find(c => c.ruc && c.ruc === ruc)
-                : productosData.clientes.find(c => (c.razon_social || c.nombre || '').toLowerCase() === nombre.toLowerCase());
+            const rucRaw = colRuc >= 0 ? String(cols[colRuc] || '').trim() : '';
+            const rucNorm = _normRuc(rucRaw);
+            const nombreNorm = nombre.toLowerCase().trim();
+
+            // Detectar RUC duplicado dentro del mismo CSV
+            if (rucNorm && rucsEnCsv.has(rucNorm)) {
+                duplicadosRuc++;
+                return; // Saltar fila duplicada
+            }
+            if (rucNorm) rucsEnCsv.add(rucNorm);
+
+            // Buscar existente: 1) por RUC normalizado, 2) fallback por nombre
+            let existente = null;
+            if (rucNorm) {
+                existente = indicePorRuc.get(rucNorm);
+                // Si no coincidio por RUC, intentar por nombre como fallback
+                if (!existente) existente = indicePorNombre.get(nombreNorm);
+            } else {
+                existente = indicePorNombre.get(nombreNorm);
+            }
 
             if (existente) {
+                // Actualizar todos los campos que vengan del CSV
+                if (colRuc >= 0 && rucRaw) existente.ruc = rucRaw;
+                existente.nombre = nombre;
+                existente.razon_social = nombre;
                 if (colTel >= 0 && cols[colTel]) existente.telefono = String(cols[colTel]);
                 if (colDir >= 0 && cols[colDir]) existente.direccion = String(cols[colDir]);
                 if (colZona >= 0 && cols[colZona]) existente.zona = String(cols[colZona]);
                 if (colEnc >= 0 && cols[colEnc]) existente.encargado = String(cols[colEnc]);
+                // Actualizar indices con nuevos datos
+                if (rucNorm) indicePorRuc.set(rucNorm, existente);
+                indicePorNombre.set(nombreNorm, existente);
                 actualizados++;
             } else {
                 const nuevoId = `C${String(ultimoId + agregados + 1).padStart(3, '0')}`;
-                productosData.clientes.push({
-                    id: nuevoId, nombre, razon_social: nombre, ruc,
+                const nuevo = {
+                    id: nuevoId, nombre, razon_social: nombre, ruc: rucRaw,
                     telefono: colTel >= 0 ? String(cols[colTel] || '') : '',
                     direccion: colDir >= 0 ? String(cols[colDir] || '') : '',
                     zona: colZona >= 0 ? String(cols[colZona] || '') : '',
                     encargado: colEnc >= 0 ? String(cols[colEnc] || '') : '',
                     tipo: 'minorista', oculto: false, precios_personalizados: {}
-                });
+                };
+                productosData.clientes.push(nuevo);
+                // Registrar en indices para que filas siguientes del CSV lo encuentren
+                if (rucNorm) indicePorRuc.set(rucNorm, nuevo);
+                indicePorNombre.set(nombreNorm, nuevo);
                 agregados++;
             }
         });
@@ -2484,7 +2522,10 @@ function confirmarImportacion() {
             clientesFiltrados = [...productosData.clientes];
             registrarCambio();
             mostrarClientesGestion();
-            mostrarToast(`${agregados} nuevos, ${actualizados} actualizados. Guarda para aplicar.`, 'success');
+            let msg = `${agregados} nuevos, ${actualizados} actualizados.`;
+            if (duplicadosRuc > 0) msg += ` ${duplicadosRuc} filas con RUC duplicado ignoradas.`;
+            msg += ' Guarda para aplicar.';
+            mostrarToast(msg, 'success');
         } else {
             mostrarToast('No se encontraron datos validos', 'warning');
         }

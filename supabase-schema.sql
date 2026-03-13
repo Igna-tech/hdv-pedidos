@@ -45,6 +45,9 @@ CREATE INDEX IF NOT EXISTS idx_pedidos_estado ON pedidos(estado);
 CREATE INDEX IF NOT EXISTS idx_pedidos_fecha ON pedidos(fecha DESC);
 CREATE INDEX IF NOT EXISTS idx_pedidos_vendedor ON pedidos(vendedor_id);
 
+-- Indice unico parcial: evita RUCs duplicados a nivel DB (permite multiples NULL)
+CREATE UNIQUE INDEX IF NOT EXISTS idx_clientes_ruc_unique ON clientes(ruc) WHERE ruc IS NOT NULL AND ruc != '';
+
 -- ============================================
 -- FUNCIONES HELPER DE SEGURIDAD
 -- ============================================

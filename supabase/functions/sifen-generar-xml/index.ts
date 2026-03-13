@@ -8,8 +8,7 @@
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import xmlbuilder2 from "https://esm.sh/xmlbuilder2@3.1.1";
-const { create } = xmlbuilder2;
+import { create } from "npm:xmlbuilder2@3.1.1";
 
 // --- CORS ---
 const corsHeaders = {

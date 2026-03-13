@@ -1516,24 +1516,27 @@ function registrarSW() {
         navigator.serviceWorker.register('service-worker.js')
             .then(reg => {
                 console.log('[SW] Registrado');
-                // Buscar actualizaciones cada 30 segundos
-                setInterval(() => reg.update(), 30000);
+                setInterval(() => { try { reg.update(); } catch(e) {} }, 30000);
                 reg.addEventListener('updatefound', () => {
                     const newWorker = reg.installing;
+                    if (!newWorker) return;
                     newWorker.addEventListener('statechange', () => {
-                        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                            newWorker.postMessage('skipWaiting');
-                            mostrarExito('Actualizando app...');
-                            setTimeout(() => location.reload(true), 1500);
-                        }
+                        try {
+                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                newWorker.postMessage('skipWaiting');
+                                mostrarExito('Actualizando app...');
+                                setTimeout(() => location.reload(true), 1500);
+                            }
+                        } catch(e) { console.log('[SW] statechange error ignorado'); }
                     });
                 });
             })
             .catch(err => console.log('[SW] Error:', err));
-        // Recargar cuando el nuevo SW tome control
-        navigator.serviceWorker.addEventListener('controllerchange', () => {
-            console.log('[SW] Nuevo service worker activo');
-        });
+        try {
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                console.log('[SW] Nuevo service worker activo');
+            });
+        } catch(e) {}
     }
 }
 

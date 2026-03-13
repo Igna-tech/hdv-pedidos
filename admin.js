@@ -2343,9 +2343,59 @@ function confirmarImportacion() {
         const colPres = getCol('presentacion'), colPrecio = getCol('precio');
         const colCosto = getCol('costo'), colStock = getCol('stock');
 
+        // --- Resolver categorias del CSV: texto plano → categoria_id válido ---
+        const categoriasExistentes = new Map(
+            (productosData.categorias || []).map(c => [c.id, c])
+        );
+        // Indice por nombre normalizado para buscar por texto
+        const catPorNombre = new Map(
+            (productosData.categorias || []).map(c => [(c.nombre || c.id).toLowerCase().trim(), c])
+        );
+
+        function _resolverCategoriaId(textoCategoria, textoSubcategoria) {
+            if (!textoCategoria) return '';
+            const textoNorm = textoCategoria.toLowerCase().trim();
+            // 1. Buscar por ID exacto
+            if (categoriasExistentes.has(textoCategoria)) {
+                // Agregar subcategoria si no existe
+                const cat = categoriasExistentes.get(textoCategoria);
+                if (textoSubcategoria && !cat.subcategorias.includes(textoSubcategoria)) {
+                    cat.subcategorias.push(textoSubcategoria);
+                }
+                return textoCategoria;
+            }
+            // 2. Buscar por nombre (case-insensitive)
+            if (catPorNombre.has(textoNorm)) {
+                const cat = catPorNombre.get(textoNorm);
+                if (textoSubcategoria && !cat.subcategorias.includes(textoSubcategoria)) {
+                    cat.subcategorias.push(textoSubcategoria);
+                }
+                return cat.id;
+            }
+            // 3. No existe → crear nueva categoria
+            const nuevoId = textoCategoria.toLowerCase().trim()
+                .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                .replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+            const nuevaCat = {
+                id: nuevoId,
+                nombre: textoCategoria.trim(),
+                subcategorias: textoSubcategoria ? [textoSubcategoria] : [],
+                estado: 'activa'
+            };
+            productosData.categorias.push(nuevaCat);
+            categoriasExistentes.set(nuevoId, nuevaCat);
+            catPorNombre.set(textoNorm, nuevaCat);
+            console.log(`[Import] Categoria creada: "${textoCategoria}" → id="${nuevoId}"`);
+            return nuevoId;
+        }
+
         rows.slice(1).forEach(cols => {
             const nombre = String(cols[colNombre] || '').trim();
             if (!nombre) return;
+
+            const catTexto = colCat >= 0 ? String(cols[colCat] || '') : '';
+            const subTexto = colSub >= 0 ? String(cols[colSub] || 'General') : 'General';
+            const categoriaId = _resolverCategoriaId(catTexto, subTexto);
 
             // Upsert: buscar por nombre exacto
             const existente = productosData.productos.find(p => p.nombre.toLowerCase() === nombre.toLowerCase());
@@ -2367,13 +2417,15 @@ function confirmarImportacion() {
                 } else {
                     existente.presentaciones.push(pres);
                 }
+                // Actualizar categoria si venia vacia y el CSV la trae
+                if (categoriaId && !existente.categoria) existente.categoria = categoriaId;
                 actualizados++;
             } else {
                 const nuevoId = `P${String(ultimoId + agregados + 1).padStart(3, '0')}`;
                 productosData.productos.push({
                     id: nuevoId, nombre,
-                    categoria: colCat >= 0 ? String(cols[colCat] || '') : '',
-                    subcategoria: colSub >= 0 ? String(cols[colSub] || 'General') : 'General',
+                    categoria: categoriaId,
+                    subcategoria: subTexto,
                     estado: 'disponible', oculto: false, tipo_impuesto: 'iva10',
                     presentaciones: [pres]
                 });
@@ -4521,21 +4573,26 @@ function forzarActualizacionAdmin() {
         navigator.serviceWorker.register('service-worker.js')
             .then(reg => {
                 console.log('[Admin SW] Registrado');
-                setInterval(() => reg.update(), 30000);
+                setInterval(() => { try { reg.update(); } catch(e) {} }, 30000);
                 reg.addEventListener('updatefound', () => {
                     const nw = reg.installing;
+                    if (!nw) return;
                     nw.addEventListener('statechange', () => {
-                        if (nw.state === 'installed' && navigator.serviceWorker.controller) {
-                            nw.postMessage('skipWaiting');
-                            mostrarToast('Nueva version disponible. Recargando...', 'info');
-                            setTimeout(() => location.reload(true), 1500);
-                        }
+                        try {
+                            if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+                                nw.postMessage('skipWaiting');
+                                mostrarToast('Nueva version disponible. Recargando...', 'info');
+                                setTimeout(() => location.reload(true), 1500);
+                            }
+                        } catch(e) { console.log('[Admin SW] statechange error ignorado'); }
                     });
                 });
             }).catch(err => console.log('[Admin SW] Error:', err));
-        navigator.serviceWorker.addEventListener('controllerchange', () => {
-            console.log('[Admin SW] Nuevo service worker activo');
-        });
+        try {
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                console.log('[Admin SW] Nuevo service worker activo');
+            });
+        } catch(e) {}
     }
 })();
 

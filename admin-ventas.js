@@ -562,26 +562,74 @@ function mostrarXMLSifenModal(result) {
     if (modal) modal.remove();
 
     const xmlEscaped = (result.xml || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const soapEscaped = (result.soap_simulado || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const desglose = result.desglose || {};
 
     modal = document.createElement('div');
     modal.id = 'modalXMLSifen';
     modal.className = 'fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4';
     modal.style.display = 'flex';
     modal.innerHTML = `
-        <div class="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] flex flex-col" style="animation: slideUp 0.2s ease-out;">
-            <div class="flex justify-between items-center px-6 py-4 border-b border-gray-200">
-                <div>
-                    <h3 class="text-lg font-bold text-gray-800">XML SIFEN (Prueba)</h3>
-                    <p class="text-xs text-gray-500 mt-0.5">CDC: <span class="font-mono">${result.cdc || 'N/A'}</span></p>
-                    <p class="text-xs text-gray-500">Factura: ${result.numFactura || 'N/A'} | ${result.empresa || ''} → ${result.cliente || ''} | Gs. ${(result.total || 0).toLocaleString()}</p>
+        <div class="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[92vh] flex flex-col" style="animation: slideUp 0.2s ease-out;">
+            <!-- Header -->
+            <div class="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-indigo-700 rounded-t-2xl">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                            <i data-lucide="shield-check" class="w-5 h-5"></i> Simulador e-Kuatia (SIFEN v150)
+                        </h3>
+                        <p class="text-blue-100 text-xs mt-1">Modo prueba — sin certificado digital</p>
+                    </div>
+                    <button onclick="document.getElementById('modalXMLSifen').remove()" class="text-white/70 hover:text-white p-1">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
                 </div>
-                <button onclick="document.getElementById('modalXMLSifen').remove()" class="text-gray-400 hover:text-gray-600 p-1">
-                    <i data-lucide="x" class="w-5 h-5"></i>
-                </button>
             </div>
-            <div class="p-4 overflow-auto flex-1">
-                <pre class="bg-gray-900 text-green-400 p-4 rounded-xl text-xs font-mono overflow-x-auto whitespace-pre-wrap leading-relaxed">${xmlEscaped}</pre>
+
+            <!-- CDC + Info -->
+            <div class="px-6 py-4 bg-gray-50 border-b border-gray-200">
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="text-xs font-bold text-gray-500 uppercase tracking-wider">CDC (44 digitos)</span>
+                    <button onclick="navigator.clipboard.writeText('${result.cdc || ''}').then(()=>mostrarToast('CDC copiado','success'))" class="text-blue-500 hover:text-blue-700" title="Copiar CDC">
+                        <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                    </button>
+                </div>
+                <p class="font-mono text-lg font-bold text-gray-900 tracking-wider break-all leading-relaxed">${result.cdc || 'N/A'}</p>
+                <div class="flex flex-wrap gap-x-6 gap-y-1 mt-3 text-sm text-gray-600">
+                    <span><strong>Factura:</strong> ${result.numFactura || 'N/A'}</span>
+                    <span><strong>Emisor:</strong> ${result.empresa || ''}</span>
+                    <span><strong>Receptor:</strong> ${result.cliente || ''}</span>
+                    <span><strong>Total:</strong> Gs. ${(result.total || 0).toLocaleString()}</span>
+                    <span><strong>Fecha:</strong> ${result.fechaEmision || ''}</span>
+                </div>
+                ${result.qr_url ? `
+                <div class="mt-3 flex items-center gap-2">
+                    <i data-lucide="qr-code" class="w-4 h-4 text-gray-400"></i>
+                    <a href="${result.qr_url}" target="_blank" rel="noopener" class="text-blue-600 hover:text-blue-800 text-xs font-medium underline underline-offset-2 break-all">Consultar en e-Kuatia (enlace QR simulado)</a>
+                </div>` : ''}
+                <div class="flex flex-wrap gap-x-5 gap-y-1 mt-3 text-xs text-gray-500">
+                    <span>Exentas: Gs. ${(desglose.totalExentas || 0).toLocaleString()}</span>
+                    <span>Grav. 5%: Gs. ${(desglose.totalGravada5 || 0).toLocaleString()}</span>
+                    <span>Grav. 10%: Gs. ${(desglose.totalGravada10 || 0).toLocaleString()}</span>
+                    <span>IVA 5%: Gs. ${(desglose.totalIVA5 || 0).toLocaleString()}</span>
+                    <span>IVA 10%: Gs. ${(desglose.totalIVA10 || 0).toLocaleString()}</span>
+                    <span class="font-bold text-gray-700">Total IVA: Gs. ${(desglose.totalIVA || 0).toLocaleString()}</span>
+                </div>
             </div>
+
+            <!-- Tabs -->
+            <div class="flex border-b border-gray-200 px-6 pt-2 gap-1" id="sifenTabs">
+                <button onclick="sifenCambiarTab('xml')" id="sifenTabXml" class="px-4 py-2 text-sm font-bold rounded-t-lg border-b-2 border-blue-600 text-blue-600 bg-blue-50">XML DTE</button>
+                <button onclick="sifenCambiarTab('soap')" id="sifenTabSoap" class="px-4 py-2 text-sm font-bold rounded-t-lg border-b-2 border-transparent text-gray-500 hover:text-gray-700">Sobre SOAP</button>
+            </div>
+
+            <!-- Content -->
+            <div class="flex-1 overflow-auto p-4">
+                <pre id="sifenContentXml" class="bg-gray-900 text-green-400 p-4 rounded-xl text-xs font-mono overflow-x-auto whitespace-pre-wrap leading-relaxed">${xmlEscaped}</pre>
+                <pre id="sifenContentSoap" class="bg-gray-900 text-amber-400 p-4 rounded-xl text-xs font-mono overflow-x-auto whitespace-pre-wrap leading-relaxed hidden">${soapEscaped}</pre>
+            </div>
+
+            <!-- Footer -->
             <div class="flex gap-3 px-6 py-4 border-t border-gray-100">
                 <button onclick="copiarXMLSifen()" class="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-700 inline-flex items-center gap-1.5">
                     <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copiar XML
@@ -589,17 +637,44 @@ function mostrarXMLSifenModal(result) {
                 <button onclick="descargarXMLSifen()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-500 inline-flex items-center gap-1.5">
                     <i data-lucide="download" class="w-3.5 h-3.5"></i> Descargar .xml
                 </button>
+                <button onclick="descargarSOAPSifen()" class="bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-amber-500 inline-flex items-center gap-1.5">
+                    <i data-lucide="download" class="w-3.5 h-3.5"></i> Descargar SOAP
+                </button>
                 <button onclick="document.getElementById('modalXMLSifen').remove()" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-300 ml-auto">Cerrar</button>
             </div>
         </div>
     `;
 
-    // Guardar XML en variable temporal para copiar/descargar
+    // Guardar datos en variables temporales
     window._lastSifenXML = result.xml || '';
     window._lastSifenCDC = result.cdc || '';
+    window._lastSifenSOAP = result.soap_simulado || '';
 
     document.body.appendChild(modal);
     lucide.createIcons();
+}
+
+function sifenCambiarTab(tab) {
+    const xmlEl = document.getElementById('sifenContentXml');
+    const soapEl = document.getElementById('sifenContentSoap');
+    const tabXml = document.getElementById('sifenTabXml');
+    const tabSoap = document.getElementById('sifenTabSoap');
+    if (!xmlEl || !soapEl) return;
+
+    const activeClass = 'border-b-2 text-blue-600 bg-blue-50';
+    const inactiveClass = 'border-b-2 border-transparent text-gray-500 hover:text-gray-700';
+
+    if (tab === 'xml') {
+        xmlEl.classList.remove('hidden');
+        soapEl.classList.add('hidden');
+        tabXml.className = `px-4 py-2 text-sm font-bold rounded-t-lg border-blue-600 ${activeClass}`;
+        tabSoap.className = `px-4 py-2 text-sm font-bold rounded-t-lg ${inactiveClass}`;
+    } else {
+        xmlEl.classList.add('hidden');
+        soapEl.classList.remove('hidden');
+        tabSoap.className = `px-4 py-2 text-sm font-bold rounded-t-lg border-amber-600 ${activeClass.replace('blue', 'amber')}`;
+        tabXml.className = `px-4 py-2 text-sm font-bold rounded-t-lg ${inactiveClass}`;
+    }
 }
 
 function copiarXMLSifen() {
@@ -621,4 +696,16 @@ function descargarXMLSifen() {
     a.click();
     URL.revokeObjectURL(url);
     mostrarToast('XML descargado', 'success');
+}
+
+function descargarSOAPSifen() {
+    if (!window._lastSifenSOAP) return;
+    const blob = new Blob([window._lastSifenSOAP], { type: 'application/xml' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `SOAP_${window._lastSifenCDC || 'sifen'}.xml`;
+    a.click();
+    URL.revokeObjectURL(url);
+    mostrarToast('SOAP descargado', 'success');
 }

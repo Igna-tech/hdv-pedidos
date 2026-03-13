@@ -414,14 +414,43 @@ serve(async (req: Request) => {
 
         console.log("[sifen] XML generado OK, CDC:", cdc);
 
+        // --- QR URL de consulta SET (entorno test) ---
+        const fechaEmisionYMD = fechaEmision.toISOString().split("T")[0];
+        const qrUrl = `https://ekuatia.set.gov.py/consultas/qr?nVersion=150`
+            + `&Id=${cdc}`
+            + `&dFeEmiDE=${encodeURIComponent(fechaISO)}`
+            + `&dRucRec=${encodeURIComponent(rucCliente)}`
+            + `&dTotGralOpe=${totalGral.toFixed(4)}`
+            + `&dTotIVA=${totalIVA.toFixed(4)}`
+            + `&cItems=${items.length}`
+            + `&diDigVal=SIMULADO_SIN_FIRMA`
+            + `&dProtAut=SIMULADO`;
+
+        // --- Sobre SOAP simulado (recepcion DE individual) ---
+        const soapSimulado = `<?xml version="1.0" encoding="UTF-8"?>
+<env:Envelope xmlns:env="http://www.w3.org/2003/05/soap-envelope">
+  <env:Header/>
+  <env:Body>
+    <rEnviDe xmlns="http://ekuatia.set.gov.py/sifen/xsd">
+      <dId>${cdc}</dId>
+      <xDE>
+${xmlString.split("\n").map((l: string) => "        " + l).join("\n")}
+      </xDE>
+    </rEnviDe>
+  </env:Body>
+</env:Envelope>`;
+
         return new Response(
             JSON.stringify({
                 xml: xmlString,
                 cdc,
                 numFactura: numFacturaCompleto,
+                qr_url: qrUrl,
+                soap_simulado: soapSimulado,
                 empresa: empresa.razon_social,
                 cliente: cliente.nombre,
                 total: totalGral,
+                fechaEmision: fechaISO,
                 desglose: { totalExentas: totalExe, totalGravada5: totalGrav5, totalGravada10: totalGrav10, totalIVA5, totalIVA10, totalIVA },
             }),
             { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },

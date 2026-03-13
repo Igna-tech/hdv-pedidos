@@ -1399,8 +1399,14 @@ async function guardarProductoModal() {
     const stockSimple = parseInt(document.getElementById('nuevoProductoStock')?.value) || 0;
 
     if (subcategoria === '__otra__') {
-        subcategoria = prompt('Nombre de la nueva subcategoria:');
-        if (!subcategoria) return;
+        const datos = await mostrarInputModal({
+            titulo: 'Nueva Subcategoria',
+            icono: 'tag',
+            campos: [{ key: 'nombre', label: 'Nombre de la subcategoria', tipo: 'text', requerido: true }],
+            textoConfirmar: 'Crear'
+        });
+        if (!datos) return;
+        subcategoria = datos.nombre;
     }
 
     if (!nombre) { mostrarToast('Ingresa el nombre del producto', 'error'); return; }
@@ -1915,27 +1921,51 @@ function renderizarPerfilPrecios() {
     container.innerHTML = html;
 }
 
-function agregarPrecioEspecial() {
+async function agregarPrecioEspecial() {
     if (!clientePerfilActual) return;
-    const prodNombre = prompt('Nombre o ID del producto:');
-    if (!prodNombre) return;
-    const prod = productosData.productos.find(p => p.id === prodNombre || p.nombre.toLowerCase().includes(prodNombre.toLowerCase()));
+
+    // Paso 1: seleccionar producto con busqueda
+    const prodOpts = (productosData.productos || [])
+        .filter(p => !p.oculto && p.estado !== 'discontinuado')
+        .map(p => ({ value: p.id, label: `${p.nombre} (${p.presentaciones.map(pr => pr.tamano).join(', ')})` }));
+
+    const datosP = await mostrarInputModal({
+        titulo: 'Agregar Precio Especial',
+        subtitulo: `Cliente: ${clientePerfilActual.razon_social || clientePerfilActual.nombre}`,
+        icono: 'tag',
+        campos: [
+            { key: 'productoId', label: 'Producto', tipo: 'select-search', opciones: prodOpts, requerido: true }
+        ],
+        textoConfirmar: 'Siguiente'
+    });
+    if (!datosP) return;
+    const prod = productosData.productos.find(p => p.id === datosP.productoId);
     if (!prod) { mostrarToast('Producto no encontrado', 'error'); return; }
 
-    let tamano = prod.presentaciones[0]?.tamano;
+    // Paso 2: seleccionar presentacion y precio
+    const presOpts = prod.presentaciones.map(p => ({
+        value: p.tamano,
+        label: `${p.tamano} — Precio base: Gs. ${(p.precio_base || 0).toLocaleString()}`
+    }));
+
+    const camposPrecio = [
+        { key: 'precio', label: 'Precio especial (Gs.)', tipo: 'number', placeholder: '0', requerido: true }
+    ];
     if (prod.presentaciones.length > 1) {
-        const opciones = prod.presentaciones.map((p, i) => `${i + 1}. ${p.tamano} (Gs. ${p.precio_base.toLocaleString()})`).join('\n');
-        const sel = prompt(`Seleccione presentacion:\n${opciones}\n\nNumero:`);
-        if (!sel) return;
-        const idx = parseInt(sel) - 1;
-        if (prod.presentaciones[idx]) tamano = prod.presentaciones[idx].tamano;
+        camposPrecio.unshift({ key: 'tamano', label: 'Presentacion', tipo: 'select', opciones: presOpts, requerido: true });
     }
 
-    const precioBase = prod.presentaciones.find(p => p.tamano === tamano)?.precio_base || 0;
-    const precioStr = prompt(`Precio especial para ${prod.nombre} (${tamano})\nPrecio base: Gs. ${precioBase.toLocaleString()}\n\nNuevo precio:`);
-    if (!precioStr) return;
-    const precio = parseInt(precioStr);
-    if (isNaN(precio) || precio <= 0) { mostrarToast('Precio invalido', 'error'); return; }
+    const datosPrec = await mostrarInputModal({
+        titulo: `Precio Especial — ${prod.nombre}`,
+        icono: 'tag',
+        campos: camposPrecio,
+        textoConfirmar: 'Guardar Precio'
+    });
+    if (!datosPrec) return;
+
+    const tamano = datosPrec.tamano || prod.presentaciones[0]?.tamano;
+    const precio = datosPrec.precio;
+    if (precio <= 0) { mostrarToast('Precio invalido', 'error'); return; }
 
     if (!clientePerfilActual.precios_personalizados) clientePerfilActual.precios_personalizados = {};
     if (!clientePerfilActual.precios_personalizados[prod.id]) clientePerfilActual.precios_personalizados[prod.id] = [];
@@ -1945,6 +1975,7 @@ function agregarPrecioEspecial() {
 
     registrarCambio();
     renderizarPerfilPrecios();
+    mostrarToast('Precio especial guardado', 'success');
 }
 
 function eliminarPrecioEspecial(prodId, tamano) {
@@ -3588,18 +3619,27 @@ function cargarCreditos() {
     });
 }
 
-function registrarPagoCredito(pedidoId) {
+async function registrarPagoCredito(pedidoId) {
     const pedido = todosLosPedidos.find(p => p.id === pedidoId);
     if (!pedido) return;
     const saldo = obtenerSaldoPendiente(pedido);
-    const montoStr = prompt(`Registrar pago para ${pedido.cliente?.nombre}\nSaldo pendiente: Gs. ${saldo.toLocaleString()}\n\nMonto del pago (Gs.):`);
-    if (!montoStr) return;
-    const monto = parseInt(montoStr);
-    if (isNaN(monto) || monto <= 0) { mostrarToast('Monto invalido', 'error'); return; }
+
+    const datos = await mostrarInputModal({
+        titulo: 'Registrar Pago',
+        subtitulo: `Cliente: ${pedido.cliente?.nombre || 'N/A'} — Saldo: Gs. ${saldo.toLocaleString()}`,
+        icono: 'banknote',
+        campos: [
+            { key: 'monto', label: 'Monto del pago (Gs.)', tipo: 'number', placeholder: saldo.toLocaleString(), requerido: true },
+            { key: 'nota', label: 'Nota (opcional)', tipo: 'text', placeholder: 'Ej: Pago parcial, transferencia...' }
+        ],
+        textoConfirmar: 'Registrar Pago'
+    });
+    if (!datos) return;
+    const monto = datos.monto;
+    if (monto <= 0) { mostrarToast('Monto invalido', 'error'); return; }
     if (monto > saldo) { mostrarToast('El monto excede el saldo pendiente', 'error'); return; }
 
-    const nota = prompt('Nota del pago (opcional):') || '';
-    const pago = { id: 'PAG' + Date.now(), pedidoId, monto, fecha: new Date().toISOString(), nota };
+    const pago = { id: 'PAG' + Date.now(), pedidoId, monto, fecha: new Date().toISOString(), nota: datos.nota || '' };
     const pagos = JSON.parse(localStorage.getItem('hdv_pagos_credito') || '[]');
     pagos.push(pago);
     localStorage.setItem('hdv_pagos_credito', JSON.stringify(pagos));
@@ -3616,19 +3656,28 @@ function registrarPagoCredito(pedidoId) {
     cargarCreditos();
 }
 
-function registrarPagoManual(creditoId) {
+async function registrarPagoManual(creditoId) {
     const creditos = obtenerCreditosManuales();
     const credito = creditos.find(c => c.id === creditoId);
     if (!credito) return;
     const saldo = obtenerSaldoManual(credito);
-    const montoStr = prompt(`Registrar pago para ${credito.clienteNombre}\nSaldo: Gs. ${saldo.toLocaleString()}\n\nMonto:`);
-    if (!montoStr) return;
-    const monto = parseInt(montoStr);
-    if (isNaN(monto) || monto <= 0 || monto > saldo) { mostrarToast('Monto invalido', 'error'); return; }
 
-    const nota = prompt('Nota (opcional):') || '';
+    const datos = await mostrarInputModal({
+        titulo: 'Registrar Pago',
+        subtitulo: `Cliente: ${credito.clienteNombre} — Saldo: Gs. ${saldo.toLocaleString()}`,
+        icono: 'banknote',
+        campos: [
+            { key: 'monto', label: 'Monto del pago (Gs.)', tipo: 'number', placeholder: saldo.toLocaleString(), requerido: true },
+            { key: 'nota', label: 'Nota (opcional)', tipo: 'text', placeholder: 'Ej: Pago parcial, transferencia...' }
+        ],
+        textoConfirmar: 'Registrar Pago'
+    });
+    if (!datos) return;
+    const monto = datos.monto;
+    if (monto <= 0 || monto > saldo) { mostrarToast('Monto invalido o excede saldo', 'error'); return; }
+
     if (!credito.pagos) credito.pagos = [];
-    credito.pagos.push({ monto, fecha: new Date().toISOString(), nota });
+    credito.pagos.push({ monto, fecha: new Date().toISOString(), nota: datos.nota || '' });
     if (saldo - monto <= 0) credito.pagado = true;
     localStorage.setItem('hdv_creditos_manuales', JSON.stringify(creditos));
     if (typeof guardarCreditosManuales === 'function') {
@@ -3661,7 +3710,7 @@ function verHistorialPagos(pedidoId) {
     mostrarConfirmModal(msg, { textoConfirmar: 'Cerrar' });
 }
 
-function enviarRecordatorioWhatsApp(pedidoId) {
+async function enviarRecordatorioWhatsApp(pedidoId) {
     const pedido = todosLosPedidos.find(p => p.id === pedidoId);
     if (!pedido) return;
     const clienteInfo = productosData.clientes.find(c => c.id === pedido.cliente?.id);
@@ -3674,10 +3723,18 @@ function enviarRecordatorioWhatsApp(pedidoId) {
     let plantilla = localStorage.getItem('hdv_whatsapp_mensaje_credito');
     if (!plantilla) {
         plantilla = 'Hola {cliente}, le recordamos que tiene un saldo pendiente de Gs. {saldo} desde hace {dias} dias. Total original: Gs. {monto}. Fecha del pedido: {fecha}. Agradecemos su pronto pago. HDV Distribuciones';
-        // Primera vez: permitir editar
-        const editada = prompt('Mensaje de recordatorio (primera vez, podes editarlo):\nPlaceholders: {cliente}, {monto}, {saldo}, {dias}, {fecha}', plantilla);
-        if (!editada) return;
-        plantilla = editada;
+        // Primera vez: permitir editar via modal
+        const datos = await mostrarInputModal({
+            titulo: 'Plantilla de Recordatorio',
+            subtitulo: 'Placeholders: {cliente}, {monto}, {saldo}, {dias}, {fecha}',
+            icono: 'message-square',
+            campos: [
+                { key: 'plantilla', label: 'Mensaje', tipo: 'textarea', valor: plantilla, requerido: true }
+            ],
+            textoConfirmar: 'Guardar y Enviar'
+        });
+        if (!datos) return;
+        plantilla = datos.plantilla;
         localStorage.setItem('hdv_whatsapp_mensaje_credito', plantilla);
     }
 
@@ -3712,37 +3769,58 @@ function enviarRecordatorioManualWhatsApp(creditoId) {
     window.open(`https://wa.me/${tel}?text=${encodeURIComponent(mensaje)}`, '_blank');
 }
 
-function editarMensajeRecordatorio() {
+async function editarMensajeRecordatorio() {
     let plantilla = localStorage.getItem('hdv_whatsapp_mensaje_credito') ||
         'Hola {cliente}, le recordamos que tiene un saldo pendiente de Gs. {saldo} desde hace {dias} dias. Total original: Gs. {monto}. Fecha del pedido: {fecha}. Agradecemos su pronto pago. HDV Distribuciones';
-    const nueva = prompt('Editar mensaje de recordatorio WhatsApp:\nPlaceholders: {cliente}, {monto}, {saldo}, {dias}, {fecha}', plantilla);
-    if (nueva) {
-        localStorage.setItem('hdv_whatsapp_mensaje_credito', nueva);
-        // Sincronizar con Supabase
+    const datos = await mostrarInputModal({
+        titulo: 'Editar Plantilla WhatsApp',
+        subtitulo: 'Placeholders: {cliente}, {monto}, {saldo}, {dias}, {fecha}',
+        icono: 'message-square',
+        campos: [
+            { key: 'plantilla', label: 'Mensaje de recordatorio', tipo: 'textarea', valor: plantilla, requerido: true }
+        ],
+        textoConfirmar: 'Guardar'
+    });
+    if (datos) {
+        localStorage.setItem('hdv_whatsapp_mensaje_credito', datos.plantilla);
         if (typeof guardarPlantillaWhatsApp === 'function') {
-            guardarPlantillaWhatsApp(nueva).catch(e => console.error(e));
+            guardarPlantillaWhatsApp(datos.plantilla).catch(e => console.error(e));
         }
         mostrarToast('Mensaje actualizado', 'success');
     }
 }
 
-function agregarCreditoManual() {
-    const clienteId = prompt('ID del cliente (o nombre):');
-    if (!clienteId) return;
-    const cliente = productosData.clientes.find(c => c.id === clienteId || c.nombre === clienteId || c.razon_social === clienteId);
-    const nombre = cliente ? (cliente.razon_social || cliente.nombre) : clienteId;
-    const montoStr = prompt('Monto del credito (Gs.):');
-    if (!montoStr) return;
-    const monto = parseInt(montoStr);
-    if (isNaN(monto) || monto <= 0) { mostrarToast('Monto invalido', 'error'); return; }
-    const descripcion = prompt('Descripcion:') || 'Credito manual';
+async function agregarCreditoManual() {
+    const clienteOpts = (productosData.clientes || [])
+        .filter(c => !c.oculto)
+        .map(c => ({
+            value: c.id,
+            label: `${c.razon_social || c.nombre}${c.ruc ? ' — RUC: ' + c.ruc : ''}`
+        }));
+
+    const datos = await mostrarInputModal({
+        titulo: 'Nuevo Credito Manual',
+        icono: 'credit-card',
+        campos: [
+            { key: 'clienteId', label: 'Cliente', tipo: 'select-search', opciones: clienteOpts, requerido: true },
+            { key: 'monto', label: 'Monto (Gs.)', tipo: 'number', placeholder: '0', requerido: true },
+            { key: 'descripcion', label: 'Descripcion', tipo: 'text', placeholder: 'Ej: Mercaderia a credito', valor: '' }
+        ],
+        textoConfirmar: 'Crear Credito'
+    });
+    if (!datos) return;
+    if (datos.monto <= 0) { mostrarToast('Monto invalido', 'error'); return; }
+
+    const cliente = productosData.clientes.find(c => c.id === datos.clienteId);
+    const nombre = cliente ? (cliente.razon_social || cliente.nombre) : datos.clienteId;
 
     const creditos = obtenerCreditosManuales();
     const nuevo = {
         id: 'CM' + Date.now(),
-        clienteId: cliente?.id || clienteId,
+        clienteId: datos.clienteId,
         clienteNombre: nombre,
-        monto, descripcion,
+        monto: datos.monto,
+        descripcion: datos.descripcion || 'Credito manual',
         fecha: new Date().toISOString(),
         pagos: [], pagado: false
     };
@@ -3757,19 +3835,27 @@ function agregarCreditoManual() {
 }
 
 // Editar/eliminar creditos
-function editarCreditoManualItem(creditoId) {
+async function editarCreditoManualItem(creditoId) {
     const creditos = obtenerCreditosManuales();
     const c = creditos.find(x => x.id === creditoId);
     if (!c) return;
-    const nuevoMonto = prompt(`Editar credito manual de ${c.clienteNombre}\nMonto actual: Gs. ${(c.monto || 0).toLocaleString()}\nDescripcion: ${c.descripcion || ''}\n\nNuevo monto (dejar en blanco para mantener):`);
-    if (nuevoMonto !== null && nuevoMonto.trim() !== '') {
-        const monto = parseInt(nuevoMonto);
-        if (!isNaN(monto) && monto > 0) c.monto = monto;
-    }
-    const nuevaDesc = prompt('Nueva descripcion (dejar en blanco para mantener):', c.descripcion || '');
-    if (nuevaDesc !== null && nuevaDesc.trim() !== '') c.descripcion = nuevaDesc;
+
+    const datos = await mostrarInputModal({
+        titulo: 'Editar Credito Manual',
+        subtitulo: `Cliente: ${c.clienteNombre}`,
+        icono: 'edit-3',
+        campos: [
+            { key: 'monto', label: 'Monto (Gs.)', tipo: 'number', valor: c.monto || 0, requerido: true },
+            { key: 'descripcion', label: 'Descripcion', tipo: 'text', valor: c.descripcion || '' }
+        ],
+        textoConfirmar: 'Guardar Cambios'
+    });
+    if (!datos) return;
+    if (datos.monto > 0) c.monto = datos.monto;
+    if (datos.descripcion.trim()) c.descripcion = datos.descripcion;
     localStorage.setItem('hdv_creditos_manuales', JSON.stringify(creditos));
     if (typeof guardarCreditosManuales === 'function') guardarCreditosManuales(creditos).catch(e => console.error(e));
+    mostrarToast('Credito actualizado', 'success');
     cargarCreditos();
 }
 
@@ -3788,11 +3874,26 @@ async function editarPagosCreditoPedido(pedidoId) {
     const allPagos = JSON.parse(localStorage.getItem('hdv_pagos_credito') || '[]');
     const pagos = allPagos.filter(p => p.pedidoId === pedidoId);
     if (pagos.length === 0) { mostrarToast('Sin pagos registrados para este pedido', 'info'); return; }
-    const lista = pagos.map((p, i) => `${i + 1}. Gs. ${(p.monto || 0).toLocaleString()} - ${new Date(p.fecha).toLocaleDateString('es-PY')}${p.nota ? ' - ' + p.nota : ''}`).join('\n');
-    const eliminarIdx = prompt(`Pagos registrados:\n${lista}\n\nIngresa el numero del pago a eliminar (o Cancelar):`);
-    if (!eliminarIdx) return;
-    const idx = parseInt(eliminarIdx) - 1;
-    if (isNaN(idx) || idx < 0 || idx >= pagos.length) { mostrarToast('Numero invalido', 'error'); return; }
+
+    const pagoOpts = pagos.map((p, i) => ({
+        value: String(i),
+        label: `Gs. ${(p.monto || 0).toLocaleString()} — ${new Date(p.fecha).toLocaleDateString('es-PY')}${p.nota ? ' — ' + p.nota : ''}`
+    }));
+
+    const datos = await mostrarInputModal({
+        titulo: 'Eliminar Pago',
+        subtitulo: 'Selecciona el pago que deseas eliminar',
+        icono: 'trash-2',
+        destructivo: true,
+        campos: [
+            { key: 'idx', label: 'Pago a eliminar', tipo: 'select', opciones: pagoOpts, requerido: true }
+        ],
+        textoConfirmar: 'Eliminar Pago'
+    });
+    if (!datos) return;
+    const idx = parseInt(datos.idx);
+    if (isNaN(idx) || idx < 0 || idx >= pagos.length) { mostrarToast('Seleccion invalida', 'error'); return; }
+
     if (!await mostrarConfirmModal(`¿Eliminar pago de Gs. ${pagos[idx].monto.toLocaleString()}?`, { destructivo: true, textoConfirmar: 'Eliminar' })) return;
     const pagoAEliminar = pagos[idx];
     const nuevosPagos = allPagos.filter(p => !(p.pedidoId === pedidoId && p.fecha === pagoAEliminar.fecha && p.monto === pagoAEliminar.monto));
@@ -4574,6 +4675,114 @@ function mostrarConfirmModal(mensaje, opciones = {}) {
         backdrop.querySelector('.confirm-cancel-btn').onclick = () => cerrar(false);
         backdrop.querySelector('.confirm-ok-btn').onclick = () => cerrar(true);
         backdrop.onclick = (e) => { if (e.target === backdrop) cerrar(false); };
+    });
+}
+
+// ============================================
+// MODAL INPUT GENERICO (reemplaza prompt/confirm nativos)
+// ============================================
+function mostrarInputModal(opciones = {}) {
+    // opciones: { titulo, campos: [{ key, label, tipo, valor, placeholder, opciones, requerido }], textoConfirmar, destructivo }
+    // tipo: 'text' | 'number' | 'textarea' | 'select' | 'select-search'
+    // Retorna Promise<{key: value}> o null si cancela
+    return new Promise((resolve) => {
+        const backdrop = document.createElement('div');
+        backdrop.className = 'confirm-backdrop';
+
+        let camposHTML = '';
+        for (const campo of (opciones.campos || [])) {
+            const req = campo.requerido ? 'required' : '';
+            const labelHTML = `<label class="block text-sm font-semibold text-gray-300 mb-1.5">${campo.label}${campo.requerido ? ' <span class="text-red-400">*</span>' : ''}</label>`;
+            if (campo.tipo === 'select') {
+                const optsHTML = (campo.opciones || []).map(o =>
+                    `<option value="${o.value}" ${o.value === campo.valor ? 'selected' : ''}>${o.label}</option>`
+                ).join('');
+                camposHTML += `<div class="mb-3">${labelHTML}<select id="modal_field_${campo.key}" class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" ${req}><option value="">-- Seleccionar --</option>${optsHTML}</select></div>`;
+            } else if (campo.tipo === 'select-search') {
+                const optsHTML = (campo.opciones || []).map(o =>
+                    `<option value="${o.value}" ${o.value === campo.valor ? 'selected' : ''}>${o.label}</option>`
+                ).join('');
+                camposHTML += `<div class="mb-3">${labelHTML}
+                    <input type="text" id="modal_search_${campo.key}" placeholder="Buscar..." class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-3 py-2 text-sm mb-1 focus:ring-2 focus:ring-blue-500">
+                    <select id="modal_field_${campo.key}" size="5" class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-3 py-1 text-sm focus:ring-2 focus:ring-blue-500" ${req}>${optsHTML}</select>
+                </div>`;
+            } else if (campo.tipo === 'textarea') {
+                camposHTML += `<div class="mb-3">${labelHTML}<textarea id="modal_field_${campo.key}" rows="4" class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500" placeholder="${campo.placeholder || ''}" ${req}>${campo.valor || ''}</textarea></div>`;
+            } else {
+                camposHTML += `<div class="mb-3">${labelHTML}<input type="${campo.tipo || 'text'}" id="modal_field_${campo.key}" value="${campo.valor ?? ''}" placeholder="${campo.placeholder || ''}" class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500" ${req} ${campo.tipo === 'number' ? 'min="0"' : ''}></div>`;
+            }
+        }
+
+        const iconClass = opciones.destructivo ? 'bg-red-500/20' : 'bg-blue-500/20';
+        const iconColor = opciones.destructivo ? 'text-red-400' : 'text-blue-400';
+        const iconName = opciones.destructivo ? 'alert-triangle' : opciones.icono || 'edit-3';
+        const btnClass = opciones.destructivo ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700';
+
+        backdrop.innerHTML = `
+            <div class="bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden border border-gray-700" onclick="event.stopPropagation()">
+                <div class="p-6">
+                    <div class="flex items-center gap-3 mb-5">
+                        <div class="w-10 h-10 rounded-xl ${iconClass} flex items-center justify-center shrink-0">
+                            <i data-lucide="${iconName}" class="w-5 h-5 ${iconColor}"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-white">${opciones.titulo || 'Ingrese datos'}</h3>
+                    </div>
+                    ${opciones.subtitulo ? `<p class="text-sm text-gray-400 mb-4">${opciones.subtitulo}</p>` : ''}
+                    <div>${camposHTML}</div>
+                </div>
+                <div class="flex gap-3 p-4 bg-gray-800/50 border-t border-gray-700">
+                    <button class="modal-cancel-btn flex-1 bg-gray-700 hover:bg-gray-600 text-gray-300 py-2.5 rounded-xl font-bold text-sm transition-colors">Cancelar</button>
+                    <button class="modal-ok-btn flex-1 ${btnClass} text-white py-2.5 rounded-xl font-bold text-sm transition-colors">${opciones.textoConfirmar || 'Confirmar'}</button>
+                </div>
+            </div>`;
+
+        document.body.appendChild(backdrop);
+        lucide.createIcons();
+
+        // Wiring select-search filtrado
+        for (const campo of (opciones.campos || [])) {
+            if (campo.tipo === 'select-search') {
+                const searchInput = backdrop.querySelector(`#modal_search_${campo.key}`);
+                const selectEl = backdrop.querySelector(`#modal_field_${campo.key}`);
+                const allOpts = (campo.opciones || []);
+                searchInput.addEventListener('input', () => {
+                    const q = searchInput.value.toLowerCase();
+                    selectEl.innerHTML = allOpts.filter(o => o.label.toLowerCase().includes(q))
+                        .map(o => `<option value="${o.value}">${o.label}</option>`).join('');
+                });
+                searchInput.focus();
+            }
+        }
+
+        // Focus primer input
+        const primerInput = backdrop.querySelector('input[type="text"], input[type="number"], textarea');
+        if (primerInput && !backdrop.querySelector('[id^="modal_search_"]')) primerInput.focus();
+
+        const cerrar = (result) => { backdrop.remove(); resolve(result); };
+
+        const confirmar = () => {
+            const datos = {};
+            for (const campo of (opciones.campos || [])) {
+                const el = backdrop.querySelector(`#modal_field_${campo.key}`);
+                if (!el) continue;
+                const val = el.value;
+                if (campo.requerido && !val.trim()) {
+                    el.classList.add('ring-2', 'ring-red-500');
+                    el.focus();
+                    return;
+                }
+                datos[campo.key] = campo.tipo === 'number' ? (parseInt(val) || 0) : val;
+            }
+            cerrar(datos);
+        };
+
+        backdrop.querySelector('.modal-cancel-btn').onclick = () => cerrar(null);
+        backdrop.querySelector('.modal-ok-btn').onclick = confirmar;
+        backdrop.onclick = (e) => { if (e.target === backdrop) cerrar(null); };
+        // Enter para confirmar en inputs simples
+        backdrop.querySelectorAll('input').forEach(inp => {
+            inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') confirmar(); });
+        });
     });
 }
 

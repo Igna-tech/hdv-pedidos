@@ -1473,6 +1473,64 @@ function mostrarConfirmModal(mensaje, opciones = {}) {
     });
 }
 
+// Modal input generico (reemplaza prompt nativos)
+function mostrarInputModal(opciones = {}) {
+    return new Promise((resolve) => {
+        const backdrop = document.createElement('div');
+        backdrop.className = 'confirm-backdrop';
+
+        let camposHTML = '';
+        for (const campo of (opciones.campos || [])) {
+            const req = campo.requerido ? 'required' : '';
+            const labelHTML = `<label class="block text-sm font-semibold text-gray-300 mb-1.5">${campo.label}${campo.requerido ? ' <span class="text-red-400">*</span>' : ''}</label>`;
+            if (campo.tipo === 'select') {
+                const optsHTML = (campo.opciones || []).map(o => `<option value="${o.value}">${o.label}</option>`).join('');
+                camposHTML += `<div class="mb-3">${labelHTML}<select id="modal_field_${campo.key}" class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-3 py-2.5 text-sm" ${req}><option value="">-- Seleccionar --</option>${optsHTML}</select></div>`;
+            } else if (campo.tipo === 'textarea') {
+                camposHTML += `<div class="mb-3">${labelHTML}<textarea id="modal_field_${campo.key}" rows="3" class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-3 py-2.5 text-sm" placeholder="${campo.placeholder || ''}" ${req}>${campo.valor || ''}</textarea></div>`;
+            } else {
+                camposHTML += `<div class="mb-3">${labelHTML}<input type="${campo.tipo || 'text'}" id="modal_field_${campo.key}" value="${campo.valor ?? ''}" placeholder="${campo.placeholder || ''}" class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-3 py-2.5 text-sm" ${req} ${campo.tipo === 'number' ? 'min="0" inputmode="numeric"' : ''}></div>`;
+            }
+        }
+
+        backdrop.innerHTML = `
+            <div class="bg-gray-800 rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden border border-gray-700" onclick="event.stopPropagation()">
+                <div class="p-5">
+                    <h3 class="text-base font-bold text-white mb-4">${opciones.titulo || 'Ingrese datos'}</h3>
+                    <div>${camposHTML}</div>
+                </div>
+                <div class="flex gap-3 p-4 bg-gray-800/50 border-t border-gray-700">
+                    <button class="modal-cancel-btn flex-1 bg-gray-700 text-gray-300 py-2.5 rounded-xl font-bold text-sm active:scale-95 transition-transform">Cancelar</button>
+                    <button class="modal-ok-btn flex-1 bg-blue-600 text-white py-2.5 rounded-xl font-bold text-sm active:scale-95 transition-transform">${opciones.textoConfirmar || 'Confirmar'}</button>
+                </div>
+            </div>`;
+
+        document.body.appendChild(backdrop);
+
+        const primerInput = backdrop.querySelector('input, textarea');
+        if (primerInput) primerInput.focus();
+
+        const cerrar = (result) => { backdrop.remove(); resolve(result); };
+        const confirmar = () => {
+            const datos = {};
+            for (const campo of (opciones.campos || [])) {
+                const el = backdrop.querySelector(`#modal_field_${campo.key}`);
+                if (!el) continue;
+                const val = el.value;
+                if (campo.requerido && !val.trim()) { el.classList.add('ring-2', 'ring-red-500'); el.focus(); return; }
+                datos[campo.key] = campo.tipo === 'number' ? (parseInt(val) || 0) : val;
+            }
+            cerrar(datos);
+        };
+        backdrop.querySelector('.modal-cancel-btn').onclick = () => cerrar(null);
+        backdrop.querySelector('.modal-ok-btn').onclick = confirmar;
+        backdrop.onclick = (e) => { if (e.target === backdrop) cerrar(null); };
+        backdrop.querySelectorAll('input').forEach(inp => {
+            inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') confirmar(); });
+        });
+    });
+}
+
 function toggleDarkMode() {
     document.body.classList.toggle('dark-mode');
     localStorage.setItem('hdv_darkmode', document.body.classList.contains('dark-mode'));
@@ -2430,18 +2488,22 @@ function mostrarMiCaja() {
     `;
 }
 
-function agregarGastoVendedor() {
-    const concepto = prompt('Concepto del gasto (Ej: Combustible, Almuerzo):');
-    if (!concepto) return;
-    const montoStr = prompt('Monto del gasto (Gs.):');
-    if (!montoStr) return;
-    const monto = parseInt(montoStr);
-    if (isNaN(monto) || monto <= 0) { mostrarToast('Monto invalido', 'error'); return; }
+async function agregarGastoVendedor() {
+    const datos = await mostrarInputModal({
+        titulo: 'Registrar Gasto',
+        campos: [
+            { key: 'concepto', label: 'Concepto', tipo: 'text', placeholder: 'Ej: Combustible, Almuerzo', requerido: true },
+            { key: 'monto', label: 'Monto (Gs.)', tipo: 'number', placeholder: '0', requerido: true }
+        ],
+        textoConfirmar: 'Registrar'
+    });
+    if (!datos) return;
+    if (datos.monto <= 0) { mostrarToast('Monto invalido', 'error'); return; }
 
     const gasto = {
         id: 'G' + Date.now(),
-        concepto,
-        monto,
+        concepto: datos.concepto,
+        monto: datos.monto,
         fecha: new Date().toISOString()
     };
 

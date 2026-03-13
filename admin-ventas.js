@@ -112,7 +112,12 @@ function mostrarVentas(ventas) {
             <div class="flex gap-2 mt-4 flex-wrap">
                 <button class="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-700 inline-flex items-center gap-1.5" onclick="abrirReimpresion('${v.id}')"><i data-lucide="printer" class="w-3.5 h-3.5"></i> Re-imprimir</button>
                 <button class="bg-[#25D366] text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-[#1fad55] inline-flex items-center gap-1.5" onclick="enviarWhatsAppVenta('${v.id}')"><i data-lucide="message-circle" class="w-3.5 h-3.5"></i> WhatsApp</button>
-                ${esFactura ? `<button class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-500 inline-flex items-center gap-1.5" onclick="verXMLSifen('${v.id}')"><i data-lucide="file-code" class="w-3.5 h-3.5"></i> XML SIFEN</button>` : ''}
+                ${esFactura && v.sifen_cdc
+                    ? `<button class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-emerald-500 inline-flex items-center gap-1.5" onclick="imprimirKuDE('${v.id}')"><i data-lucide="file-text" class="w-3.5 h-3.5"></i> Imprimir KuDE</button>
+                       <button class="bg-gray-500 text-white px-3 py-2 rounded-lg text-sm hover:bg-gray-400 inline-flex items-center gap-1" onclick="verXMLSifen('${v.id}')" title="Ver XML"><i data-lucide="file-code" class="w-3.5 h-3.5"></i></button>`
+                    : esFactura
+                        ? `<button class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-500 inline-flex items-center gap-1.5" onclick="verXMLSifen('${v.id}')"><i data-lucide="file-code" class="w-3.5 h-3.5"></i> XML SIFEN</button>`
+                        : ''}
             </div>`;
         container.appendChild(div);
     });
@@ -547,6 +552,22 @@ async function verXMLSifen(pedidoId) {
             return;
         }
 
+        // Guardar datos SIFEN en localStorage (sync con lo que la Edge Function guardo en DB)
+        try {
+            const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+            const idx = pedidos.findIndex(p => p.id === pedidoId);
+            if (idx !== -1) {
+                pedidos[idx].sifen_cdc = result.cdc;
+                pedidos[idx].sifen_qr_url = result.qr_url;
+                pedidos[idx].sifen_numFactura = result.numFactura;
+                pedidos[idx].sifen_xml_generado = true;
+                pedidos[idx].sifen_fecha_generacion = new Date().toISOString();
+                localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
+                // Refrescar lista de ventas para mostrar boton KuDE
+                if (typeof filtrarVentas === 'function') filtrarVentas();
+            }
+        } catch (e) { console.warn('[SIFEN] Error guardando en localStorage:', e); }
+
         // Mostrar XML en modal
         mostrarXMLSifenModal(result);
 
@@ -708,4 +729,93 @@ function descargarSOAPSifen() {
     a.click();
     URL.revokeObjectURL(url);
     mostrarToast('SOAP descargado', 'success');
+}
+
+// ============================================
+// IMPRIMIR KuDE (PDF) — Factura con datos SIFEN
+// ============================================
+
+function imprimirKuDE(pedidoId) {
+    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    const pedido = pedidos.find(p => p.id === pedidoId);
+    if (!pedido) { mostrarToast('Pedido no encontrado', 'error'); return; }
+
+    const clienteInfo = productosData.clientes.find(c => c.id === pedido.cliente?.id);
+    const cdc = pedido.sifen_cdc || pedido.cdc || '';
+    const numFactura = pedido.sifen_numFactura || pedido.numFactura || '';
+    const qrUrl = pedido.sifen_qr_url || '';
+
+    // Eliminar modal previo
+    let modal = document.getElementById('modalKuDE');
+    if (modal) modal.remove();
+
+    modal = document.createElement('div');
+    modal.id = 'modalKuDE';
+    modal.className = 'fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4';
+    modal.style.display = 'flex';
+    modal.innerHTML = `
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full flex flex-col" style="animation: slideUp 0.2s ease-out;">
+            <div class="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-emerald-600 to-teal-700 rounded-t-2xl">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                            <i data-lucide="file-text" class="w-5 h-5"></i> KuDE - Representacion Grafica
+                        </h3>
+                        <p class="text-emerald-100 text-xs mt-1">Factura Electronica SIFEN</p>
+                    </div>
+                    <button onclick="document.getElementById('modalKuDE').remove()" class="text-white/70 hover:text-white p-1">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="px-6 py-5 space-y-4">
+                <div>
+                    <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Factura N°</p>
+                    <p class="text-xl font-bold text-gray-900">${numFactura}</p>
+                </div>
+                <div>
+                    <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">CDC (44 digitos)</p>
+                    <p class="font-mono text-sm font-bold text-gray-800 break-all leading-relaxed bg-gray-50 p-3 rounded-lg">${cdc}</p>
+                </div>
+                <div class="flex justify-between text-sm">
+                    <div><span class="text-gray-500">Cliente:</span> <strong>${pedido.cliente?.nombre || 'N/A'}</strong></div>
+                    <div><span class="text-gray-500">Total:</span> <strong>Gs. ${(pedido.total || 0).toLocaleString()}</strong></div>
+                </div>
+                ${qrUrl ? `
+                <div class="bg-gray-50 p-3 rounded-lg flex items-center gap-2">
+                    <i data-lucide="qr-code" class="w-4 h-4 text-gray-400 shrink-0"></i>
+                    <a href="${qrUrl}" target="_blank" rel="noopener" class="text-blue-600 hover:text-blue-800 text-xs underline underline-offset-2 break-all">Verificar en e-Kuatia</a>
+                </div>` : ''}
+            </div>
+
+            <div class="flex gap-3 px-6 py-4 border-t border-gray-100">
+                <button onclick="ejecutarImpresionKuDE('${pedidoId}', 'thermal')" class="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-700 inline-flex items-center gap-1.5 flex-1 justify-center">
+                    <i data-lucide="receipt" class="w-3.5 h-3.5"></i> Ticket 58mm
+                </button>
+                <button onclick="ejecutarImpresionKuDE('${pedidoId}', 'a4')" class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-emerald-500 inline-flex items-center gap-1.5 flex-1 justify-center">
+                    <i data-lucide="file-text" class="w-3.5 h-3.5"></i> KuDE A4
+                </button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+    lucide.createIcons();
+}
+
+function ejecutarImpresionKuDE(pedidoId, formato) {
+    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    const pedido = pedidos.find(p => p.id === pedidoId);
+    if (!pedido) { mostrarToast('Pedido no encontrado', 'error'); return; }
+
+    const clienteInfo = productosData.clientes.find(c => c.id === pedido.cliente?.id);
+
+    // Cerrar modal KuDE
+    const modal = document.getElementById('modalKuDE');
+    if (modal) modal.remove();
+
+    // Usar el sistema de impresion existente (construirTicketThermal / construirDocA4)
+    // que ya soporta datos SIFEN (cdc, numFactura, desgloseIVA)
+    imprimirConFormato(formato, pedido, clienteInfo);
 }

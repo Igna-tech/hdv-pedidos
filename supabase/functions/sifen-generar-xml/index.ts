@@ -440,6 +440,33 @@ ${xmlString.split("\n").map((l: string) => "        " + l).join("\n")}
   </env:Body>
 </env:Envelope>`;
 
+        // --- Guardar datos SIFEN en el pedido (merge en datos JSONB) ---
+        try {
+            const datosActualizados = {
+                ...datos,
+                sifen_cdc: cdc,
+                sifen_qr_url: qrUrl,
+                sifen_numFactura: numFacturaCompleto,
+                sifen_xml_generado: true,
+                sifen_fecha_generacion: new Date().toISOString(),
+            };
+            const { error: errUpdate } = await supabase
+                .from("pedidos")
+                .update({
+                    datos: datosActualizados,
+                    actualizado_en: new Date().toISOString(),
+                })
+                .eq("id", String(pedidoId));
+
+            if (errUpdate) {
+                console.warn("[sifen] No se pudo guardar en DB:", errUpdate.message);
+            } else {
+                console.log("[sifen] Datos SIFEN guardados en pedido:", pedidoId);
+            }
+        } catch (dbErr: any) {
+            console.warn("[sifen] Error guardando en DB:", dbErr.message);
+        }
+
         return new Response(
             JSON.stringify({
                 xml: xmlString,

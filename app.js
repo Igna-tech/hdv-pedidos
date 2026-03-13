@@ -94,6 +94,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }));
                 } catch(e) {}
                 console.log('[Vendedor] Catalogo actualizado desde Supabase y cacheado');
+                // Notificar al vendedor del cambio remoto
+                if (typeof mostrarToast === 'function') {
+                    mostrarToast('Catalogo actualizado', 'info');
+                }
             }
         });
     }
@@ -971,6 +975,7 @@ function agregarAlCarrito(productoId, presIdx) {
     
     const existente = carrito.findIndex(item => item.productoId === productoId && item.presentacion === pres.tamano);
     
+    const esPrecioEspecial = precio !== pres.precio_base;
     if (existente >= 0) {
         carrito[existente].cantidad += cantidad;
         carrito[existente].subtotal = carrito[existente].cantidad * carrito[existente].precio;
@@ -981,7 +986,8 @@ function agregarAlCarrito(productoId, presIdx) {
             presentacion: pres.tamano,
             precio,
             cantidad,
-            subtotal: precio * cantidad
+            subtotal: precio * cantidad,
+            precioEspecial: esPrecioEspecial
         });
     }
     
@@ -1064,8 +1070,8 @@ function renderizarCarrito() {
             <div class="cart-item-inner relative bg-gray-50 p-3 transition-transform rounded-xl" style="touch-action: pan-y;" data-idx="${idx}">
                 <div class="flex justify-between items-center gap-2">
                     <div class="flex-1 min-w-0">
-                        <p class="font-semibold text-gray-800 text-sm truncate">${item.nombre}</p>
-                        <p class="text-xs text-gray-500">${item.presentacion}</p>
+                        <p class="font-semibold text-gray-800 text-sm truncate">${item.nombre}${item.precioEspecial ? ' <span class="inline-block bg-amber-100 text-amber-700 text-[10px] font-bold px-1.5 py-0.5 rounded-full ml-1 align-middle">P.Esp</span>' : ''}</p>
+                        <p class="text-xs text-gray-500">${item.presentacion} · Gs. ${item.precio.toLocaleString()} c/u</p>
                     </div>
                     <div class="flex items-center gap-1.5 shrink-0">
                         <button onclick="cambiarCantidadCarrito(${idx},-1)" class="w-7 h-7 bg-white border border-gray-200 rounded-lg font-bold text-sm flex items-center justify-center hover:bg-gray-50">-</button>

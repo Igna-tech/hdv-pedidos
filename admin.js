@@ -681,10 +681,14 @@ function renderizarProductosStock(container, prods, filtro) {
         ${prods.map(prod => {
             const stockTotal = prod.presentaciones.reduce((s, p) => s + (p.stock || 0), 0);
             const presRows = prod.presentaciones.map((p, i) => `
-                <div class="flex items-center gap-2 py-1 border-b border-gray-50 last:border-0">
-                    <span class="text-xs text-gray-500 w-16">${p.tamano}</span>
-                    <span class="font-bold text-sm ${(p.stock || 0) <= 0 ? 'text-red-600' : (p.stock || 0) < 10 ? 'text-yellow-600' : 'text-green-600'}">${p.stock || 0}</span>
-                    <div class="flex gap-1 ml-auto">
+                <div class="flex items-center gap-2 py-1.5 border-b border-gray-50 last:border-0">
+                    <span class="text-xs text-gray-500 w-14 shrink-0">${p.tamano}</span>
+                    <input type="number" value="${p.precio_base || 0}" onchange="ajustarPrecioInline('${prod.id}','${p.tamano}','precio_base',this.value)"
+                        class="w-16 text-xs text-right border border-gray-200 rounded px-1 py-0.5 focus:border-blue-400 outline-none" title="Precio">
+                    <input type="number" value="${p.costo || 0}" onchange="ajustarPrecioInline('${prod.id}','${p.tamano}','costo',this.value)"
+                        class="w-14 text-xs text-right border border-gray-200 rounded px-1 py-0.5 focus:border-blue-400 outline-none text-gray-400" title="Costo">
+                    <span class="font-bold text-sm w-8 text-center ${(p.stock || 0) <= 0 ? 'text-red-600' : (p.stock || 0) < 10 ? 'text-yellow-600' : 'text-green-600'}">${p.stock || 0}</span>
+                    <div class="flex gap-1 ml-auto shrink-0">
                         <button onclick="ajustarStock('${prod.id}','${p.tamano}',-1)" class="w-6 h-6 bg-red-50 text-red-600 rounded font-bold text-sm">−</button>
                         <button onclick="ajustarStock('${prod.id}','${p.tamano}',1)" class="w-6 h-6 bg-green-50 text-green-600 rounded font-bold text-sm">+</button>
                         <button onclick="ajustarStock('${prod.id}','${p.tamano}',10)" class="w-6 h-6 bg-blue-50 text-blue-600 rounded text-[10px] font-bold">+10</button>
@@ -714,6 +718,45 @@ function ajustarStock(prodId, tamano, cantidad) {
         pres.stock = Math.max(0, (pres.stock || 0) + cantidad);
         registrarCambio();
         cargarStock();
+        // Upsert atómico a Supabase (no esperar a "Guardar Todo")
+        _upsertVarianteAtomico(prod.id, pres);
+    }
+}
+
+function ajustarPrecioInline(prodId, tamano, campo, valor) {
+    const prod = productosData.productos.find(p => p.id === prodId);
+    if (!prod) return;
+    const pres = prod.presentaciones.find(p => p.tamano === tamano);
+    if (pres) {
+        pres[campo] = parseInt(valor) || 0;
+        registrarCambio();
+        _upsertVarianteAtomico(prod.id, pres);
+    }
+}
+
+async function _upsertVarianteAtomico(productoId, pres) {
+    try {
+        if (pres.variante_id) {
+            // Variante existente en DB: update directo
+            await supabaseClient.from('producto_variantes').update({
+                precio: pres.precio_base || 0,
+                costo: pres.costo || 0,
+                stock: pres.stock || 0,
+                activo: pres.activo !== false
+            }).eq('id', pres.variante_id);
+        } else {
+            // Variante sin ID (nueva): upsert por producto_id + nombre
+            await supabaseClient.from('producto_variantes').upsert({
+                producto_id: productoId,
+                nombre_variante: pres.tamano || 'Unidad',
+                precio: pres.precio_base || 0,
+                costo: pres.costo || 0,
+                stock: pres.stock || 0,
+                activo: pres.activo !== false
+            });
+        }
+    } catch (err) {
+        console.error('[Admin] Error upsert atómico variante:', err);
     }
 }
 

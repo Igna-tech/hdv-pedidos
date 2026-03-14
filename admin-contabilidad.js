@@ -56,25 +56,8 @@ function getNombreMes(mes) {
 // Usa desglose por item si esta guardado en el pedido, sino fallback a 10%
 // ============================================
 
-function calcularDesglose(total, pedido) {
-    // Si el pedido ya tiene desglose calculado por item, usarlo
-    if (pedido && pedido.desgloseIVA) {
-        const d = pedido.desgloseIVA;
-        return {
-            exentas: d.totalExentas || 0,
-            gravada5: d.totalGravada5 || 0,
-            iva5: d.liqIva5 || 0,
-            gravada10: d.totalGravada10 || 0,
-            iva10: d.liqIva10 || 0,
-            totalIva: d.totalIva || 0,
-            total: total
-        };
-    }
-    // Fallback: asumir todo IVA 10%
-    const base10 = Math.round(total / 1.10);
-    const iva10 = total - base10;
-    return { exentas: 0, gravada5: 0, iva5: 0, gravada10: base10, iva10: iva10, totalIva: iva10, total: total };
-}
+// TODO: Refactor Phase 1 - Movido a js/utils/formatters.js
+// function calcularDesglose(total, pedido) { ... }
 
 // ============================================
 // PREVISUALIZAR

@@ -8,8 +8,7 @@
 // Namespace para onclick handlers en templates
 const ventasCtrl = {};
 
-// Alias de compatibilidad (usado por admin-devoluciones.js)
-function formatearFechaAdmin(fecha) { return tplFormatearFechaAdmin(fecha); }
+// TODO: Refactor Phase 1 - formatearFechaAdmin y tplFormatearFechaAdmin ahora en js/utils/formatters.js
 
 // ============================================
 // CARGAR Y MOSTRAR VENTAS

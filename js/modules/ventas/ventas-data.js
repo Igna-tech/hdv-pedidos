@@ -6,18 +6,7 @@
 //   guardarPedido (supabase-config.js), productosData (admin.js)
 // ============================================
 
-// --- Helpers de generacion ---
-
-function generarNumeroFacturaAdmin() {
-    const num = String(Math.floor(Math.random() * 9999999) + 1).padStart(7, '0');
-    return `001-001-${num}`;
-}
-
-function generarCDCAdmin() {
-    let cdc = '';
-    for (let i = 0; i < 44; i++) cdc += Math.floor(Math.random() * 10);
-    return cdc;
-}
+// TODO: Refactor Phase 1 - generarNumeroFacturaAdmin y generarCDCAdmin ahora en js/utils/formatters.js
 
 // --- Lectura ---
 

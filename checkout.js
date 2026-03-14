@@ -59,22 +59,10 @@ function limpiarDespuesDeVenta() {
     document.getElementById('tipoPago').value = 'contado';
 }
 
-function generarNumeroFactura() {
-    const num = String(Math.floor(Math.random() * 9999999) + 1).padStart(7, '0');
-    return `001-001-${num}`;
-}
-
-function generarCDC() {
-    let cdc = '';
-    for (let i = 0; i < 44; i++) cdc += Math.floor(Math.random() * 10);
-    return cdc;
-}
-
-function formatearFecha(fecha) {
-    const d = new Date(fecha);
-    return d.toLocaleDateString('es-PY', { day: '2-digit', month: '2-digit', year: 'numeric' })
-        + ' ' + d.toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit' });
-}
+// TODO: Refactor Phase 1 - Movido a js/utils/formatters.js
+// function generarNumeroFactura() { ... }
+// function generarCDC() { ... }
+// function formatearFecha(fecha) { ... }
 
 function generarHTMLItems(items) {
     return items.map(i =>

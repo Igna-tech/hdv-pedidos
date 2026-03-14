@@ -1,11 +1,12 @@
 // ============================================
 // HDV Admin Panel v4.0 - Dashboard, PDF, Edicion de Pedidos
 // ============================================
-let todosLosPedidos = [];
-let productosData = { productos: [], categorias: [], clientes: [] };
+// TODO: Refactor Phase 1 - Estado base movido a js/core/state.js
+// let todosLosPedidos = [];
+// let productosData = { productos: [], categorias: [], clientes: [] };
 let productosDataOriginal = null;
-let productosFiltrados = [];
-let clientesFiltrados = [];
+// let productosFiltrados = [];
+// let clientesFiltrados = [];
 let cambiosSinGuardar = 0;
 let stockFiltrado = [];
 
@@ -2692,21 +2693,9 @@ async function limpiarPedidos() {
 // ============================================
 // UTILIDADES
 // ============================================
-function descargarJSON(data, nombreArchivo) {
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = nombreArchivo;
-    link.click();
-}
-
-function descargarCSV(contenido, nombreArchivo) {
-    const blob = new Blob([contenido], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = nombreArchivo;
-    link.click();
-}
+// TODO: Refactor Phase 1 - Movido a js/utils/formatters.js
+// function descargarJSON(data, nombreArchivo) { ... }
+// function descargarCSV(contenido, nombreArchivo) { ... }
 
 // ============================================
 // EDICION DE PEDIDOS, PDF, DASHBOARD, REPORTES
@@ -2870,183 +2859,28 @@ function guardarEdicionPedido() {
 
 // ===== 2. PDF GENERATION (A4 Remission Note) =====
 
+// TODO: Refactor Phase 1 - Usa js/utils/pdf-generator.js (generarPDFRemisionDoc)
 function generarPDFRemision(pedidoId) {
     const pedido = todosLosPedidos.find(p => p.id === (pedidoId || pedidoEditandoId));
     if (!pedido) { mostrarToast('Pedido no encontrado', 'error'); return; }
-
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
     const clienteInfo = productosData.clientes.find(c => c.id === pedido.cliente?.id);
-    
-    // Header
-    doc.setFillColor(17, 24, 39);
-    doc.rect(0, 0, 210, 35, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(22);
-    doc.setFont('helvetica', 'bold');
-    doc.text('HDV Distribuciones', 15, 18);
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.text('EAS - Nota de Remision', 15, 26);
-    
-    // Pedido info right
-    doc.setFontSize(10);
-    doc.text(`N°: ${pedido.id}`, 195, 14, { align: 'right' });
-    doc.text(`Fecha: ${new Date(pedido.fecha).toLocaleDateString('es-PY')}`, 195, 20, { align: 'right' });
-    doc.text(`Estado: ${(pedido.estado || 'pendiente').toUpperCase()}`, 195, 26, { align: 'right' });
-    
-    // Client info
-    doc.setTextColor(0, 0, 0);
-    doc.setFillColor(249, 250, 251);
-    doc.rect(10, 42, 190, 28, 'F');
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
-    doc.text('DATOS DEL CLIENTE', 15, 50);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
-    doc.text(`Razon Social: ${pedido.cliente?.nombre || 'N/A'}`, 15, 57);
-    doc.text(`RUC: ${clienteInfo?.ruc || 'N/A'}`, 110, 57);
-    doc.text(`Direccion: ${clienteInfo?.direccion || clienteInfo?.zona || 'N/A'}`, 15, 63);
-    doc.text(`Tel: ${clienteInfo?.telefono || 'N/A'}`, 110, 63);
-    
-    // Table header
-    let y = 80;
-    doc.setFillColor(17, 24, 39);
-    doc.rect(10, y - 6, 190, 10, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'bold');
-    doc.text('PRODUCTO', 15, y);
-    doc.text('PRESENTACION', 80, y);
-    doc.text('CANT.', 125, y);
-    doc.text('P. UNIT.', 145, y);
-    doc.text('SUBTOTAL', 175, y, { align: 'right' });
-    
-    // Table rows
-    y += 10;
-    doc.setTextColor(0, 0, 0);
-    doc.setFont('helvetica', 'normal');
-    (pedido.items || []).forEach((item, i) => {
-        if (i % 2 === 0) {
-            doc.setFillColor(249, 250, 251);
-            doc.rect(10, y - 5, 190, 8, 'F');
-        }
-        doc.setFontSize(9);
-        doc.text(item.nombre || '', 15, y);
-        doc.text(item.presentacion || '', 80, y);
-        doc.text(String(item.cantidad || 0), 130, y);
-        doc.text(`Gs. ${(item.precio || 0).toLocaleString()}`, 145, y);
-        doc.setFont('helvetica', 'bold');
-        doc.text(`Gs. ${(item.subtotal || 0).toLocaleString()}`, 195, y, { align: 'right' });
-        doc.setFont('helvetica', 'normal');
-        y += 8;
-    });
-    
-    // Totals
-    y += 5;
-    doc.setDrawColor(200, 200, 200);
-    doc.line(120, y, 200, y);
-    y += 8;
-    doc.setFontSize(9);
-    doc.text('Subtotal:', 140, y);
-    doc.text(`Gs. ${(pedido.subtotal || 0).toLocaleString()}`, 195, y, { align: 'right' });
-    if (pedido.descuento > 0) {
-        y += 7;
-        doc.text(`Descuento (${pedido.descuento}%):`, 140, y);
-        doc.text(`-Gs. ${Math.round((pedido.subtotal || 0) * pedido.descuento / 100).toLocaleString()}`, 195, y, { align: 'right' });
-    }
-    y += 7;
-    doc.setFillColor(17, 24, 39);
-    doc.rect(130, y - 5, 70, 10, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'bold');
-    doc.text('TOTAL:', 135, y + 1);
-    doc.text(`Gs. ${(pedido.total || 0).toLocaleString()}`, 195, y + 1, { align: 'right' });
-    
-    // Footer
-    y += 20;
-    doc.setTextColor(150, 150, 150);
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`Tipo de pago: ${pedido.tipoPago || 'contado'}`, 15, y);
-    if (pedido.notas) doc.text(`Notas: ${pedido.notas}`, 15, y + 5);
-    
-    y = 270;
-    doc.setDrawColor(200, 200, 200);
-    doc.line(15, y, 80, y);
-    doc.line(130, y, 195, y);
-    doc.setFontSize(7);
-    doc.text('Firma del Cliente', 35, y + 5);
-    doc.text('Firma del Vendedor', 150, y + 5);
-    
-    doc.setTextColor(180, 180, 180);
-    doc.text('HDV Distribuciones EAS - Documento generado automaticamente', 105, 290, { align: 'center' });
-    
-    doc.save(`remision_${pedido.id}_${pedido.cliente?.nombre || 'cliente'}.pdf`);
+    generarPDFRemisionDoc(pedido, clienteInfo);
 }
 
 
 // ===== 3. THERMAL TICKET =====
 
+// TODO: Refactor Phase 1 - Usa js/utils/printer.js (generarTicketHTML + imprimirViaIframe)
 function generarTicketTermico(pedidoId) {
     const pedido = todosLosPedidos.find(p => p.id === (pedidoId || pedidoEditandoId));
     if (!pedido) { mostrarToast('Pedido no encontrado', 'error'); return; }
-
     const clienteInfo = productosData.clientes.find(c => c.id === pedido.cliente?.id);
-
-    const ticketHTML = `<!DOCTYPE html>
-<html><head><meta charset="UTF-8">
-<style>
-    @page { margin: 0; size: 80mm auto; }
-    body { font-family: 'Courier New', monospace; width: 72mm; margin: 4mm; font-size: 11px; color: #000; }
-    .center { text-align: center; }
-    .bold { font-weight: bold; }
-    .line { border-top: 1px dashed #000; margin: 4px 0; }
-    .right { text-align: right; }
-    .row { display: flex; justify-content: space-between; }
-    .big { font-size: 16px; }
-    .small { font-size: 9px; }
-    table { width: 100%; border-collapse: collapse; }
-    td { padding: 2px 0; vertical-align: top; }
-    .total-row { font-size: 14px; font-weight: bold; }
-</style></head><body>
-<div class="center bold big">HDV DISTRIBUCIONES</div>
-<div class="center small">EAS - Nota de Remision</div>
-<div class="line"></div>
-<div class="row"><span>N°: ${pedido.id}</span></div>
-<div class="row"><span>Fecha: ${new Date(pedido.fecha).toLocaleDateString('es-PY')}</span></div>
-<div class="row"><span>Hora: ${new Date(pedido.fecha).toLocaleTimeString('es-PY')}</span></div>
-<div class="line"></div>
-<div class="bold">Cliente: ${pedido.cliente?.nombre || 'N/A'}</div>
-<div>RUC: ${clienteInfo?.ruc || 'N/A'}</div>
-<div>Dir: ${clienteInfo?.direccion || clienteInfo?.zona || ''}</div>
-<div class="line"></div>
-<table>
-${(pedido.items || []).map(i => `<tr>
-    <td>${i.nombre}<br><span class="small">${i.presentacion} x${i.cantidad}</span></td>
-    <td class="right bold">Gs.${(i.subtotal || 0).toLocaleString()}</td>
-</tr>`).join('')}
-</table>
-<div class="line"></div>
-<div class="row"><span>Subtotal:</span><span>Gs. ${(pedido.subtotal || 0).toLocaleString()}</span></div>
-${pedido.descuento > 0 ? `<div class="row"><span>Desc. ${pedido.descuento}%:</span><span>-Gs. ${Math.round((pedido.subtotal||0)*pedido.descuento/100).toLocaleString()}</span></div>` : ''}
-<div class="line"></div>
-<div class="row total-row"><span>TOTAL:</span><span>Gs. ${(pedido.total || 0).toLocaleString()}</span></div>
-<div class="line"></div>
-<div class="row"><span>Pago: ${pedido.tipoPago || 'contado'}</span><span>Estado: ${(pedido.estado||'pendiente').toUpperCase()}</span></div>
-${pedido.notas ? `<div class="small">Notas: ${pedido.notas}</div>` : ''}
-<div class="line"></div>
-<div class="center small">Gracias por su compra</div>
-<div class="center small">HDV Distribuciones EAS</div>
-<div style="margin-bottom:10mm"></div>
-</body></html>`;
-
-    const printFrame = document.getElementById('printFrame');
-    printFrame.srcdoc = ticketHTML;
-    printFrame.onload = () => {
-        printFrame.contentWindow.print();
-    };
+    const ticketHTML = generarTicketHTML(pedido, {
+        titulo: 'EAS - Nota de Remision',
+        clienteInfo: clienteInfo || {},
+        mostrarEstado: true
+    });
+    imprimirViaIframe('printFrame', ticketHTML);
 }
 
 

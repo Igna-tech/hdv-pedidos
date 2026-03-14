@@ -1,8 +1,9 @@
 // ============================================
 // HDV Pedidos - App Vendedor v3.0 (con Backup)
 // ============================================
-let productos = [];
-let categorias = [];
+// TODO: Refactor Phase 1 - Estado movido a js/core/state.js
+// let productos = [];
+// let categorias = [];
 
 // ============================================
 // SVG EMPTY STATE ILLUSTRATIONS
@@ -50,9 +51,10 @@ function generarSkeletonProductos(count = 6) {
     html += '</div>';
     return html;
 }
-let clientes = [];
-let clienteActual = null;
-let carrito = [];
+// TODO: Refactor Phase 1 - Estado movido a js/core/state.js
+// let clientes = [];
+// let clienteActual = null;
+// let carrito = [];
 let categoriaActual = 'todas';
 let vistaCatalogo = 'categorias'; // 'categorias' o 'productos'
 let categoriaSeleccionada = null; // categoria clickeada en el grid
@@ -961,35 +963,8 @@ function ajustarQty(prodId, idx, delta) {
 // ============================================
 // DESGLOSE IVA (Paraguay — precios con IVA incluido)
 // ============================================
-function calcularDesgloseIVA(items) {
-    let totalExentas = 0, totalGravada5 = 0, totalGravada10 = 0;
-
-    items.forEach(item => {
-        const tipo = (item.tipo_impuesto || '10').toString();
-        if (tipo === 'exenta' || tipo === '0') {
-            totalExentas += item.subtotal;
-        } else if (tipo === '5') {
-            totalGravada5 += item.subtotal;
-        } else {
-            totalGravada10 += item.subtotal;
-        }
-    });
-
-    // Liquidacion IVA (IVA incluido en precio)
-    const liqIva5 = Math.round(totalGravada5 / 21);
-    const liqIva10 = Math.round(totalGravada10 / 11);
-    const totalIva = liqIva5 + liqIva10;
-
-    return {
-        totalExentas,
-        totalGravada5,
-        liqIva5,
-        totalGravada10,
-        liqIva10,
-        totalIva,
-        total: totalExentas + totalGravada5 + totalGravada10
-    };
-}
+// TODO: Refactor Phase 1 - Movido a js/utils/formatters.js
+// function calcularDesgloseIVA(items) { ... }
 
 // ============================================
 // CARRITO
@@ -1995,141 +1970,27 @@ function descargarArchivoJSON(data, nombre) {
     URL.revokeObjectURL(link.href);
 }
 
-function formatearFechaArchivo() {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}_${String(d.getHours()).padStart(2,'0')}${String(d.getMinutes()).padStart(2,'0')}`;
-}
+// TODO: Refactor Phase 1 - Movido a js/utils/formatters.js
+// function formatearFechaArchivo() { ... }
 
 // ============================================
 // IMPRESION Y COMPARTIR POR PEDIDO
 // ============================================
+// TODO: Refactor Phase 1 - Usa js/utils/printer.js (generarTicketHTML + imprimirViaIframe)
 function imprimirTicketVendedor(pedidoId) {
     const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
     const pedido = pedidos.find(p => p.id === pedidoId);
     if (!pedido) return;
-    
-    const ticketHTML = `<!DOCTYPE html>
-<html><head><meta charset="UTF-8">
-<style>
-    @page { margin: 0; size: 80mm auto; }
-    body { font-family: 'Courier New', monospace; width: 72mm; margin: 4mm; font-size: 11px; color: #000; }
-    .center { text-align: center; }
-    .bold { font-weight: bold; }
-    .line { border-top: 1px dashed #000; margin: 4px 0; }
-    .right { text-align: right; }
-    .row { display: flex; justify-content: space-between; }
-    .big { font-size: 16px; }
-    .small { font-size: 9px; }
-    table { width: 100%; border-collapse: collapse; }
-    td { padding: 2px 0; vertical-align: top; }
-    .total-row { font-size: 14px; font-weight: bold; }
-</style></head><body>
-<div class="center bold big">HDV DISTRIBUCIONES</div>
-<div class="center small">EAS - Comprobante de Pedido</div>
-<div class="line"></div>
-<div class="row"><span>N°: ${pedido.id}</span></div>
-<div class="row"><span>Fecha: ${new Date(pedido.fecha).toLocaleDateString('es-PY')}</span></div>
-<div class="row"><span>Hora: ${new Date(pedido.fecha).toLocaleTimeString('es-PY')}</span></div>
-<div class="line"></div>
-<div class="bold">Cliente: ${pedido.cliente?.nombre || 'N/A'}</div>
-<div class="line"></div>
-<table>
-${(pedido.items || []).map(i => `<tr>
-    <td>${i.nombre}<br><span class="small">${i.presentacion} x${i.cantidad}</span></td>
-    <td class="right bold">Gs.${(i.subtotal || 0).toLocaleString()}</td>
-</tr>`).join('')}
-</table>
-<div class="line"></div>
-${pedido.descuento > 0 ? `<div class="row"><span>Desc. ${pedido.descuento}%:</span><span>-Gs. ${Math.round((pedido.subtotal||0)*pedido.descuento/100).toLocaleString()}</span></div>` : ''}
-<div class="row total-row"><span>TOTAL:</span><span>Gs. ${(pedido.total || 0).toLocaleString()}</span></div>
-<div class="line"></div>
-<div class="row"><span>Pago: ${pedido.tipoPago || 'contado'}</span></div>
-${pedido.notas ? `<div class="small">Notas: ${pedido.notas}</div>` : ''}
-<div class="line"></div>
-<div class="center small">Gracias por su compra</div>
-<div class="center small">HDV Distribuciones EAS</div>
-<div style="margin-bottom:10mm"></div>
-</body></html>`;
-
-    const printFrame = document.getElementById('printFrameVendedor');
-    if (printFrame) {
-        printFrame.srcdoc = ticketHTML;
-        printFrame.onload = () => printFrame.contentWindow.print();
-    }
+    const ticketHTML = generarTicketHTML(pedido);
+    imprimirViaIframe('printFrameVendedor', ticketHTML);
 }
 
+// TODO: Refactor Phase 1 - Usa js/utils/pdf-generator.js (generarPDFPedido)
 function generarPDFVendedor(pedidoId) {
     const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
     const pedido = pedidos.find(p => p.id === pedidoId);
     if (!pedido) return;
-    
-    if (typeof window.jspdf === 'undefined') {
-        mostrarToast('Cargando generador de PDF...', 'info');
-        return;
-    }
-    
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
-    
-    // Header
-    doc.setFillColor(17, 24, 39);
-    doc.rect(0, 0, 210, 32, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(20);
-    doc.setFont('helvetica', 'bold');
-    doc.text('HDV Distribuciones', 15, 16);
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.text('EAS - Comprobante de Pedido', 15, 24);
-    doc.text(`N°: ${pedido.id}`, 195, 14, { align: 'right' });
-    doc.text(`${new Date(pedido.fecha).toLocaleDateString('es-PY')}`, 195, 21, { align: 'right' });
-    
-    // Client
-    let y = 45;
-    doc.setTextColor(0, 0, 0);
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'bold');
-    doc.text(`Cliente: ${pedido.cliente?.nombre || 'N/A'}`, 15, y);
-    y += 10;
-    
-    // Items
-    doc.setFillColor(17, 24, 39);
-    doc.rect(10, y - 5, 190, 8, 'F');
-    doc.setTextColor(255);
-    doc.setFontSize(8);
-    doc.text('PRODUCTO', 15, y);
-    doc.text('PRES.', 90, y);
-    doc.text('CANT.', 125, y);
-    doc.text('SUBTOTAL', 190, y, { align: 'right' });
-    y += 8;
-    
-    doc.setTextColor(0);
-    doc.setFontSize(9);
-    (pedido.items || []).forEach((item, i) => {
-        if (i % 2 === 0) { doc.setFillColor(249,250,251); doc.rect(10, y-4, 190, 7, 'F'); }
-        doc.setFont('helvetica', 'normal');
-        doc.text(item.nombre, 15, y);
-        doc.text(item.presentacion, 90, y);
-        doc.text(String(item.cantidad), 130, y);
-        doc.setFont('helvetica', 'bold');
-        doc.text(`Gs. ${(item.subtotal||0).toLocaleString()}`, 190, y, { align: 'right' });
-        y += 7;
-    });
-    
-    y += 8;
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.text(`TOTAL: Gs. ${(pedido.total||0).toLocaleString()}`, 190, y, { align: 'right' });
-    
-    y += 10;
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(150);
-    doc.text(`Pago: ${pedido.tipoPago || 'contado'}${pedido.descuento > 0 ? ` | Desc: ${pedido.descuento}%` : ''}`, 15, y);
-    if (pedido.notas) { y += 5; doc.text(`Notas: ${pedido.notas}`, 15, y); }
-    
-    doc.save(`pedido_${pedido.id}.pdf`);
-    mostrarExito('PDF generado');
+    if (generarPDFPedido(pedido)) mostrarExito('PDF generado');
 }
 
 function enviarPedidoWhatsApp(pedidoId) {

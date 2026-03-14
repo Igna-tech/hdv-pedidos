@@ -4,11 +4,7 @@
 // NO acceden al DOM, localStorage ni globals.
 // ============================================
 
-function tplFormatearFechaAdmin(fecha) {
-    const d = new Date(fecha);
-    return d.toLocaleDateString('es-PY', { day: '2-digit', month: '2-digit', year: 'numeric' })
-        + ' ' + d.toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit' });
-}
+// TODO: Refactor Phase 1 - tplFormatearFechaAdmin ahora en js/utils/formatters.js
 
 // --- Helpers internos ---
 

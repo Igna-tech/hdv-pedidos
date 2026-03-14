@@ -812,10 +812,297 @@ function ejecutarImpresionKuDE(pedidoId, formato) {
     const clienteInfo = productosData.clientes.find(c => c.id === pedido.cliente?.id);
 
     // Cerrar modal KuDE
-    const modal = document.getElementById('modalKuDE');
-    if (modal) modal.remove();
+    const modalKuDE = document.getElementById('modalKuDE');
+    if (modalKuDE) modalKuDE.remove();
 
-    // Usar el sistema de impresion existente (construirTicketThermal / construirDocA4)
-    // que ya soporta datos SIFEN (cdc, numFactura, desgloseIVA)
-    imprimirConFormato(formato, pedido, clienteInfo);
+    if (formato === 'thermal') {
+        imprimirConFormato('thermal', pedido, clienteInfo);
+        return;
+    }
+
+    // --- KuDE A4 oficial ---
+    imprimirKuDEA4(pedido, clienteInfo);
+}
+
+// ============================================
+// KuDE A4 — Representacion Grafica Oficial SET
+// ============================================
+
+function _obtenerDatosEmpresa() {
+    return {
+        ruc: document.getElementById('cfgEmpresaRuc')?.value || '',
+        razonSocial: document.getElementById('cfgEmpresaRazon')?.value || 'HDV DISTRIBUCIONES',
+        nombreFantasia: document.getElementById('cfgEmpresaNombreFantasia')?.value || '',
+        timbrado: document.getElementById('cfgEmpresaTimbrado')?.value || '',
+        timbradoVenc: document.getElementById('cfgEmpresaTimbradoVenc')?.value || '',
+        establecimiento: document.getElementById('cfgEmpresaEstablecimiento')?.value || '001',
+        puntoExp: document.getElementById('cfgEmpresaPuntoExp')?.value || '001',
+        direccion: document.getElementById('cfgEmpresaDireccion')?.value || '',
+        telefono: document.getElementById('cfgEmpresaTelefono')?.value || '',
+        email: document.getElementById('cfgEmpresaEmail')?.value || '',
+        actividad: document.getElementById('cfgEmpresaActividad')?.value || '',
+    };
+}
+
+function _feIniTimbrado(venc) {
+    if (!venc) return '';
+    const d = new Date(venc);
+    const ini = new Date(d.getTime() - 365 * 24 * 60 * 60 * 1000);
+    return ini.toLocaleDateString('es-PY', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+function imprimirKuDEA4(pedido, clienteInfo) {
+    const emp = _obtenerDatosEmpresa();
+    const cdc = pedido.sifen_cdc || pedido.cdc || '';
+    const numFactura = pedido.sifen_numFactura || pedido.numFactura || '';
+    const qrUrl = pedido.sifen_qr_url || '';
+    const rucCliente = clienteInfo?.ruc || pedido.cliente?.ruc || '';
+    const tipoDoc = clienteInfo?.tipo_documento || 'RUC';
+    const razonCliente = clienteInfo?.razon_social || pedido.cliente?.razon_social || pedido.cliente?.nombre || '';
+    const dirCliente = clienteInfo?.direccion || pedido.cliente?.direccion || '';
+    const esCredito = pedido.tipoPago === 'credito';
+    const fechaEmi = pedido.sifen_fecha_generacion || pedido.fecha || '';
+    const fechaStr = fechaEmi ? new Date(fechaEmi).toLocaleDateString('es-PY', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
+    const horaStr = fechaEmi ? new Date(fechaEmi).toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit' }) : '';
+
+    // IVA desglose
+    const iva = pedido.desgloseIVA || {};
+    const totalExe = iva.totalExentas || 0;
+    const totalG5 = iva.totalGravada5 || 0;
+    const totalG10 = iva.totalGravada10 || 0;
+    const liqIva5 = iva.liqIva5 || 0;
+    const liqIva10 = iva.liqIva10 || 0;
+    const totalIva = iva.totalIva || (liqIva5 + liqIva10);
+
+    // Items
+    const items = pedido.items || [];
+    let itemsHTML = '';
+    items.forEach((it, idx) => {
+        const tipo = (it.tipo_impuesto || '10').toString();
+        const colExe = (tipo === 'exenta' || tipo === '0') ? (it.subtotal || 0) : 0;
+        const col5 = tipo === '5' ? (it.subtotal || 0) : 0;
+        const col10 = (tipo === '10' || tipo === 'iva10' || (!tipo || tipo === '10')) ? (it.subtotal || 0) : 0;
+        itemsHTML += `<tr>
+            <td style="border:1px solid #000; padding:3px 5px; text-align:center; font-size:10px;">${it.productoId || (idx + 1)}</td>
+            <td style="border:1px solid #000; padding:3px 5px; font-size:10px;">${it.nombre || ''} ${it.presentacion || ''}</td>
+            <td style="border:1px solid #000; padding:3px 5px; text-align:center; font-size:10px;">UNI</td>
+            <td style="border:1px solid #000; padding:3px 5px; text-align:center; font-size:10px;">${it.cantidad || 0}</td>
+            <td style="border:1px solid #000; padding:3px 5px; text-align:right; font-size:10px;">${(it.precio || 0).toLocaleString()}</td>
+            <td style="border:1px solid #000; padding:3px 5px; text-align:right; font-size:10px;">${colExe > 0 ? colExe.toLocaleString() : ''}</td>
+            <td style="border:1px solid #000; padding:3px 5px; text-align:right; font-size:10px;">${col5 > 0 ? col5.toLocaleString() : ''}</td>
+            <td style="border:1px solid #000; padding:3px 5px; text-align:right; font-size:10px;">${col10 > 0 ? col10.toLocaleString() : ''}</td>
+        </tr>`;
+    });
+
+    // Filas vacias para llenar espacio minimo
+    const filasMin = Math.max(0, 8 - items.length);
+    for (let i = 0; i < filasMin; i++) {
+        itemsHTML += `<tr><td style="border:1px solid #000; padding:3px 5px;">&nbsp;</td><td style="border:1px solid #000;"></td><td style="border:1px solid #000;"></td><td style="border:1px solid #000;"></td><td style="border:1px solid #000;"></td><td style="border:1px solid #000;"></td><td style="border:1px solid #000;"></td><td style="border:1px solid #000;"></td></tr>`;
+    }
+
+    const totalOpe = pedido.total || 0;
+
+    const html = `
+    <div id="kudeA4Container" style="font-family: Arial, Helvetica, sans-serif; color: #000; width: 190mm; margin: 0 auto; font-size: 11px; line-height: 1.4;">
+
+        <!-- CABECERA: Empresa + Datos Fiscales -->
+        <table style="width:100%; border-collapse:collapse; border:2px solid #000; margin-bottom:0;">
+            <tr>
+                <!-- Izquierda: Logo + Empresa -->
+                <td style="width:55%; border-right:2px solid #000; padding:10px 12px; vertical-align:top;">
+                    <div style="font-size:18px; font-weight:900; margin-bottom:4px;">${emp.razonSocial}</div>
+                    ${emp.nombreFantasia ? `<div style="font-size:12px; font-weight:bold; margin-bottom:6px;">${emp.nombreFantasia}</div>` : ''}
+                    <div style="font-size:10px; line-height:1.6;">
+                        ${emp.direccion ? `<div>${emp.direccion}</div>` : ''}
+                        ${emp.telefono ? `<div>Tel: ${emp.telefono}</div>` : ''}
+                        ${emp.email ? `<div>Email: ${emp.email}</div>` : ''}
+                        ${emp.actividad ? `<div>Act. Econ.: ${emp.actividad}</div>` : ''}
+                    </div>
+                </td>
+                <!-- Derecha: Datos fiscales -->
+                <td style="width:45%; padding:10px 12px; vertical-align:top;">
+                    <div style="font-size:10px; line-height:1.8;">
+                        <div><strong>RUC:</strong> ${emp.ruc}</div>
+                        <div><strong>Timbrado N°:</strong> ${emp.timbrado}</div>
+                        <div><strong>Inicio de Vigencia:</strong> ${_feIniTimbrado(emp.timbradoVenc)}</div>
+                    </div>
+                    <div style="text-align:center; margin:8px 0 4px; padding:6px; border:2px solid #000; font-size:14px; font-weight:900; letter-spacing:0.5px;">
+                        FACTURA ELECTR&Oacute;NICA
+                    </div>
+                    <div style="text-align:center; font-size:16px; font-weight:900; letter-spacing:1px;">
+                        ${numFactura}
+                    </div>
+                </td>
+            </tr>
+        </table>
+
+        <!-- DATOS DEL CLIENTE -->
+        <table style="width:100%; border-collapse:collapse; border:2px solid #000; border-top:none;">
+            <tr>
+                <td style="width:50%; padding:4px 10px; border-bottom:1px solid #000; border-right:1px solid #000; font-size:10px;">
+                    <strong>Fecha de Emisi&oacute;n:</strong> ${fechaStr} ${horaStr}
+                </td>
+                <td style="width:50%; padding:4px 10px; border-bottom:1px solid #000; font-size:10px;">
+                    <strong>Condici&oacute;n de Venta:</strong> ${esCredito ? 'CR&Eacute;DITO' : 'CONTADO'}
+                </td>
+            </tr>
+            <tr>
+                <td style="padding:4px 10px; border-bottom:1px solid #000; border-right:1px solid #000; font-size:10px;">
+                    <strong>${tipoDoc}:</strong> ${rucCliente}
+                </td>
+                <td style="padding:4px 10px; border-bottom:1px solid #000; font-size:10px;">
+                    <strong>Nombre / Raz&oacute;n Social:</strong> ${razonCliente}
+                </td>
+            </tr>
+            <tr>
+                <td style="padding:4px 10px; border-right:1px solid #000; font-size:10px;">
+                    <strong>Direcci&oacute;n:</strong> ${dirCliente}
+                </td>
+                <td style="padding:4px 10px; font-size:10px;">
+                    <strong>Moneda:</strong> Guaran&iacute; (PYG)
+                </td>
+            </tr>
+        </table>
+
+        <!-- TABLA DE PRODUCTOS -->
+        <table style="width:100%; border-collapse:collapse; margin-top:-1px;">
+            <thead>
+                <tr style="background:#f0f0f0;">
+                    <th style="border:2px solid #000; padding:5px 4px; font-size:9px; text-align:center; width:8%;">C&oacute;d.</th>
+                    <th style="border:2px solid #000; padding:5px 4px; font-size:9px; text-align:center; width:30%;">Descripci&oacute;n</th>
+                    <th style="border:2px solid #000; padding:5px 4px; font-size:9px; text-align:center; width:7%;">U.M.</th>
+                    <th style="border:2px solid #000; padding:5px 4px; font-size:9px; text-align:center; width:7%;">Cant.</th>
+                    <th style="border:2px solid #000; padding:5px 4px; font-size:9px; text-align:center; width:12%;">P. Unit.</th>
+                    <th style="border:2px solid #000; padding:5px 4px; font-size:9px; text-align:center; width:12%;">Exentas</th>
+                    <th style="border:2px solid #000; padding:5px 4px; font-size:9px; text-align:center; width:12%;">5%</th>
+                    <th style="border:2px solid #000; padding:5px 4px; font-size:9px; text-align:center; width:12%;">10%</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${itemsHTML}
+            </tbody>
+        </table>
+
+        <!-- TOTALES -->
+        <table style="width:100%; border-collapse:collapse; margin-top:-1px;">
+            <tr>
+                <td style="width:48%; border:2px solid #000; padding:6px 10px; vertical-align:top; font-size:10px;">
+                    ${pedido.descuento > 0 ? `<div><strong>Descuento:</strong> ${pedido.descuento}%</div>` : ''}
+                    <div><strong>Subtotal:</strong> Gs. ${totalOpe.toLocaleString()}</div>
+                </td>
+                <td style="width:52%; border:2px solid #000; border-left:none; padding:0; vertical-align:top;">
+                    <table style="width:100%; border-collapse:collapse; font-size:10px;">
+                        <tr>
+                            <td style="padding:4px 8px; border-bottom:1px solid #000;"><strong>Total Operaci&oacute;n:</strong></td>
+                            <td style="padding:4px 8px; border-bottom:1px solid #000; text-align:right; font-weight:bold;">Gs. ${totalOpe.toLocaleString()}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding:4px 8px; border-bottom:1px solid #000;">Sub. Exentas:</td>
+                            <td style="padding:4px 8px; border-bottom:1px solid #000; text-align:right;">Gs. ${totalExe.toLocaleString()}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding:4px 8px; border-bottom:1px solid #000;">Sub. Gravadas 5%:</td>
+                            <td style="padding:4px 8px; border-bottom:1px solid #000; text-align:right;">Gs. ${totalG5.toLocaleString()}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding:4px 8px; border-bottom:1px solid #000;">Sub. Gravadas 10%:</td>
+                            <td style="padding:4px 8px; border-bottom:1px solid #000; text-align:right;">Gs. ${totalG10.toLocaleString()}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding:4px 8px; border-bottom:1px solid #000;">Liquidaci&oacute;n IVA 5%:</td>
+                            <td style="padding:4px 8px; border-bottom:1px solid #000; text-align:right;">Gs. ${liqIva5.toLocaleString()}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding:4px 8px; border-bottom:1px solid #000;">Liquidaci&oacute;n IVA 10%:</td>
+                            <td style="padding:4px 8px; border-bottom:1px solid #000; text-align:right;">Gs. ${liqIva10.toLocaleString()}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding:5px 8px; font-weight:900; font-size:12px;">TOTAL IVA:</td>
+                            <td style="padding:5px 8px; text-align:right; font-weight:900; font-size:12px;">Gs. ${totalIva.toLocaleString()}</td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+
+        <!-- PIE: QR + CDC + LEGAL -->
+        <table style="width:100%; border-collapse:collapse; border:2px solid #000; border-top:none; margin-top:-1px;">
+            <tr>
+                <td style="width:120px; padding:10px; vertical-align:top; border-right:1px solid #000;">
+                    <div id="kudeQRCode" style="width:100px; height:100px;"></div>
+                </td>
+                <td style="padding:10px; vertical-align:top; font-size:9px; line-height:1.5;">
+                    <div style="margin-bottom:6px;">
+                        Consulte la validez de esta Factura Electr&oacute;nica con el CDC impreso abajo en:<br>
+                        <strong>https://ekuatia.set.gov.py/consultas/</strong>
+                    </div>
+                    <div style="margin-bottom:8px;">
+                        <strong style="font-size:8px; letter-spacing:0.3px;">CDC:</strong><br>
+                        <span style="font-family:'Courier New',monospace; font-size:13px; font-weight:900; letter-spacing:1.5px; word-break:break-all;">${cdc}</span>
+                    </div>
+                    <div style="border-top:1px solid #000; padding-top:6px; font-size:8px; font-weight:bold; text-transform:uppercase; text-align:center; letter-spacing:0.3px;">
+                        Este documento es una representaci&oacute;n gr&aacute;fica de un Documento Electr&oacute;nico (XML)
+                    </div>
+                </td>
+            </tr>
+        </table>
+    </div>`;
+
+    // Inyectar en el contenedor A4 existente
+    const printEl = document.getElementById('adminPrintA4');
+    const contentEl = document.getElementById('adminPrintA4Content');
+    contentEl.innerHTML = html;
+
+    let pageStyle = document.getElementById('dynamicPageStyle');
+    if (!pageStyle) {
+        pageStyle = document.createElement('style');
+        pageStyle.id = 'dynamicPageStyle';
+        document.head.appendChild(pageStyle);
+    }
+    pageStyle.textContent = '@page { margin: 8mm; size: A4 portrait; }';
+    document.body.classList.add('print-a4');
+    document.body.classList.remove('print-thermal');
+    printEl.classList.add('active');
+    printEl.style.display = 'block';
+
+    // Cargar QRCode.js y generar QR
+    const qrTarget = contentEl.querySelector('#kudeQRCode');
+
+    function generarQRyImprimir() {
+        if (qrTarget && qrUrl && typeof QRCode !== 'undefined') {
+            try {
+                new QRCode(qrTarget, {
+                    text: qrUrl,
+                    width: 100,
+                    height: 100,
+                    colorDark: '#000000',
+                    colorLight: '#ffffff',
+                    correctLevel: QRCode.CorrectLevel.M,
+                });
+            } catch (e) { console.warn('[KuDE] Error generando QR:', e); }
+        }
+        // Imprimir tras renderizar
+        setTimeout(() => {
+            window.print();
+            printEl.classList.remove('active');
+            printEl.style.display = 'none';
+            document.body.classList.remove('print-a4');
+            pageStyle.textContent = '';
+        }, 400);
+    }
+
+    if (typeof QRCode !== 'undefined') {
+        generarQRyImprimir();
+    } else {
+        // Cargar QRCode.js dinamicamente
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
+        script.onload = generarQRyImprimir;
+        script.onerror = () => {
+            console.warn('[KuDE] No se pudo cargar QRCode.js, imprimiendo sin QR');
+            if (qrTarget) qrTarget.innerHTML = '<div style="width:100px;height:100px;border:1px solid #000;display:flex;align-items:center;justify-content:center;font-size:9px;text-align:center;">QR no<br>disponible</div>';
+            generarQRyImprimir();
+        };
+        document.head.appendChild(script);
+    }
 }

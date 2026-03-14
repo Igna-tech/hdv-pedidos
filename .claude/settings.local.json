@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "mcp__hdv-db__query"
+      "mcp__hdv-db__query",
+      "Bash(cd \"C:/Users/diazi/OneDrive/Desktop/hdv-pedidos\" && node -c admin-ventas.js && echo \"OK\")"
     ]
   }
 }

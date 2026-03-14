@@ -56,9 +56,6 @@ function getNombreMes(mes) {
 // Usa desglose por item si esta guardado en el pedido, sino fallback a 10%
 // ============================================
 
-// TODO: Refactor Phase 1 - Movido a js/utils/formatters.js
-// function calcularDesglose(total, pedido) { ... }
-
 // ============================================
 // PREVISUALIZAR
 // ============================================

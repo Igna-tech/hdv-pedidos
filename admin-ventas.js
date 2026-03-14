@@ -8,8 +8,6 @@
 // Namespace para onclick handlers en templates
 const ventasCtrl = {};
 
-// TODO: Refactor Phase 1 - formatearFechaAdmin y tplFormatearFechaAdmin ahora en js/utils/formatters.js
-
 // ============================================
 // CARGAR Y MOSTRAR VENTAS
 // ============================================

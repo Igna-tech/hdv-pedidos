@@ -1,4 +1,4 @@
-const VERSION = '26.0';
+const VERSION = '27.0';
 const CACHE_NAME = `hdv-pedidos-v${VERSION}`;
 
 const urlsToCache = [
@@ -23,6 +23,11 @@ const urlsToCache = [
     './js/modules/ventas/ventas-templates.js',
     './js/vendedor/ui.js',
     './js/vendedor/cart.js',
+    './js/admin/pedidos.js',
+    './js/admin/dashboard.js',
+    './js/admin/productos.js',
+    './js/admin/clientes.js',
+    './js/admin/creditos.js',
     './supabase-config.js',
     './productos.json',
     './manifest.json',
@@ -49,6 +54,11 @@ const networkFirstFiles = [
     'ventas-templates.js',
     'vendedor/ui.js',
     'vendedor/cart.js',
+    'admin/pedidos.js',
+    'admin/dashboard.js',
+    'admin/productos.js',
+    'admin/clientes.js',
+    'admin/creditos.js',
     'login.js',
     'guard.js',
     'supabase-init.js',

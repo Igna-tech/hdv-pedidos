@@ -218,16 +218,14 @@ function ajustarPrecioInline(prodId, tamano, campo, valor) {
 async function _upsertVarianteAtomico(productoId, pres) {
     try {
         if (pres.variante_id) {
-            // Variante existente en DB: update directo
-            await supabaseClient.from('producto_variantes').update({
+            await SupabaseService.updateVariante(pres.variante_id, {
                 precio: pres.precio_base || 0,
                 costo: pres.costo || 0,
                 stock: pres.stock || 0,
                 activo: pres.activo !== false
-            }).eq('id', pres.variante_id);
+            });
         } else {
-            // Variante sin ID (nueva): upsert por producto_id + nombre
-            await supabaseClient.from('producto_variantes').upsert({
+            await SupabaseService.upsertVariante({
                 producto_id: productoId,
                 nombre_variante: pres.tamano || 'Unidad',
                 precio: pres.precio_base || 0,

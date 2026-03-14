@@ -25,8 +25,9 @@ PWA mobile-first para vendedores de calle + panel admin de escritorio.
 ├── admin-contabilidad.js   → Cierre mensual: libro RG90 CSV, paquete ZIP con KuDE+XML mock
 │
 ├── supabase-init.js        → Credenciales Supabase (se carga PRIMERO en todos los HTML)
+├── services/supabase.js    → Capa de servicios (Repository Pattern): centraliza TODAS las queries a Supabase con paginacion
 ├── guard.js                → Proteccion de rutas (auth + roles admin/vendedor via RPC)
-├── supabase-config.js      → Capa de datos: CRUD catalogo relacional + pedidos + configuracion + realtime
+├── supabase-config.js      → Capa de datos: orquestacion, realtime, sync, mapeo legacy (delega queries a SupabaseService)
 ├── login.html / login.js   → Login con Supabase Auth, redirect por rol
 │
 ├── service-worker.js       → Cache PWA (version actual en const VERSION)
@@ -43,10 +44,10 @@ PWA mobile-first para vendedores de calle + panel admin de escritorio.
 ## Orden de carga de scripts
 
 **index.html (vendedor):**
-supabase CDN → supabase-init.js → guard.js → supabase-config.js → app.js → checkout.js
+supabase CDN → supabase-init.js → services/supabase.js → guard.js → supabase-config.js → app.js → checkout.js
 
 **admin.html:**
-supabase CDN → Chart.js → supabase-init.js → guard.js → supabase-config.js → admin.js → admin-ventas.js → admin-devoluciones.js → admin-contabilidad.js
+supabase CDN → Chart.js → supabase-init.js → services/supabase.js → guard.js → supabase-config.js → admin.js → admin-ventas.js → admin-devoluciones.js → admin-contabilidad.js
 
 ## Base de datos (Supabase PostgreSQL)
 
@@ -78,23 +79,42 @@ supabase CDN → Chart.js → supabase-init.js → guard.js → supabase-config.
 ### Realtime:
 - Publicadas: categorias, clientes, productos, producto_variantes, pedidos, configuracion, perfiles
 
-## Capa de datos (supabase-config.js)
+## Capa de servicios (services/supabase.js)
+
+Patron Repository. Singleton global `SupabaseService` (IIFE). Centraliza TODAS las queries a Supabase con manejo de errores y paginacion. Ningun otro archivo debe hacer `supabaseClient.from()` directamente.
+
+### API publica de SupabaseService:
+- **Pedidos**: `fetchPedidos(limit,offset)`, `fetchPedidoDatos(id)`, `upsertPedido(pedido)`, `updateEstadoPedido(id,estado)`, `deletePedido(id)`
+- **Catalogo**: `fetchCatalogo()`, `fetchCategorias()`, `fetchClientes(limit,offset)`, `fetchProductosConVariantes(limit,offset)`
+- **Categorias CRUD**: `upsertCategorias(rows)`, `deleteCategorias(ids)`, `fetchCategoriasIds()`
+- **Clientes CRUD**: `upsertClientes(rows)`, `deleteClientes(ids)`, `fetchClientesIds()`
+- **Productos CRUD**: `upsertProductos(rows)`, `deleteProductos(ids)`, `fetchProductosIds()`
+- **Variantes**: `deleteVariantesByProductoIds(ids)`, `insertVariantes(rows)`, `updateVariante(id,campos)`, `upsertVariante(row)`
+- **Configuracion**: `fetchConfig(docId)`, `upsertConfig(docId,datos)`
+- **Configuracion Empresa**: `fetchConfigEmpresa()`, `upsertConfigEmpresa(datos)`
+- **Reportes**: `upsertReporteMensual(mes,datos)`, `fetchReporteMensual(mes)`
+- **Utils**: `healthCheck()`, `subscribeTo(channel,table,cb,filter?)`
+
+Retornos estandar: `{ data, error }` para fetches, `{ success, error }` para mutaciones.
+
+## Capa de orquestacion (supabase-config.js)
+
+Consume `SupabaseService` para orquestar logica de negocio, realtime, sync localStorage y mapeo legacy. Expone funciones globales para el resto de la app.
 
 ### Catalogo (tablas relacionales):
-- `obtenerCatalogo()` → SELECT paralelo a categorias + clientes + productos(con variantes JOIN). Retorna `{categorias, productos, clientes}` en formato legacy
-- `guardarCatalogo(data)` → UPSERT batch a las 3 tablas + reconcilia eliminaciones + borra/reinserta variantes
-- `escucharCatalogoRealtime(cb)` → Escucha 4 tablas con debounce 500ms
-- `_mapProductoRelacional(p)` → Convierte fila DB a formato legacy: categoria_id→categoria, producto_variantes→presentaciones (nombre_variante→tamano, precio→precio_base)
+- `obtenerCatalogo()` → usa `SupabaseService.fetchCatalogo()` + mapeo legacy via `_mapProductoRelacional()`
+- `guardarCatalogo(data)` → UPSERT batch via SupabaseService + reconcilia eliminaciones + borra/reinserta variantes
+- `escucharCatalogoRealtime(cb)` → Escucha 4 tablas con debounce 500ms via `SupabaseService.subscribeTo()`
 
 ### Pedidos:
-- `guardarPedido(pedido)` → upsert a tabla pedidos (incluye vendedor_id)
-- `actualizarEstadoPedido(id, estado)` → update estado + datos JSONB
-- `eliminarPedido(id)` → delete pedido
-- `obtenerPedidos()` → select todos ordenados por fecha
+- `guardarPedido(pedido)` → delega a `SupabaseService.upsertPedido()`
+- `actualizarEstadoPedido(id, estado)` → delega a `SupabaseService.updateEstadoPedido()`
+- `eliminarPedido(id)` → delega a `SupabaseService.deletePedido()`
+- `obtenerPedidos()` → `SupabaseService.fetchPedidos()` + mapeo a datos JSONB
 - `escucharPedidosRealtime(cb)` → carga inicial + suscripcion realtime con proteccion anti-vaciado
 
 ### Configuracion (8 pares guardar/obtener):
-- `guardarConfig(docId, datos)` / `obtenerConfig(docId)` → CRUD generico
+- `guardarConfig(docId, datos)` / `obtenerConfig(docId)` → delegan a SupabaseService
 - Funciones especificas: pagos_credito, creditos_manuales, promociones, whatsapp_plantilla, gastos_vendedor, rendiciones, cuentas_bancarias, metas_vendedor
 - `escucharConfigRealtime(docId, localStorageKey)` → sync realtime a localStorage
 - `sincronizarDatosNegocio()` → push localStorage → Supabase (8 configs)
@@ -102,10 +122,10 @@ supabase CDN → Chart.js → supabase-init.js → guard.js → supabase-config.
 - `iniciarListenersDatosNegocio()` → activa 8 listeners realtime
 
 ### Shim de compatibilidad:
-- `db.collection().doc().set/get()` → shim para codigo legacy menor
+- `db.collection().doc().set/get()` → shim para codigo legacy menor (usa SupabaseService internamente)
 
 ### Conexion:
-- `monitorearConexion()` → ping cada 30s a tabla categorias, actualiza badge verde/amarillo/rojo
+- `monitorearConexion()` → `SupabaseService.healthCheck()` cada 30s, actualiza badge verde/amarillo/rojo
 
 ## Formato de datos en memoria
 

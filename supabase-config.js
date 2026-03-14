@@ -1,9 +1,8 @@
 // ============================================
 // HDV Supabase - Configuracion y Sincronizacion
 // Capa de datos: CRUD + Realtime + Sync
+// Delega queries a SupabaseService (services/supabase.js)
 // ============================================
-
-// Usa supabaseClient global de supabase-init.js
 
 // ============================================
 // ESTADO DE CONEXION
@@ -12,7 +11,6 @@ let supabaseConectado = false;
 
 async function monitorearConexion() {
     try {
-        // Esperar a que la sesion de auth este lista antes de la primera verificacion
         const { data: { session } } = await supabaseClient.auth.getSession();
         if (!session) {
             supabaseConectado = false;
@@ -20,14 +18,12 @@ async function monitorearConexion() {
             setTimeout(monitorearConexion, 5000);
             return;
         }
-        const { error } = await supabaseClient.from('categorias').select('id').limit(1);
-        supabaseConectado = !error;
+        supabaseConectado = await SupabaseService.healthCheck();
         actualizarIndicadorConexion(supabaseConectado);
     } catch {
         supabaseConectado = false;
         actualizarIndicadorConexion(false);
     }
-    // Chequear cada 30 segundos
     setTimeout(monitorearConexion, 30000);
 }
 
@@ -42,7 +38,6 @@ function actualizarIndicadorConexion(conectado) {
     } else {
         badge.innerHTML = '<span class="w-2 h-2 bg-red-500 rounded-full mr-2 animate-pulse"></span> Sin conexion';
     }
-    // Banner offline (solo en app vendedor)
     const banner = document.getElementById('offline-banner');
     if (banner) {
         banner.classList.toggle('hidden', conectado && enLinea);
@@ -51,7 +46,6 @@ function actualizarIndicadorConexion(conectado) {
 
 window.addEventListener('online', () => {
     monitorearConexion();
-    // Auto-sync pedidos pendientes al recuperar conexion
     setTimeout(() => sincronizarPedidosLocales(), 2000);
 });
 window.addEventListener('offline', () => actualizarIndicadorConexion(false));
@@ -61,120 +55,67 @@ window.addEventListener('offline', () => actualizarIndicadorConexion(false));
 // ============================================
 
 async function guardarPedido(pedido) {
-    try {
-        const row = {
-            id: pedido.id,
-            estado: pedido.estado || 'pendiente',
-            fecha: pedido.fecha || null,
-            datos: pedido,
-            actualizado_en: new Date().toISOString()
-        };
-        // Asignar vendedor_id solo en creacion (no sobrescribir en updates del admin)
-        if (pedido.vendedor_id) {
-            row.vendedor_id = pedido.vendedor_id;
-        } else if (window.hdvUsuario?.id) {
-            row.vendedor_id = window.hdvUsuario.id;
-        }
-        const { error } = await supabaseClient.from('pedidos').upsert(row, { onConflict: 'id' });
-        if (error) throw error;
-        console.log('[Supabase] Pedido guardado:', pedido.id);
-        return true;
-    } catch (error) {
-        console.error('[Supabase] Error guardando pedido:', error);
-        return false;
-    }
+    const { success } = await SupabaseService.upsertPedido(pedido);
+    if (success) console.log('[Supabase] Pedido guardado:', pedido.id);
+    else console.error('[Supabase] Error guardando pedido:', pedido.id);
+    return success;
 }
 
 async function actualizarEstadoPedido(pedidoId, nuevoEstado) {
-    try {
-        // Obtener pedido actual para actualizar datos completos
-        const { data: rows, error: fetchError } = await supabaseClient
-            .from('pedidos').select('datos').eq('id', pedidoId).single();
-        if (fetchError) throw fetchError;
-
-        const datosActualizados = { ...(rows?.datos || {}), estado: nuevoEstado };
-        const { error } = await supabaseClient.from('pedidos').update({
-            estado: nuevoEstado,
-            datos: datosActualizados,
-            actualizado_en: new Date().toISOString()
-        }).eq('id', pedidoId);
-        if (error) throw error;
-        console.log('[Supabase] Estado actualizado:', pedidoId, '->', nuevoEstado);
-        return true;
-    } catch (error) {
-        console.error('[Supabase] Error actualizando estado:', error);
-        return false;
-    }
+    const { success } = await SupabaseService.updateEstadoPedido(pedidoId, nuevoEstado);
+    if (success) console.log('[Supabase] Estado actualizado:', pedidoId, '->', nuevoEstado);
+    else console.error('[Supabase] Error actualizando estado:', pedidoId);
+    return success;
 }
 
 async function eliminarPedido(pedidoId) {
-    try {
-        const { error } = await supabaseClient.from('pedidos').delete().eq('id', pedidoId);
-        if (error) throw error;
-        console.log('[Supabase] Pedido eliminado:', pedidoId);
-        return true;
-    } catch (error) {
-        console.error('[Supabase] Error eliminando pedido:', error);
-        return false;
-    }
+    const { success } = await SupabaseService.deletePedido(pedidoId);
+    if (success) console.log('[Supabase] Pedido eliminado:', pedidoId);
+    else console.error('[Supabase] Error eliminando pedido:', pedidoId);
+    return success;
 }
 
 async function obtenerPedidos() {
-    try {
-        const { data, error } = await supabaseClient
-            .from('pedidos')
-            .select('datos')
-            .order('fecha', { ascending: false });
-        if (error) throw error;
-        return (data || []).map(r => r.datos);
-    } catch (error) {
-        console.error('[Supabase] Error obteniendo pedidos:', error);
-        return null;
-    }
+    const { data, error } = await SupabaseService.fetchPedidos();
+    if (error) return null;
+    return data.map(r => r.datos);
 }
 
 function escucharPedidosRealtime(callback) {
     // Carga inicial
-    supabaseClient.from('pedidos').select('datos').order('fecha', { ascending: false })
-        .then(({ data, error }) => {
-            if (error) {
-                console.error('[Supabase] Error carga inicial pedidos:', error);
-                const pedidosLocal = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
-                callback(pedidosLocal, []);
-                return;
-            }
-            const pedidos = (data || []).map(r => r.datos);
+    SupabaseService.fetchPedidos().then(({ data, error }) => {
+        if (error) {
+            console.error('[Supabase] Error carga inicial pedidos:', error);
             const pedidosLocal = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
-            // No sobreescribir datos locales con resultado vacio de Supabase
-            if (pedidos.length > 0 || pedidosLocal.length === 0) {
-                localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
-                callback(pedidos, []);
-            } else {
-                console.warn('[Supabase] Carga inicial vacia pero hay datos locales, conservando localStorage');
-                callback(pedidosLocal, []);
-            }
-        });
+            callback(pedidosLocal, []);
+            return;
+        }
+        const pedidos = data.map(r => r.datos);
+        const pedidosLocal = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+        if (pedidos.length > 0 || pedidosLocal.length === 0) {
+            localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
+            callback(pedidos, []);
+        } else {
+            console.warn('[Supabase] Carga inicial vacia pero hay datos locales, conservando localStorage');
+            callback(pedidosLocal, []);
+        }
+    });
 
     // Suscripcion realtime
-    const channel = supabaseClient
-        .channel('pedidos-realtime')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'pedidos' }, async () => {
-            const { data } = await supabaseClient
-                .from('pedidos').select('datos').order('fecha', { ascending: false });
-            const pedidos = (data || []).map(r => r.datos);
-            const pedidosLocalRT = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
-            // No sobreescribir datos locales con resultado vacio
-            if (pedidos.length > 0 || pedidosLocalRT.length === 0) {
-                localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
-                callback(pedidos, [{ type: 'modified' }]);
-            } else {
-                console.warn('[Supabase] Realtime devolvio vacio pero hay datos locales, conservando');
-                callback(pedidosLocalRT, [{ type: 'modified' }]);
-            }
-        })
-        .subscribe();
+    const unsub = SupabaseService.subscribeTo('pedidos-realtime', 'pedidos', async () => {
+        const { data } = await SupabaseService.fetchPedidos();
+        const pedidos = data.map(r => r.datos);
+        const pedidosLocalRT = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+        if (pedidos.length > 0 || pedidosLocalRT.length === 0) {
+            localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
+            callback(pedidos, [{ type: 'modified' }]);
+        } else {
+            console.warn('[Supabase] Realtime devolvio vacio pero hay datos locales, conservando');
+            callback(pedidosLocalRT, [{ type: 'modified' }]);
+        }
+    });
 
-    return () => supabaseClient.removeChannel(channel);
+    return unsub;
 }
 
 async function sincronizarPedidosLocales() {
@@ -198,7 +139,6 @@ async function sincronizarPedidosLocales() {
 // FUNCIONES PARA CATALOGO (Tablas Relacionales)
 // ============================================
 
-// Normaliza tipo_impuesto legacy ('iva10') a formato limpio ('10','5','exenta')
 function _normTipoImpuesto(val) {
     if (!val) return '10';
     const v = String(val).toLowerCase().trim();
@@ -208,7 +148,6 @@ function _normTipoImpuesto(val) {
     return '10';
 }
 
-// Helper: convierte fila de producto + variantes al formato legacy
 function _mapProductoRelacional(p) {
     return {
         id: p.id,
@@ -233,33 +172,25 @@ function _mapProductoRelacional(p) {
 }
 
 async function obtenerCatalogo() {
-    try {
-        const [catRes, cliRes, prodRes] = await Promise.all([
-            supabaseClient.from('categorias').select('*'),
-            supabaseClient.from('clientes').select('*'),
-            supabaseClient.from('productos').select('*, producto_variantes(*)')
-        ]);
-        if (catRes.error) throw catRes.error;
-        if (cliRes.error) throw cliRes.error;
-        if (prodRes.error) throw prodRes.error;
-
-        const productos = (prodRes.data || []).map(_mapProductoRelacional);
-
-        console.log('[Supabase] Catalogo cargado desde tablas relacionales:', {
-            categorias: (catRes.data || []).length,
-            productos: productos.length,
-            clientes: (cliRes.data || []).length
-        });
-
-        return {
-            categorias: catRes.data || [],
-            clientes: cliRes.data || [],
-            productos
-        };
-    } catch (error) {
+    const { data, error } = await SupabaseService.fetchCatalogo();
+    if (error || !data) {
         console.error('[Supabase] Error obteniendo catalogo:', error);
         return null;
     }
+
+    const productos = data.productos.map(_mapProductoRelacional);
+
+    console.log('[Supabase] Catalogo cargado desde tablas relacionales:', {
+        categorias: data.categorias.length,
+        productos: productos.length,
+        clientes: data.clientes.length
+    });
+
+    return {
+        categorias: data.categorias,
+        clientes: data.clientes,
+        productos
+    };
 }
 
 async function guardarCatalogo(dataCatalogo) {
@@ -280,15 +211,15 @@ async function guardarCatalogo(dataCatalogo) {
                 subcategorias: c.subcategorias || [],
                 estado: c.estado || 'activa'
             }));
-            const { error } = await supabaseClient.from('categorias').upsert(catRows, { onConflict: 'id' });
-            if (error) throw new Error('Error categorias: ' + error.message);
+            const res = await SupabaseService.upsertCategorias(catRows);
+            if (!res.success) throw new Error('Error categorias: ' + res.error?.message);
         }
         // Eliminar categorias que ya no existen
-        const { data: dbCats } = await supabaseClient.from('categorias').select('id');
+        const { data: dbCats } = await SupabaseService.fetchCategoriasIds();
         const catIds = new Set(cats.map(c => c.id));
         const catsEliminar = (dbCats || []).filter(c => !catIds.has(c.id)).map(c => c.id);
         if (catsEliminar.length > 0) {
-            await supabaseClient.from('categorias').delete().in('id', catsEliminar);
+            await SupabaseService.deleteCategorias(catsEliminar);
         }
 
         // 2. Clientes - upsert batch (dedup por RUC antes de enviar)
@@ -297,7 +228,6 @@ async function guardarCatalogo(dataCatalogo) {
             const cliRows = [];
             for (const c of clis) {
                 const rucLimpio = (c.ruc || '').trim() || null;
-                // Si hay RUC duplicado en memoria, quedarse con el primero
                 if (rucLimpio) {
                     if (rucVisto.has(rucLimpio)) {
                         console.warn(`[Supabase] RUC duplicado ignorado: ${rucLimpio} (cliente ${c.id})`);
@@ -321,15 +251,15 @@ async function guardarCatalogo(dataCatalogo) {
                     pais_documento: c.pais_documento || 'PRY'
                 });
             }
-            const { error } = await supabaseClient.from('clientes').upsert(cliRows, { onConflict: 'id' });
-            if (error) throw new Error('Error clientes: ' + error.message);
+            const res = await SupabaseService.upsertClientes(cliRows);
+            if (!res.success) throw new Error('Error clientes: ' + res.error?.message);
         }
         // Eliminar clientes que ya no existen
-        const { data: dbClis } = await supabaseClient.from('clientes').select('id');
+        const { data: dbClis } = await SupabaseService.fetchClientesIds();
         const cliIds = new Set(clis.map(c => c.id));
         const clisEliminar = (dbClis || []).filter(c => !cliIds.has(c.id)).map(c => c.id);
         if (clisEliminar.length > 0) {
-            await supabaseClient.from('clientes').delete().in('id', clisEliminar);
+            await SupabaseService.deleteClientes(clisEliminar);
         }
 
         // 3. Productos + Variantes
@@ -345,21 +275,21 @@ async function guardarCatalogo(dataCatalogo) {
                 tipo_impuesto: _normTipoImpuesto(p.tipo_impuesto),
                 unidad_medida_set: p.unidad_medida_set || '77'
             }));
-            const { error } = await supabaseClient.from('productos').upsert(prodRows, { onConflict: 'id' });
-            if (error) throw new Error('Error productos: ' + error.message);
+            const res = await SupabaseService.upsertProductos(prodRows);
+            if (!res.success) throw new Error('Error productos: ' + res.error?.message);
         }
         // Eliminar productos que ya no existen (CASCADE borra variantes)
-        const { data: dbProds } = await supabaseClient.from('productos').select('id');
+        const { data: dbProds } = await SupabaseService.fetchProductosIds();
         const prodIds = new Set(prods.map(p => p.id));
         const prodsEliminar = (dbProds || []).filter(p => !prodIds.has(p.id)).map(p => p.id);
         if (prodsEliminar.length > 0) {
-            await supabaseClient.from('productos').delete().in('id', prodsEliminar);
+            await SupabaseService.deleteProductos(prodsEliminar);
         }
 
         // Variantes: borrar todas las existentes y reinsertar
         const allProdIds = prods.map(p => p.id);
         if (allProdIds.length > 0) {
-            await supabaseClient.from('producto_variantes').delete().in('producto_id', allProdIds);
+            await SupabaseService.deleteVariantesByProductoIds(allProdIds);
         }
         const varRows = [];
         for (const prod of prods) {
@@ -375,8 +305,8 @@ async function guardarCatalogo(dataCatalogo) {
             }
         }
         if (varRows.length > 0) {
-            const { error } = await supabaseClient.from('producto_variantes').insert(varRows);
-            if (error) throw new Error('Error variantes: ' + error.message);
+            const res = await SupabaseService.insertVariantes(varRows);
+            if (!res.success) throw new Error('Error variantes: ' + res.error?.message);
         }
 
         console.log('[Supabase] Catalogo guardado exitosamente en tablas relacionales');
@@ -394,7 +324,6 @@ function escucharCatalogoRealtime(callback) {
     // Handler comun: recargar todo el catalogo
     let reloadTimeout = null;
     const recargar = () => {
-        // Debounce: si llegan muchos cambios seguidos, solo recargamos una vez
         clearTimeout(reloadTimeout);
         reloadTimeout = setTimeout(async () => {
             const data = await obtenerCatalogo();
@@ -402,26 +331,13 @@ function escucharCatalogoRealtime(callback) {
         }, 500);
     };
 
-    // Escuchar las 4 tablas
-    const ch1 = supabaseClient.channel('cat-rt')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'categorias' }, recargar)
-        .subscribe();
-    const ch2 = supabaseClient.channel('cli-rt')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'clientes' }, recargar)
-        .subscribe();
-    const ch3 = supabaseClient.channel('prod-rt')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'productos' }, recargar)
-        .subscribe();
-    const ch4 = supabaseClient.channel('var-rt')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'producto_variantes' }, recargar)
-        .subscribe();
+    // Escuchar las 4 tablas via SupabaseService
+    const unsub1 = SupabaseService.subscribeTo('cat-rt', 'categorias', recargar);
+    const unsub2 = SupabaseService.subscribeTo('cli-rt', 'clientes', recargar);
+    const unsub3 = SupabaseService.subscribeTo('prod-rt', 'productos', recargar);
+    const unsub4 = SupabaseService.subscribeTo('var-rt', 'producto_variantes', recargar);
 
-    return () => {
-        supabaseClient.removeChannel(ch1);
-        supabaseClient.removeChannel(ch2);
-        supabaseClient.removeChannel(ch3);
-        supabaseClient.removeChannel(ch4);
-    };
+    return () => { unsub1(); unsub2(); unsub3(); unsub4(); };
 }
 
 // ============================================
@@ -429,54 +345,35 @@ function escucharCatalogoRealtime(callback) {
 // ============================================
 
 async function guardarConfig(docId, datos) {
-    try {
-        const { error } = await supabaseClient.from('configuracion').upsert({
-            doc_id: docId,
-            datos: datos,
-            actualizado_en: new Date().toISOString()
-        }, { onConflict: 'doc_id' });
-        if (error) throw error;
-        console.log('[Supabase] Config guardada:', docId);
-        return true;
-    } catch (error) {
-        console.error('[Supabase] Error guardando config ' + docId + ':', error);
-        return false;
-    }
+    const { success } = await SupabaseService.upsertConfig(docId, datos);
+    if (success) console.log('[Supabase] Config guardada:', docId);
+    else console.error('[Supabase] Error guardando config:', docId);
+    return success;
 }
 
 async function obtenerConfig(docId) {
-    try {
-        const { data, error } = await supabaseClient
-            .from('configuracion').select('datos').eq('doc_id', docId).maybeSingle();
-        if (error) throw error;
-        return data?.datos ?? null;
-    } catch (error) {
+    const { data, error } = await SupabaseService.fetchConfig(docId);
+    if (error) {
         console.error('[Supabase] Error obteniendo config ' + docId + ':', error);
         return null;
     }
+    return data;
 }
 
 function escucharConfigRealtime(docId, localStorageKey) {
-    const channel = supabaseClient
-        .channel('config-' + docId)
-        .on('postgres_changes',
-            { event: '*', schema: 'public', table: 'configuracion', filter: `doc_id=eq.${docId}` },
-            async () => {
-                const datos = await obtenerConfig(docId);
-                if (datos !== null) {
-                    try {
-                        if (typeof datos === 'string') {
-                            localStorage.setItem(localStorageKey, datos);
-                        } else {
-                            localStorage.setItem(localStorageKey, JSON.stringify(datos));
-                        }
-                        console.log('[Supabase] Config actualizada en tiempo real:', docId);
-                    } catch(e) {}
+    return SupabaseService.subscribeTo('config-' + docId, 'configuracion', async () => {
+        const datos = await obtenerConfig(docId);
+        if (datos !== null) {
+            try {
+                if (typeof datos === 'string') {
+                    localStorage.setItem(localStorageKey, datos);
+                } else {
+                    localStorage.setItem(localStorageKey, JSON.stringify(datos));
                 }
-            })
-        .subscribe();
-
-    return () => supabaseClient.removeChannel(channel);
+                console.log('[Supabase] Config actualizada en tiempo real:', docId);
+            } catch(e) {}
+        }
+    }, `doc_id=eq.${docId}`);
 }
 
 // --- Funciones especificas ---
@@ -507,7 +404,6 @@ async function obtenerMetas() { return await obtenerConfig('metas_vendedor'); }
 
 // ============================================
 // COMPATIBILIDAD: shim para llamadas directas db.collection()
-// Usado en app.js y admin.js en unos pocos lugares
 // ============================================
 const db = {
     collection: (collectionName) => ({
@@ -516,15 +412,10 @@ const db = {
                 if (collectionName === 'configuracion') {
                     return guardarConfig(docId, data);
                 } else if (collectionName === 'reportes_mensuales') {
-                    const { error } = await supabaseClient.from('reportes_mensuales').upsert({
-                        mes: docId,
-                        datos: data,
-                        creado_en: new Date().toISOString()
-                    }, { onConflict: 'mes' });
-                    if (error) throw error;
+                    const { success, error } = await SupabaseService.upsertReporteMensual(docId, data);
+                    if (!success) throw error;
                     return true;
                 } else if (collectionName === 'promociones') {
-                    // Guardar promo individual dentro de la lista de promociones
                     const promos = JSON.parse(localStorage.getItem('hdv_promociones') || '[]');
                     const idx = promos.findIndex(p => p.id === docId);
                     if (idx >= 0) promos[idx] = data; else promos.push(data);
@@ -532,11 +423,9 @@ const db = {
                 }
             },
             get: async () => {
-                // No utilizado activamente, pero por compatibilidad
                 if (collectionName === 'reportes_mensuales') {
-                    const { data } = await supabaseClient
-                        .from('reportes_mensuales').select('datos').eq('mes', docId).single();
-                    return { exists: !!data, data: () => data?.datos };
+                    const { data } = await SupabaseService.fetchReporteMensual(docId);
+                    return { exists: !!data, data: () => data };
                 }
                 return { exists: false, data: () => null };
             }
@@ -622,6 +511,7 @@ setTimeout(() => {
     cargarDatosNegocio();
     iniciarListenersDatosNegocio();
 }, 1500);
+
 // ============================================
 // CERRAR SESION
 // ============================================
@@ -635,12 +525,10 @@ async function cerrarSesion() {
         window.location.replace('/login.html');
     } catch (err) {
         console.error('[Supabase] Error cerrando sesion:', err);
-        // Forzar redireccion incluso si falla
         window.location.replace('/login.html');
     }
 }
 
-// Mostrar nombre de usuario en sidebar (admin)
 document.addEventListener('DOMContentLoaded', () => {
     const sidebarName = document.getElementById('sidebar-user-name');
     if (sidebarName && window.hdvUsuario) {
@@ -648,4 +536,4 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-console.log('[Supabase] HDV Distribuciones - Inicializado v1.0');
+console.log('[Supabase] HDV Distribuciones - Inicializado v2.0 (con SupabaseService)');

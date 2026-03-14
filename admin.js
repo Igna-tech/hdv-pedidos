@@ -683,7 +683,7 @@ function mostrarInputModal(opciones = {}) {
 // ============================================
 async function cargarConfigEmpresa() {
     try {
-        const { data, error } = await supabaseClient.from('configuracion_empresa').select('*').eq('id', 1).single();
+        const { data, error } = await SupabaseService.fetchConfigEmpresa();
         if (error) { console.log('[Config Empresa] No cargada:', error.message); return; }
         if (!data) return;
         const campos = {
@@ -730,12 +730,12 @@ async function guardarConfigEmpresa() {
     if (!datos.razon_social) { mostrarToast('Ingresa la razon social', 'error'); return; }
 
     try {
-        const { error } = await supabaseClient.from('configuracion_empresa').upsert(datos, { onConflict: 'id' });
-        if (error) throw error;
+        const { success, error } = await SupabaseService.upsertConfigEmpresa(datos);
+        if (!success) throw error;
         mostrarToast('Datos fiscales guardados correctamente', 'success');
     } catch (e) {
         console.error('[Config Empresa] Error guardando:', e);
-        mostrarToast('Error al guardar: ' + e.message, 'error');
+        mostrarToast('Error al guardar: ' + (e?.message || e), 'error');
     }
 }
 

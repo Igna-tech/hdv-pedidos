@@ -1,4 +1,4 @@
-const VERSION = '25.0';
+const VERSION = '26.0';
 const CACHE_NAME = `hdv-pedidos-v${VERSION}`;
 
 const urlsToCache = [
@@ -21,6 +21,8 @@ const urlsToCache = [
     './js/utils/pdf-generator.js',
     './js/modules/ventas/ventas-data.js',
     './js/modules/ventas/ventas-templates.js',
+    './js/vendedor/ui.js',
+    './js/vendedor/cart.js',
     './supabase-config.js',
     './productos.json',
     './manifest.json',
@@ -45,6 +47,8 @@ const networkFirstFiles = [
     'pdf-generator.js',
     'ventas-data.js',
     'ventas-templates.js',
+    'vendedor/ui.js',
+    'vendedor/cart.js',
     'login.js',
     'guard.js',
     'supabase-init.js',

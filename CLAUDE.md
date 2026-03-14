@@ -57,8 +57,9 @@ supabase CDN → Chart.js → supabase-init.js → guard.js → supabase-config.
 - `producto_variantes` (id UUID PK, producto_id FK→productos CASCADE, nombre_variante, precio, costo, stock, activo)
 
 ### Tablas operativas:
-- `pedidos` (id TEXT PK, estado, fecha, datos JSONB, vendedor_id UUID FK→auth.users) — estados: pedido_pendiente, entregado, cobrado_sin_factura, facturado_mock, nota_credito_mock
+- `pedidos` (id TEXT PK, estado, fecha TEXT, datos JSONB, creado_en TIMESTAMPTZ, actualizado_en TIMESTAMPTZ, vendedor_id UUID FK→auth.users) — estados: pedido_pendiente, entregado, cobrado_sin_factura, facturado_mock, nota_credito_mock
 - `configuracion` (doc_id TEXT PK, datos JSONB) — docs: pagos_credito, creditos_manuales, promociones, whatsapp_plantilla, gastos_vendedor, rendiciones, cuentas_bancarias, metas_vendedor
+- `configuracion_empresa` (id INT PK default 1, ruc_empresa, razon_social, nombre_fantasia, timbrado_numero, timbrado_vencimiento DATE, establecimiento default '001', punto_expedicion default '001', direccion_fiscal, telefono_empresa, email_empresa, actividad_economica, actualizado_en TIMESTAMPTZ) — fila unica con datos fiscales/timbrado de la empresa para facturacion
 - `reportes_mensuales` (mes TEXT PK, datos JSONB)
 - `perfiles` (id UUID PK FK→auth.users, nombre_completo, rol CHECK('admin','vendedor'), activo, creado_en, actualizado_en)
 

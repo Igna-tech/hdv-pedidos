@@ -1,4 +1,4 @@
-const VERSION = '28.0';
+const VERSION = '29.0';
 const CACHE_NAME = `hdv-pedidos-v${VERSION}`;
 
 const urlsToCache = [
@@ -121,6 +121,12 @@ self.addEventListener('fetch', event => {
                     return fetch(event.request).then(response => {
                         if (response && response.status === 200) {
                             cache.put(event.request, response.clone());
+                            // Limitar cache de imagenes a 200 entradas
+                            cache.keys().then(keys => {
+                                if (keys.length > 200) {
+                                    cache.delete(keys[0]);
+                                }
+                            });
                         }
                         return response;
                     }).catch(() => new Response('', { status: 404 }));

@@ -91,7 +91,7 @@ async function procesarPedido() {
     try {
         const datos = obtenerDatosVenta();
         const pedido = {
-            id: 'PED-' + Date.now(),
+            id: 'PED-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
             fecha: new Date().toISOString(),
             cliente: datos.cliente,
             items: datos.items,
@@ -157,7 +157,7 @@ async function procesarCobroInterno() {
     try {
         const datos = obtenerDatosVenta();
         const pedido = {
-            id: 'REC-' + Date.now(),
+            id: 'REC-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
             fecha: new Date().toISOString(),
             cliente: datos.cliente,
             items: datos.items,
@@ -266,7 +266,7 @@ async function procesarFacturaMock() {
         const fechaStr = formatearFecha(new Date().toISOString());
 
         const pedido = {
-            id: 'FAC-' + Date.now(),
+            id: 'FAC-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
             fecha: new Date().toISOString(),
             cliente: datos.cliente,
             items: datos.items,

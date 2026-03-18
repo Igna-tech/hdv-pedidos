@@ -154,7 +154,7 @@ async function exportarLibroRG90() {
         const numDoc = r.numFactura || r.id;
         const cdc = r.cdc || '';
 
-        csv += `${fecha},${ruc},"${nombre}",${numDoc},${tipo},${cdc},`;
+        csv += `${fecha},"${ruc}","${nombre}","${numDoc}","${tipo}","${cdc}",`;
         csv += `${desglose.exentas},${desglose.gravada5 || 0},${desglose.iva5},${desglose.gravada10 || 0},${desglose.iva10},${total}\n`;
     });
 
@@ -260,10 +260,10 @@ async function exportarPaqueteZIP() {
             ...(r.items || []).map(i => [
                 `    <gCamItem>`,
                 `      <dDesProSer>${i.nombre} ${i.presentacion}</dDesProSer>`,
-                `      <dCantProSer>${i.cantidad}</dCantProSer>`,
+                `      <dCantProSer>${Math.abs(i.cantidad)}</dCantProSer>`,
                 `      <gValorItem>`,
-                `        <dPUniProSer>${i.precio || 0}</dPUniProSer>`,
-                `        <dTotBruOpeItem>${i.subtotal || 0}</dTotBruOpeItem>`,
+                `        <dPUniProSer>${Math.abs(i.precio || 0)}</dPUniProSer>`,
+                `        <dTotBruOpeItem>${Math.abs(i.subtotal || 0)}</dTotBruOpeItem>`,
                 `      </gValorItem>`,
                 `    </gCamItem>`,
             ].join('\n')),
@@ -275,7 +275,7 @@ async function exportarPaqueteZIP() {
             `</rDE>`,
         ].join('\n');
 
-        zip.file(`${cdc}_KuDE.pdf`, kudeContent);
+        zip.file(`${cdc}_KuDE.txt`, kudeContent);
         zip.file(`${cdc}_${tipoDoc}.xml`, xmlContent);
     });
 

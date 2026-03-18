@@ -18,6 +18,9 @@ const SupabaseService = (() => {
                 .order('fecha', { ascending: false })
                 .range(offset, offset + limit - 1);
             if (error) throw error;
+            if (data && data.length === limit) {
+                console.warn(`[SupabaseService] fetchPedidos: se alcanzo el limite de ${limit} registros, pueden faltar datos`);
+            }
             return { data: data || [], error: null };
         } catch (error) {
             console.error('[SupabaseService] fetchPedidos:', error);
@@ -44,7 +47,7 @@ const SupabaseService = (() => {
         try {
             const row = {
                 id: pedido.id,
-                estado: pedido.estado || 'pendiente',
+                estado: pedido.estado || 'pedido_pendiente',
                 fecha: pedido.fecha || null,
                 datos: pedido,
                 actualizado_en: new Date().toISOString()
@@ -129,6 +132,9 @@ const SupabaseService = (() => {
                 .select('*')
                 .range(offset, offset + limit - 1);
             if (error) throw error;
+            if (data && data.length === limit) {
+                console.warn(`[SupabaseService] fetchClientes: se alcanzo el limite de ${limit} registros, pueden faltar datos`);
+            }
             return { data: data || [], error: null };
         } catch (error) {
             console.error('[SupabaseService] fetchClientes:', error);
@@ -143,6 +149,9 @@ const SupabaseService = (() => {
                 .select('*, producto_variantes(*)')
                 .range(offset, offset + limit - 1);
             if (error) throw error;
+            if (data && data.length === limit) {
+                console.warn(`[SupabaseService] fetchProductosConVariantes: se alcanzo el limite de ${limit} registros, pueden faltar datos`);
+            }
             return { data: data || [], error: null };
         } catch (error) {
             console.error('[SupabaseService] fetchProductosConVariantes:', error);

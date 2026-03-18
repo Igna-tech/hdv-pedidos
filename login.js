@@ -143,10 +143,13 @@ loginForm.addEventListener('submit', async (e) => {
 });
 
 // --- Escuchar cambios de sesion (por si se autentica desde otra pestana) ---
+let _loginRedirecting = false;
 sb.auth.onAuthStateChange(async (event, session) => {
-    if (event === 'SIGNED_IN' && session) {
+    if (event === 'SIGNED_IN' && session && !_loginRedirecting) {
+        _loginRedirecting = true;
         const rol = await obtenerRol(session.user.id);
         if (rol) redirigirPorRol(rol);
+        else _loginRedirecting = false;
     }
 });
 

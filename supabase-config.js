@@ -10,13 +10,15 @@
 // ============================================
 let supabaseConectado = false;
 
+let _monitorTimer = null;
 async function monitorearConexion() {
+    clearTimeout(_monitorTimer);
     try {
         const { data: { session } } = await supabaseClient.auth.getSession();
         if (!session) {
             supabaseConectado = false;
             actualizarIndicadorConexion(false);
-            setTimeout(monitorearConexion, 5000);
+            _monitorTimer = setTimeout(monitorearConexion, 5000);
             return;
         }
         supabaseConectado = await SupabaseService.healthCheck();
@@ -25,7 +27,7 @@ async function monitorearConexion() {
         supabaseConectado = false;
         actualizarIndicadorConexion(false);
     }
-    setTimeout(monitorearConexion, 30000);
+    _monitorTimer = setTimeout(monitorearConexion, 30000);
 }
 
 function actualizarIndicadorConexion(conectado) {
@@ -468,11 +470,13 @@ function iniciarListenersDatosNegocio() {
 // ============================================
 // INICIAR
 // ============================================
-monitorearConexion();
-setTimeout(() => {
-    cargarDatosNegocio();
-    iniciarListenersDatosNegocio();
-}, 1500);
+HDVStorage.ready().then(() => {
+    monitorearConexion();
+    setTimeout(() => {
+        cargarDatosNegocio();
+        iniciarListenersDatosNegocio();
+    }, 1500);
+});
 
 // ============================================
 // CERRAR SESION

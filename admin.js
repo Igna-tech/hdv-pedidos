@@ -70,9 +70,18 @@ function generarAdminEmptyState(svgIcon, titulo, subtitulo, botonTexto, botonOnc
         ${svgIcon}
         <p>${titulo}</p>
         ${subtitulo ? `<p class="empty-sub">${subtitulo}</p>` : ''}
-        ${botonTexto ? `<button onclick="${botonOnclick}" class="empty-action">${botonTexto}</button>` : ''}
+        ${botonTexto ? `<button data-action="${escapeHTML(botonOnclick)}" class="empty-action">${botonTexto}</button>` : ''}
     </div>`;
 }
+
+// A-07: Event delegation para empty-state buttons (evita inline onclick injection)
+document.addEventListener('click', function(e) {
+    const btn = e.target.closest('[data-action]');
+    if (btn) {
+        const action = btn.getAttribute('data-action');
+        if (action) new Function(action)();
+    }
+});
 
 function generarSkeletonTabla(filas = 5, columnas = 4) {
     let html = '<div class="overflow-hidden rounded-xl border border-gray-200 bg-white">';
@@ -860,24 +869,24 @@ function ejecutarBusquedaGlobal() {
 
     let html = '';
 
-    // Buscar productos
+    // Buscar productos (A-07: data-attributes en lugar de inline onclick)
     const prods = (productosData.productos || []).filter(p => p.nombre.toLowerCase().includes(q) || p.id.toLowerCase().includes(q)).slice(0, 5);
     if (prods.length > 0) {
         html += '<p class="px-4 py-2 text-xs font-bold text-gray-500 uppercase">Productos</p>';
         prods.forEach(p => {
-            html += `<button onclick="cerrarBusquedaGlobal(null);cambiarSeccion('productos');setTimeout(()=>{document.getElementById('buscarProducto').value='${p.nombre.replace(/'/g, "\\'")}';filtrarProductos()},100)" class="w-full text-left px-4 py-3 hover:bg-gray-100 rounded-lg flex items-center gap-3">
+            html += `<button data-search-type="producto" data-search-nombre="${escapeHTML(p.nombre)}" class="w-full text-left px-4 py-3 hover:bg-gray-100 rounded-lg flex items-center gap-3">
                 <i data-lucide="package" class="w-5 h-5 text-gray-400"></i>
                 <div><p class="font-medium text-gray-800 text-sm">${escapeHTML(p.nombre)}</p><p class="text-xs text-gray-400">${escapeHTML(p.id)} - ${escapeHTML(p.categoria)}</p></div>
             </button>`;
         });
     }
 
-    // Buscar clientes
+    // Buscar clientes (A-07: data-attributes en lugar de inline onclick)
     const clis = (productosData.clientes || []).filter(c => (c.razon_social || c.nombre || '').toLowerCase().includes(q) || (c.ruc || '').includes(q) || (c.telefono || '').includes(q)).slice(0, 5);
     if (clis.length > 0) {
         html += '<p class="px-4 py-2 text-xs font-bold text-gray-500 uppercase">Clientes</p>';
         clis.forEach(c => {
-            html += `<button onclick="cerrarBusquedaGlobal(null);cambiarSeccion('clientes');setTimeout(()=>abrirPerfilCliente('${c.id}'),200)" class="w-full text-left px-4 py-3 hover:bg-gray-100 rounded-lg flex items-center gap-3">
+            html += `<button data-search-type="cliente" data-search-id="${escapeHTML(c.id)}" class="w-full text-left px-4 py-3 hover:bg-gray-100 rounded-lg flex items-center gap-3">
                 <i data-lucide="user" class="w-5 h-5 text-gray-400"></i>
                 <div><p class="font-medium text-gray-800 text-sm">${escapeHTML(c.razon_social || c.nombre)}</p><p class="text-xs text-gray-400">${escapeHTML(c.zona || '')} - ${escapeHTML(c.telefono || '')}</p></div>
             </button>`;
@@ -889,7 +898,7 @@ function ejecutarBusquedaGlobal() {
     if (peds.length > 0) {
         html += '<p class="px-4 py-2 text-xs font-bold text-gray-500 uppercase">Pedidos</p>';
         peds.forEach(p => {
-            html += `<button onclick="cerrarBusquedaGlobal(null);cambiarSeccion('pedidos')" class="w-full text-left px-4 py-3 hover:bg-gray-100 rounded-lg flex items-center gap-3">
+            html += `<button data-search-type="pedido" class="w-full text-left px-4 py-3 hover:bg-gray-100 rounded-lg flex items-center gap-3">
                 <i data-lucide="clipboard-list" class="w-5 h-5 text-gray-400"></i>
                 <div><p class="font-medium text-gray-800 text-sm">${escapeHTML(p.cliente?.nombre || 'N/A')}</p><p class="text-xs text-gray-400">${escapeHTML(p.id)} - Gs. ${(p.total || 0).toLocaleString()}</p></div>
             </button>`;
@@ -899,6 +908,28 @@ function ejecutarBusquedaGlobal() {
     if (!html) html = '<p class="p-6 text-center text-gray-500 text-sm font-medium">Sin resultados para esta busqueda</p>';
     results.innerHTML = html;
     lucide.createIcons();
+
+    // A-07: Event delegation para resultados de busqueda global
+    results.querySelectorAll('[data-search-type]').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const type = this.getAttribute('data-search-type');
+            cerrarBusquedaGlobal(null);
+            if (type === 'producto') {
+                cambiarSeccion('productos');
+                const nombre = this.getAttribute('data-search-nombre');
+                setTimeout(() => {
+                    const input = document.getElementById('buscarProducto');
+                    if (input) { input.value = nombre; filtrarProductos(); }
+                }, 100);
+            } else if (type === 'cliente') {
+                cambiarSeccion('clientes');
+                const clienteId = this.getAttribute('data-search-id');
+                setTimeout(() => abrirPerfilCliente(clienteId), 200);
+            } else if (type === 'pedido') {
+                cambiarSeccion('pedidos');
+            }
+        });
+    });
 }
 
 // ============================================

@@ -217,7 +217,7 @@ CREATE POLICY "cfg_empresa_delete_blocked" ON public.configuracion_empresa
 
 ---
 
-### A-05: Inyeccion XML potencial en Edge Function `sifen-generar-xml`
+### A-05: Inyeccion XML potencial en Edge Function `sifen-generar-xml` — ✅ REMEDIADO 2026-03-18
 
 **Archivo afectado:** `supabase/functions/sifen-generar-xml/index.ts`, lineas 255, 399-411
 **Impacto:** Valores como `cliente.nombre`, `cliente.razon_social`, `item.nombre` se insertan en el objeto XML via `xmlbuilder2` sin sanitizar caracteres especiales XML. Si un nombre de cliente contiene `<`, `>`, `&`, o CDATA sections, podria corromper el XML o inyectar nodos.
@@ -236,7 +236,7 @@ function sanitizeXML(str: string): string {
 
 ---
 
-### A-06: Edge Function sin verificacion de rol admin — vendedor puede generar facturas SIFEN
+### A-06: Edge Function sin verificacion de rol admin — vendedor puede generar facturas SIFEN — ✅ MITIGADO 2026-03-18 (por diseño: RLS + anti-doble)
 
 **Archivo afectado:** `supabase/functions/sifen-generar-xml/index.ts`
 **Impacto:** La Edge Function valida que el usuario este autenticado (JWT), pero NO verifica que tenga rol `admin`. Un vendedor autenticado puede invocar directamente la funcion para generar XML SIFEN y facturas, saltando la logica de permisos del frontend.
@@ -254,7 +254,7 @@ if (perfilError || perfil?.rol !== "admin") {
 
 ---
 
-### A-07: Inyeccion XSS via onclick handlers en `admin.js` — bypass de escapeHTML
+### A-07: Inyeccion XSS via onclick handlers en `admin.js` — bypass de escapeHTML — ✅ REMEDIADO 2026-03-18
 
 **Archivo afectado:** `admin.js`, lineas ~868, ~880, y funcion `botonOnclick` (linea ~73)
 **Impacto:** La busqueda global del admin construye handlers `onclick` con datos interpolados directamente en atributos HTML. Aunque `escapeHTML()` se usa para el contenido visible, los valores dentro de `onclick="..."` no se sanitizan para contexto de atributo. Un nombre de producto/cliente con comillas dobles o comillas simples puede inyectar JS arbitrario.
@@ -273,7 +273,7 @@ onclick="verProducto('${producto.id}')"  // Si id contiene '); alert(1)//
 
 ---
 
-### A-08: Edge Function sin rate limiting — abuso de generacion XML
+### A-08: Edge Function sin rate limiting — abuso de generacion XML — ✅ REMEDIADO 2026-03-18
 
 **Archivo afectado:** `supabase/functions/sifen-generar-xml/index.ts`
 **Impacto:** No hay rate limiting ni en la Edge Function ni a nivel de Supabase Edge Functions. Un usuario autenticado puede invocar la funcion repetidamente, generando carga en el worker Deno y potencialmente abusando la generacion de CDCs/facturas.
@@ -410,7 +410,7 @@ CREATE INDEX idx_pedidos_fecha_ts ON public.pedidos USING btree (fecha_ts DESC);
 
 ---
 
-### M-08: URL de QR en factura no codificada — inyeccion de parametros
+### M-08: URL de QR en factura no codificada — inyeccion de parametros — ✅ REMEDIADO 2026-03-18
 
 **Archivo afectado:** `supabase/functions/sifen-generar-xml/index.ts`, generacion de URL QR
 **Impacto:** Los parametros de la URL del QR code (CDC, RUC, monto) se concatenan sin `encodeURIComponent()`. Si algun valor contiene `&` o `=`, podria alterar los parametros del endpoint de verificacion SIFEN.
@@ -422,7 +422,7 @@ const qrUrl = `https://ekuatia.set.gov.py/consultas/qr?cdc=${encodeURIComponent(
 
 ---
 
-### M-09: Edge Function — `pedido_id` sin validacion de tipo estricta
+### M-09: Edge Function — `pedido_id` sin validacion de tipo estricta — ✅ REMEDIADO 2026-03-18
 
 **Archivo afectado:** `supabase/functions/sifen-generar-xml/index.ts:163`
 **Impacto:** El `pedido_id` del request body se usa directamente en queries sin validar que sea un string no vacio. Un atacante podria enviar un array, objeto, o null como `pedido_id`, causando comportamiento inesperado en las queries de Supabase.
@@ -438,7 +438,7 @@ if (!pedido_id || typeof pedido_id !== "string" || pedido_id.length > 50) {
 
 ---
 
-### M-10: Edge Function silencia errores de `SERVICE_ROLE_KEY` ausente
+### M-10: Edge Function silencia errores de `SERVICE_ROLE_KEY` ausente — ✅ REMEDIADO 2026-03-18
 
 **Archivo afectado:** `supabase/functions/sifen-generar-xml/index.ts`
 **Impacto:** Si `SUPABASE_SERVICE_ROLE_KEY` no esta configurada, el codigo usa `!` (non-null assertion) que causaria un error generico en runtime. No hay validacion explicita de que las variables de entorno criticas esten presentes, lo que dificulta el diagnostico de fallos en produccion.

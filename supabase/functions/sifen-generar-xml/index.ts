@@ -17,6 +17,30 @@ const corsHeaders = {
     "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+// --- Rate limiting en memoria (A-08) ---
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT_MAX = 10;
+const RATE_LIMIT_WINDOW_MS = 60_000; // 1 minuto
+
+function checkRateLimit(userId: string): boolean {
+    const now = Date.now();
+    const entry = rateLimitMap.get(userId);
+    if (!entry || now > entry.resetAt) {
+        rateLimitMap.set(userId, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+        return true;
+    }
+    entry.count++;
+    return entry.count <= RATE_LIMIT_MAX;
+}
+
+// --- Sanitizacion XML (A-05) ---
+function sanitizeXML(str: string): string {
+    return (str || "").replace(/[<>&'"]/g, (c) => {
+        const map: Record<string, string> = { "<": "&lt;", ">": "&gt;", "&": "&amp;", "'": "&apos;", '"': "&quot;" };
+        return map[c] || c;
+    });
+}
+
 // --- Mapeos SIFEN v150 ---
 const TIPO_DOC_MAP: Record<string, { code: number; desc: string }> = {
     "RUC":       { code: 1, desc: "RUC" },
@@ -168,12 +192,24 @@ serve(async (req: Request) => {
                 { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         }
 
+        // A-06: No se restringe por rol. Tanto admin como vendedor pueden facturar.
+        // La seguridad esta cubierta por: (1) RLS — el vendedor solo lee sus propios
+        // pedidos via el JWT, (2) anti-doble facturacion — un pedido con CDC no se
+        // refactura, (3) SERVICE_ROLE solo se usa para la escritura final del resultado.
+
+        // A-08: Rate limiting por usuario
+        if (!checkRateLimit(user.id)) {
+            return new Response(JSON.stringify({ error: "Demasiadas solicitudes. Intente de nuevo en 1 minuto." }),
+                { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+
         const body = await req.json();
         const pedidoId = body.pedido_id;
         console.log("[sifen] pedido_id:", pedidoId);
 
-        if (!pedidoId) {
-            return new Response(JSON.stringify({ error: "pedido_id requerido" }),
+        // M-09: Validacion estricta de pedido_id
+        if (!pedidoId || typeof pedidoId !== "string" || pedidoId.length > 50) {
+            return new Response(JSON.stringify({ error: "pedido_id requerido y debe ser un texto valido" }),
                 { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         }
 
@@ -275,8 +311,8 @@ serve(async (req: Request) => {
             else { totalGrav10 += totalItem; totalIVA10 += iva.dLiqIVAItem; }
 
             return {
-                dCodInt: item.productoId || `ITEM${idx + 1}`,
-                dDesProSer: `${item.nombre || "Producto"} ${item.presentacion || ""}`.trim(),
+                dCodInt: sanitizeXML(item.productoId || `ITEM${idx + 1}`),
+                dDesProSer: sanitizeXML(`${item.nombre || "Producto"} ${item.presentacion || ""}`.trim()),
                 cUniMed: Number(uMed),
                 dDesUniMed: uDesc,
                 dCantProSer: cant.toFixed(4),
@@ -392,9 +428,9 @@ serve(async (req: Request) => {
                             dRucEm: rucEmpresa,
                             dDVEmi: dvEmpresa,
                             iTipCont: 1,  // 1=Persona Juridica
-                            dNomEmi: empresa.razon_social,
-                            dNomFanEmi: empresa.nombre_fantasia || empresa.razon_social,
-                            dDirEmi: empresa.direccion_fiscal || "Sin direccion",
+                            dNomEmi: sanitizeXML(empresa.razon_social),
+                            dNomFanEmi: sanitizeXML(empresa.nombre_fantasia || empresa.razon_social),
+                            dDirEmi: sanitizeXML(empresa.direccion_fiscal || "Sin direccion"),
                             dNumCas: "0",
                             cDepEmi: 1,
                             dDesDepEmi: "CAPITAL",
@@ -402,8 +438,8 @@ serve(async (req: Request) => {
                             dDesDisEmi: "ASUNCION",
                             cCiuEmi: 1,
                             dDesCiuEmi: "ASUNCION",
-                            dTelEmi: empresa.telefono_empresa || "",
-                            dEmailE: empresa.email_empresa || "",
+                            dTelEmi: sanitizeXML(empresa.telefono_empresa || ""),
+                            dEmailE: sanitizeXML(empresa.email_empresa || ""),
                             gActEco: {
                                 cActEco: empresa.actividad_economica || "47190",
                                 dDesActEco: "Venta al por menor",
@@ -420,11 +456,11 @@ serve(async (req: Request) => {
                             dDTipIDRec: tipoDoc.desc,  // XSD: dDTipIDRec
                             dRucRec: rucCliente,
                             dDVRec: dvCliente,
-                            dNomRec: cliente.razon_social || cliente.nombre,
-                            dDirRec: cliente.direccion || "Sin direccion",
-                            dTelRec: cliente.telefono || "",
-                            dCelRec: cliente.telefono || "",
-                            dEmailRec: cliente.email || "",
+                            dNomRec: sanitizeXML(cliente.razon_social || cliente.nombre),
+                            dDirRec: sanitizeXML(cliente.direccion || "Sin direccion"),
+                            dTelRec: sanitizeXML(cliente.telefono || ""),
+                            dCelRec: sanitizeXML(cliente.telefono || ""),
+                            dEmailRec: sanitizeXML(cliente.email || ""),
                         },
                     },
 
@@ -472,13 +508,14 @@ serve(async (req: Request) => {
         // --- QR URL (SIFEN codifica dFeEmiDE en hex) ---
         const fechaHex = toHex(fechaISO);
         // Sin firma: DigestValue, IdCSC y cHashQR se completaran con certificado .p12
+        // M-08: encodeURIComponent en parametros QR para prevenir inyeccion
         const qrUrl = `https://ekuatia.set.gov.py/consultas/qr?nVersion=150`
-            + `&Id=${cdc}`
-            + `&dFeEmiDE=${fechaHex}`
-            + `&dRucRec=${rucCliente}`
-            + `&dTotGralOpe=${totalGral.toFixed(4)}`
-            + `&dTotIVA=${totalIVA.toFixed(4)}`
-            + `&cItems=${items.length}`
+            + `&Id=${encodeURIComponent(cdc)}`
+            + `&dFeEmiDE=${encodeURIComponent(fechaHex)}`
+            + `&dRucRec=${encodeURIComponent(rucCliente)}`
+            + `&dTotGralOpe=${encodeURIComponent(totalGral.toFixed(4))}`
+            + `&dTotIVA=${encodeURIComponent(totalIVA.toFixed(4))}`
+            + `&cItems=${encodeURIComponent(String(items.length))}`
             + `&DigestValue=SIMULADO_SIN_FIRMA`
             + `&IdCSC=0001`
             + `&cHashQR=SIMULADO_SIN_CSC`;
@@ -502,7 +539,13 @@ ${xmlString.split("\n").map((l: string) => "        " + l).join("\n")}
         // el resultado oficial de SIFEN. Todas las lecturas previas usan el
         // cliente RLS del usuario autenticado.
         try {
-            const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+            // M-10: Validar env var critica antes de usar
+            const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+            if (!supabaseServiceKey) {
+                console.error("[sifen] SUPABASE_SERVICE_ROLE_KEY no configurada");
+                return new Response(JSON.stringify({ error: "Configuracion del servidor incompleta" }),
+                    { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+            }
             const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
             const datosActualizados = {

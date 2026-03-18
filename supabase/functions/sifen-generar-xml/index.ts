@@ -145,6 +145,16 @@ serve(async (req: Request) => {
                 { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         }
 
+        // --- Secretos del certificado .p12 (firma digital SIFEN) ---
+        const certB64 = Deno.env.get("CERTIFICADO_P12");
+        const certPass = Deno.env.get("PASS_CERT");
+
+        if (!certB64 || !certPass) {
+            console.warn("[sifen] ADVERTENCIA: Certificado .p12 o contrasena no encontrados en los secretos. Operando en modo simulado.");
+        } else {
+            console.log("[sifen] INFO: Secretos del certificado cargados correctamente en memoria.");
+        }
+
         // Validacion JWT estricta — respeta RLS del usuario autenticado
         const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
         const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;

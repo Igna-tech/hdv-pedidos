@@ -275,7 +275,6 @@ async function guardarCatalogo(dataCatalogo) {
         if (prodsEliminar.length > 0) await SupabaseService.deleteProductos(prodsEliminar);
 
         const allProdIds = prods.map(p => p.id);
-        if (allProdIds.length > 0) await SupabaseService.deleteVariantesByProductoIds(allProdIds);
         const varRows = [];
         for (const prod of prods) {
             for (const pres of (prod.presentaciones || [])) {
@@ -286,8 +285,8 @@ async function guardarCatalogo(dataCatalogo) {
                 });
             }
         }
-        if (varRows.length > 0) {
-            const res = await SupabaseService.insertVariantes(varRows);
+        if (allProdIds.length > 0) {
+            const res = await SupabaseService.reemplazarVariantes(allProdIds, varRows);
             if (!res.success) throw new Error('Error variantes: ' + res.error?.message);
         }
 

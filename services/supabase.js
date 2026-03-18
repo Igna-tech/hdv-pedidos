@@ -348,6 +348,21 @@ const SupabaseService = (() => {
         }
     }
 
+    async function reemplazarVariantes(productoIds, varRows) {
+        try {
+            const { data, error } = await supabaseClient
+                .rpc('reemplazar_variantes', {
+                    p_producto_ids: productoIds,
+                    p_variantes: varRows
+                });
+            if (error) throw error;
+            return { success: !!data, error: null };
+        } catch (error) {
+            console.error('[SupabaseService] reemplazarVariantes:', error);
+            return { success: false, error };
+        }
+    }
+
     // ============================================
     // CONFIGURACION (documentos JSONB genéricos)
     // ============================================
@@ -521,6 +536,7 @@ const SupabaseService = (() => {
         insertVariantes,
         updateVariante,
         upsertVariante,
+        reemplazarVariantes,
 
         // Configuracion
         fetchConfig,

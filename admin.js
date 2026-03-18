@@ -178,20 +178,25 @@ function actualizarBarraCambios() {
 }
 
 async function guardarTodosCambios() {
-    cambiosSinGuardar = 0;
-    actualizarBarraCambios();
-    productosDataOriginal = JSON.parse(JSON.stringify(productosData));
+    const btn = document.getElementById('btnGuardarSync');
+    if (btn && btn.disabled) return;
+    const textoOriginal = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.classList.add('opacity-50', 'cursor-not-allowed');
+        btn.innerHTML = '<svg class="w-4 h-4 animate-spin inline mr-1.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Sincronizando...';
+    }
 
     try {
+        cambiosSinGuardar = 0;
+        actualizarBarraCambios();
+        productosDataOriginal = JSON.parse(JSON.stringify(productosData));
+
         const dataLimpia = { categorias: productosData.categorias, productos: productosData.productos, clientes: productosData.clientes };
         await HDVStorage.setItem('hdv_catalogo_local', dataLimpia);
         console.log('[Admin] Catalogo guardado en IndexedDB');
-    } catch (e) {
-        console.error('[Admin] Error guardando en IndexedDB:', e);
-    }
 
-    if (typeof guardarCatalogo === 'function') {
-        try {
+        if (typeof guardarCatalogo === 'function') {
             console.log('[Admin] Llamando guardarCatalogo...');
             const dataParaSync = { categorias: productosData.categorias, productos: productosData.productos, clientes: productosData.clientes };
             const ok = await guardarCatalogo(dataParaSync);
@@ -201,13 +206,19 @@ async function guardarTodosCambios() {
             } else {
                 mostrarToast('Error al sincronizar con Supabase. Revisa la consola (F12) para mas detalles. Cambios guardados localmente.', 'warning');
             }
-        } catch (err) {
-            console.error('[Admin] Error Supabase:', err);
-            mostrarToast('Error de sincronizacion: ' + err.message, 'error');
+        } else {
+            console.error('[Admin] guardarCatalogo no esta definida. supabase-config.js puede tener un error de carga.');
+            mostrarToast('Error: modulo de sincronizacion no cargado. Cambios guardados localmente.', 'error');
         }
-    } else {
-        console.error('[Admin] guardarCatalogo no esta definida. supabase-config.js puede tener un error de carga.');
-        mostrarToast('Error: modulo de sincronizacion no cargado. Cambios guardados localmente.', 'error');
+    } catch (err) {
+        console.error('[Admin] Error guardando:', err);
+        mostrarToast('Error de sincronizacion: ' + err.message, 'error');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.classList.remove('opacity-50', 'cursor-not-allowed');
+            btn.innerHTML = textoOriginal;
+        }
     }
 }
 
@@ -730,6 +741,15 @@ async function guardarConfigEmpresa() {
     if (!datos.ruc_empresa) { mostrarToast('Ingresa el RUC de la empresa', 'error'); return; }
     if (!datos.razon_social) { mostrarToast('Ingresa la razon social', 'error'); return; }
 
+    const btn = document.getElementById('btnGuardarConfigEmpresa');
+    if (btn && btn.disabled) return;
+    const textoOriginal = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.classList.add('opacity-50', 'cursor-not-allowed');
+        btn.innerHTML = '<svg class="w-4 h-4 animate-spin inline mr-1.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Guardando...';
+    }
+
     try {
         const { success, error } = await SupabaseService.upsertConfigEmpresa(datos);
         if (!success) throw error;
@@ -737,6 +757,12 @@ async function guardarConfigEmpresa() {
     } catch (e) {
         console.error('[Config Empresa] Error guardando:', e);
         mostrarToast('Error al guardar: ' + (e?.message || e), 'error');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.classList.remove('opacity-50', 'cursor-not-allowed');
+            btn.innerHTML = textoOriginal;
+        }
     }
 }
 
@@ -899,3 +925,8 @@ document.addEventListener('keydown', (e) => {
         if (search.classList.contains('show')) { cerrarBusquedaGlobal({target:{currentTarget:{}}}); return; }
     }
 });
+
+// ============================================
+// DEBOUNCED SEARCH WRAPPERS (300ms)
+// ============================================
+const ejecutarBusquedaGlobalDebounced = debounce(ejecutarBusquedaGlobal, 300);

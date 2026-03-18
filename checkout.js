@@ -79,41 +79,61 @@ function generarHTMLItems(items) {
 async function procesarPedido() {
     if (!validarCarritoYCliente()) return;
 
-    const datos = obtenerDatosVenta();
-    const pedido = {
-        id: 'PED-' + Date.now(),
-        fecha: new Date().toISOString(),
-        cliente: datos.cliente,
-        items: datos.items,
-        subtotal: datos.subtotal,
-        descuento: datos.descuento,
-        total: datos.total,
-        tipoPago: datos.tipoPago,
-        notas: datos.notas,
-        estado: 'pedido_pendiente',
-        tipo_comprobante: 'pedido',
-        desgloseIVA: datos.desgloseIVA,
-        vendedor_id: window.hdvUsuario?.id || null,
-        sincronizado: false
-    };
-
-    // Guardar local
-    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
-    pedidos.push(pedido);
-    await HDVStorage.setItem('hdv_pedidos', pedidos);
-
-    // Sincronizar con Supabase
-    if (typeof guardarPedido === 'function') {
-        guardarPedido(pedido).then(async (ok) => {
-            if (ok) {
-                pedido.sincronizado = true;
-                await HDVStorage.setItem('hdv_pedidos', pedidos);
-            }
-        });
+    const btn = document.getElementById('btnPedido');
+    if (btn && btn.disabled) return;
+    const textoOriginal = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.classList.add('opacity-50', 'cursor-not-allowed');
+        btn.innerHTML = '<span class="flex items-center justify-center gap-2"><svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Enviando...</span>';
     }
 
-    limpiarDespuesDeVenta();
-    mostrarToast('Pedido enviado a oficina', 'success');
+    try {
+        const datos = obtenerDatosVenta();
+        const pedido = {
+            id: 'PED-' + Date.now(),
+            fecha: new Date().toISOString(),
+            cliente: datos.cliente,
+            items: datos.items,
+            subtotal: datos.subtotal,
+            descuento: datos.descuento,
+            total: datos.total,
+            tipoPago: datos.tipoPago,
+            notas: datos.notas,
+            estado: 'pedido_pendiente',
+            tipo_comprobante: 'pedido',
+            desgloseIVA: datos.desgloseIVA,
+            vendedor_id: window.hdvUsuario?.id || null,
+            sincronizado: false
+        };
+
+        // Guardar local
+        const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
+        pedidos.push(pedido);
+        await HDVStorage.setItem('hdv_pedidos', pedidos);
+
+        // Sincronizar con Supabase
+        if (typeof guardarPedido === 'function') {
+            guardarPedido(pedido).then(async (ok) => {
+                if (ok) {
+                    pedido.sincronizado = true;
+                    await HDVStorage.setItem('hdv_pedidos', pedidos);
+                }
+            });
+        }
+
+        limpiarDespuesDeVenta();
+        mostrarToast('Pedido enviado a oficina', 'success');
+    } catch (err) {
+        console.error('[Checkout] Error procesarPedido:', err);
+        mostrarToast('Error al procesar pedido', 'error');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.classList.remove('opacity-50', 'cursor-not-allowed');
+            btn.innerHTML = textoOriginal;
+        }
+    }
 }
 
 // ============================================
@@ -122,71 +142,91 @@ async function procesarPedido() {
 async function procesarCobroInterno() {
     if (!validarCarritoYCliente()) return;
 
-    const datos = obtenerDatosVenta();
-    const pedido = {
-        id: 'REC-' + Date.now(),
-        fecha: new Date().toISOString(),
-        cliente: datos.cliente,
-        items: datos.items,
-        subtotal: datos.subtotal,
-        descuento: datos.descuento,
-        total: datos.total,
-        tipoPago: datos.tipoPago,
-        notas: datos.notas,
-        estado: 'cobrado_sin_factura',
-        tipo_comprobante: 'recibo_interno',
-        desgloseIVA: datos.desgloseIVA,
-        vendedor_id: window.hdvUsuario?.id || null,
-        sincronizado: false
-    };
-
-    // Guardar local
-    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
-    pedidos.push(pedido);
-    await HDVStorage.setItem('hdv_pedidos', pedidos);
-
-    // Sincronizar
-    if (typeof guardarPedido === 'function') {
-        guardarPedido(pedido).then(async (ok) => {
-            if (ok) {
-                pedido.sincronizado = true;
-                await HDVStorage.setItem('hdv_pedidos', pedidos);
-            }
-        });
+    const btn = document.getElementById('btnCobro');
+    if (btn && btn.disabled) return;
+    const textoOriginal = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.classList.add('opacity-50', 'cursor-not-allowed');
+        btn.innerHTML = '<span class="flex items-center justify-center gap-2"><svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Procesando...</span>';
     }
 
-    // Armar ticket de impresion
-    const fechaStr = formatearFecha(pedido.fecha);
-    document.getElementById('printReciboMeta').innerHTML =
-        `<p>Fecha: ${fechaStr}</p>
-         <p>Cliente: ${escapeHTML(datos.cliente.nombre)}</p>
-         ${datos.cliente.ruc ? `<p>RUC: ${escapeHTML(datos.cliente.ruc)}</p>` : ''}
-         <p>Pago: ${datos.tipoPago === 'credito' ? 'Credito' : 'Contado'}</p>`;
+    try {
+        const datos = obtenerDatosVenta();
+        const pedido = {
+            id: 'REC-' + Date.now(),
+            fecha: new Date().toISOString(),
+            cliente: datos.cliente,
+            items: datos.items,
+            subtotal: datos.subtotal,
+            descuento: datos.descuento,
+            total: datos.total,
+            tipoPago: datos.tipoPago,
+            notas: datos.notas,
+            estado: 'cobrado_sin_factura',
+            tipo_comprobante: 'recibo_interno',
+            desgloseIVA: datos.desgloseIVA,
+            vendedor_id: window.hdvUsuario?.id || null,
+            sincronizado: false
+        };
 
-    document.getElementById('printReciboItems').innerHTML = generarHTMLItems(datos.items);
+        // Guardar local
+        const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
+        pedidos.push(pedido);
+        await HDVStorage.setItem('hdv_pedidos', pedidos);
 
-    let totalHTML = `<p>TOTAL: Gs. ${datos.total.toLocaleString()}</p>`;
-    if (datos.descuento > 0) {
-        totalHTML = `<p style="font-size:10px;">Subtotal: Gs. ${datos.subtotal.toLocaleString()}</p>
-                     <p style="font-size:10px;">Desc: ${datos.descuento}%</p>` + totalHTML;
+        // Sincronizar
+        if (typeof guardarPedido === 'function') {
+            guardarPedido(pedido).then(async (ok) => {
+                if (ok) {
+                    pedido.sincronizado = true;
+                    await HDVStorage.setItem('hdv_pedidos', pedidos);
+                }
+            });
+        }
+
+        // Armar ticket de impresion
+        const fechaStr = formatearFecha(pedido.fecha);
+        document.getElementById('printReciboMeta').innerHTML =
+            `<p>Fecha: ${fechaStr}</p>
+             <p>Cliente: ${escapeHTML(datos.cliente.nombre)}</p>
+             ${datos.cliente.ruc ? `<p>RUC: ${escapeHTML(datos.cliente.ruc)}</p>` : ''}
+             <p>Pago: ${datos.tipoPago === 'credito' ? 'Credito' : 'Contado'}</p>`;
+
+        document.getElementById('printReciboItems').innerHTML = generarHTMLItems(datos.items);
+
+        let totalHTML = `<p>TOTAL: Gs. ${datos.total.toLocaleString()}</p>`;
+        if (datos.descuento > 0) {
+            totalHTML = `<p style="font-size:10px;">Subtotal: Gs. ${datos.subtotal.toLocaleString()}</p>
+                         <p style="font-size:10px;">Desc: ${datos.descuento}%</p>` + totalHTML;
+        }
+        document.getElementById('printReciboTotal').innerHTML = totalHTML;
+
+        // Activar para impresion
+        const printEl = document.getElementById('printReciboInterno');
+        printEl.classList.add('active');
+        printEl.style.display = 'block';
+
+        limpiarDespuesDeVenta();
+
+        // Imprimir
+        setTimeout(() => {
+            window.print();
+            printEl.classList.remove('active');
+            printEl.style.display = 'none';
+        }, 300);
+
+        mostrarToast('Cobro registrado', 'success');
+    } catch (err) {
+        console.error('[Checkout] Error procesarCobroInterno:', err);
+        mostrarToast('Error al procesar cobro', 'error');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.classList.remove('opacity-50', 'cursor-not-allowed');
+            btn.innerHTML = textoOriginal;
+        }
     }
-    document.getElementById('printReciboTotal').innerHTML = totalHTML;
-
-    // Activar para impresion
-    const printEl = document.getElementById('printReciboInterno');
-    printEl.classList.add('active');
-    printEl.style.display = 'block';
-
-    limpiarDespuesDeVenta();
-
-    // Imprimir
-    setTimeout(() => {
-        window.print();
-        printEl.classList.remove('active');
-        printEl.style.display = 'none';
-    }, 300);
-
-    mostrarToast('Cobro registrado', 'success');
 }
 
 // ============================================

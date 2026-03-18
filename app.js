@@ -130,16 +130,14 @@ async function cargarDatos() {
 
 function configurarEventos() {
     const searchInput = document.getElementById('searchInput');
-    searchInput.addEventListener('input', () => mostrarProductos());
+    const mostrarProductosDebounced = debounce(() => mostrarProductos(), 300);
+    searchInput.addEventListener('input', mostrarProductosDebounced);
 
     // Busqueda de clientes por nombre o RUC
     const clienteSearch = document.getElementById('clienteSearchInput');
     if (clienteSearch) {
-        let debounceCliente;
-        clienteSearch.addEventListener('input', () => {
-            clearTimeout(debounceCliente);
-            debounceCliente = setTimeout(() => poblarClientes(clienteSearch.value), 200);
-        });
+        const poblarClientesDebounced = debounce(() => poblarClientes(clienteSearch.value), 300);
+        clienteSearch.addEventListener('input', poblarClientesDebounced);
     }
 
     document.getElementById('clienteSelect').addEventListener('change', async (e) => {

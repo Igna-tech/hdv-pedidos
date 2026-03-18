@@ -227,34 +227,42 @@ function guardarClienteModal() {
 
     if (!razon) { mostrarToast('Ingresa la razon social', 'error'); return; }
 
-    if (id) {
-        // Edicion
-        const c = productosData.clientes.find(x => x.id === id);
-        if (c) {
-            c.nombre = razon; c.razon_social = razon;
-            c.ruc = ruc; c.telefono = telefono;
-            c.direccion = direccion; c.zona = zona || direccion;
-            c.encargado = encargado;
-            c.tipo_documento = tipoDocumento;
-            c.pais_documento = c.pais_documento || 'PRY';
-        }
-    } else {
-        // Creacion
-        const ultimoId = productosData.clientes.length > 0 ?
-            Math.max(...productosData.clientes.map(c => parseInt(c.id.replace('C', '')) || 0)) : 0;
-        const nuevoId = `C${String(ultimoId + 1).padStart(3, '0')}`;
-        productosData.clientes.push({
-            id: nuevoId, nombre: razon, razon_social: razon, ruc: ruc || '',
-            telefono: telefono || '', direccion: direccion || '', zona: zona || direccion || '',
-            encargado: encargado || '', tipo: 'mayorista_estandar', precios_personalizados: {},
-            tipo_documento: tipoDocumento, pais_documento: 'PRY'
-        });
-    }
+    const btn = document.getElementById('btnGuardarCliente');
+    if (btn && btn.disabled) return;
+    if (btn) { btn.disabled = true; btn.innerHTML = 'Guardando...'; }
 
-    clientesFiltrados = [...productosData.clientes];
-    registrarCambio();
-    mostrarClientesGestion();
-    cerrarModalCliente();
+    try {
+        if (id) {
+            // Edicion
+            const c = productosData.clientes.find(x => x.id === id);
+            if (c) {
+                c.nombre = razon; c.razon_social = razon;
+                c.ruc = ruc; c.telefono = telefono;
+                c.direccion = direccion; c.zona = zona || direccion;
+                c.encargado = encargado;
+                c.tipo_documento = tipoDocumento;
+                c.pais_documento = c.pais_documento || 'PRY';
+            }
+        } else {
+            // Creacion
+            const ultimoId = productosData.clientes.length > 0 ?
+                Math.max(...productosData.clientes.map(c => parseInt(c.id.replace('C', '')) || 0)) : 0;
+            const nuevoId = `C${String(ultimoId + 1).padStart(3, '0')}`;
+            productosData.clientes.push({
+                id: nuevoId, nombre: razon, razon_social: razon, ruc: ruc || '',
+                telefono: telefono || '', direccion: direccion || '', zona: zona || direccion || '',
+                encargado: encargado || '', tipo: 'mayorista_estandar', precios_personalizados: {},
+                tipo_documento: tipoDocumento, pais_documento: 'PRY'
+            });
+        }
+
+        clientesFiltrados = [...productosData.clientes];
+        registrarCambio();
+        mostrarClientesGestion();
+        cerrarModalCliente();
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = 'Guardar'; }
+    }
 }
 
 // ============================================
@@ -649,3 +657,8 @@ function enviarWhatsAppReactivacion(telefono, nombre) {
     const mensaje = `Hola ${nombre}, desde HDV Distribuciones le saludamos! Hace un tiempo que no nos visita y queremos ofrecerle nuestras ultimas promociones. Estamos para servirle! Contactenos para su proximo pedido.`;
     window.open(`https://wa.me/${tel}?text=${encodeURIComponent(mensaje)}`, '_blank');
 }
+
+// ============================================
+// DEBOUNCED SEARCH WRAPPER (300ms)
+// ============================================
+const filtrarClientesDebounced = debounce(filtrarClientes, 300);

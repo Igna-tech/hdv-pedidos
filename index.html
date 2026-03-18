@@ -426,10 +426,10 @@
         <div class="border-t border-gray-100 px-5 py-4 space-y-3 shrink-0 bg-white">
             <div id="totalSection" class="space-y-2 hidden"></div>
             <div class="space-y-2">
-                <button onclick="procesarPedido()" class="w-full border-2 border-gray-300 text-gray-700 py-3 rounded-xl font-bold text-sm hover:bg-gray-50 transition-colors">
+                <button id="btnPedido" onclick="procesarPedido()" class="w-full border-2 border-gray-300 text-gray-700 py-3 rounded-xl font-bold text-sm hover:bg-gray-50 transition-colors">
                     <span class="flex items-center justify-center gap-2"><i data-lucide="send" class="w-4 h-4"></i> Generar Pedido</span>
                 </button>
-                <button onclick="procesarCobroInterno()" class="w-full bg-amber-500 text-white py-3 rounded-xl font-bold text-sm hover:bg-amber-600 transition-colors shadow-sm">
+                <button id="btnCobro" onclick="procesarCobroInterno()" class="w-full bg-amber-500 text-white py-3 rounded-xl font-bold text-sm hover:bg-amber-600 transition-colors shadow-sm">
                     <span class="flex items-center justify-center gap-2"><i data-lucide="receipt" class="w-4 h-4"></i> Cobrar (Recibo Interno)</span>
                 </button>
                 <button onclick="procesarFacturaMock()" id="btnFactura" class="w-full bg-emerald-600 text-white py-3 rounded-xl font-bold text-sm hover:bg-emerald-700 transition-colors shadow-lg">
@@ -511,6 +511,7 @@
     <!-- Core y Utils (Fase 1 refactor) -->
     <script src="js/core/state.js"></script>
     <script src="js/utils/sanitizer.js"></script>
+    <script src="js/utils/helpers.js"></script>
     <script src="js/utils/formatters.js"></script>
     <script src="js/utils/printer.js"></script>
     <script src="js/utils/pdf-generator.js"></script>

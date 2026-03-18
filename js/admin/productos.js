@@ -1428,3 +1428,9 @@ function descargarPlantillaClientes() {
     };
     descargarJSON(plantilla, 'plantilla_clientes.json');
 }
+
+// ============================================
+// DEBOUNCED SEARCH WRAPPERS (300ms)
+// ============================================
+const filtrarStockDebounced = debounce(filtrarStock, 300);
+const filtrarProductosDebounced = debounce(filtrarProductos, 300);

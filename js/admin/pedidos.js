@@ -322,33 +322,45 @@ async function guardarEdicionPedido() {
     });
     if (items.length === 0) { mostrarToast('Agrega al menos un producto', 'error'); return; }
 
-    const descuento = parseFloat(document.getElementById('editPedidoDescuento')?.value) || 0;
-    const subtotal = items.reduce((s, i) => s + i.subtotal, 0);
-    const total = Math.round(subtotal * (1 - descuento / 100));
+    const btn = document.getElementById('btnGuardarEdicionPedido');
+    if (btn && btn.disabled) return;
+    const textoOriginal = btn ? btn.innerHTML : '';
+    if (btn) { btn.disabled = true; btn.innerHTML = 'Guardando...'; }
 
-    // Update in HDVStorage
-    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
-    const idx = pedidos.findIndex(p => p.id === pedidoEditandoId);
-    if (idx >= 0) {
-        pedidos[idx].items = items;
-        pedidos[idx].subtotal = subtotal;
-        pedidos[idx].descuento = descuento;
-        pedidos[idx].total = total;
-        pedidos[idx].tipoPago = document.getElementById('editPedidoTipoPago')?.value || 'contado';
-        pedidos[idx].notas = document.getElementById('editPedidoNotas')?.value.trim() || '';
-        pedidos[idx].editado = true;
-        pedidos[idx].fechaEdicion = new Date().toISOString();
-        await HDVStorage.setItem('hdv_pedidos', pedidos);
+    try {
+        const descuento = parseFloat(document.getElementById('editPedidoDescuento')?.value) || 0;
+        const subtotal = items.reduce((s, i) => s + i.subtotal, 0);
+        const total = Math.round(subtotal * (1 - descuento / 100));
 
-        // Sync con Supabase
-        if (typeof guardarPedido === 'function') {
-            guardarPedido(pedidos[idx]);
+        // Update in HDVStorage
+        const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
+        const idx = pedidos.findIndex(p => p.id === pedidoEditandoId);
+        if (idx >= 0) {
+            pedidos[idx].items = items;
+            pedidos[idx].subtotal = subtotal;
+            pedidos[idx].descuento = descuento;
+            pedidos[idx].total = total;
+            pedidos[idx].tipoPago = document.getElementById('editPedidoTipoPago')?.value || 'contado';
+            pedidos[idx].notas = document.getElementById('editPedidoNotas')?.value.trim() || '';
+            pedidos[idx].editado = true;
+            pedidos[idx].fechaEdicion = new Date().toISOString();
+            await HDVStorage.setItem('hdv_pedidos', pedidos);
+
+            // Sync con Supabase
+            if (typeof guardarPedido === 'function') {
+                guardarPedido(pedidos[idx]);
+            }
         }
-    }
 
-    cerrarModalEditarPedido();
-    if (typeof cargarPedidos === 'function' && !unsubscribePedidos) cargarPedidos();
-    else aplicarFiltrosPedidos();
+        cerrarModalEditarPedido();
+        if (typeof cargarPedidos === 'function' && !unsubscribePedidos) cargarPedidos();
+        else aplicarFiltrosPedidos();
+    } catch (err) {
+        console.error('[Pedidos] Error guardando edicion:', err);
+        mostrarToast('Error al guardar cambios', 'error');
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = textoOriginal; }
+    }
 }
 
 // ============================================

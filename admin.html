@@ -284,7 +284,7 @@
         <div id="globalSearchBox">
             <div class="p-4 border-b border-gray-200 flex items-center gap-3">
                 <i data-lucide="search" class="w-5 h-5 text-gray-400"></i>
-                <input type="text" id="globalSearchInput" placeholder="Buscar productos, clientes, pedidos..." class="flex-1 text-lg outline-none" oninput="ejecutarBusquedaGlobal()" autofocus>
+                <input type="text" id="globalSearchInput" placeholder="Buscar productos, clientes, pedidos..." class="flex-1 text-lg outline-none" oninput="ejecutarBusquedaGlobalDebounced()" autofocus>
                 <kbd class="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded">ESC</kbd>
             </div>
             <div id="globalSearchResults" class="max-h-[60vh] overflow-y-auto p-2"></div>
@@ -466,7 +466,7 @@
                         <div class="flex flex-wrap gap-3 mb-4">
                             <select id="dashMesSelect" onchange="cargarResumenMensual()" class="border border-gray-300 rounded-lg px-3 py-2 text-sm"></select>
                             <button onclick="exportarResumenMensualPDF()" class="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-bold inline-flex items-center gap-1.5"><i data-lucide="file-text" class="w-4 h-4"></i> Exportar PDF</button>
-                            <button onclick="guardarResumenMensual()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold inline-flex items-center gap-1.5"><i data-lucide="cloud-upload" class="w-4 h-4"></i> Guardar en Nube</button>
+                            <button id="btnGuardarResumen" onclick="guardarResumenMensual()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold inline-flex items-center gap-1.5"><i data-lucide="cloud-upload" class="w-4 h-4"></i> Guardar en Nube</button>
                         </div>
                         <div id="resumenMensualContenido" class="text-sm text-gray-600">Selecciona un mes</div>
                         <div id="resumenGananciaContenido" class="mt-3"></div>
@@ -754,7 +754,7 @@
                         <span id="stock-breadcrumb-sub" class="hidden font-bold text-gray-900"></span>
                     </div>
                     <div class="flex gap-2 flex-wrap items-center">
-                        <input type="text" id="buscarStock" placeholder="Buscar producto..." oninput="filtrarStock()" class="border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none w-48">
+                        <input type="text" id="buscarStock" placeholder="Buscar producto..." oninput="filtrarStockDebounced()" class="border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none w-48">
                         <select id="filtroStock" onchange="aplicarFiltroStock()" class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
                             <option value="">Sin filtro</option>
                             <option value="mas-vendidos">Más vendidos</option>
@@ -781,7 +781,7 @@
                         <span id="prod-breadcrumb-sub" class="hidden font-bold text-gray-900"></span>
                     </div>
                     <div class="flex gap-2 flex-wrap items-center">
-                        <input type="text" id="buscarProducto" oninput="filtrarProductos()" placeholder="Buscar producto..." class="border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none w-48">
+                        <input type="text" id="buscarProducto" oninput="filtrarProductosDebounced()" placeholder="Buscar producto..." class="border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none w-48">
                         <select id="filtroCategoria" onchange="filtrarProductos()" class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
                             <option value="">Todas las categorias</option>
                         </select>
@@ -814,7 +814,7 @@
                 <div class="flex justify-between items-center flex-wrap gap-4">
                     <h3 class="text-xl font-bold text-gray-800">Directorio de Clientes</h3>
                     <div class="flex gap-2 flex-wrap">
-                        <input type="text" id="buscarCliente" oninput="filtrarClientes()" placeholder="Buscar cliente..." class="border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none w-48">
+                        <input type="text" id="buscarCliente" oninput="filtrarClientesDebounced()" placeholder="Buscar cliente..." class="border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none w-48">
                         <select id="filtroZonaCliente" onchange="filtrarClientes()" class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
                             <option value="">Todas las zonas</option>
                         </select>
@@ -931,7 +931,7 @@
                     </div>
                     <div class="p-6 bg-gray-50 flex justify-end gap-3">
                         <button onclick="cerrarModalPromocion()" class="px-4 py-2 text-gray-500 font-bold">Cancelar</button>
-                        <button onclick="guardarPromocion()" class="bg-gray-800 text-white px-6 py-2 rounded-lg font-bold">Guardar</button>
+                        <button id="btnGuardarPromo" onclick="guardarPromocion()" class="bg-gray-800 text-white px-6 py-2 rounded-lg font-bold">Guardar</button>
                     </div>
                 </div>
             </div>
@@ -1125,7 +1125,7 @@
                     </div>
                     <div class="p-6 bg-gray-50 flex justify-end gap-3">
                         <button onclick="cerrarModalMeta()" class="px-4 py-2 text-gray-500 font-bold">Cancelar</button>
-                        <button onclick="guardarMeta()" class="bg-gray-800 text-white px-6 py-2 rounded-lg font-bold">Guardar</button>
+                        <button id="btnGuardarMeta" onclick="guardarMeta()" class="bg-gray-800 text-white px-6 py-2 rounded-lg font-bold">Guardar</button>
                     </div>
                 </div>
             </div>
@@ -1345,7 +1345,7 @@
                                 <input type="email" id="cfgEmpresaEmail" class="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm" placeholder="facturacion@empresa.com.py">
                             </div>
                         </div>
-                        <button onclick="guardarConfigEmpresa()" class="bg-gray-800 text-white px-6 py-2.5 rounded-lg text-sm font-bold hover:bg-gray-900 inline-flex items-center gap-1.5">
+                        <button id="btnGuardarConfigEmpresa" onclick="guardarConfigEmpresa()" class="bg-gray-800 text-white px-6 py-2.5 rounded-lg text-sm font-bold hover:bg-gray-900 inline-flex items-center gap-1.5">
                             <i data-lucide="save" class="w-4 h-4"></i> Guardar Datos Fiscales
                         </button>
                     </div>
@@ -1440,7 +1440,7 @@
         </div>
         <div class="flex gap-2">
             <button class="px-4 py-2 text-sm font-bold text-gray-400 hover:text-white" onclick="descartarCambios()">Descartar</button>
-            <button class="bg-white text-gray-900 px-6 py-2 rounded-lg text-sm font-bold hover:bg-gray-100 inline-flex items-center gap-1.5" onclick="guardarTodosCambios()"><i data-lucide="save" class="w-4 h-4"></i> Guardar y Sincronizar</button>
+            <button id="btnGuardarSync" class="bg-white text-gray-900 px-6 py-2 rounded-lg text-sm font-bold hover:bg-gray-100 inline-flex items-center gap-1.5" onclick="guardarTodosCambios()"><i data-lucide="save" class="w-4 h-4"></i> Guardar y Sincronizar</button>
         </div>
     </div>
 
@@ -1641,7 +1641,7 @@
             </div>
             <div class="p-6 bg-gray-50 flex justify-end gap-3">
                 <button onclick="cerrarModalCliente()" class="px-4 py-2 text-gray-500 font-bold">Cancelar</button>
-                <button onclick="guardarClienteModal()" class="bg-gray-800 text-white px-6 py-2 rounded-lg font-bold">Guardar</button>
+                <button id="btnGuardarCliente" onclick="guardarClienteModal()" class="bg-gray-800 text-white px-6 py-2 rounded-lg font-bold">Guardar</button>
             </div>
         </div>
     </div>
@@ -1759,7 +1759,7 @@
                 </div>
                 <div class="flex gap-3">
                     <button onclick="cerrarModalEditarPedido()" class="px-4 py-2 text-gray-500 font-bold">Cancelar</button>
-                    <button onclick="guardarEdicionPedido()" class="bg-gray-800 text-white px-6 py-2 rounded-lg font-bold">Guardar Cambios</button>
+                    <button id="btnGuardarEdicionPedido" onclick="guardarEdicionPedido()" class="bg-gray-800 text-white px-6 py-2 rounded-lg font-bold">Guardar Cambios</button>
                 </div>
             </div>
         </div>
@@ -1904,6 +1904,7 @@
     <!-- Core y Utils (Fase 1 refactor) -->
     <script src="js/core/state.js"></script>
     <script src="js/utils/sanitizer.js"></script>
+    <script src="js/utils/helpers.js"></script>
     <script src="js/utils/formatters.js"></script>
     <script src="js/utils/printer.js"></script>
     <script src="js/utils/pdf-generator.js"></script>

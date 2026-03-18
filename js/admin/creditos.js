@@ -697,35 +697,47 @@ async function guardarPromocion() {
     const productoId = document.getElementById('formPromoProducto').value;
     if (!nombre || !productoId) { mostrarToast('Completa nombre y producto', 'error'); return; }
 
-    const promo = {
-        id,
-        tipo: document.getElementById('formPromoTipo').value,
-        nombre,
-        descripcion: document.getElementById('formPromoDescripcion').value.trim(),
-        productoId,
-        presentacion: document.getElementById('formPromoPresentacion').value,
-        cantidadMinima: parseInt(document.getElementById('formPromoCantidad').value) || 1,
-        precioEspecial: parseInt(document.getElementById('formPromoPrecio').value) || 0,
-        productoGratisId: document.getElementById('formPromoProductoGratis')?.value || null,
-        cantidadGratis: parseInt(document.getElementById('formPromoCantidadGratis').value) || 1,
-        activa: document.getElementById('formPromoActiva').checked,
-        fechaInicio: document.getElementById('formPromoFechaInicio').value,
-        fechaFin: document.getElementById('formPromoFechaFin').value
-    };
+    const btn = document.getElementById('btnGuardarPromo');
+    if (btn && btn.disabled) return;
+    const textoOriginal = btn ? btn.innerHTML : '';
+    if (btn) { btn.disabled = true; btn.innerHTML = 'Guardando...'; }
 
-    const promos = await cargarPromocionesDesdeStorage();
-    const idx = promos.findIndex(p => p.id === id);
-    if (idx >= 0) promos[idx] = promo;
-    else promos.push(promo);
-    await guardarPromocionesEnStorage(promos);
+    try {
+        const promo = {
+            id,
+            tipo: document.getElementById('formPromoTipo').value,
+            nombre,
+            descripcion: document.getElementById('formPromoDescripcion').value.trim(),
+            productoId,
+            presentacion: document.getElementById('formPromoPresentacion').value,
+            cantidadMinima: parseInt(document.getElementById('formPromoCantidad').value) || 1,
+            precioEspecial: parseInt(document.getElementById('formPromoPrecio').value) || 0,
+            productoGratisId: document.getElementById('formPromoProductoGratis')?.value || null,
+            cantidadGratis: parseInt(document.getElementById('formPromoCantidadGratis').value) || 1,
+            activa: document.getElementById('formPromoActiva').checked,
+            fechaInicio: document.getElementById('formPromoFechaInicio').value,
+            fechaFin: document.getElementById('formPromoFechaFin').value
+        };
 
-    if (typeof db !== 'undefined') {
-        db.collection('promociones').doc(id).set(promo).catch(e => console.error(e));
+        const promos = await cargarPromocionesDesdeStorage();
+        const idx = promos.findIndex(p => p.id === id);
+        if (idx >= 0) promos[idx] = promo;
+        else promos.push(promo);
+        await guardarPromocionesEnStorage(promos);
+
+        if (typeof db !== 'undefined') {
+            db.collection('promociones').doc(id).set(promo).catch(e => console.error(e));
+        }
+
+        cerrarModalPromocion();
+        cargarPromociones();
+        mostrarToast('Promocion guardada', 'success');
+    } catch (err) {
+        console.error('[Promos] Error:', err);
+        mostrarToast('Error al guardar promocion', 'error');
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = textoOriginal; }
     }
-
-    cerrarModalPromocion();
-    cargarPromociones();
-    mostrarToast('Promocion guardada', 'success');
 }
 
 async function togglePromocion(promoId) {

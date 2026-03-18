@@ -366,35 +366,43 @@ function exportarResumenMensualPDF() {
 async function guardarResumenMensual() {
     const mesStr = document.getElementById('dashMesSelect')?.value;
     if (!mesStr) return;
-    const [anio, mes] = mesStr.split('-').map(Number);
-    const inicio = new Date(anio, mes - 1, 1);
-    const fin = new Date(anio, mes, 0, 23, 59, 59);
 
-    const pedidosMes = todosLosPedidos.filter(p => {
-        const f = new Date(p.fecha);
-        return f >= inicio && f <= fin;
-    });
+    const btn = document.getElementById('btnGuardarResumen');
+    if (btn && btn.disabled) return;
+    const textoOriginal = btn ? btn.innerHTML : '';
+    if (btn) { btn.disabled = true; btn.innerHTML = 'Guardando...'; }
 
-    const resumen = {
-        mes: mesStr,
-        fechaGeneracion: new Date().toISOString(),
-        totalVentas: pedidosMes.reduce((s, p) => s + (p.total || 0), 0),
-        totalPedidos: pedidosMes.length,
-        contado: pedidosMes.filter(p => (p.tipoPago||'contado') === 'contado').reduce((s,p) => s + (p.total||0), 0),
-        credito: pedidosMes.filter(p => p.tipoPago === 'credito').reduce((s,p) => s + (p.total||0), 0),
-        clientesActivos: new Set(pedidosMes.map(p => p.cliente?.id)).size,
-        entregados: pedidosMes.filter(p => p.estado === 'entregado').length
-    };
+    try {
+        const [anio, mes] = mesStr.split('-').map(Number);
+        const inicio = new Date(anio, mes - 1, 1);
+        const fin = new Date(anio, mes, 0, 23, 59, 59);
 
-    if (typeof db !== 'undefined') {
-        try {
+        const pedidosMes = todosLosPedidos.filter(p => {
+            const f = new Date(p.fecha);
+            return f >= inicio && f <= fin;
+        });
+
+        const resumen = {
+            mes: mesStr,
+            fechaGeneracion: new Date().toISOString(),
+            totalVentas: pedidosMes.reduce((s, p) => s + (p.total || 0), 0),
+            totalPedidos: pedidosMes.length,
+            contado: pedidosMes.filter(p => (p.tipoPago||'contado') === 'contado').reduce((s,p) => s + (p.total||0), 0),
+            credito: pedidosMes.filter(p => p.tipoPago === 'credito').reduce((s,p) => s + (p.total||0), 0),
+            clientesActivos: new Set(pedidosMes.map(p => p.cliente?.id)).size,
+            entregados: pedidosMes.filter(p => p.estado === 'entregado').length
+        };
+
+        if (typeof db !== 'undefined') {
             await db.collection('reportes_mensuales').doc(mesStr).set(resumen);
             mostrarToast(`Resumen de ${mesStr} guardado`, 'success');
-        } catch(e) {
-            mostrarToast('Error guardando resumen: ' + e.message, 'error');
+        } else {
+            mostrarToast('Error: cliente de base de datos no disponible', 'error');
         }
-    } else {
-        mostrarToast('Error: cliente de base de datos no disponible', 'error');
+    } catch(e) {
+        mostrarToast('Error guardando resumen: ' + e.message, 'error');
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = textoOriginal; }
     }
 }
 
@@ -504,14 +512,27 @@ async function guardarMeta() {
         activa: document.getElementById('formMetaActiva').value === 'true'
     };
     if (!meta.monto) { mostrarToast('Monto de meta es obligatorio', 'error'); return; }
-    let metas = (await HDVStorage.getItem('hdv_metas')) || [];
-    const idx = metas.findIndex(m => m.id === id);
-    if (idx >= 0) metas[idx] = meta; else metas.push(meta);
-    await HDVStorage.setItem('hdv_metas', metas);
-    if (typeof guardarMetas === 'function') guardarMetas(metas).catch(e => console.error(e));
-    cerrarModalMeta();
-    cargarMetas();
-    mostrarToast('Meta guardada', 'success');
+
+    const btn = document.getElementById('btnGuardarMeta');
+    if (btn && btn.disabled) return;
+    const textoOriginal = btn ? btn.innerHTML : '';
+    if (btn) { btn.disabled = true; btn.innerHTML = 'Guardando...'; }
+
+    try {
+        let metas = (await HDVStorage.getItem('hdv_metas')) || [];
+        const idx = metas.findIndex(m => m.id === id);
+        if (idx >= 0) metas[idx] = meta; else metas.push(meta);
+        await HDVStorage.setItem('hdv_metas', metas);
+        if (typeof guardarMetas === 'function') guardarMetas(metas).catch(e => console.error(e));
+        cerrarModalMeta();
+        cargarMetas();
+        mostrarToast('Meta guardada', 'success');
+    } catch (err) {
+        console.error('[Metas] Error:', err);
+        mostrarToast('Error al guardar meta', 'error');
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = textoOriginal; }
+    }
 }
 
 async function eliminarMeta(id) {

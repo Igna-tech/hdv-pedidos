@@ -49,8 +49,8 @@ async function buscarFacturaDevolucion() {
         div.onclick = () => seleccionarFacturaNC(f.id);
         div.innerHTML = `
             <div>
-                <p class="text-sm font-bold text-gray-800">${f.cliente?.nombre || 'Sin cliente'}</p>
-                <p class="text-xs text-gray-500">${f.numFactura || f.id} ${ruc ? '| RUC: ' + ruc : ''} | ${new Date(f.fecha).toLocaleDateString('es-PY')}</p>
+                <p class="text-sm font-bold text-gray-800">${escapeHTML(f.cliente?.nombre || 'Sin cliente')}</p>
+                <p class="text-xs text-gray-500">${escapeHTML(f.numFactura || f.id)} ${ruc ? '| RUC: ' + escapeHTML(ruc) : ''} | ${new Date(f.fecha).toLocaleDateString('es-PY')}</p>
             </div>
             <div class="text-right">
                 <p class="text-sm font-bold text-gray-900">Gs. ${(f.total || 0).toLocaleString()}</p>
@@ -88,8 +88,8 @@ async function seleccionarFacturaNC(facturaId) {
     (factura.items || []).forEach((item, idx) => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
-            <td class="px-4 py-3 font-medium text-gray-800">${item.nombre}</td>
-            <td class="px-4 py-3 text-gray-500">${item.presentacion}</td>
+            <td class="px-4 py-3 font-medium text-gray-800">${escapeHTML(item.nombre)}</td>
+            <td class="px-4 py-3 text-gray-500">${escapeHTML(item.presentacion)}</td>
             <td class="px-4 py-3 text-center font-bold">${item.cantidad}</td>
             <td class="px-4 py-3 text-center text-gray-500">Gs. ${(item.precio || 0).toLocaleString()}</td>
             <td class="px-4 py-3 text-center">

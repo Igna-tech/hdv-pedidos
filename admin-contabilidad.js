@@ -98,9 +98,9 @@ async function previsualizarCierre() {
         tr.className = esNC ? 'bg-red-50/50' : '';
         tr.innerHTML = `
             <td class="px-4 py-2.5 text-xs">${new Date(r.fecha).toLocaleDateString('es-PY')}</td>
-            <td class="px-4 py-2.5 text-xs font-mono">${ruc || '-'}</td>
-            <td class="px-4 py-2.5 text-sm font-medium">${r.cliente?.nombre || '-'}</td>
-            <td class="px-4 py-2.5 text-xs font-mono">${r.numFactura || r.id}</td>
+            <td class="px-4 py-2.5 text-xs font-mono">${escapeHTML(ruc) || '-'}</td>
+            <td class="px-4 py-2.5 text-sm font-medium">${escapeHTML(r.cliente?.nombre) || '-'}</td>
+            <td class="px-4 py-2.5 text-xs font-mono">${escapeHTML(r.numFactura || r.id)}</td>
             <td class="px-4 py-2.5">
                 <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${esNC ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}">${tipo}</span>
             </td>

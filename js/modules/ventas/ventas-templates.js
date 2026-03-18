@@ -28,12 +28,12 @@ function tplVentaCard(v, zona, telefono, esFactura) {
 
     const itemsHTML = (v.items || []).map(i => `
         <div class="flex justify-between text-sm py-1">
-            <span>${i.nombre} <span class="text-gray-400">(${i.presentacion} x ${i.cantidad})</span></span>
+            <span>${escapeHTML(i.nombre)} <span class="text-gray-400">(${escapeHTML(i.presentacion)} x ${i.cantidad})</span></span>
             <strong>Gs. ${(i.subtotal || 0).toLocaleString()}</strong>
         </div>`).join('');
 
     const notasHTML = v.notas
-        ? `<div class="text-sm text-gray-500 italic mb-3 flex items-start gap-1.5"><i data-lucide="message-square" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i> ${v.notas}</div>`
+        ? `<div class="text-sm text-gray-500 italic mb-3 flex items-start gap-1.5"><i data-lucide="message-square" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i> ${escapeHTML(v.notas)}</div>`
         : '';
 
     let botonesExtra = '';
@@ -49,9 +49,9 @@ function tplVentaCard(v, zona, telefono, esFactura) {
         <div class="p-6 hover:bg-gray-50 transition-colors ${borderColor}">
             <div class="flex justify-between items-start mb-3">
                 <div>
-                    <h3 class="text-lg font-bold text-gray-800">${v.cliente?.nombre || 'Sin cliente'}</h3>
+                    <h3 class="text-lg font-bold text-gray-800">${escapeHTML(v.cliente?.nombre || 'Sin cliente')}</h3>
                     <div class="text-sm text-gray-500 mt-1 flex items-center gap-1">
-                        <i data-lucide="map-pin" class="w-3 h-3"></i> ${zona}
+                        <i data-lucide="map-pin" class="w-3 h-3"></i> ${escapeHTML(zona)}
                         <span class="mx-1">·</span>
                         <i data-lucide="clock" class="w-3 h-3"></i> ${new Date(v.fecha).toLocaleString('es-PY')}
                     </div>
@@ -90,15 +90,15 @@ function tplTicketThermal(pedido, clienteInfo) {
         ${esFactura && pedido.numFactura ? `<p style="text-align:center; font-size:11px; font-weight:bold; margin:0 0 6px;">${pedido.numFactura}</p>` : ''}
         <div style="font-size:10px; margin-bottom:6px;">
             <p>Fecha: ${tplFormatearFechaAdmin(pedido.fecha)}</p>
-            <p>Cliente: ${pedido.cliente?.nombre || 'N/A'}</p>
-            ${ruc ? `<p>RUC: ${ruc}</p>` : ''}
+            <p>Cliente: ${escapeHTML(pedido.cliente?.nombre || 'N/A')}</p>
+            ${ruc ? `<p>RUC: ${escapeHTML(ruc)}</p>` : ''}
             <p>Pago: ${pedido.tipoPago === 'credito' ? 'Credito' : 'Contado'}</p>
         </div>
         <hr style="border:none; border-top:1px dashed #000; margin:4px 0;">`;
 
     (pedido.items || []).forEach(i => {
         html += `<div style="display:flex; justify-content:space-between; font-size:10px; margin:2px 0;">
-            <span style="flex:1;">${i.cantidad}x ${i.nombre} ${i.presentacion}</span>
+            <span style="flex:1;">${i.cantidad}x ${escapeHTML(i.nombre)} ${escapeHTML(i.presentacion)}</span>
             <span style="white-space:nowrap;">Gs.${(i.subtotal || 0).toLocaleString()}</span>
         </div>`;
     });
@@ -149,7 +149,7 @@ function tplDocA4(pedido, clienteInfo) {
     (pedido.items || []).forEach((i, idx) => {
         itemsHTML += `<tr style="border-bottom:1px solid #e5e7eb;">
             <td style="padding:8px 12px; font-size:12px;">${idx + 1}</td>
-            <td style="padding:8px 12px; font-size:12px;">${i.nombre} - ${i.presentacion}</td>
+            <td style="padding:8px 12px; font-size:12px;">${escapeHTML(i.nombre)} - ${escapeHTML(i.presentacion)}</td>
             <td style="padding:8px 12px; font-size:12px; text-align:center;">${i.cantidad}</td>
             <td style="padding:8px 12px; font-size:12px; text-align:right;">Gs. ${(i.precio || 0).toLocaleString()}</td>
             <td style="padding:8px 12px; font-size:12px; text-align:right; font-weight:bold;">Gs. ${(i.subtotal || 0).toLocaleString()}</td>
@@ -170,9 +170,9 @@ function tplDocA4(pedido, clienteInfo) {
         </div>
         <div style="display:flex; justify-content:space-between; margin-bottom:20px; font-size:12px;">
             <div>
-                <p style="margin:2px 0;"><strong>Cliente:</strong> ${pedido.cliente?.nombre || 'N/A'}</p>
-                ${ruc ? `<p style="margin:2px 0;"><strong>RUC:</strong> ${ruc}</p>` : ''}
-                <p style="margin:2px 0;"><strong>Direccion:</strong> ${clienteInfo?.direccion || clienteInfo?.zona || ''}</p>
+                <p style="margin:2px 0;"><strong>Cliente:</strong> ${escapeHTML(pedido.cliente?.nombre || 'N/A')}</p>
+                ${ruc ? `<p style="margin:2px 0;"><strong>RUC:</strong> ${escapeHTML(ruc)}</p>` : ''}
+                <p style="margin:2px 0;"><strong>Direccion:</strong> ${escapeHTML(clienteInfo?.direccion || clienteInfo?.zona || '')}</p>
             </div>
             <div style="text-align:right;">
                 <p style="margin:2px 0;"><strong>Fecha:</strong> ${tplFormatearFechaAdmin(pedido.fecha)}</p>
@@ -211,7 +211,7 @@ function tplDocA4(pedido, clienteInfo) {
                 </table>
             </div>
         ` : ''}
-        ${pedido.notas ? `<p style="font-size:11px; color:#6b7280; border-top:1px solid #e5e7eb; padding-top:8px;">Notas: ${pedido.notas}</p>` : ''}
+        ${pedido.notas ? `<p style="font-size:11px; color:#6b7280; border-top:1px solid #e5e7eb; padding-top:8px;">Notas: ${escapeHTML(pedido.notas)}</p>` : ''}
         ${esFactura && pedido.cdc ? `
             <div style="margin-top:20px; padding-top:12px; border-top:1px solid #e5e7eb; display:flex; align-items:center; gap:16px;">
                 <div style="width:80px; height:80px; border:2px solid #000; display:flex; align-items:center; justify-content:center; font-size:10px; text-align:center; flex-shrink:0;">QR<br>SIFEN</div>
@@ -261,8 +261,8 @@ function tplXMLSifenModal(result) {
                 <p class="font-mono text-lg font-bold text-gray-900 tracking-wider break-all leading-relaxed">${result.cdc || 'N/A'}</p>
                 <div class="flex flex-wrap gap-x-6 gap-y-1 mt-3 text-sm text-gray-600">
                     <span><strong>Factura:</strong> ${result.numFactura || 'N/A'}</span>
-                    <span><strong>Emisor:</strong> ${result.empresa || ''}</span>
-                    <span><strong>Receptor:</strong> ${result.cliente || ''}</span>
+                    <span><strong>Emisor:</strong> ${escapeHTML(result.empresa || '')}</span>
+                    <span><strong>Receptor:</strong> ${escapeHTML(result.cliente || '')}</span>
                     <span><strong>Total:</strong> Gs. ${(result.total || 0).toLocaleString()}</span>
                     <span><strong>Fecha:</strong> ${result.fechaEmision || ''}</span>
                 </div>
@@ -341,7 +341,7 @@ function tplKuDEModal(pedidoId, numFactura, cdc, clienteNombre, total, qrUrl) {
                     <p class="font-mono text-sm font-bold text-gray-800 break-all leading-relaxed bg-gray-50 p-3 rounded-lg">${cdc}</p>
                 </div>
                 <div class="flex justify-between text-sm">
-                    <div><span class="text-gray-500">Cliente:</span> <strong>${clienteNombre}</strong></div>
+                    <div><span class="text-gray-500">Cliente:</span> <strong>${escapeHTML(clienteNombre)}</strong></div>
                     <div><span class="text-gray-500">Total:</span> <strong>Gs. ${(total || 0).toLocaleString()}</strong></div>
                 </div>
                 ${qrUrl ? `
@@ -396,7 +396,7 @@ function tplKuDEA4(pedido, clienteInfo, empresa) {
         const col10 = (tipo === '10' || tipo === 'iva10' || (!tipo || tipo === '10')) ? (it.subtotal || 0) : 0;
         itemsHTML += `<tr>
             <td style="border:1px solid #000; padding:3px 5px; text-align:center; font-size:10px;">${it.productoId || (idx + 1)}</td>
-            <td style="border:1px solid #000; padding:3px 5px; font-size:10px;">${it.nombre || ''} ${it.presentacion || ''}</td>
+            <td style="border:1px solid #000; padding:3px 5px; font-size:10px;">${escapeHTML(it.nombre || '')} ${escapeHTML(it.presentacion || '')}</td>
             <td style="border:1px solid #000; padding:3px 5px; text-align:center; font-size:10px;">UNI</td>
             <td style="border:1px solid #000; padding:3px 5px; text-align:center; font-size:10px;">${it.cantidad || 0}</td>
             <td style="border:1px solid #000; padding:3px 5px; text-align:right; font-size:10px;">${(it.precio || 0).toLocaleString()}</td>
@@ -420,13 +420,13 @@ function tplKuDEA4(pedido, clienteInfo, empresa) {
         <table style="width:100%; border-collapse:collapse; border:2px solid #000; margin-bottom:0;">
             <tr>
                 <td style="width:55%; border-right:2px solid #000; padding:10px 12px; vertical-align:top;">
-                    <div style="font-size:18px; font-weight:900; margin-bottom:4px;">${empresa.razonSocial}</div>
-                    ${empresa.nombreFantasia ? `<div style="font-size:12px; font-weight:bold; margin-bottom:6px;">${empresa.nombreFantasia}</div>` : ''}
+                    <div style="font-size:18px; font-weight:900; margin-bottom:4px;">${escapeHTML(empresa.razonSocial)}</div>
+                    ${empresa.nombreFantasia ? `<div style="font-size:12px; font-weight:bold; margin-bottom:6px;">${escapeHTML(empresa.nombreFantasia)}</div>` : ''}
                     <div style="font-size:10px; line-height:1.6;">
-                        ${empresa.direccion ? `<div>${empresa.direccion}</div>` : ''}
-                        ${empresa.telefono ? `<div>Tel: ${empresa.telefono}</div>` : ''}
-                        ${empresa.email ? `<div>Email: ${empresa.email}</div>` : ''}
-                        ${empresa.actividad ? `<div>Act. Econ.: ${empresa.actividad}</div>` : ''}
+                        ${empresa.direccion ? `<div>${escapeHTML(empresa.direccion)}</div>` : ''}
+                        ${empresa.telefono ? `<div>Tel: ${escapeHTML(empresa.telefono)}</div>` : ''}
+                        ${empresa.email ? `<div>Email: ${escapeHTML(empresa.email)}</div>` : ''}
+                        ${empresa.actividad ? `<div>Act. Econ.: ${escapeHTML(empresa.actividad)}</div>` : ''}
                     </div>
                 </td>
                 <td style="width:45%; padding:10px 12px; vertical-align:top;">
@@ -457,15 +457,15 @@ function tplKuDEA4(pedido, clienteInfo, empresa) {
             </tr>
             <tr>
                 <td style="padding:4px 10px; border-bottom:1px solid #000; border-right:1px solid #000; font-size:10px;">
-                    <strong>${tipoDoc}:</strong> ${rucCliente}
+                    <strong>${escapeHTML(tipoDoc)}:</strong> ${escapeHTML(rucCliente)}
                 </td>
                 <td style="padding:4px 10px; border-bottom:1px solid #000; font-size:10px;">
-                    <strong>Nombre / Raz&oacute;n Social:</strong> ${razonCliente}
+                    <strong>Nombre / Raz&oacute;n Social:</strong> ${escapeHTML(razonCliente)}
                 </td>
             </tr>
             <tr>
                 <td style="padding:4px 10px; border-right:1px solid #000; font-size:10px;">
-                    <strong>Direcci&oacute;n:</strong> ${dirCliente}
+                    <strong>Direcci&oacute;n:</strong> ${escapeHTML(dirCliente)}
                 </td>
                 <td style="padding:4px 10px; font-size:10px;">
                     <strong>Moneda:</strong> Guaran&iacute; (PYG)

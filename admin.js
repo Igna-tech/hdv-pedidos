@@ -538,7 +538,7 @@ function mostrarToast(mensaje, tipo = 'info', duracion = 3500) {
     const iconos = { success: '✓', error: '✕', info: 'ℹ', warning: '⚠' };
     const toast = document.createElement('div');
     toast.className = `toast toast-${tipo}`;
-    toast.innerHTML = `<span style="font-size:18px">${iconos[tipo] || ''}</span><span>${mensaje}</span>`;
+    toast.innerHTML = `<span style="font-size:18px">${iconos[tipo] || ''}</span><span>${escapeHTML(mensaje)}</span>`;
     container.appendChild(toast);
     requestAnimationFrame(() => toast.classList.add('show'));
     setTimeout(() => {
@@ -560,7 +560,7 @@ function mostrarConfirmModal(mensaje, opciones = {}) {
                     <div class="w-14 h-14 mx-auto mb-3 rounded-full ${opciones.destructivo ? 'bg-red-100' : 'bg-blue-100'} flex items-center justify-center">
                         <i data-lucide="${opciones.destructivo ? 'alert-triangle' : 'help-circle'}" class="w-6 h-6 ${opciones.destructivo ? 'text-red-500' : 'text-blue-500'}"></i>
                     </div>
-                    <p class="text-gray-800 font-semibold text-sm whitespace-pre-line leading-relaxed">${mensaje}</p>
+                    <p class="text-gray-800 font-semibold text-sm whitespace-pre-line leading-relaxed">${escapeHTML(mensaje)}</p>
                 </div>
                 <div class="flex gap-3">
                     <button class="confirm-cancel-btn flex-1 bg-gray-100 text-gray-700 py-3 rounded-xl font-bold text-sm hover:bg-gray-200 transition-colors">Cancelar</button>
@@ -591,12 +591,12 @@ function mostrarInputModal(opciones = {}) {
             const labelHTML = `<label class="block text-sm font-semibold text-gray-300 mb-1.5">${campo.label}${campo.requerido ? ' <span class="text-red-400">*</span>' : ''}</label>`;
             if (campo.tipo === 'select') {
                 const optsHTML = (campo.opciones || []).map(o =>
-                    `<option value="${o.value}" ${o.value === campo.valor ? 'selected' : ''}>${o.label}</option>`
+                    `<option value="${escapeHTML(o.value)}" ${o.value === campo.valor ? 'selected' : ''}>${escapeHTML(o.label)}</option>`
                 ).join('');
                 camposHTML += `<div class="mb-3">${labelHTML}<select id="modal_field_${campo.key}" class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" ${req}><option value="">-- Seleccionar --</option>${optsHTML}</select></div>`;
             } else if (campo.tipo === 'select-search') {
                 const optsHTML = (campo.opciones || []).map(o =>
-                    `<option value="${o.value}" ${o.value === campo.valor ? 'selected' : ''}>${o.label}</option>`
+                    `<option value="${escapeHTML(o.value)}" ${o.value === campo.valor ? 'selected' : ''}>${escapeHTML(o.label)}</option>`
                 ).join('');
                 camposHTML += `<div class="mb-3">${labelHTML}
                     <input type="text" id="modal_search_${campo.key}" placeholder="Buscar..." class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-3 py-2 text-sm mb-1 focus:ring-2 focus:ring-blue-500">
@@ -643,7 +643,7 @@ function mostrarInputModal(opciones = {}) {
                 searchInput.addEventListener('input', () => {
                     const q = searchInput.value.toLowerCase();
                     selectEl.innerHTML = allOpts.filter(o => o.label.toLowerCase().includes(q))
-                        .map(o => `<option value="${o.value}">${o.label}</option>`).join('');
+                        .map(o => `<option value="${escapeHTML(o.value)}">${escapeHTML(o.label)}</option>`).join('');
                 });
                 searchInput.focus();
             }
@@ -841,7 +841,7 @@ function ejecutarBusquedaGlobal() {
         prods.forEach(p => {
             html += `<button onclick="cerrarBusquedaGlobal({target:{currentTarget:{}}});cambiarSeccion('productos');setTimeout(()=>{document.getElementById('buscarProducto').value='${p.nombre.replace(/'/g, "\\'")}';filtrarProductos()},100)" class="w-full text-left px-4 py-3 hover:bg-gray-100 rounded-lg flex items-center gap-3">
                 <i data-lucide="package" class="w-5 h-5 text-gray-400"></i>
-                <div><p class="font-medium text-gray-800 text-sm">${p.nombre}</p><p class="text-xs text-gray-400">${p.id} - ${p.categoria}</p></div>
+                <div><p class="font-medium text-gray-800 text-sm">${escapeHTML(p.nombre)}</p><p class="text-xs text-gray-400">${escapeHTML(p.id)} - ${escapeHTML(p.categoria)}</p></div>
             </button>`;
         });
     }
@@ -853,7 +853,7 @@ function ejecutarBusquedaGlobal() {
         clis.forEach(c => {
             html += `<button onclick="cerrarBusquedaGlobal({target:{currentTarget:{}}});cambiarSeccion('clientes');setTimeout(()=>abrirPerfilCliente('${c.id}'),200)" class="w-full text-left px-4 py-3 hover:bg-gray-100 rounded-lg flex items-center gap-3">
                 <i data-lucide="user" class="w-5 h-5 text-gray-400"></i>
-                <div><p class="font-medium text-gray-800 text-sm">${c.razon_social || c.nombre}</p><p class="text-xs text-gray-400">${c.zona || ''} - ${c.telefono || ''}</p></div>
+                <div><p class="font-medium text-gray-800 text-sm">${escapeHTML(c.razon_social || c.nombre)}</p><p class="text-xs text-gray-400">${escapeHTML(c.zona || '')} - ${escapeHTML(c.telefono || '')}</p></div>
             </button>`;
         });
     }
@@ -865,7 +865,7 @@ function ejecutarBusquedaGlobal() {
         peds.forEach(p => {
             html += `<button onclick="cerrarBusquedaGlobal({target:{currentTarget:{}}});cambiarSeccion('pedidos');setTimeout(()=>editarPedido('${p.id}'),200)" class="w-full text-left px-4 py-3 hover:bg-gray-100 rounded-lg flex items-center gap-3">
                 <i data-lucide="clipboard-list" class="w-5 h-5 text-gray-400"></i>
-                <div><p class="font-medium text-gray-800 text-sm">${p.cliente?.nombre || 'N/A'}</p><p class="text-xs text-gray-400">${p.id} - Gs. ${(p.total || 0).toLocaleString()}</p></div>
+                <div><p class="font-medium text-gray-800 text-sm">${escapeHTML(p.cliente?.nombre) || 'N/A'}</p><p class="text-xs text-gray-400">${escapeHTML(p.id)} - Gs. ${(p.total || 0).toLocaleString()}</p></div>
             </button>`;
         });
     }

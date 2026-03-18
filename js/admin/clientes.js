@@ -35,7 +35,7 @@ function poblarFiltroZonas() {
     if (!sel) return;
     const zonas = [...new Set(productosData.clientes.map(c => c.zona).filter(Boolean))].sort();
     sel.innerHTML = '<option value="">Todas las zonas</option>';
-    zonas.forEach(z => { sel.innerHTML += `<option value="${z}">${z}</option>`; });
+    zonas.forEach(z => { sel.innerHTML += `<option value="${escapeHTML(z)}">${escapeHTML(z)}</option>`; });
 }
 
 function ordenarClientes(campo) {
@@ -75,12 +75,12 @@ function mostrarClientesGestion() {
         const tr = document.createElement('tr');
         tr.className = `hover:bg-gray-50 cursor-pointer ${oculto ? 'opacity-40' : ''}`;
         tr.innerHTML = `
-            <td class="px-4 py-3" onclick="abrirPerfilCliente('${c.id}')">
-                <p class="font-medium text-gray-800">${nombre}</p>
-                <p class="text-xs text-gray-500">${c.ruc || ''} ${c.encargado ? '| ' + c.encargado : ''}</p>
+            <td class="px-4 py-3" onclick="abrirPerfilCliente('${escapeHTML(c.id)}')">
+                <p class="font-medium text-gray-800">${escapeHTML(nombre)}</p>
+                <p class="text-xs text-gray-500">${escapeHTML(c.ruc || '')} ${c.encargado ? '| ' + escapeHTML(c.encargado) : ''}</p>
             </td>
-            <td class="px-4 py-3 text-sm text-gray-500">${c.zona || c.direccion || '-'}</td>
-            <td class="px-4 py-3 text-sm text-gray-500">${tel || '-'}</td>
+            <td class="px-4 py-3 text-sm text-gray-500">${escapeHTML(c.zona || c.direccion || '-')}</td>
+            <td class="px-4 py-3 text-sm text-gray-500">${escapeHTML(tel || '-')}</td>
             <td class="px-4 py-3">${precios > 0 ? `<span class="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-bold">${precios}</span>` : '<span class="text-xs text-gray-300">0</span>'}</td>`;
         tbody.appendChild(tr);
     });
@@ -122,8 +122,8 @@ async function mostrarClientesPendientes() {
                 ${pendientes.map(c => `
                     <div class="bg-white border border-yellow-100 rounded-lg p-3 flex justify-between items-center">
                         <div>
-                            <p class="font-bold text-gray-800 text-sm">${c.nombre}</p>
-                            <p class="text-xs text-gray-500">Tel: ${c.telefono || '-'} | Zona: ${c.zona || '-'}${c.direccion ? ' | Dir: ' + c.direccion : ''}</p>
+                            <p class="font-bold text-gray-800 text-sm">${escapeHTML(c.nombre)}</p>
+                            <p class="text-xs text-gray-500">Tel: ${escapeHTML(c.telefono || '-')} | Zona: ${escapeHTML(c.zona || '-')}${c.direccion ? ' | Dir: ' + escapeHTML(c.direccion) : ''}</p>
                             <p class="text-xs text-gray-400">${new Date(c.fechaSolicitud).toLocaleDateString('es-PY')}</p>
                         </div>
                         <div class="flex gap-2">
@@ -355,11 +355,11 @@ function renderizarPerfilPrecios() {
                 const pres = prod?.presentaciones.find(p => p.tamano === pe.tamano);
                 const precioBase = pres?.precio_base || 0;
                 html += `<tr class="hover:bg-gray-50">
-                    <td class="px-4 py-2 font-medium">${prod?.nombre || prodId}</td>
-                    <td class="px-4 py-2 text-gray-500">${pe.tamano}</td>
+                    <td class="px-4 py-2 font-medium">${escapeHTML(prod?.nombre || prodId)}</td>
+                    <td class="px-4 py-2 text-gray-500">${escapeHTML(pe.tamano)}</td>
                     <td class="px-4 py-2 text-gray-400">Gs. ${precioBase.toLocaleString()}</td>
                     <td class="px-4 py-2 font-bold text-blue-700">Gs. ${(pe.precio || 0).toLocaleString()}</td>
-                    <td class="px-4 py-2 text-center"><button onclick="eliminarPrecioEspecial('${prodId}','${pe.tamano}')" class="text-red-500 text-xs font-bold">x</button></td>
+                    <td class="px-4 py-2 text-center"><button onclick="eliminarPrecioEspecial('${escapeHTML(prodId)}','${escapeHTML(pe.tamano)}')" class="text-red-500 text-xs font-bold">x</button></td>
                 </tr>`;
             });
         });
@@ -449,7 +449,7 @@ async function renderizarPerfilHistorial() {
     }
 
     container.innerHTML = '<div class="space-y-3">' + pedidosCliente.map(p => {
-        const items = (p.items || []).map(i => `${i.nombre} x${i.cantidad}`).join(', ');
+        const items = (p.items || []).map(i => `${escapeHTML(i.nombre)} x${i.cantidad}`).join(', ');
         const estadoColor = p.estado === 'entregado' ? 'bg-green-100 text-green-700' :
                             p.estado === 'pagado' ? 'bg-blue-100 text-blue-700' : 'bg-yellow-100 text-yellow-700';
         return `<div class="bg-gray-50 rounded-lg p-3">
@@ -628,15 +628,15 @@ async function cargarClientesInactivos() {
             <div class="flex justify-between items-start">
                 <div class="flex-1">
                     <div class="flex items-center gap-2 mb-1">
-                        <p class="font-bold text-gray-800">${nombre}</p>
+                        <p class="font-bold text-gray-800">${escapeHTML(nombre)}</p>
                         <span class="text-xs px-2 py-0.5 rounded-full font-bold ${badgeColor}">${badgeText}</span>
                     </div>
-                    <p class="text-sm text-gray-500">Zona: ${zona} | ${a.cantidadPedidos} pedidos historicos</p>
+                    <p class="text-sm text-gray-500">Zona: ${escapeHTML(zona)} | ${a.cantidadPedidos} pedidos historicos</p>
                     <p class="text-xs text-gray-400 mt-1">Ultimo pedido: ${ultimaFecha} (hace ${a.diasInactivo} dias) | Total historico: Gs. ${a.totalHistorico.toLocaleString()}</p>
                     <p class="text-xs text-blue-600 mt-1">Promedio mensual estimado: Gs. ${a.promedioMensual.toLocaleString()}</p>
                 </div>
                 <div class="flex gap-2 ml-4">
-                    ${tel ? `<button onclick="enviarWhatsAppReactivacion('${tel}', '${nombre.replace(/'/g, '')}')" class="bg-green-50 text-green-700 px-3 py-2 rounded-lg text-xs font-bold hover:bg-green-100 inline-flex items-center gap-1"><i data-lucide="send" class="w-3 h-3"></i> WhatsApp</button>` : ''}
+                    ${tel ? `<button onclick="enviarWhatsAppReactivacion('${escapeHTML(tel)}', '${escapeHTML(nombre.replace(/'/g, ''))}')" class="bg-green-50 text-green-700 px-3 py-2 rounded-lg text-xs font-bold hover:bg-green-100 inline-flex items-center gap-1"><i data-lucide="send" class="w-3 h-3"></i> WhatsApp</button>` : ''}
                 </div>
             </div>
         </div>`;

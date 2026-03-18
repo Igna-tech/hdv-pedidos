@@ -93,8 +93,8 @@ async function cargarCreditos() {
         div.innerHTML = `
             <div class="flex justify-between items-start mb-2">
                 <div>
-                    <p class="font-bold text-gray-800 text-lg">${p.cliente?.nombre || 'N/A'}</p>
-                    <p class="text-sm text-gray-500">${new Date(p.fecha).toLocaleDateString('es-PY')} - Pedido #${p.id}</p>
+                    <p class="font-bold text-gray-800 text-lg">${escapeHTML(p.cliente?.nombre || 'N/A')}</p>
+                    <p class="text-sm text-gray-500">${new Date(p.fecha).toLocaleDateString('es-PY')} - Pedido #${escapeHTML(p.id)}</p>
                 </div>
                 <div class="text-right">
                     <span class="px-3 py-1 rounded-full text-xs font-bold ${esVencido ? 'bg-red-200 text-red-800' : 'bg-yellow-100 text-yellow-800'}">
@@ -136,8 +136,8 @@ async function cargarCreditos() {
         div.innerHTML = `
             <div class="flex justify-between items-start mb-2">
                 <div>
-                    <p class="font-bold text-gray-800 text-lg">${c.clienteNombre || 'N/A'}</p>
-                    <p class="text-sm text-gray-500">${new Date(c.fecha).toLocaleDateString('es-PY')} - Manual: ${c.descripcion || ''}</p>
+                    <p class="font-bold text-gray-800 text-lg">${escapeHTML(c.clienteNombre || 'N/A')}</p>
+                    <p class="text-sm text-gray-500">${new Date(c.fecha).toLocaleDateString('es-PY')} - Manual: ${escapeHTML(c.descripcion || '')}</p>
                 </div>
                 <div class="text-right">
                     <span class="px-2 py-1 rounded-full text-[10px] font-bold bg-purple-100 text-purple-700">MANUAL</span>
@@ -494,7 +494,7 @@ async function mostrarDeudaPorCliente() {
                 ${sorted.map(([nombre, d]) => {
                     const saldo = d.deuda - d.pagado;
                     return `<tr class="${saldo > 0 ? 'bg-red-50' : 'bg-green-50'}">
-                        <td class="px-4 py-3 font-bold">${nombre}</td>
+                        <td class="px-4 py-3 font-bold">${escapeHTML(nombre)}</td>
                         <td class="px-4 py-3 text-center">${d.creditos}</td>
                         <td class="px-4 py-3 text-center">Gs. ${d.deuda.toLocaleString()}</td>
                         <td class="px-4 py-3 text-center text-green-600 font-bold">Gs. ${d.pagado.toLocaleString()}</td>
@@ -623,11 +623,11 @@ async function abrirModalPromocion(promoId) {
     const selectGratis = document.getElementById('formPromoProductoGratis');
     if (selectProd) {
         selectProd.innerHTML = '<option value="">-- Seleccionar --</option>' +
-            productosData.productos.map(p => `<option value="${p.id}">${p.nombre}</option>`).join('');
+            productosData.productos.map(p => `<option value="${escapeHTML(p.id)}">${escapeHTML(p.nombre)}</option>`).join('');
     }
     if (selectGratis) {
         selectGratis.innerHTML = '<option value="">-- Ninguno --</option>' +
-            productosData.productos.map(p => `<option value="${p.id}">${p.nombre}</option>`).join('');
+            productosData.productos.map(p => `<option value="${escapeHTML(p.id)}">${escapeHTML(p.nombre)}</option>`).join('');
     }
 
     if (promoId) {
@@ -679,7 +679,7 @@ function actualizarPresentacionesPromo() {
         const prod = productosData.productos.find(p => p.id === prodId);
         if (prod) {
             prod.presentaciones.forEach(pres => {
-                select.innerHTML += `<option value="${pres.tamano}">${pres.tamano} - Gs.${pres.precio_base.toLocaleString()}</option>`;
+                select.innerHTML += `<option value="${escapeHTML(pres.tamano)}">${escapeHTML(pres.tamano)} - Gs.${pres.precio_base.toLocaleString()}</option>`;
             });
         }
     }

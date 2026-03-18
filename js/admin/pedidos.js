@@ -48,19 +48,19 @@ function mostrarPedidos(pedidos) {
         div.innerHTML = `
             <div class="flex justify-between items-start mb-3">
                 <div>
-                    <h3 class="text-lg font-bold text-gray-800">${p.cliente?.nombre || 'Sin cliente'}</h3>
-                    <div class="text-sm text-gray-500 mt-1 flex items-center gap-1"><i data-lucide="map-pin" class="w-3 h-3"></i> ${zona} <span class="mx-1">·</span> <i data-lucide="clock" class="w-3 h-3"></i> ${new Date(p.fecha).toLocaleString('es-PY')}</div>
+                    <h3 class="text-lg font-bold text-gray-800">${escapeHTML(p.cliente?.nombre || 'Sin cliente')}</h3>
+                    <div class="text-sm text-gray-500 mt-1 flex items-center gap-1"><i data-lucide="map-pin" class="w-3 h-3"></i> ${escapeHTML(zona)} <span class="mx-1">·</span> <i data-lucide="clock" class="w-3 h-3"></i> ${new Date(p.fecha).toLocaleString('es-PY')}</div>
                 </div>
                 <span class="px-3 py-1 rounded-full text-xs font-bold ${colorEstado}">${estado.toUpperCase()}</span>
             </div>
             <div class="mb-3 space-y-1">
                 ${(p.items || []).map(i => `
                 <div class="flex justify-between text-sm py-1">
-                    <span>${i.nombre} <span class="text-gray-400">(${i.presentacion} × ${i.cantidad})</span></span>
+                    <span>${escapeHTML(i.nombre)} <span class="text-gray-400">(${escapeHTML(i.presentacion)} × ${i.cantidad})</span></span>
                     <strong>Gs. ${(i.subtotal || 0).toLocaleString()}</strong>
                 </div>`).join('')}
             </div>
-            ${p.notas ? `<div class="text-sm text-gray-500 italic mb-3 flex items-start gap-1.5"><i data-lucide="message-square" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i> ${p.notas}</div>` : ''}
+            ${p.notas ? `<div class="text-sm text-gray-500 italic mb-3 flex items-start gap-1.5"><i data-lucide="message-square" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i> ${escapeHTML(p.notas)}</div>` : ''}
             <div class="flex justify-between items-center pt-3 border-t border-gray-100">
                 <span class="text-sm text-gray-500">${p.tipoPago || 'contado'}${p.descuento > 0 ? ` | ${p.descuento}% desc.` : ''}</span>
                 <span class="text-xl font-bold text-gray-900">Gs. ${(p.total || 0).toLocaleString()}</span>
@@ -172,7 +172,7 @@ async function generarReporte(tipo) {
 
         let html = '<table class="w-full text-sm"><thead class="bg-gray-50"><tr><th class="px-4 py-2 text-left">Cliente</th><th class="px-4 py-2 text-right">Pedidos</th><th class="px-4 py-2 text-right">Total</th></tr></thead><tbody>';
         Object.entries(porCliente).sort((a, b) => b[1].total - a[1].total).forEach(([nombre, data]) => {
-            html += `<tr class="border-b"><td class="px-4 py-3 font-medium">${nombre}</td><td class="px-4 py-3 text-right">${data.pedidos}</td><td class="px-4 py-3 text-right font-bold">Gs. ${data.total.toLocaleString()}</td></tr>`;
+            html += `<tr class="border-b"><td class="px-4 py-3 font-medium">${escapeHTML(nombre)}</td><td class="px-4 py-3 text-right">${data.pedidos}</td><td class="px-4 py-3 text-right font-bold">Gs. ${data.total.toLocaleString()}</td></tr>`;
         });
         html += '</tbody></table>';
         container.innerHTML = html;
@@ -189,7 +189,7 @@ async function generarReporte(tipo) {
 
         let html = '<table class="w-full text-sm"><thead class="bg-gray-50"><tr><th class="px-4 py-2 text-left">Producto</th><th class="px-4 py-2 text-right">Cantidad</th><th class="px-4 py-2 text-right">Total</th></tr></thead><tbody>';
         Object.entries(porProducto).sort((a, b) => b[1].total - a[1].total).forEach(([nombre, data]) => {
-            html += `<tr class="border-b"><td class="px-4 py-3 font-medium">${nombre}</td><td class="px-4 py-3 text-right">${data.cantidad}</td><td class="px-4 py-3 text-right font-bold">Gs. ${data.total.toLocaleString()}</td></tr>`;
+            html += `<tr class="border-b"><td class="px-4 py-3 font-medium">${escapeHTML(nombre)}</td><td class="px-4 py-3 text-right">${data.cantidad}</td><td class="px-4 py-3 text-right font-bold">Gs. ${data.total.toLocaleString()}</td></tr>`;
         });
         html += '</tbody></table>';
         container.innerHTML = html;
@@ -231,7 +231,7 @@ function renderizarItemsEdicion(items) {
                 <option value="">-- Producto --</option>
                 ${productosData.productos.map(p =>
                     p.presentaciones.map(pres =>
-                        `<option value="${p.id}|${pres.tamano}|${pres.precio_base}" ${p.nombre === item.nombre && pres.tamano === item.presentacion ? 'selected' : ''}>${p.nombre} - ${pres.tamano} (Gs.${pres.precio_base.toLocaleString()})</option>`
+                        `<option value="${escapeHTML(p.id)}|${escapeHTML(pres.tamano)}|${pres.precio_base}" ${p.nombre === item.nombre && pres.tamano === item.presentacion ? 'selected' : ''}>${escapeHTML(p.nombre)} - ${escapeHTML(pres.tamano)} (Gs.${pres.precio_base.toLocaleString()})</option>`
                     ).join('')
                 ).join('')}
             </select>
@@ -257,7 +257,7 @@ function agregarItemEditPedido() {
             <option value="">-- Seleccionar Producto --</option>
             ${productosData.productos.map(p =>
                 p.presentaciones.map(pres =>
-                    `<option value="${p.id}|${pres.tamano}|${pres.precio_base}">${p.nombre} - ${pres.tamano} (Gs.${pres.precio_base.toLocaleString()})</option>`
+                    `<option value="${escapeHTML(p.id)}|${escapeHTML(pres.tamano)}|${pres.precio_base}">${escapeHTML(p.nombre)} - ${escapeHTML(pres.tamano)} (Gs.${pres.precio_base.toLocaleString()})</option>`
                 ).join('')
             ).join('')}
         </select>

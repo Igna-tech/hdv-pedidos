@@ -172,7 +172,7 @@ function cargarDashboard() {
                     <span class="text-xl w-8 text-center">${medal}</span>
                     <div class="flex-1">
                         <div class="flex justify-between mb-1">
-                            <span class="text-sm font-bold text-gray-800">${nombre}</span>
+                            <span class="text-sm font-bold text-gray-800">${escapeHTML(nombre)}</span>
                             <span class="text-sm font-bold text-gray-600">Gs. ${data.total.toLocaleString()} (${data.pedidos})</span>
                         </div>
                         <div class="w-full bg-gray-100 rounded-full h-2"><div class="bg-gray-800 h-2 rounded-full" style="width:${pct}%"></div></div>
@@ -451,7 +451,7 @@ async function cargarMetas() {
             return `
             <div class="p-4 flex justify-between items-center">
                 <div>
-                    <p class="font-bold text-gray-800">${m.vendedor} - ${m.mes}</p>
+                    <p class="font-bold text-gray-800">${escapeHTML(m.vendedor)} - ${escapeHTML(m.mes)}</p>
                     <p class="text-sm text-gray-500">Meta: Gs. ${(m.monto || 0).toLocaleString()} | Comision: ${m.comision}%</p>
                     <div class="mt-2 w-48 bg-gray-200 rounded-full h-3">
                         <div class="h-3 rounded-full ${pct < 50 ? 'bg-red-500' : pct < 80 ? 'bg-yellow-500' : 'bg-green-500'}" style="width: ${pct}%"></div>

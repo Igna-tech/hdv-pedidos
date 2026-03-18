@@ -108,7 +108,7 @@ function renderizarCategoriasStock(container) {
                 .reduce((s, p) => s + p.presentaciones.reduce((ss, pr) => ss + (pr.stock || 0), 0), 0);
             return `<div onclick="stockNavCatId='${cat.id}';stockNavNivel='subcategorias';actualizarBreadcrumbStock();renderizarStockGrid()"
                 class="bg-white border border-gray-200 rounded-xl p-5 cursor-pointer hover:shadow-md hover:border-gray-400 transition-all">
-                <p class="font-bold text-gray-800 text-lg mb-1">${cat.nombre}</p>
+                <p class="font-bold text-gray-800 text-lg mb-1">${escapeHTML(cat.nombre)}</p>
                 <p class="text-sm text-gray-500">${count} productos</p>
                 <p class="text-xs font-bold mt-2 ${totalStock <= 0 ? 'text-red-600' : 'text-green-600'}">Stock: ${totalStock}</p>
             </div>`;
@@ -128,7 +128,7 @@ function renderizarSubcategoriasStock(container, subs, filtro) {
                 .reduce((s, p) => s + p.presentaciones.reduce((ss, pr) => ss + (pr.stock || 0), 0), 0);
             return `<div onclick="stockNavSubId='${sub}';stockNavNivel='productos';actualizarBreadcrumbStock();renderizarStockGrid()"
                 class="bg-white border border-gray-200 rounded-xl p-5 cursor-pointer hover:shadow-md hover:border-gray-400 transition-all">
-                <p class="font-bold text-gray-800 mb-1">${sub}</p>
+                <p class="font-bold text-gray-800 mb-1">${escapeHTML(sub)}</p>
                 <p class="text-sm text-gray-500">${count} productos</p>
                 <p class="text-xs font-bold mt-2 ${totalStock <= 0 ? 'text-red-600' : 'text-green-600'}">Stock: ${totalStock}</p>
             </div>`;
@@ -163,7 +163,7 @@ async function renderizarProductosStock(container, prods, filtro) {
             const stockTotal = prod.presentaciones.reduce((s, p) => s + (p.stock || 0), 0);
             const presRows = prod.presentaciones.map((p, i) => `
                 <div class="flex items-center gap-2 py-1.5 border-b border-gray-50 last:border-0">
-                    <span class="text-xs text-gray-500 w-14 shrink-0">${p.tamano}</span>
+                    <span class="text-xs text-gray-500 w-14 shrink-0">${escapeHTML(p.tamano)}</span>
                     <input type="number" value="${p.precio_base || 0}" onchange="ajustarPrecioInline('${prod.id}','${p.tamano}','precio_base',this.value)"
                         class="w-16 text-xs text-right border border-gray-200 rounded px-1 py-0.5 focus:border-blue-400 outline-none" title="Precio">
                     <input type="number" value="${p.costo || 0}" onchange="ajustarPrecioInline('${prod.id}','${p.tamano}','costo',this.value)"
@@ -178,7 +178,7 @@ async function renderizarProductosStock(container, prods, filtro) {
             return `<div class="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-sm transition-all">
                 <div class="flex justify-between items-start mb-3">
                     <div>
-                        <p class="font-bold text-gray-800 text-sm">${prod.nombre}</p>
+                        <p class="font-bold text-gray-800 text-sm">${escapeHTML(prod.nombre)}</p>
                         <p class="text-xs text-gray-400">${prod.id}</p>
                     </div>
                     <span class="text-xs font-bold px-2 py-1 rounded-full ${stockTotal <= 0 ? 'bg-red-100 text-red-700' : stockTotal < 10 ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'}">
@@ -269,7 +269,7 @@ function poblarFiltroCategorias() {
     if (!sel) return;
     sel.innerHTML = '<option value="">Todas las categorias</option>';
     (productosData.categorias || []).forEach(c => {
-        sel.innerHTML += `<option value="${c.id}">${c.nombre}</option>`;
+        sel.innerHTML += `<option value="${escapeHTML(c.id)}">${escapeHTML(c.nombre)}</option>`;
     });
 }
 
@@ -391,7 +391,7 @@ function renderizarCategoriasGestion(container) {
                 class="catalog-card" ${img ? `data-bg="${img}"` : ''}>
                 ${!img ? '<div class="catalog-card-noimg"><i data-lucide="folder-open" class="w-10 h-10 text-gray-400"></i></div>' : ''}
                 <div class="catalog-card-label">
-                    <div>${cat.nombre}</div>
+                    <div>${escapeHTML(cat.nombre)}</div>
                     <div class="card-sub">${count} productos</div>
                 </div>
             </div>`;
@@ -417,7 +417,7 @@ function renderizarSubcategoriasGestion(container, subs) {
                 class="catalog-card" ${img ? `data-bg="${img}"` : ''}>
                 ${!img ? '<div class="catalog-card-noimg"><i data-lucide="folder" class="w-10 h-10 text-gray-400"></i></div>' : ''}
                 <div class="catalog-card-label">
-                    <div>${sub}</div>
+                    <div>${escapeHTML(sub)}</div>
                     <div class="card-sub">${count} productos</div>
                 </div>
             </div>`;
@@ -447,7 +447,7 @@ function renderizarProductosGestionGrid(container, prods) {
                 ${!img ? '<div class="catalog-card-noimg"><svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg></div>' : ''}
                 <span class="catalog-card-badge" style="${estadoBg}">${estado}</span>
                 <div class="catalog-card-label">
-                    <div>${prod.nombre}</div>
+                    <div>${escapeHTML(prod.nombre)}</div>
                     <div class="card-sub">${precio > 0 ? 'Gs. ' + precio.toLocaleString() : prod.presentaciones.length + ' pres.'}</div>
                 </div>
             </div>`;
@@ -501,7 +501,7 @@ function abrirPerfilProducto(prodId) {
         const precio = p.precio_base || 0;
         const margen = precio > 0 && costo > 0 ? Math.round(((precio - costo) / precio) * 100) : null;
         return `<div class="flex justify-between items-center py-2 border-b border-gray-100 last:border-0 text-sm">
-            <span class="font-medium text-gray-700">${p.tamano}</span>
+            <span class="font-medium text-gray-700">${escapeHTML(p.tamano)}</span>
             <div class="flex gap-4 text-right">
                 ${costo > 0 ? `<span class="text-gray-500">Costo: <strong>Gs. ${costo.toLocaleString()}</strong></span>` : ''}
                 <span class="text-gray-800">Precio: <strong>Gs. ${precio.toLocaleString()}</strong></span>
@@ -514,7 +514,7 @@ function abrirPerfilProducto(prodId) {
     const stockEl = document.getElementById('perfilProductoStock');
     stockEl.innerHTML = prod.presentaciones.map(p => `
         <div class="flex items-center gap-3 py-1">
-            <span class="text-sm text-gray-600 w-20">${p.tamano}</span>
+            <span class="text-sm text-gray-600 w-20">${escapeHTML(p.tamano)}</span>
             <span class="font-bold ${(p.stock || 0) <= 0 ? 'text-red-600' : 'text-green-600'}">${p.stock || 0}</span>
             <div class="flex gap-1 ml-auto">
                 <button onclick="ajustarStock('${prodId}','${p.tamano}',-1);abrirPerfilProducto('${prodId}')" class="w-7 h-7 bg-red-50 text-red-600 rounded font-bold">−</button>
@@ -746,7 +746,7 @@ function abrirModalProducto(productoId) {
     if (select) {
         select.innerHTML = '';
         productosData.categorias.forEach(c => {
-            select.innerHTML += `<option value="${c.id}">${c.nombre}</option>`;
+            select.innerHTML += `<option value="${escapeHTML(c.id)}">${escapeHTML(c.nombre)}</option>`;
         });
     }
 
@@ -860,7 +860,7 @@ function actualizarSubcategoriasModal() {
     subSel.innerHTML = '<option value="">Seleccionar...</option>';
     if (cat && cat.subcategorias) {
         cat.subcategorias.forEach(s => {
-            subSel.innerHTML += `<option value="${s}">${s}</option>`;
+            subSel.innerHTML += `<option value="${escapeHTML(s)}">${escapeHTML(s)}</option>`;
         });
     }
     subSel.innerHTML += '<option value="__otra__">+ Otra...</option>';
@@ -992,15 +992,15 @@ function renderizarListaCategorias() {
         div.innerHTML = `
             <div class="flex justify-between items-center mb-2">
                 <div>
-                    <span class="font-bold text-gray-800">${cat.nombre}</span>
-                    <span class="text-xs text-gray-400 ml-2">(${cat.id})</span>
+                    <span class="font-bold text-gray-800">${escapeHTML(cat.nombre)}</span>
+                    <span class="text-xs text-gray-400 ml-2">(${escapeHTML(cat.id)})</span>
                 </div>
                 <button onclick="eliminarCategoria('${cat.id}')" class="text-red-500 text-xs font-bold hover:underline">Eliminar</button>
             </div>
             <div class="flex flex-wrap gap-2 mb-2">
                 ${(cat.subcategorias || []).map(s => `
                     <span class="bg-white px-2 py-1 rounded-lg text-xs border border-gray-200 flex items-center gap-1">
-                        ${s} <button onclick="eliminarSubcategoria('${cat.id}','${s}')" class="text-red-400 hover:text-red-600 font-bold">x</button>
+                        ${escapeHTML(s)} <button onclick="eliminarSubcategoria('${escapeHTML(cat.id)}','${escapeHTML(s)}')" class="text-red-400 hover:text-red-600 font-bold">x</button>
                     </span>`).join('')}
             </div>
             <div class="flex gap-2">
@@ -1116,7 +1116,7 @@ function _mostrarModalMapeo(headers, rowCount, tipo) {
             <label class="text-sm font-medium text-gray-700 w-40 shrink-0">${campo.label}</label>
             <select id="map_${campo.key}" class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm">
                 <option value="-1">-- No importar --</option>
-                ${headers.map((h, i) => `<option value="${i}" ${h.toString().toLowerCase().includes(campo.key) || h.toString().toLowerCase().includes(campo.label.replace(' *', '').toLowerCase()) ? 'selected' : ''}>${h || 'Col ' + (i + 1)}</option>`).join('')}
+                ${headers.map((h, i) => `<option value="${i}" ${h.toString().toLowerCase().includes(campo.key) || h.toString().toLowerCase().includes(campo.label.replace(' *', '').toLowerCase()) ? 'selected' : ''}>${escapeHTML(h) || 'Col ' + (i + 1)}</option>`).join('')}
             </select>
         </div>
     `).join('');

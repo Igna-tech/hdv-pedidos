@@ -67,7 +67,7 @@ function limpiarDespuesDeVenta() {
 function generarHTMLItems(items) {
     return items.map(i =>
         `<div style="display:flex; justify-content:space-between; font-size:10px; margin:2px 0;">
-            <span style="flex:1;">${i.cantidad}x ${i.nombre} ${i.presentacion}</span>
+            <span style="flex:1;">${i.cantidad}x ${escapeHTML(i.nombre)} ${escapeHTML(i.presentacion)}</span>
             <span style="white-space:nowrap;">Gs.${i.subtotal.toLocaleString()}</span>
         </div>`
     ).join('');
@@ -159,8 +159,8 @@ async function procesarCobroInterno() {
     const fechaStr = formatearFecha(pedido.fecha);
     document.getElementById('printReciboMeta').innerHTML =
         `<p>Fecha: ${fechaStr}</p>
-         <p>Cliente: ${datos.cliente.nombre}</p>
-         ${datos.cliente.ruc ? `<p>RUC: ${datos.cliente.ruc}</p>` : ''}
+         <p>Cliente: ${escapeHTML(datos.cliente.nombre)}</p>
+         ${datos.cliente.ruc ? `<p>RUC: ${escapeHTML(datos.cliente.ruc)}</p>` : ''}
          <p>Pago: ${datos.tipoPago === 'credito' ? 'Credito' : 'Contado'}</p>`;
 
     document.getElementById('printReciboItems').innerHTML = generarHTMLItems(datos.items);
@@ -255,8 +255,8 @@ async function procesarFacturaMock() {
     document.getElementById('printKuDECDC').textContent = cdc;
     document.getElementById('printKuDEMeta').innerHTML =
         `<p>Fecha: ${fechaStr}</p>
-         <p>RUC: ${datos.cliente.ruc}</p>
-         <p>Cliente: ${datos.cliente.nombre}</p>
+         <p>RUC: ${escapeHTML(datos.cliente.ruc)}</p>
+         <p>Cliente: ${escapeHTML(datos.cliente.nombre)}</p>
          <p>Pago: ${datos.tipoPago === 'credito' ? 'Credito' : 'Contado'}</p>`;
     document.getElementById('printKuDEItems').innerHTML = generarHTMLItems(datos.items);
 

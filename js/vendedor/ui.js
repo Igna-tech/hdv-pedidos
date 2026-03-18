@@ -126,7 +126,7 @@ async function mostrarInfoCliente(cliente) {
     const top3 = Object.entries(conteo).sort((a, b) => b[1] - a[1]).slice(0, 3);
     const elTop = document.getElementById('clienteInfoTop');
     elTop.innerHTML = top3.length > 0
-        ? top3.map(([n, q]) => `${q}x ${n}`).join('<br>')
+        ? top3.map(([n, q]) => `${q}x ${escapeHTML(n)}`).join('<br>')
         : '<span class="text-gray-300">Sin historial</span>';
 
     // Re-render lucide icons
@@ -211,7 +211,7 @@ function renderizarCategoriasVendedor(container) {
         if (frecuentes.length > 0) {
             const frecDiv = document.createElement('div');
             frecDiv.className = 'mb-4';
-            frecDiv.innerHTML = `<p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Frecuentes de ${clienteActual.razon_social || clienteActual.nombre}</p>`;
+            frecDiv.innerHTML = `<p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Frecuentes de ${escapeHTML(clienteActual.razon_social || clienteActual.nombre)}</p>`;
             const frecGrid = document.createElement('div');
             frecGrid.className = 'flex gap-2 overflow-x-auto no-scrollbar pb-2';
             frecuentes.forEach(f => {
@@ -260,7 +260,7 @@ function renderizarCategoriasVendedor(container) {
         card.innerHTML = `
             ${!img ? '<div class="vendor-cat-card-noimg"><svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><rect width="7" height="5" x="7" y="7" rx="1"/><rect width="7" height="5" x="10" y="12" rx="1"/></svg></div>' : ''}
             <div class="vendor-cat-card-label">
-                <div>${cat.nombre}</div>
+                <div>${escapeHTML(cat.nombre)}</div>
                 <div class="card-sub">${count} producto${count !== 1 ? 's' : ''}</div>
             </div>`;
         grid.appendChild(card);
@@ -292,7 +292,7 @@ function renderizarProductosVendedor(container, busqueda) {
     if (filtrados.length === 0) {
         const catNombre = categorias.find(c => c.id === catFiltro)?.nombre || '';
         container.innerHTML = generarEmptyState(SVG_EMPTY_SEARCH, 'No se encontraron productos',
-            busqueda ? 'Intenta con otro termino de busqueda' : `No hay productos disponibles en ${catNombre}`);
+            busqueda ? 'Intenta con otro termino de busqueda' : `No hay productos disponibles en ${escapeHTML(catNombre)}`);
         if (categoriaSeleccionada) {
             container.innerHTML += `<div class="text-center mt-2"><button onclick="volverACategorias()" class="px-5 py-3 bg-[#111827] text-white rounded-xl font-bold text-sm active:scale-95 transition-transform">Volver a Categorias</button></div>`;
         }
@@ -340,7 +340,7 @@ function renderizarProductosVendedor(container, busqueda) {
         const promoBadge = typeof mostrarPromocionesEnProducto === 'function' ? mostrarPromocionesEnProducto(prod.id) : '';
         card.innerHTML = `
             ${imgContent}
-            <p class="text-xs font-bold text-gray-800 leading-tight mt-1.5">${prod.nombre}</p>
+            <p class="text-xs font-bold text-gray-800 leading-tight mt-1.5">${escapeHTML(prod.nombre)}</p>
             ${promoBadge}
         `;
         grid.appendChild(card);
@@ -450,7 +450,7 @@ function mostrarMatrizProducto(producto) {
         const esAgotado = estadoProd === 'agotado';
         return `
             <div class="matriz-celda bg-white rounded-xl border-2 border-gray-200 p-3 text-center transition-all ${esAgotado ? 'opacity-50' : ''}" id="celda-${producto.id}-${idx}">
-                <p class="text-xs font-bold text-gray-500 mb-1">${pres.tamano}</p>
+                <p class="text-xs font-bold text-gray-500 mb-1">${escapeHTML(pres.tamano)}</p>
                 <input type="number" id="mtz-${producto.id}-${idx}" value="0" min="0"
                     ${esAgotado ? 'disabled' : ''}
                     class="w-full text-center text-2xl font-bold border-0 border-b-2 border-gray-200 focus:border-blue-500 outline-none bg-transparent py-1 mtz-input"
@@ -471,8 +471,8 @@ function mostrarMatrizProducto(producto) {
                 <div class="flex items-center gap-3">
                     ${iconHtml}
                     <div>
-                        <h3 class="text-lg font-bold">${producto.nombre}</h3>
-                        <p class="text-xs text-gray-400">${catNombre} › ${producto.subcategoria}</p>
+                        <h3 class="text-lg font-bold">${escapeHTML(producto.nombre)}</h3>
+                        <p class="text-xs text-gray-400">${escapeHTML(catNombre)} › ${escapeHTML(producto.subcategoria)}</p>
                     </div>
                 </div>
                 <div class="flex items-center justify-between mt-3 bg-gray-800 rounded-xl p-3">
@@ -588,7 +588,7 @@ function mostrarDetalleMasivo(producto) {
         return `
             <div class="flex items-center justify-between py-3 px-4">
                 <div class="flex-1 min-w-0">
-                    <p class="font-bold text-gray-800">${pres.tamano}</p>
+                    <p class="font-bold text-gray-800">${escapeHTML(pres.tamano)}</p>
                     <p class="text-blue-600 font-bold text-sm">Gs. ${precio.toLocaleString()}</p>
                 </div>
                 <div class="flex items-center gap-2">
@@ -612,8 +612,8 @@ function mostrarDetalleMasivo(producto) {
                 <div class="flex items-center gap-3">
                     ${imgUrlMasivo ? `<img src="${imgUrlMasivo}" class="w-12 h-12 rounded-xl object-contain bg-white/10">` : '<i data-lucide="package" class="w-10 h-10 text-gray-400"></i>'}
                     <div class="min-w-0 flex-1">
-                        <h3 class="text-lg font-bold leading-tight truncate">${producto.nombre}</h3>
-                        <p class="text-xs text-gray-400">${catNombre}${producto.subcategoria ? ' › ' + producto.subcategoria : ''}</p>
+                        <h3 class="text-lg font-bold leading-tight truncate">${escapeHTML(producto.nombre)}</h3>
+                        <p class="text-xs text-gray-400">${escapeHTML(catNombre)}${producto.subcategoria ? ' › ' + escapeHTML(producto.subcategoria) : ''}</p>
                     </div>
                 </div>
                 <div class="flex items-center justify-between mt-3 bg-gray-800 rounded-xl p-3">
@@ -716,8 +716,8 @@ function renderizarCarrito() {
             <div class="cart-item-inner relative bg-gray-50 p-3 transition-transform rounded-xl" style="touch-action: pan-y;" data-idx="${idx}">
                 <div class="flex justify-between items-center gap-2">
                     <div class="flex-1 min-w-0">
-                        <p class="font-semibold text-gray-800 text-sm truncate">${item.nombre}${item.precioEspecial ? ' <span class="inline-block bg-amber-100 text-amber-700 text-[10px] font-bold px-1.5 py-0.5 rounded-full ml-1 align-middle">P.Esp</span>' : ''}</p>
-                        <p class="text-xs text-gray-500">${item.presentacion} · Gs. ${item.precio.toLocaleString()} c/u</p>
+                        <p class="font-semibold text-gray-800 text-sm truncate">${escapeHTML(item.nombre)}${item.precioEspecial ? ' <span class="inline-block bg-amber-100 text-amber-700 text-[10px] font-bold px-1.5 py-0.5 rounded-full ml-1 align-middle">P.Esp</span>' : ''}</p>
+                        <p class="text-xs text-gray-500">${escapeHTML(item.presentacion)} · Gs. ${item.precio.toLocaleString()} c/u</p>
                     </div>
                     <div class="flex items-center gap-1.5 shrink-0">
                         <button onclick="cambiarCantidadCarrito(${idx},-1)" class="w-7 h-7 bg-white border border-gray-200 rounded-lg font-bold text-sm flex items-center justify-center hover:bg-gray-50">-</button>
@@ -818,13 +818,13 @@ async function mostrarMisPedidos() {
         div.innerHTML = `
             <div class="flex justify-between items-start mb-2">
                 <div>
-                    <p class="font-bold text-gray-800">${p.cliente.nombre}</p>
+                    <p class="font-bold text-gray-800">${escapeHTML(p.cliente.nombre)}</p>
                     <p class="text-xs text-gray-500">${new Date(p.fecha).toLocaleString('es-PY')}</p>
                 </div>
                 <span class="px-2 py-1 rounded-full text-[10px] font-bold ${colorEstado}">${estado.toUpperCase()}</span>
             </div>
             <div class="text-sm text-gray-600 mb-2">
-                ${p.items.map(i => `${i.nombre} (${i.presentacion} ×${i.cantidad})`).join(', ')}
+                ${p.items.map(i => `${escapeHTML(i.nombre)} (${escapeHTML(i.presentacion)} ×${i.cantidad})`).join(', ')}
             </div>
             <div class="flex justify-between items-center pt-2 border-t border-gray-100">
                 <span class="text-xs text-gray-500">${p.tipoPago || 'contado'} ${p.descuento > 0 ? `| ${p.descuento}% desc.` : ''}</span>
@@ -850,7 +850,7 @@ function mostrarToast(mensaje, tipo = 'info', duracion = 3500) {
     const iconos = { success: '✓', error: '✕', info: 'ℹ', warning: '⚠' };
     const toast = document.createElement('div');
     toast.className = `toast toast-${tipo}`;
-    toast.innerHTML = `<span style="font-size:18px">${iconos[tipo] || ''}</span><span>${mensaje}</span>`;
+    toast.innerHTML = `<span style="font-size:18px">${iconos[tipo] || ''}</span><span>${escapeHTML(mensaje)}</span>`;
     container.appendChild(toast);
     requestAnimationFrame(() => toast.classList.add('show'));
     setTimeout(() => {
@@ -873,7 +873,7 @@ function mostrarConfirmModal(mensaje, opciones = {}) {
                     <div class="w-14 h-14 mx-auto mb-3 rounded-full ${opciones.destructivo ? 'bg-red-100' : 'bg-gray-100'} flex items-center justify-center">
                         <i data-lucide="${opciones.destructivo ? 'alert-triangle' : 'help-circle'}" class="w-6 h-6 ${opciones.destructivo ? 'text-red-500' : 'text-gray-500'}"></i>
                     </div>
-                    <p class="text-gray-800 font-semibold text-sm whitespace-pre-line leading-relaxed">${mensaje}</p>
+                    <p class="text-gray-800 font-semibold text-sm whitespace-pre-line leading-relaxed">${escapeHTML(mensaje)}</p>
                 </div>
                 <div class="flex gap-3">
                     <button class="confirm-cancel-btn flex-1 bg-gray-100 text-gray-700 py-3 rounded-xl font-bold text-sm active:scale-95 transition-transform">Cancelar</button>
@@ -1125,7 +1125,7 @@ function mostrarFiltroZonas() {
         const color = colores[i % colores.length];
         html += `<button onclick="seleccionarZona('${z.zona}')" class="${color} border-2 rounded-xl p-4 text-center active:scale-95 transition-transform">
             <p class="mb-1"><i data-lucide="map-pin" class="w-8 h-8 text-gray-400 mx-auto"></i></p>
-            <p class="font-bold text-sm">${z.zona}</p>
+            <p class="font-bold text-sm">${escapeHTML(z.zona)}</p>
             <p class="text-xs opacity-70">${z.cantidad} clientes</p>
         </button>`;
     });
@@ -1161,7 +1161,7 @@ async function mostrarRutaHoy() {
     const hoy = new Date().toISOString().split('T')[0];
 
     let html = `<div class="flex justify-between items-center mb-4">
-        <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2"><i data-lucide="map-pin" class="w-5 h-5 text-gray-500"></i> ${zonaActiva}</h3>
+        <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2"><i data-lucide="map-pin" class="w-5 h-5 text-gray-500"></i> ${escapeHTML(zonaActiva)}</h3>
         <button onclick="mostrarFiltroZonas()" class="text-sm text-blue-600 font-bold">Cambiar Zona</button>
     </div>`;
     html += `<p class="text-sm text-gray-500 mb-4">${clientesZona.length} clientes en esta zona</p>`;
@@ -1177,9 +1177,9 @@ async function mostrarRutaHoy() {
                     <div class="flex items-start gap-3">
                         <span class="bg-gray-800 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0">${i + 1}</span>
                         <div>
-                            <p class="font-bold text-gray-800">${nombre}</p>
-                            <p class="text-xs text-gray-500">${c.direccion || c.zona || ''}</p>
-                            ${c.telefono ? `<a href="tel:${c.telefono}" class="text-xs text-blue-600 font-bold inline-flex items-center gap-1"><i data-lucide="phone" class="w-3 h-3"></i> ${c.telefono}</a>` : ''}
+                            <p class="font-bold text-gray-800">${escapeHTML(nombre)}</p>
+                            <p class="text-xs text-gray-500">${escapeHTML(c.direccion || c.zona || '')}</p>
+                            ${c.telefono ? `<a href="tel:${escapeHTML(c.telefono)}" class="text-xs text-blue-600 font-bold inline-flex items-center gap-1"><i data-lucide="phone" class="w-3 h-3"></i> ${escapeHTML(c.telefono)}</a>` : ''}
                         </div>
                     </div>
                     <div class="flex flex-col items-end gap-1">
@@ -1271,7 +1271,7 @@ async function mostrarMiCaja() {
             ${gastosSemana.map(g => `
                 <div class="p-3 border-t border-gray-100 flex justify-between items-center">
                     <div>
-                        <p class="text-sm font-bold text-gray-800">${g.concepto}</p>
+                        <p class="text-sm font-bold text-gray-800">${escapeHTML(g.concepto)}</p>
                         <p class="text-xs text-gray-400">${new Date(g.fecha).toLocaleDateString('es-PY')}</p>
                     </div>
                     <div class="text-right">
@@ -1287,10 +1287,10 @@ async function mostrarMiCaja() {
             <p class="text-xs font-bold text-gray-500 uppercase tracking-wider p-3 bg-gray-50">Cuentas Bancarias de la Empresa</p>
             ${cuentas.map(c => `
                 <div class="p-3 border-t border-gray-100">
-                    <p class="text-sm font-bold text-gray-800">${c.banco}</p>
+                    <p class="text-sm font-bold text-gray-800">${escapeHTML(c.banco)}</p>
                     <p class="text-xs text-gray-600">${c.tipo === 'ahorro' ? 'Caja de Ahorro' : 'Cta. Corriente'} | ${c.moneda === 'USD' ? 'USD' : 'Gs.'}</p>
-                    <p class="text-xs text-gray-500">Nro: <strong>${c.numero}</strong></p>
-                    <p class="text-xs text-gray-400">Titular: ${c.titular}${c.ruc ? ' | RUC: ' + c.ruc : ''}</p>
+                    <p class="text-xs text-gray-500">Nro: <strong>${escapeHTML(c.numero)}</strong></p>
+                    <p class="text-xs text-gray-400">Titular: ${escapeHTML(c.titular)}${c.ruc ? ' | RUC: ' + escapeHTML(c.ruc) : ''}</p>
                 </div>
             `).join('')}
         </div>` : ''}

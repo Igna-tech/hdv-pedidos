@@ -10,9 +10,9 @@ import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { create } from "npm:xmlbuilder2@3.1.1";
 
-// --- CORS ---
+// --- CORS dinamico (restringir en produccion via ALLOWED_ORIGIN) ---
 const corsHeaders = {
-    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Origin": Deno.env.get("ALLOWED_ORIGIN") || "*",
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
@@ -175,6 +175,12 @@ serve(async (req: Request) => {
                 { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         }
         const datos = pedido.datos || pedido;
+
+        // --- Anti-doble facturacion: rechazar si ya tiene CDC ---
+        if (datos.sifen_xml_generado === true || datos.sifen_cdc) {
+            return new Response(JSON.stringify({ error: "Este pedido ya fue facturado y tiene un CDC asignado." }),
+                { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
 
         // --- 2. Empresa ---
         const { data: empresa, error: errEmp } = await supabase
@@ -481,8 +487,14 @@ ${xmlString.split("\n").map((l: string) => "        " + l).join("\n")}
   </env:Body>
 </env:Envelope>`;
 
-        // --- Guardar SIFEN en pedido ---
+        // --- Guardar SIFEN en pedido (cliente admin con SERVICE_ROLE_KEY) ---
+        // Privilegios divididos: supabaseAdmin SOLO se usa aqui para escribir
+        // el resultado oficial de SIFEN. Todas las lecturas previas usan el
+        // cliente RLS del usuario autenticado.
         try {
+            const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+            const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+
             const datosActualizados = {
                 ...datos,
                 sifen_cdc: cdc,
@@ -491,7 +503,7 @@ ${xmlString.split("\n").map((l: string) => "        " + l).join("\n")}
                 sifen_xml_generado: true,
                 sifen_fecha_generacion: new Date().toISOString(),
             };
-            const { error: errUpdate } = await supabase
+            const { error: errUpdate } = await supabaseAdmin
                 .from("pedidos")
                 .update({ datos: datosActualizados, actualizado_en: new Date().toISOString() })
                 .eq("id", String(pedidoId));

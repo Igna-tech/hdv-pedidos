@@ -132,7 +132,7 @@ $$;
 
 ## ALTO
 
-### A-01: Bucket `productos_img` sin limites de tamano ni tipo MIME
+### A-01: Bucket `productos_img` sin limites de tamano ni tipo MIME — ✅ REMEDIADO 2026-03-18
 
 **Archivo afectado:** Supabase Storage bucket `productos_img`
 **Impacto:** Cualquier usuario autenticado (incluyendo vendedores) puede subir archivos de tamano ilimitado y cualquier tipo MIME. Vectores de ataque: almacenamiento de malware, agotamiento de espacio, upload de archivos ejecutables.
@@ -189,7 +189,7 @@ En el dashboard de Supabase (Authentication > Settings):
 
 ---
 
-### A-03: `pedidos.vendedor_id` es nullable — bypass de RLS
+### A-03: `pedidos.vendedor_id` es nullable — bypass de RLS — ✅ REMEDIADO 2026-03-18
 
 **Archivo afectado:** Tabla `public.pedidos`, columna `vendedor_id`
 **Impacto:** Un pedido con `vendedor_id = NULL` no es visible para ningun vendedor via RLS (`vendedor_id = auth.uid()` es FALSE cuando vendedor_id es NULL), pero podria ser insertado por un atacante que explote una RPC. En el peor caso, pedidos "fantasma" quedan invisibles a vendedores pero manipulables por admin.
@@ -204,7 +204,7 @@ ALTER TABLE public.pedidos ALTER COLUMN vendedor_id SET DEFAULT auth.uid();
 
 ---
 
-### A-04: `configuracion_empresa` sin politica DELETE — datos fiscales borrables via API
+### A-04: `configuracion_empresa` sin politica DELETE — datos fiscales borrables via API — ✅ REMEDIADO 2026-03-18
 
 **Archivo afectado:** Tabla `public.configuracion_empresa`
 **Impacto:** No existe politica DELETE para esta tabla. En Supabase, cuando RLS esta habilitado y no hay politica para una operacion, esta se bloquea. Esto es CORRECTO como proteccion, pero es implicito — no hay una denegacion explicita. Si alguien agrega una politica DELETE permisiva en el futuro, los datos fiscales (RUC, timbrado, razon social) podrian borrarse.

@@ -33,11 +33,11 @@ function inicializarCierreMensual() {
 // OBTENER REGISTROS DEL PERIODO
 // ============================================
 
-function obtenerRegistrosPeriodo() {
+async function obtenerRegistrosPeriodo() {
     const mes = parseInt(document.getElementById('cierreMes').value);
     const anio = parseInt(document.getElementById('cierreAnio').value);
 
-    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
 
     return pedidos.filter(p => {
         if (p.estado !== 'facturado_mock' && p.estado !== 'nota_credito_mock') return false;
@@ -60,8 +60,8 @@ function getNombreMes(mes) {
 // PREVISUALIZAR
 // ============================================
 
-function previsualizarCierre() {
-    registrosCierreMensual = obtenerRegistrosPeriodo();
+async function previsualizarCierre() {
+    registrosCierreMensual = await obtenerRegistrosPeriodo();
 
     const resumen = document.getElementById('cierreResumen');
     resumen.classList.remove('hidden');
@@ -119,7 +119,7 @@ function previsualizarCierre() {
 // ============================================
 
 async function exportarLibroRG90() {
-    const registros = obtenerRegistrosPeriodo();
+    const registros = await obtenerRegistrosPeriodo();
     if (registros.length === 0) {
         mostrarToast('No hay registros en el periodo seleccionado', 'error');
         return;
@@ -177,7 +177,7 @@ async function exportarLibroRG90() {
 // ============================================
 
 async function exportarPaqueteZIP() {
-    const registros = obtenerRegistrosPeriodo();
+    const registros = await obtenerRegistrosPeriodo();
     if (registros.length === 0) {
         mostrarToast('No hay registros en el periodo seleccionado', 'error');
         return;

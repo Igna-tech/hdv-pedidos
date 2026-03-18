@@ -69,3 +69,4 @@ var categorias = [];
 var clientes = [];
 var clienteActual = null;
 var carrito = [];
+

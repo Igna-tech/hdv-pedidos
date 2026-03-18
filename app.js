@@ -36,7 +36,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Escuchar catalogo en tiempo real desde Supabase
     if (typeof escucharCatalogoRealtime === 'function') {
-        escucharCatalogoRealtime((data) => {
+        escucharCatalogoRealtime(async (data) => {
             if (data && data.categorias && data.productos) {
                 categorias = data.categorias || [];
                 productos = (data.productos || []).filter(p => !p.oculto && (p.estado || 'disponible') !== 'discontinuado');
@@ -44,13 +44,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                 poblarClientes();
                 crearFiltrosCategorias();
                 if (vistaActual === 'lista') mostrarProductos();
-                // Cachear en localStorage para uso offline
+                // Cachear en IndexedDB para uso offline
                 try {
-                    localStorage.setItem('hdv_catalogo_local', JSON.stringify({
+                    await HDVStorage.setItem('hdv_catalogo_local', {
                         categorias: data.categorias,
                         productos: data.productos,
                         clientes: data.clientes
-                    }));
+                    });
                 } catch(e) {}
                 console.log('[Vendedor] Catalogo actualizado desde Supabase y cacheado');
                 if (typeof mostrarToast === 'function') {
@@ -62,6 +62,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 async function cargarDatos() {
+    await HDVStorage.ready();
     try {
         // Prioridad 1: Supabase (datos mas recientes en la nube)
         let data = null;
@@ -71,12 +72,12 @@ async function cargarDatos() {
                 if (data && data.productos) {
                     console.log('[Vendedor] Catalogo cargado desde Supabase');
                     try {
-                        localStorage.setItem('hdv_catalogo_local', JSON.stringify({
+                        await HDVStorage.setItem('hdv_catalogo_local', {
                             categorias: data.categorias,
                             productos: data.productos,
                             clientes: data.clientes
-                        }));
-                    } catch(e) { console.warn('[Vendedor] No se pudo cachear en localStorage'); }
+                        });
+                    } catch(e) { console.warn('[Vendedor] No se pudo cachear en HDVStorage'); }
                 } else {
                     data = null;
                 }
@@ -86,19 +87,19 @@ async function cargarDatos() {
             }
         }
 
-        // Prioridad 2: localStorage (cache local, funciona offline)
+        // Prioridad 2: IndexedDB (cache local, funciona offline)
         if (!data || !data.productos) {
             try {
-                const cached = localStorage.getItem('hdv_catalogo_local');
+                const cached = await HDVStorage.getItem('hdv_catalogo_local');
                 if (cached) {
-                    data = JSON.parse(cached);
+                    data = cached;
                     if (data && data.productos) {
-                        console.log('[Vendedor] Catalogo cargado desde localStorage (cache)');
+                        console.log('[Vendedor] Catalogo cargado desde HDVStorage (cache)');
                     } else {
                         data = null;
                     }
                 }
-            } catch(e) { console.warn('[Vendedor] Error leyendo localStorage'); data = null; }
+            } catch(e) { console.warn('[Vendedor] Error leyendo HDVStorage'); data = null; }
         }
 
         // Prioridad 3: JSON local (archivo estatico)
@@ -325,9 +326,9 @@ async function agregarGastoVendedor() {
         fecha: new Date().toISOString()
     };
 
-    const gastos = JSON.parse(localStorage.getItem('hdv_gastos') || '[]');
+    const gastos = (await HDVStorage.getItem('hdv_gastos')) || [];
     gastos.push(gasto);
-    localStorage.setItem('hdv_gastos', JSON.stringify(gastos));
+    await HDVStorage.setItem('hdv_gastos', gastos);
 
     if (typeof guardarGastos === 'function') {
         guardarGastos(gastos).catch(e => console.error(e));
@@ -339,17 +340,17 @@ async function agregarGastoVendedor() {
 
 async function eliminarGastoVendedor(gastoId) {
     if (!await mostrarConfirmModal('¿Eliminar este gasto?', { destructivo: true, textoConfirmar: 'Eliminar' })) return;
-    let gastos = JSON.parse(localStorage.getItem('hdv_gastos') || '[]');
+    let gastos = (await HDVStorage.getItem('hdv_gastos')) || [];
     gastos = gastos.filter(g => g.id !== gastoId);
-    localStorage.setItem('hdv_gastos', JSON.stringify(gastos));
+    await HDVStorage.setItem('hdv_gastos', gastos);
     if (typeof guardarGastos === 'function') guardarGastos(gastos).catch(e => console.error(e));
     mostrarMiCaja();
 }
 
 async function cerrarSemanaVendedor(semana) {
     const { inicio, fin } = obtenerRangoSemanaVendedor(semana);
-    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
-    const gastos = JSON.parse(localStorage.getItem('hdv_gastos') || '[]');
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
+    const gastos = (await HDVStorage.getItem('hdv_gastos')) || [];
 
     const pedidosSemana = pedidos.filter(p => {
         const f = new Date(p.fecha);
@@ -378,9 +379,9 @@ async function cerrarSemanaVendedor(semana) {
         pedidos: pedidosSemana.length
     };
 
-    const rendiciones = JSON.parse(localStorage.getItem('hdv_rendiciones') || '[]');
+    const rendiciones = (await HDVStorage.getItem('hdv_rendiciones')) || [];
     rendiciones.push(rendicion);
-    localStorage.setItem('hdv_rendiciones', JSON.stringify(rendiciones));
+    await HDVStorage.setItem('hdv_rendiciones', rendiciones);
 
     if (typeof guardarRendiciones === 'function') {
         guardarRendiciones(rendiciones).catch(e => console.error(e));
@@ -394,14 +395,14 @@ async function cerrarSemanaVendedor(semana) {
 // WIDGET DE META / PROGRESO (VENDEDOR)
 // ============================================
 
-function generarWidgetMeta() {
-    const metas = JSON.parse(localStorage.getItem('hdv_metas') || '[]');
+async function generarWidgetMeta() {
+    const metas = (await HDVStorage.getItem('hdv_metas')) || [];
     const mesActual = new Date().toISOString().slice(0, 7);
     const metaActiva = metas.find(m => m.mes === mesActual && m.activa) || metas.find(m => m.activa);
 
     if (!metaActiva) return '';
 
-    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
     const pedidosMes = pedidos.filter(p => p.fecha && p.fecha.startsWith(mesActual));
     const totalVendido = pedidosMes.reduce((s, p) => s + (p.total || 0), 0);
 
@@ -445,10 +446,9 @@ function generarWidgetMeta() {
 async function limpiarTodosDatos() {
     if (!await mostrarConfirmModal('¿BORRAR TODOS los pedidos? Esta accion no se puede deshacer.', { destructivo: true, textoConfirmar: 'Eliminar Todo' })) return;
     if (!await mostrarConfirmModal('¿Estas completamente seguro?', { destructivo: true, textoConfirmar: 'Si, eliminar' })) return;
-    localStorage.removeItem('hdv_pedidos');
-    for (let key in localStorage) {
-        if (key.startsWith('hdv_carrito_')) localStorage.removeItem(key);
-    }
+    await HDVStorage.removeItem('hdv_pedidos');
+    const carritoKeys = await HDVStorage.keys('hdv_carrito_');
+    for (const key of carritoKeys) await HDVStorage.removeItem(key);
     carrito = [];
     actualizarContadorCarrito();
     mostrarExito('Datos eliminados');
@@ -507,13 +507,12 @@ function filtrarPedidos() {
 // ============================================
 // SISTEMA DE BACKUP - VENDEDOR
 // ============================================
-function exportarBackupVendedor() {
-    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+async function exportarBackupVendedor() {
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
     const carritos = {};
-    for (let key in localStorage) {
-        if (key.startsWith('hdv_carrito_')) {
-            carritos[key] = JSON.parse(localStorage.getItem(key));
-        }
+    const carritoKeys = await HDVStorage.keys('hdv_carrito_');
+    for (const key of carritoKeys) {
+        carritos[key] = await HDVStorage.getItem(key);
     }
 
     const backup = {
@@ -525,8 +524,8 @@ function exportarBackupVendedor() {
             pedidos,
             carritos,
             configuracion: {
-                darkmode: localStorage.getItem('hdv_darkmode'),
-                autoBackup: localStorage.getItem('hdv_auto_backup') !== 'false'
+                darkmode: await HDVStorage.getItem('hdv_darkmode'),
+                autoBackup: (await HDVStorage.getItem('hdv_auto_backup')) !== 'false'
             }
         },
         resumen: {
@@ -537,13 +536,13 @@ function exportarBackupVendedor() {
     };
 
     descargarArchivoJSON(backup, `hdv_backup_completo_${formatearFechaArchivo()}.json`);
-    localStorage.setItem('hdv_ultimo_backup_fecha', new Date().toISOString());
+    await HDVStorage.setItem('hdv_ultimo_backup_fecha', new Date().toISOString());
     actualizarInfoBackup();
     mostrarExito('Backup descargado');
 }
 
-function exportarSoloPedidos() {
-    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+async function exportarSoloPedidos() {
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
     if (pedidos.length === 0) { mostrarToast('No hay pedidos para exportar', 'error'); return; }
 
     const backup = {
@@ -557,8 +556,8 @@ function exportarSoloPedidos() {
     mostrarExito('Pedidos descargados');
 }
 
-function compartirBackupWhatsApp() {
-    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+async function compartirBackupWhatsApp() {
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
     const hoy = new Date().toLocaleDateString('es-PY');
     const pedidosHoy = pedidos.filter(p => new Date(p.fecha).toLocaleDateString('es-PY') === hoy);
 
@@ -593,25 +592,25 @@ async function restaurarBackupVendedor(event) {
     }
 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
         try {
             const data = JSON.parse(e.target.result);
 
             if (data.tipo === 'backup_vendedor_completo' && data.datos) {
                 if (data.datos.pedidos) {
-                    localStorage.setItem('hdv_pedidos', JSON.stringify(data.datos.pedidos));
+                    await HDVStorage.setItem('hdv_pedidos', data.datos.pedidos);
                 }
                 if (data.datos.carritos) {
-                    Object.entries(data.datos.carritos).forEach(([key, val]) => {
-                        localStorage.setItem(key, JSON.stringify(val));
-                    });
+                    for (const [key, val] of Object.entries(data.datos.carritos)) {
+                        await HDVStorage.setItem(key, val);
+                    }
                 }
                 mostrarExito(`Backup restaurado: ${data.datos.pedidos?.length || 0} pedidos`);
             } else if (data.tipo === 'backup_pedidos' && data.pedidos) {
-                localStorage.setItem('hdv_pedidos', JSON.stringify(data.pedidos));
+                await HDVStorage.setItem('hdv_pedidos', data.pedidos);
                 mostrarExito(`${data.pedidos.length} pedidos restaurados`);
             } else if (data.datos?.pedidos) {
-                localStorage.setItem('hdv_pedidos', JSON.stringify(data.datos.pedidos));
+                await HDVStorage.setItem('hdv_pedidos', data.datos.pedidos);
                 mostrarExito('Backup admin restaurado');
             } else {
                 mostrarToast('Formato de backup no reconocido', 'error');
@@ -632,24 +631,24 @@ async function restaurarBackupVendedor(event) {
 // ============================================
 // AUTO-BACKUP
 // ============================================
-function iniciarAutoBackup() {
-    const enabled = localStorage.getItem('hdv_auto_backup') !== 'false';
+async function iniciarAutoBackup() {
+    const enabled = (await HDVStorage.getItem('hdv_auto_backup')) !== 'false';
     const toggle = document.getElementById('autoBackupToggle');
     if (toggle) toggle.checked = enabled;
 
     if (enabled) {
         autoBackupInterval = setInterval(realizarAutoBackup, 5 * 60 * 1000);
-        const ultimo = localStorage.getItem('hdv_auto_backup_ultimo');
+        const ultimo = await HDVStorage.getItem('hdv_auto_backup_ultimo');
         if (!ultimo || (Date.now() - new Date(ultimo).getTime() > 5 * 60 * 1000)) {
             setTimeout(realizarAutoBackup, 3000);
         }
     }
 }
 
-function toggleAutoBackup() {
+async function toggleAutoBackup() {
     const toggle = document.getElementById('autoBackupToggle');
     const enabled = toggle?.checked ?? true;
-    localStorage.setItem('hdv_auto_backup', enabled ? 'true' : 'false');
+    await HDVStorage.setItem('hdv_auto_backup', enabled ? 'true' : 'false');
 
     if (enabled) {
         iniciarAutoBackup();
@@ -660,8 +659,8 @@ function toggleAutoBackup() {
     }
 }
 
-function realizarAutoBackup() {
-    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+async function realizarAutoBackup() {
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
     if (pedidos.length === 0) return;
 
     const backup = {
@@ -670,29 +669,29 @@ function realizarAutoBackup() {
         totalPedidos: pedidos.length
     };
 
-    let backups = JSON.parse(localStorage.getItem('hdv_auto_backups') || '[]');
+    let backups = (await HDVStorage.getItem('hdv_auto_backups')) || [];
     backups.unshift(backup);
     if (backups.length > 10) backups = backups.slice(0, 10);
 
     try {
-        localStorage.setItem('hdv_auto_backups', JSON.stringify(backups));
-        localStorage.setItem('hdv_auto_backup_ultimo', new Date().toISOString());
+        await HDVStorage.setItem('hdv_auto_backups', backups);
+        await HDVStorage.setItem('hdv_auto_backup_ultimo', new Date().toISOString());
 
         const meta = backups.map(b => ({ fecha: b.fecha, totalPedidos: b.totalPedidos }));
-        localStorage.setItem('hdv_auto_backups_meta', JSON.stringify(meta));
+        await HDVStorage.setItem('hdv_auto_backups_meta', meta);
     } catch (e) {
         console.warn('Auto-backup: espacio insuficiente, reduciendo historial');
         backups = backups.slice(0, 3);
-        localStorage.setItem('hdv_auto_backups', JSON.stringify(backups));
+        await HDVStorage.setItem('hdv_auto_backups', backups);
     }
 }
 
 async function restaurarAutoBackup(idx) {
     if (!await mostrarConfirmModal('¿Restaurar este auto-backup? Los pedidos actuales seran reemplazados.', { destructivo: true, textoConfirmar: 'Restaurar' })) return;
 
-    const backups = JSON.parse(localStorage.getItem('hdv_auto_backups') || '[]');
+    const backups = (await HDVStorage.getItem('hdv_auto_backups')) || [];
     if (backups[idx] && backups[idx].pedidos) {
-        localStorage.setItem('hdv_pedidos', JSON.stringify(backups[idx].pedidos));
+        await HDVStorage.setItem('hdv_pedidos', backups[idx].pedidos);
         mostrarExito(`Restaurado: ${backups[idx].pedidos.length} pedidos`);
         cerrarModalBackup();
         if (vistaActual === 'pedidos') mostrarMisPedidos();
@@ -720,8 +719,8 @@ function descargarArchivoJSON(data, nombre) {
 // IMPRESION Y COMPARTIR POR PEDIDO
 // ============================================
 // TODO: Refactor Phase 1 - Usa js/utils/printer.js (generarTicketHTML + imprimirViaIframe)
-function imprimirTicketVendedor(pedidoId) {
-    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+async function imprimirTicketVendedor(pedidoId) {
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
     const pedido = pedidos.find(p => p.id === pedidoId);
     if (!pedido) return;
     const ticketHTML = generarTicketHTML(pedido);
@@ -729,15 +728,15 @@ function imprimirTicketVendedor(pedidoId) {
 }
 
 // TODO: Refactor Phase 1 - Usa js/utils/pdf-generator.js (generarPDFPedido)
-function generarPDFVendedor(pedidoId) {
-    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+async function generarPDFVendedor(pedidoId) {
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
     const pedido = pedidos.find(p => p.id === pedidoId);
     if (!pedido) return;
     if (generarPDFPedido(pedido)) mostrarExito('PDF generado');
 }
 
-function enviarPedidoWhatsApp(pedidoId) {
-    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+async function enviarPedidoWhatsApp(pedidoId) {
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
     const pedido = pedidos.find(p => p.id === pedidoId);
     if (!pedido) return;
 

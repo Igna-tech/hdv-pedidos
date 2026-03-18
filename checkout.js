@@ -98,16 +98,16 @@ async function procesarPedido() {
     };
 
     // Guardar local
-    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
     pedidos.push(pedido);
-    localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
+    await HDVStorage.setItem('hdv_pedidos', pedidos);
 
     // Sincronizar con Supabase
     if (typeof guardarPedido === 'function') {
-        guardarPedido(pedido).then(ok => {
+        guardarPedido(pedido).then(async (ok) => {
             if (ok) {
                 pedido.sincronizado = true;
-                localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
+                await HDVStorage.setItem('hdv_pedidos', pedidos);
             }
         });
     }
@@ -141,16 +141,16 @@ async function procesarCobroInterno() {
     };
 
     // Guardar local
-    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
     pedidos.push(pedido);
-    localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
+    await HDVStorage.setItem('hdv_pedidos', pedidos);
 
     // Sincronizar
     if (typeof guardarPedido === 'function') {
-        guardarPedido(pedido).then(ok => {
+        guardarPedido(pedido).then(async (ok) => {
             if (ok) {
                 pedido.sincronizado = true;
-                localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
+                await HDVStorage.setItem('hdv_pedidos', pedidos);
             }
         });
     }
@@ -236,16 +236,16 @@ async function procesarFacturaMock() {
     };
 
     // Guardar local
-    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
     pedidos.push(pedido);
-    localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
+    await HDVStorage.setItem('hdv_pedidos', pedidos);
 
     // Sincronizar
     if (typeof guardarPedido === 'function') {
-        guardarPedido(pedido).then(ok => {
+        guardarPedido(pedido).then(async (ok) => {
             if (ok) {
                 pedido.sincronizado = true;
-                localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
+                await HDVStorage.setItem('hdv_pedidos', pedidos);
             }
         });
     }

@@ -125,9 +125,9 @@ loginForm.addEventListener('submit', async (e) => {
             return;
         }
 
-        // 3. Guardar rol en localStorage para uso rapido en guard
-        localStorage.setItem('hdv_user_rol', rol);
-        localStorage.setItem('hdv_user_email', data.user.email);
+        // 3. Guardar rol en IndexedDB para uso rapido en guard
+        await HDVStorage.setItem('hdv_user_rol', rol);
+        await HDVStorage.setItem('hdv_user_email', data.user.email);
 
         showAlert('Bienvenido! Redirigiendo...', 'success');
 

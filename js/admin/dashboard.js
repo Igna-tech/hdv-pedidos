@@ -401,13 +401,13 @@ async function guardarResumenMensual() {
 // ============================================
 // METAS Y COMISIONES
 // ============================================
-function cargarMetas() {
-    const metas = JSON.parse(localStorage.getItem('hdv_metas') || '[]');
+async function cargarMetas() {
+    const metas = (await HDVStorage.getItem('hdv_metas')) || [];
     const mesActual = new Date().toISOString().slice(0, 7);
     const metaActiva = metas.find(m => m.mes === mesActual && m.activa) || metas.find(m => m.activa);
 
     // Calcular ventas del mes
-    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
     const pedidosMes = pedidos.filter(p => p.fecha && p.fecha.startsWith(mesActual));
     const totalVendido = pedidosMes.reduce((sum, p) => sum + (p.total || 0), 0);
 
@@ -468,7 +468,7 @@ function cargarMetas() {
     }
 }
 
-function abrirModalMeta(metaId) {
+async function abrirModalMeta(metaId) {
     document.getElementById('formMetaId').value = '';
     document.getElementById('formMetaVendedor').value = 'Vendedor Principal';
     document.getElementById('formMetaMonto').value = '';
@@ -476,7 +476,7 @@ function abrirModalMeta(metaId) {
     document.getElementById('formMetaMes').value = new Date().toISOString().slice(0, 7);
     document.getElementById('formMetaActiva').value = 'true';
     if (metaId) {
-        const metas = JSON.parse(localStorage.getItem('hdv_metas') || '[]');
+        const metas = (await HDVStorage.getItem('hdv_metas')) || [];
         const m = metas.find(x => x.id === metaId);
         if (m) {
             document.getElementById('formMetaId').value = m.id;
@@ -493,7 +493,7 @@ function abrirModalMeta(metaId) {
 function cerrarModalMeta() { document.getElementById('modalMeta').classList.remove('show'); }
 function editarMeta(id) { abrirModalMeta(id); }
 
-function guardarMeta() {
+async function guardarMeta() {
     const id = document.getElementById('formMetaId').value || 'META' + Date.now();
     const meta = {
         id,
@@ -504,10 +504,10 @@ function guardarMeta() {
         activa: document.getElementById('formMetaActiva').value === 'true'
     };
     if (!meta.monto) { mostrarToast('Monto de meta es obligatorio', 'error'); return; }
-    let metas = JSON.parse(localStorage.getItem('hdv_metas') || '[]');
+    let metas = (await HDVStorage.getItem('hdv_metas')) || [];
     const idx = metas.findIndex(m => m.id === id);
     if (idx >= 0) metas[idx] = meta; else metas.push(meta);
-    localStorage.setItem('hdv_metas', JSON.stringify(metas));
+    await HDVStorage.setItem('hdv_metas', metas);
     if (typeof guardarMetas === 'function') guardarMetas(metas).catch(e => console.error(e));
     cerrarModalMeta();
     cargarMetas();
@@ -516,9 +516,9 @@ function guardarMeta() {
 
 async function eliminarMeta(id) {
     if (!await mostrarConfirmModal('¿Eliminar esta meta?', { destructivo: true, textoConfirmar: 'Eliminar' })) return;
-    let metas = JSON.parse(localStorage.getItem('hdv_metas') || '[]');
+    let metas = (await HDVStorage.getItem('hdv_metas')) || [];
     metas = metas.filter(m => m.id !== id);
-    localStorage.setItem('hdv_metas', JSON.stringify(metas));
+    await HDVStorage.setItem('hdv_metas', metas);
     if (typeof guardarMetas === 'function') guardarMetas(metas).catch(e => console.error(e));
     cargarMetas();
 }

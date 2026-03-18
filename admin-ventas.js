@@ -12,8 +12,8 @@ const ventasCtrl = {};
 // CARGAR Y MOSTRAR VENTAS
 // ============================================
 
-function cargarVentas() {
-    todosLosPedidos = ventasDataObtenerPedidos();
+async function cargarVentas() {
+    todosLosPedidos = await ventasDataObtenerPedidos();
     filtrarVentas();
 }
 
@@ -65,7 +65,7 @@ function mostrarVentas(ventas) {
 // ============================================
 
 async function facturarPedidoAdmin(pedidoId) {
-    const pedido = ventasDataBuscarPedido(pedidoId);
+    const pedido = await ventasDataBuscarPedido(pedidoId);
     if (!pedido) { mostrarToast('Pedido no encontrado', 'error'); return; }
 
     const clienteInfo = ventasDataBuscarCliente(pedido.cliente?.id);
@@ -87,7 +87,7 @@ async function facturarPedidoAdmin(pedidoId) {
     // Simular latencia SET
     await new Promise(resolve => setTimeout(resolve, 2500));
 
-    const resultado = ventasDataFacturar(pedidoId);
+    const resultado = await ventasDataFacturar(pedidoId);
     if (!resultado) { mostrarToast('Pedido no encontrado', 'error'); return; }
     if (resultado.error) { mostrarToast(resultado.error, 'error'); return; }
 
@@ -197,12 +197,12 @@ function cerrarModalElegirImpresion() {
     delete modal.dataset.ventaId;
 }
 
-function ejecutarReimpresion(formato) {
+async function ejecutarReimpresion(formato) {
     const modal = document.getElementById('modalElegirImpresion');
     const ventaId = modal.dataset.ventaId;
     if (!ventaId) return;
 
-    const pedido = ventasDataBuscarPedido(ventaId);
+    const pedido = await ventasDataBuscarPedido(ventaId);
     if (!pedido) { mostrarToast('Venta no encontrada', 'error'); return; }
 
     const clienteInfo = ventasDataBuscarCliente(pedido.cliente?.id);
@@ -214,8 +214,8 @@ function ejecutarReimpresion(formato) {
 // ENVIAR WHATSAPP DESDE VENTAS
 // ============================================
 
-ventasCtrl.enviarWhatsAppVenta = function(ventaId) {
-    const url = ventasDataBuildWhatsAppURL(ventaId);
+ventasCtrl.enviarWhatsAppVenta = async function(ventaId) {
+    const url = await ventasDataBuildWhatsAppURL(ventaId);
     if (url) window.open(url, '_blank');
 };
 
@@ -226,8 +226,8 @@ function enviarWhatsAppVenta(ventaId) { ventasCtrl.enviarWhatsAppVenta(ventaId);
 // EXPORTAR VENTAS SEMANALES A CSV
 // ============================================
 
-function exportarVentasSemanalesCSV() {
-    const result = ventasDataExportCSVSemanal();
+async function exportarVentasSemanalesCSV() {
+    const result = await ventasDataExportCSVSemanal();
     if (!result) {
         mostrarToast('No hay ventas esta semana para exportar', 'error');
         return;
@@ -246,11 +246,11 @@ ventasCtrl.verXMLSifen = async function(pedidoId) {
     try {
         const result = await ventasDataGenerarXMLSifen(pedidoId);
 
-        // Guardar datos SIFEN en localStorage
+        // Guardar datos SIFEN en IndexedDB
         try {
-            ventasDataGuardarSifen(pedidoId, result);
-            if (typeof cargarVentas === 'function') cargarVentas();
-        } catch (e) { console.warn('[SIFEN] Error guardando en localStorage:', e); }
+            await ventasDataGuardarSifen(pedidoId, result);
+            if (typeof cargarVentas === 'function') await cargarVentas();
+        } catch (e) { console.warn('[SIFEN] Error guardando en IndexedDB:', e); }
 
         // Mostrar XML en modal
         _mostrarXMLSifenModal(result);
@@ -353,8 +353,8 @@ function descargarSOAPSifen() { ventasCtrl.descargarSOAPSifen(); }
 // IMPRIMIR KuDE
 // ============================================
 
-ventasCtrl.imprimirKuDE = function(pedidoId) {
-    const pedido = ventasDataBuscarPedido(pedidoId);
+ventasCtrl.imprimirKuDE = async function(pedidoId) {
+    const pedido = await ventasDataBuscarPedido(pedidoId);
     if (!pedido) { mostrarToast('Pedido no encontrado', 'error'); return; }
 
     const cdc = pedido.sifen_cdc || pedido.cdc || '';
@@ -380,8 +380,8 @@ ventasCtrl.imprimirKuDE = function(pedidoId) {
 
 function imprimirKuDE(pedidoId) { ventasCtrl.imprimirKuDE(pedidoId); }
 
-ventasCtrl.ejecutarImpresionKuDE = function(pedidoId, formato) {
-    const pedido = ventasDataBuscarPedido(pedidoId);
+ventasCtrl.ejecutarImpresionKuDE = async function(pedidoId, formato) {
+    const pedido = await ventasDataBuscarPedido(pedidoId);
     if (!pedido) { mostrarToast('Pedido no encontrado', 'error'); return; }
 
     const clienteInfo = ventasDataBuscarCliente(pedido.cliente?.id);

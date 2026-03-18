@@ -77,7 +77,7 @@ function poblarClientes(filtro) {
     if (valorActual && !filtro) select.value = valorActual;
 }
 
-function mostrarInfoCliente(cliente) {
+async function mostrarInfoCliente(cliente) {
     const panel = document.getElementById('clienteInfo');
     if (!panel) return;
     if (!cliente) { panel.classList.add('hidden'); return; }
@@ -87,7 +87,7 @@ function mostrarInfoCliente(cliente) {
     document.getElementById('clienteInfoRuc').textContent = cliente.ruc || 'Sin RUC';
 
     // Dias desde ultimo pedido
-    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
     const pedidosCliente = pedidos.filter(p => p.cliente && p.cliente.id === cliente.id);
     const elDias = document.getElementById('clienteInfoDias');
     if (pedidosCliente.length > 0) {
@@ -101,7 +101,7 @@ function mostrarInfoCliente(cliente) {
     }
 
     // Saldo de deuda
-    const pagos = JSON.parse(localStorage.getItem('hdv_pagos_credito') || '{}');
+    const pagos = (await HDVStorage.getItem('hdv_pagos_credito')) || {};
     const creditos = pedidosCliente.filter(p => p.tipoPago === 'credito');
     let deudaTotal = 0;
     creditos.forEach(p => {
@@ -794,9 +794,9 @@ function aplicarDescuento() {
 // ============================================
 // VISTA MIS PEDIDOS
 // ============================================
-function mostrarMisPedidos() {
+async function mostrarMisPedidos() {
     const container = document.getElementById('productsContainer');
-    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
 
     let misPedidos = pedidos.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
 
@@ -950,15 +950,19 @@ function mostrarInputModal(opciones = {}) {
 // ============================================
 // DARK MODE
 // ============================================
-function toggleDarkMode() {
+async function toggleDarkMode() {
     document.body.classList.toggle('dark-mode');
-    localStorage.setItem('hdv_darkmode', document.body.classList.contains('dark-mode'));
+    await HDVStorage.setItem('hdv_darkmode', document.body.classList.contains('dark-mode'));
 }
 
 // Cargar dark mode guardado
-if (localStorage.getItem('hdv_darkmode') === 'true') {
-    document.body.classList.add('dark-mode');
-}
+(async () => {
+    await HDVStorage.ready();
+    const darkMode = await HDVStorage.getItem('hdv_darkmode');
+    if (darkMode === true || darkMode === 'true') {
+        document.body.classList.add('dark-mode');
+    }
+})();
 
 // ============================================
 // MODAL CLIENTE NUEVO DESDE VENDEDOR
@@ -1033,11 +1037,11 @@ function cerrarModalSinCliente() {
 // ============================================
 // VISTA CONFIGURACION
 // ============================================
-function mostrarConfiguracion() {
+async function mostrarConfiguracion() {
     const container = document.getElementById('productsContainer');
-    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
-    const autoBackups = JSON.parse(localStorage.getItem('hdv_auto_backups_meta') || '[]');
-    const ultimoBackup = localStorage.getItem('hdv_ultimo_backup_fecha');
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
+    const autoBackups = (await HDVStorage.getItem('hdv_auto_backups_meta')) || [];
+    const ultimoBackup = await HDVStorage.getItem('hdv_ultimo_backup_fecha');
 
     const totalPedidos = pedidos.length;
     const pendientes = pedidos.filter(p => (p.estado || 'pendiente') === 'pendiente').length;
@@ -1086,16 +1090,20 @@ function mostrarConfiguracion() {
     calcularAlmacenamiento();
 }
 
-function calcularAlmacenamiento() {
+async function calcularAlmacenamiento() {
     let totalBytes = 0;
-    for (let key in localStorage) {
-        if (key.startsWith('hdv_')) {
-            totalBytes += (localStorage[key] || '').length * 2;
+    if (typeof HDVStorage.keys === 'function') {
+        const allKeys = await HDVStorage.keys();
+        for (const key of allKeys) {
+            if (key.startsWith('hdv_')) {
+                const val = await HDVStorage.getItem(key);
+                totalBytes += JSON.stringify(val || '').length * 2;
+            }
         }
     }
     const kb = (totalBytes / 1024).toFixed(1);
     const el = document.getElementById('storageInfo');
-    if (el) el.textContent = `Usando ${kb} KB de localStorage`;
+    if (el) el.textContent = `Usando ${kb} KB de almacenamiento`;
 }
 
 // ============================================
@@ -1145,11 +1153,11 @@ function actualizarIndicadorZona(zona) {
     }
 }
 
-function mostrarRutaHoy() {
+async function mostrarRutaHoy() {
     if (!zonaActiva) { mostrarFiltroZonas(); return; }
     const container = document.getElementById('productsContainer');
     const clientesZona = clientes.filter(c => c.zona && c.zona.trim() === zonaActiva);
-    const pedidosHoy = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    const pedidosHoy = (await HDVStorage.getItem('hdv_pedidos')) || [];
     const hoy = new Date().toISOString().split('T')[0];
 
     let html = `<div class="flex justify-between items-center mb-4">
@@ -1189,15 +1197,15 @@ function mostrarRutaHoy() {
 // ============================================
 // MI CAJA UI
 // ============================================
-function mostrarMiCaja() {
+async function mostrarMiCaja() {
     const container = document.getElementById('productsContainer');
     const semana = obtenerSemanaActualVendedor();
     const { inicio, fin } = obtenerRangoSemanaVendedor(semana);
 
-    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
-    const gastos = JSON.parse(localStorage.getItem('hdv_gastos') || '[]');
-    const cuentas = JSON.parse(localStorage.getItem('hdv_cuentas_bancarias') || '[]');
-    const rendiciones = JSON.parse(localStorage.getItem('hdv_rendiciones') || '[]');
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
+    const gastos = (await HDVStorage.getItem('hdv_gastos')) || [];
+    const cuentas = (await HDVStorage.getItem('hdv_cuentas_bancarias')) || [];
+    const rendiciones = (await HDVStorage.getItem('hdv_rendiciones')) || [];
 
     const pedidosSemana = pedidos.filter(p => {
         const f = new Date(p.fecha);
@@ -1306,13 +1314,13 @@ function cerrarModalBackup() {
     document.getElementById('backupModal').classList.add('hidden');
 }
 
-function actualizarInfoBackup() {
-    const ultimaFecha = localStorage.getItem('hdv_ultimo_backup_fecha');
+async function actualizarInfoBackup() {
+    const ultimaFecha = await HDVStorage.getItem('hdv_ultimo_backup_fecha');
     const infoText = document.getElementById('backupInfoText');
     const infoDate = document.getElementById('backupInfoDate');
     if (!infoText || !infoDate) return;
 
-    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
     infoText.textContent = `${pedidos.length} pedidos en el dispositivo`;
 
     if (ultimaFecha) {
@@ -1322,11 +1330,11 @@ function actualizarInfoBackup() {
     }
 }
 
-function mostrarHistorialBackups() {
+async function mostrarHistorialBackups() {
     const container = document.getElementById('historialBackups');
     if (!container) return;
 
-    const meta = JSON.parse(localStorage.getItem('hdv_auto_backups_meta') || '[]');
+    const meta = (await HDVStorage.getItem('hdv_auto_backups_meta')) || [];
     if (meta.length === 0) {
         container.innerHTML = '<p class="text-xs text-gray-400 italic">Sin auto-backups aun</p>';
         return;

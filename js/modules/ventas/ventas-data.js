@@ -1,6 +1,6 @@
 // ============================================
 // HDV Admin - Ventas: Capa de Datos
-// Persistencia localStorage + Supabase.
+// Persistencia IndexedDB (HDVStorage) + Supabase.
 // NO accede al DOM. Devuelve datos puros.
 // Depende de globals: supabaseClient, SUPABASE_URL, SUPABASE_ANON_KEY,
 //   guardarPedido (supabase-config.js), productosData (admin.js)
@@ -10,8 +10,8 @@
 
 // --- Lectura ---
 
-function ventasDataObtenerPedidos() {
-    return JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+async function ventasDataObtenerPedidos() {
+    return (await HDVStorage.getItem('hdv_pedidos')) || [];
 }
 
 function ventasDataFiltrar(pedidos, filtroFecha, filtroTipo) {
@@ -23,8 +23,8 @@ function ventasDataFiltrar(pedidos, filtroFecha, filtroTipo) {
     return ventas;
 }
 
-function ventasDataBuscarPedido(pedidoId) {
-    const pedidos = ventasDataObtenerPedidos();
+async function ventasDataBuscarPedido(pedidoId) {
+    const pedidos = await ventasDataObtenerPedidos();
     return pedidos.find(p => p.id === pedidoId) || null;
 }
 
@@ -42,8 +42,8 @@ function ventasDataEstadisticas(ventas) {
 
 // --- Escritura ---
 
-function ventasDataFacturar(pedidoId) {
-    const pedidos = ventasDataObtenerPedidos();
+async function ventasDataFacturar(pedidoId) {
+    const pedidos = await ventasDataObtenerPedidos();
     const pedido = pedidos.find(p => p.id === pedidoId);
     if (!pedido) return null;
 
@@ -58,14 +58,14 @@ function ventasDataFacturar(pedidoId) {
     pedido.numFactura = numFactura;
     pedido.cdc = cdc;
     pedido.sincronizado = false;
-    localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
+    await HDVStorage.setItem('hdv_pedidos', pedidos);
 
     // Sync con Supabase (fire-and-forget)
     if (typeof guardarPedido === 'function') {
-        guardarPedido(pedido).then(ok => {
+        guardarPedido(pedido).then(async ok => {
             if (ok) {
                 pedido.sincronizado = true;
-                localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
+                await HDVStorage.setItem('hdv_pedidos', pedidos);
             }
         });
     }
@@ -73,8 +73,8 @@ function ventasDataFacturar(pedidoId) {
     return { pedido, clienteInfo, numFactura, cdc, ruc };
 }
 
-function ventasDataGuardarSifen(pedidoId, result) {
-    const pedidos = ventasDataObtenerPedidos();
+async function ventasDataGuardarSifen(pedidoId, result) {
+    const pedidos = await ventasDataObtenerPedidos();
     const idx = pedidos.findIndex(p => p.id === pedidoId);
     if (idx === -1) return false;
 
@@ -83,7 +83,7 @@ function ventasDataGuardarSifen(pedidoId, result) {
     pedidos[idx].sifen_numFactura = result.numFactura;
     pedidos[idx].sifen_xml_generado = true;
     pedidos[idx].sifen_fecha_generacion = new Date().toISOString();
-    localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
+    await HDVStorage.setItem('hdv_pedidos', pedidos);
     return true;
 }
 
@@ -110,8 +110,8 @@ async function ventasDataGenerarXMLSifen(pedidoId) {
 
 // --- Export CSV semanal ---
 
-function ventasDataExportCSVSemanal() {
-    const pedidos = ventasDataObtenerPedidos();
+async function ventasDataExportCSVSemanal() {
+    const pedidos = await ventasDataObtenerPedidos();
 
     const hoy = new Date();
     const diaSemana = hoy.getDay();
@@ -156,8 +156,8 @@ function ventasDataExportCSVSemanal() {
 
 // --- WhatsApp ---
 
-function ventasDataBuildWhatsAppURL(pedidoId) {
-    const pedido = ventasDataBuscarPedido(pedidoId);
+async function ventasDataBuildWhatsAppURL(pedidoId) {
+    const pedido = await ventasDataBuscarPedido(pedidoId);
     if (!pedido) return null;
 
     const clienteInfo = ventasDataBuscarCliente(pedido.cliente?.id);

@@ -74,19 +74,19 @@ function actualizarContadorCarrito() {
     badge.style.display = totalItems > 0 ? 'flex' : 'none';
 }
 
-function guardarCarrito() {
+async function guardarCarrito() {
     if (clienteActual) {
-        localStorage.setItem(`hdv_carrito_${clienteActual.id}`, JSON.stringify(carrito));
+        await HDVStorage.setItem(`hdv_carrito_${clienteActual.id}`, carrito);
     }
 }
 
-function cargarCarritoGuardado() {
+async function cargarCarritoGuardado() {
     const selectEl = document.getElementById('clienteSelect');
     if (selectEl.value) {
         clienteActual = clientes.find(c => c.id === selectEl.value);
         if (clienteActual) {
-            const saved = localStorage.getItem(`hdv_carrito_${clienteActual.id}`);
-            if (saved) carrito = JSON.parse(saved);
+            const saved = await HDVStorage.getItem(`hdv_carrito_${clienteActual.id}`);
+            if (saved) carrito = saved;
             actualizarContadorCarrito();
         }
     }
@@ -218,7 +218,7 @@ function agregarMasivoAlCarrito(productoId) {
 // ============================================
 // CONFIRMAR PEDIDO
 // ============================================
-function confirmarPedido() {
+async function confirmarPedido() {
     if (!clienteActual) {
         closeCartModal();
         mostrarModalSinCliente();
@@ -248,17 +248,17 @@ function confirmarPedido() {
         sincronizado: false
     };
 
-    // Guardar en localStorage
-    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    // Guardar en HDVStorage
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
     pedidos.push(pedido);
-    localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
+    await HDVStorage.setItem('hdv_pedidos', pedidos);
 
     // Guardar en Supabase
     if (typeof guardarPedido === 'function') {
-        guardarPedido(pedido).then(ok => {
+        guardarPedido(pedido).then(async ok => {
             if (ok) {
                 pedido.sincronizado = true;
-                localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
+                await HDVStorage.setItem('hdv_pedidos', pedidos);
                 console.log('[Vendedor] Pedido sincronizado con Supabase');
             }
         });
@@ -281,7 +281,7 @@ function confirmarPedido() {
 // ============================================
 // CLIENTE NUEVO DESDE VENDEDOR (logica)
 // ============================================
-function guardarNuevoClienteDesdeVendedor() {
+async function guardarNuevoClienteDesdeVendedor() {
     const nombre = document.getElementById('ncvNombre')?.value.trim();
     const telefono = document.getElementById('ncvTelefono')?.value.trim();
     const zona = document.getElementById('ncvZona')?.value.trim();
@@ -301,9 +301,9 @@ function guardarNuevoClienteDesdeVendedor() {
         fechaSolicitud: new Date().toISOString()
     };
 
-    const pendientes = JSON.parse(localStorage.getItem('hdv_clientes_pendientes') || '[]');
+    const pendientes = (await HDVStorage.getItem('hdv_clientes_pendientes')) || [];
     pendientes.push(nuevoCliente);
-    localStorage.setItem('hdv_clientes_pendientes', JSON.stringify(pendientes));
+    await HDVStorage.setItem('hdv_clientes_pendientes', pendientes);
 
     if (typeof db !== 'undefined') {
         db.collection('configuracion').doc('clientes_pendientes').set({ lista: pendientes })
@@ -317,9 +317,9 @@ function guardarNuevoClienteDesdeVendedor() {
 // ============================================
 // PRODUCTOS FRECUENTES
 // ============================================
-function obtenerProductosFrecuentes(clienteId, limit = 6) {
-    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]')
-        .filter(p => p.cliente?.id === clienteId);
+async function obtenerProductosFrecuentes(clienteId, limit = 6) {
+    const allPedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
+    const pedidos = allPedidos.filter(p => p.cliente?.id === clienteId);
     const conteo = {};
     pedidos.forEach(p => {
         (p.items || []).forEach(it => {
@@ -335,14 +335,14 @@ function obtenerProductosFrecuentes(clienteId, limit = 6) {
 // ============================================
 // PROMOCIONES
 // ============================================
-function obtenerPromocionesActivas() {
-    const promos = JSON.parse(localStorage.getItem('hdv_promociones') || '[]');
+async function obtenerPromocionesActivas() {
+    const promos = (await HDVStorage.getItem('hdv_promociones')) || [];
     const hoy = new Date();
     return promos.filter(p => p.activa && hoy >= new Date(p.fechaInicio) && hoy <= new Date(p.fechaFin));
 }
 
-function aplicarPromociones(cart) {
-    const promos = obtenerPromocionesActivas();
+async function aplicarPromociones(cart) {
+    const promos = await obtenerPromocionesActivas();
     const resultado = { descuentoTotal: 0, promocionesAplicadas: [], itemsGratis: [] };
 
     promos.forEach(promo => {
@@ -385,8 +385,8 @@ function aplicarPromociones(cart) {
     return resultado;
 }
 
-function mostrarPromocionesEnProducto(productoId) {
-    const promos = obtenerPromocionesActivas().filter(p => p.productoId === productoId);
+async function mostrarPromocionesEnProducto(productoId) {
+    const promos = (await obtenerPromocionesActivas()).filter(p => p.productoId === productoId);
     if (promos.length === 0) return '';
     return promos.map(p => {
         if (p.tipo === 'combo') {

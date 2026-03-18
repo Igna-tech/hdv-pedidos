@@ -98,8 +98,8 @@ function mostrarClientesGestion() {
     }
 }
 
-function mostrarClientesPendientes() {
-    const pendientes = JSON.parse(localStorage.getItem('hdv_clientes_pendientes') || '[]')
+async function mostrarClientesPendientes() {
+    const pendientes = ((await HDVStorage.getItem('hdv_clientes_pendientes')) || [])
         .filter(c => c.estado === 'pendiente_aprobacion');
 
     // Buscar o crear el banner de pendientes en la seccion clientes
@@ -135,8 +135,8 @@ function mostrarClientesPendientes() {
         </div>`;
 }
 
-function aprobarClientePendiente(id) {
-    const pendientes = JSON.parse(localStorage.getItem('hdv_clientes_pendientes') || '[]');
+async function aprobarClientePendiente(id) {
+    const pendientes = (await HDVStorage.getItem('hdv_clientes_pendientes')) || [];
     const cliente = pendientes.find(c => c.id === id);
     if (!cliente) return;
     // Generar ID definitivo
@@ -149,16 +149,16 @@ function aprobarClientePendiente(id) {
     // Marcar como aprobado
     const idx = pendientes.findIndex(c => c.id === id);
     if (idx >= 0) pendientes.splice(idx, 1);
-    localStorage.setItem('hdv_clientes_pendientes', JSON.stringify(pendientes));
+    await HDVStorage.setItem('hdv_clientes_pendientes', pendientes);
     clientesFiltrados = [...productosData.clientes];
     mostrarClientesGestion();
 }
 
 async function rechazarClientePendiente(id) {
     if (!await mostrarConfirmModal('¿Rechazar esta solicitud de cliente?', { destructivo: true, textoConfirmar: 'Rechazar' })) return;
-    const pendientes = JSON.parse(localStorage.getItem('hdv_clientes_pendientes') || '[]');
+    const pendientes = (await HDVStorage.getItem('hdv_clientes_pendientes')) || [];
     const nuevos = pendientes.filter(c => c.id !== id);
-    localStorage.setItem('hdv_clientes_pendientes', JSON.stringify(nuevos));
+    await HDVStorage.setItem('hdv_clientes_pendientes', nuevos);
     mostrarClientesPendientes();
 }
 
@@ -261,11 +261,11 @@ function guardarClienteModal() {
 // PERFIL DE CLIENTE (Master-Detail)
 // ============================================
 
-function abrirPerfilCliente(clienteId) {
+async function abrirPerfilCliente(clienteId) {
     const cliente = productosData.clientes.find(c => c.id === clienteId);
     if (!cliente) return;
     clientePerfilActual = cliente;
-    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
     const pedidosCliente = pedidos.filter(p => p.cliente?.id === clienteId);
     const nombre = cliente.razon_social || cliente.nombre || clienteId;
 
@@ -436,10 +436,10 @@ function eliminarPrecioEspecial(prodId, tamano) {
     }
 }
 
-function renderizarPerfilHistorial() {
+async function renderizarPerfilHistorial() {
     const container = document.getElementById('perfilTab-historial');
     if (!container || !clientePerfilActual) return;
-    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
     const pedidosCliente = pedidos.filter(p => p.cliente?.id === clientePerfilActual.id)
         .sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
 
@@ -466,9 +466,9 @@ function renderizarPerfilHistorial() {
     }).join('') + '</div>';
 }
 
-function renderizarPerfilEstadisticas() {
+async function renderizarPerfilEstadisticas() {
     if (!clientePerfilActual) return;
-    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
     const pedidosCliente = pedidos.filter(p => p.cliente?.id === clientePerfilActual.id);
     const hoy = new Date();
 
@@ -533,8 +533,8 @@ function renderizarPerfilEstadisticas() {
 // CLIENTES EN RIESGO (INACTIVOS)
 // ============================================
 
-function cargarClientesInactivos() {
-    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+async function cargarClientesInactivos() {
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
     const clientesData = productosData.clientes || [];
     const filtro = document.getElementById('filtroInactivos')?.value || 'todos';
     const hoy = new Date();

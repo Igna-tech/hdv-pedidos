@@ -10,14 +10,14 @@ let ultimaNCEmitida = null;
 // BUSCAR FACTURA
 // ============================================
 
-function buscarFacturaDevolucion() {
+async function buscarFacturaDevolucion() {
     const query = (document.getElementById('devBuscarInput')?.value || '').trim().toLowerCase();
     if (!query) {
         mostrarToast('Ingresa un numero de factura, RUC o nombre de cliente', 'error');
         return;
     }
 
-    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
     const facturas = pedidos.filter(p => {
         if (p.estado !== 'facturado_mock') return false;
         const clienteInfo = productosData.clientes.find(c => c.id === p.cliente?.id);
@@ -64,8 +64,8 @@ function buscarFacturaDevolucion() {
 // SELECCIONAR FACTURA Y MOSTRAR DETALLE
 // ============================================
 
-function seleccionarFacturaNC(facturaId) {
-    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+async function seleccionarFacturaNC(facturaId) {
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
     const factura = pedidos.find(p => p.id === facturaId);
     if (!factura) { mostrarToast('Factura no encontrada', 'error'); return; }
 
@@ -223,19 +223,19 @@ async function procesarNotaCredito() {
         sincronizado: false
     };
 
-    // Guardar en localStorage
-    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    // Guardar en HDVStorage
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
     pedidos.push(notaCredito);
-    localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
+    await HDVStorage.setItem('hdv_pedidos', pedidos);
 
     // Sincronizar con Supabase
     if (typeof guardarPedido === 'function') {
-        guardarPedido(notaCredito).then(ok => {
+        guardarPedido(notaCredito).then(async (ok) => {
             if (ok) {
                 notaCredito.sincronizado = true;
-                const p = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+                const p = (await HDVStorage.getItem('hdv_pedidos')) || [];
                 const idx = p.findIndex(x => x.id === notaCredito.id);
-                if (idx >= 0) { p[idx].sincronizado = true; localStorage.setItem('hdv_pedidos', JSON.stringify(p)); }
+                if (idx >= 0) { p[idx].sincronizado = true; await HDVStorage.setItem('hdv_pedidos', p); }
             }
         });
     }
@@ -314,8 +314,8 @@ function cerrarModalNC() {
 // HISTORIAL DE NC
 // ============================================
 
-function cargarHistorialNC() {
-    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+async function cargarHistorialNC() {
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
     const ncs = pedidos.filter(p => p.estado === 'nota_credito_mock').sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
 
     const container = document.getElementById('devHistorial');
@@ -504,8 +504,8 @@ function imprimirNC(formato) {
 }
 
 // Re-imprimir NC desde historial
-function reimprimirNC(ncId) {
-    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+async function reimprimirNC(ncId) {
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
     const nc = pedidos.find(p => p.id === ncId);
     if (!nc) { mostrarToast('NC no encontrada', 'error'); return; }
 

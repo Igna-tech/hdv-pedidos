@@ -26,6 +26,7 @@ PWA mobile-first para vendedores de calle + panel admin de escritorio.
 │
 ├── supabase-init.js        → Credenciales Supabase (se carga PRIMERO en todos los HTML)
 ├── services/supabase.js    → Capa de servicios (Repository Pattern): centraliza TODAS las queries a Supabase con paginacion
+├── js/utils/storage.js     → HDVStorage: wrapper IndexedDB con cache en memoria (reemplaza localStorage, rompe limite 5MB)
 ├── guard.js                → Proteccion de rutas (auth + roles admin/vendedor via RPC)
 ├── supabase-config.js      → Capa de datos: orquestacion, realtime, sync, mapeo legacy (delega queries a SupabaseService)
 ├── login.html / login.js   → Login con Supabase Auth, redirect por rol
@@ -44,10 +45,13 @@ PWA mobile-first para vendedores de calle + panel admin de escritorio.
 ## Orden de carga de scripts
 
 **index.html (vendedor):**
-supabase CDN → supabase-init.js → services/supabase.js → guard.js → supabase-config.js → app.js → checkout.js
+supabase CDN → supabase-init.js → services/supabase.js → js/utils/storage.js → guard.js → supabase-config.js → app.js → checkout.js
 
 **admin.html:**
-supabase CDN → Chart.js → supabase-init.js → services/supabase.js → guard.js → supabase-config.js → admin.js → admin-ventas.js → admin-devoluciones.js → admin-contabilidad.js
+supabase CDN → Chart.js → supabase-init.js → services/supabase.js → js/utils/storage.js → guard.js → supabase-config.js → admin.js → admin-ventas.js → admin-devoluciones.js → admin-contabilidad.js
+
+**login.html:**
+supabase CDN → supabase-init.js → js/utils/storage.js → login.js
 
 ## Base de datos (Supabase PostgreSQL)
 
@@ -305,7 +309,13 @@ pedido = {
 - Plantillas CSV y JSON descargables para productos y clientes
 - Forzar actualizacion (limpiar caches)
 
-## localStorage keys
+## Persistencia offline (HDVStorage — IndexedDB)
+
+Todas las keys `hdv_*` se almacenan en IndexedDB (base `HDV_ERP_DB`, store `keyval`) via `HDVStorage`.
+Al primer uso, migra automaticamente datos existentes de localStorage a IndexedDB y limpia localStorage.
+Supabase Auth sigue usando localStorage para sus tokens de sesion (no se migra).
+
+### Keys
 
 | Key | Descripcion |
 |-----|-------------|
@@ -331,12 +341,13 @@ pedido = {
 
 ## Flujo de datos
 
-1. **Carga**: `obtenerCatalogo()` → 3 queries paralelas → mapeo a formato legacy → `productosData` (admin) o variables globales (vendedor) + cache en localStorage
-2. **Edicion (admin)**: Modifica `productosData` en memoria → `registrarCambio()` (auto-backup al primer cambio) → usuario clickea "Guardar y Sincronizar" → `guardarTodosCambios()` → localStorage + `guardarCatalogo()` (upsert batch relacional)
-3. **Realtime vendedor**: `escucharCatalogoRealtime()` → 4 canales (categorias, clientes, productos, variantes) con debounce 500ms → actualiza UI + cache localStorage
+1. **Carga**: `HDVStorage.ready()` → `hdvCargarEstadoInicial()` → `obtenerCatalogo()` → 3 queries paralelas → mapeo a formato legacy → `productosData` (admin) o variables globales (vendedor) + cache en IndexedDB
+2. **Edicion (admin)**: Modifica `productosData` en memoria → `registrarCambio()` (auto-backup al primer cambio) → usuario clickea "Guardar y Sincronizar" → `guardarTodosCambios()` → IndexedDB + `guardarCatalogo()` (upsert batch relacional)
+3. **Realtime vendedor**: `escucharCatalogoRealtime()` → 4 canales (categorias, clientes, productos, variantes) con debounce 500ms → actualiza UI + cache IndexedDB
 4. **Realtime pedidos**: `escucharPedidosRealtime()` → notifica nuevos pedidos al admin en vivo
-5. **Sync configuracion**: 8 listeners realtime (pagos, creditos, promos, etc.) → sync bidireccional localStorage ↔ Supabase
-6. **Offline**: localStorage como fuente, service worker para assets, sync al reconectar
+5. **Sync configuracion**: 8 listeners realtime (pagos, creditos, promos, etc.) → sync bidireccional IndexedDB ↔ Supabase
+6. **Offline**: IndexedDB como fuente (sin limite 5MB), service worker para assets, sync al reconectar
+7. **Migracion**: Al primer uso, `HDVStorage` migra automaticamente todas las keys `hdv_*` de localStorage a IndexedDB
 
 ## Imagenes de productos
 

@@ -15,19 +15,19 @@ function calcularDiasDesde(fecha) {
     return Math.floor((new Date() - new Date(fecha)) / (1000 * 60 * 60 * 24));
 }
 
-function obtenerPagosCredito(pedidoId) {
-    const pagos = JSON.parse(localStorage.getItem('hdv_pagos_credito') || '[]');
+async function obtenerPagosCredito(pedidoId) {
+    const pagos = (await HDVStorage.getItem('hdv_pagos_credito')) || [];
     return pagos.filter(p => p.pedidoId === pedidoId);
 }
 
-function obtenerSaldoPendiente(pedido) {
-    const pagos = obtenerPagosCredito(pedido.id);
+async function obtenerSaldoPendiente(pedido) {
+    const pagos = await obtenerPagosCredito(pedido.id);
     const totalPagado = pagos.reduce((s, p) => s + (p.monto || 0), 0);
     return (pedido.total || 0) - totalPagado;
 }
 
-function obtenerCreditosManuales() {
-    return JSON.parse(localStorage.getItem('hdv_creditos_manuales') || '[]');
+async function obtenerCreditosManuales() {
+    return (await HDVStorage.getItem('hdv_creditos_manuales')) || [];
 }
 
 function obtenerSaldoManual(credito) {
@@ -36,11 +36,11 @@ function obtenerSaldoManual(credito) {
     return (credito.monto || 0) - totalPagado;
 }
 
-function cargarCreditos() {
+async function cargarCreditos() {
     // Pedidos a credito
     const pedidosCredito = todosLosPedidos.filter(p => p.tipoPago === 'credito' && p.estado !== 'pagado');
-    const creditosManuales = obtenerCreditosManuales().filter(c => !c.pagado);
-    const allPagos = JSON.parse(localStorage.getItem('hdv_pagos_credito') || '[]');
+    const creditosManuales = (await obtenerCreditosManuales()).filter(c => !c.pagado);
+    const allPagos = (await HDVStorage.getItem('hdv_pagos_credito')) || [];
 
     // Calcular stats
     let totalDeuda = 0, totalCobrado = 0;
@@ -182,9 +182,9 @@ async function registrarPagoCredito(pedidoId) {
     if (monto > saldo) { mostrarToast('El monto excede el saldo pendiente', 'error'); return; }
 
     const pago = { id: 'PAG' + Date.now(), pedidoId, monto, fecha: new Date().toISOString(), nota: datos.nota || '' };
-    const pagos = JSON.parse(localStorage.getItem('hdv_pagos_credito') || '[]');
+    const pagos = (await HDVStorage.getItem('hdv_pagos_credito')) || [];
     pagos.push(pago);
-    localStorage.setItem('hdv_pagos_credito', JSON.stringify(pagos));
+    await HDVStorage.setItem('hdv_pagos_credito', pagos);
 
     if (typeof guardarPagosCredito === 'function') {
         guardarPagosCredito(pagos).catch(e => console.error(e));
@@ -199,7 +199,7 @@ async function registrarPagoCredito(pedidoId) {
 }
 
 async function registrarPagoManual(creditoId) {
-    const creditos = obtenerCreditosManuales();
+    const creditos = await obtenerCreditosManuales();
     const credito = creditos.find(c => c.id === creditoId);
     if (!credito) return;
     const saldo = obtenerSaldoManual(credito);
@@ -221,7 +221,7 @@ async function registrarPagoManual(creditoId) {
     if (!credito.pagos) credito.pagos = [];
     credito.pagos.push({ monto, fecha: new Date().toISOString(), nota: datos.nota || '' });
     if (saldo - monto <= 0) credito.pagado = true;
-    localStorage.setItem('hdv_creditos_manuales', JSON.stringify(creditos));
+    await HDVStorage.setItem('hdv_creditos_manuales', creditos);
     if (typeof guardarCreditosManuales === 'function') {
         guardarCreditosManuales(creditos).catch(e => console.error(e));
     }
@@ -229,19 +229,19 @@ async function registrarPagoManual(creditoId) {
     cargarCreditos();
 }
 
-function marcarPagado(id) {
-    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+async function marcarPagado(id) {
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
     const p = pedidos.find(x => x.id === id);
     if (p) {
         p.estado = 'pagado';
-        localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
+        await HDVStorage.setItem('hdv_pedidos', pedidos);
         if (typeof actualizarEstadoPedido === 'function') actualizarEstadoPedido(id, 'pagado');
     }
     cargarCreditos();
 }
 
-function verHistorialPagos(pedidoId) {
-    const pagos = obtenerPagosCredito(pedidoId);
+async function verHistorialPagos(pedidoId) {
+    const pagos = await obtenerPagosCredito(pedidoId);
     if (pagos.length === 0) { mostrarToast('Sin pagos registrados para este credito', 'info'); return; }
     let msg = 'HISTORIAL DE PAGOS\n' + '='.repeat(30) + '\n';
     pagos.forEach((p, i) => {
@@ -259,10 +259,10 @@ async function enviarRecordatorioWhatsApp(pedidoId) {
     const telefono = clienteInfo?.telefono || '';
     if (!telefono) { mostrarToast('Este cliente no tiene telefono registrado', 'error'); return; }
 
-    const saldo = obtenerSaldoPendiente(pedido);
+    const saldo = await obtenerSaldoPendiente(pedido);
     const dias = calcularDiasDesde(pedido.fecha);
 
-    let plantilla = localStorage.getItem('hdv_whatsapp_mensaje_credito');
+    let plantilla = await HDVStorage.getItem('hdv_whatsapp_mensaje_credito');
     if (!plantilla) {
         plantilla = 'Hola {cliente}, le recordamos que tiene un saldo pendiente de Gs. {saldo} desde hace {dias} dias. Total original: Gs. {monto}. Fecha del pedido: {fecha}. Agradecemos su pronto pago. HDV Distribuciones';
         // Primera vez: permitir editar via modal
@@ -277,7 +277,7 @@ async function enviarRecordatorioWhatsApp(pedidoId) {
         });
         if (!datos) return;
         plantilla = datos.plantilla;
-        localStorage.setItem('hdv_whatsapp_mensaje_credito', plantilla);
+        await HDVStorage.setItem('hdv_whatsapp_mensaje_credito', plantilla);
     }
 
     const mensaje = plantilla
@@ -294,8 +294,8 @@ async function enviarRecordatorioWhatsApp(pedidoId) {
     window.open(`https://wa.me/${tel}?text=${encodeURIComponent(mensaje)}`, '_blank');
 }
 
-function enviarRecordatorioManualWhatsApp(creditoId) {
-    const creditos = obtenerCreditosManuales();
+async function enviarRecordatorioManualWhatsApp(creditoId) {
+    const creditos = await obtenerCreditosManuales();
     const credito = creditos.find(c => c.id === creditoId);
     if (!credito) return;
     const clienteInfo = productosData.clientes.find(c => c.id === credito.clienteId);
@@ -312,7 +312,7 @@ function enviarRecordatorioManualWhatsApp(creditoId) {
 }
 
 async function editarMensajeRecordatorio() {
-    let plantilla = localStorage.getItem('hdv_whatsapp_mensaje_credito') ||
+    let plantilla = (await HDVStorage.getItem('hdv_whatsapp_mensaje_credito')) ||
         'Hola {cliente}, le recordamos que tiene un saldo pendiente de Gs. {saldo} desde hace {dias} dias. Total original: Gs. {monto}. Fecha del pedido: {fecha}. Agradecemos su pronto pago. HDV Distribuciones';
     const datos = await mostrarInputModal({
         titulo: 'Editar Plantilla WhatsApp',
@@ -324,7 +324,7 @@ async function editarMensajeRecordatorio() {
         textoConfirmar: 'Guardar'
     });
     if (datos) {
-        localStorage.setItem('hdv_whatsapp_mensaje_credito', datos.plantilla);
+        await HDVStorage.setItem('hdv_whatsapp_mensaje_credito', datos.plantilla);
         if (typeof guardarPlantillaWhatsApp === 'function') {
             guardarPlantillaWhatsApp(datos.plantilla).catch(e => console.error(e));
         }
@@ -356,7 +356,7 @@ async function agregarCreditoManual() {
     const cliente = productosData.clientes.find(c => c.id === datos.clienteId);
     const nombre = cliente ? (cliente.razon_social || cliente.nombre) : datos.clienteId;
 
-    const creditos = obtenerCreditosManuales();
+    const creditos = await obtenerCreditosManuales();
     const nuevo = {
         id: 'CM' + Date.now(),
         clienteId: datos.clienteId,
@@ -367,7 +367,7 @@ async function agregarCreditoManual() {
         pagos: [], pagado: false
     };
     creditos.push(nuevo);
-    localStorage.setItem('hdv_creditos_manuales', JSON.stringify(creditos));
+    await HDVStorage.setItem('hdv_creditos_manuales', creditos);
 
     if (typeof guardarCreditosManuales === 'function') {
         guardarCreditosManuales(creditos).catch(e => console.error(e));
@@ -378,7 +378,7 @@ async function agregarCreditoManual() {
 
 // Editar/eliminar creditos
 async function editarCreditoManualItem(creditoId) {
-    const creditos = obtenerCreditosManuales();
+    const creditos = await obtenerCreditosManuales();
     const c = creditos.find(x => x.id === creditoId);
     if (!c) return;
 
@@ -395,25 +395,25 @@ async function editarCreditoManualItem(creditoId) {
     if (!datos) return;
     if (datos.monto > 0) c.monto = datos.monto;
     if (datos.descripcion.trim()) c.descripcion = datos.descripcion;
-    localStorage.setItem('hdv_creditos_manuales', JSON.stringify(creditos));
+    await HDVStorage.setItem('hdv_creditos_manuales', creditos);
     if (typeof guardarCreditosManuales === 'function') guardarCreditosManuales(creditos).catch(e => console.error(e));
     mostrarToast('Credito actualizado', 'success');
     cargarCreditos();
 }
 
 async function eliminarCreditoManualItem(creditoId) {
-    const creditos = obtenerCreditosManuales();
+    const creditos = await obtenerCreditosManuales();
     const c = creditos.find(x => x.id === creditoId);
     if (!c) return;
     if (!await mostrarConfirmModal(`¿Eliminar credito manual de ${c.clienteNombre} (Gs. ${(c.monto || 0).toLocaleString()})?\nEsta accion es irreversible.`, { destructivo: true, textoConfirmar: 'Eliminar' })) return;
     const nuevos = creditos.filter(x => x.id !== creditoId);
-    localStorage.setItem('hdv_creditos_manuales', JSON.stringify(nuevos));
+    await HDVStorage.setItem('hdv_creditos_manuales', nuevos);
     if (typeof guardarCreditosManuales === 'function') guardarCreditosManuales(nuevos).catch(e => console.error(e));
     cargarCreditos();
 }
 
 async function editarPagosCreditoPedido(pedidoId) {
-    const allPagos = JSON.parse(localStorage.getItem('hdv_pagos_credito') || '[]');
+    const allPagos = (await HDVStorage.getItem('hdv_pagos_credito')) || [];
     const pagos = allPagos.filter(p => p.pedidoId === pedidoId);
     if (pagos.length === 0) { mostrarToast('Sin pagos registrados para este pedido', 'info'); return; }
 
@@ -439,7 +439,7 @@ async function editarPagosCreditoPedido(pedidoId) {
     if (!await mostrarConfirmModal(`¿Eliminar pago de Gs. ${pagos[idx].monto.toLocaleString()}?`, { destructivo: true, textoConfirmar: 'Eliminar' })) return;
     const pagoAEliminar = pagos[idx];
     const nuevosPagos = allPagos.filter(p => !(p.pedidoId === pedidoId && p.fecha === pagoAEliminar.fecha && p.monto === pagoAEliminar.monto));
-    localStorage.setItem('hdv_pagos_credito', JSON.stringify(nuevosPagos));
+    await HDVStorage.setItem('hdv_pagos_credito', nuevosPagos);
     cargarCreditos();
 }
 
@@ -458,10 +458,10 @@ function toggleVistaCreditos(vista) {
     if (vista === 'graficos') renderizarGraficoCreditos();
 }
 
-function mostrarDeudaPorCliente() {
+async function mostrarDeudaPorCliente() {
     const pedidosCredito = todosLosPedidos.filter(p => p.tipoPago === 'credito' && p.estado !== 'pagado');
-    const creditosManuales = obtenerCreditosManuales().filter(c => !c.pagado);
-    const allPagos = JSON.parse(localStorage.getItem('hdv_pagos_credito') || '[]');
+    const creditosManuales = (await obtenerCreditosManuales()).filter(c => !c.pagado);
+    const allPagos = (await HDVStorage.getItem('hdv_pagos_credito')) || [];
     const resumen = {};
 
     pedidosCredito.forEach(p => {
@@ -505,9 +505,9 @@ function mostrarDeudaPorCliente() {
         </table>`;
 }
 
-function renderizarGraficoCreditos() {
+async function renderizarGraficoCreditos() {
     const pedidosCredito = todosLosPedidos.filter(p => p.tipoPago === 'credito' && p.estado !== 'pagado');
-    const allPagos = JSON.parse(localStorage.getItem('hdv_pagos_credito') || '[]');
+    const allPagos = (await HDVStorage.getItem('hdv_pagos_credito')) || [];
     const porCliente = {};
     let totalPagadoGlobal = 0, totalPendienteGlobal = 0;
 
@@ -555,12 +555,12 @@ function renderizarGraficoCreditos() {
 // MOTOR DE PROMOCIONES
 // ============================================
 
-function cargarPromocionesDesdeStorage() {
-    return JSON.parse(localStorage.getItem('hdv_promociones') || '[]');
+async function cargarPromocionesDesdeStorage() {
+    return (await HDVStorage.getItem('hdv_promociones')) || [];
 }
 
-function guardarPromocionesEnStorage(promos) {
-    localStorage.setItem('hdv_promociones', JSON.stringify(promos));
+async function guardarPromocionesEnStorage(promos) {
+    await HDVStorage.setItem('hdv_promociones', promos);
     // Sincronizar con Supabase
     if (typeof guardarPromociones === 'function') {
         guardarPromociones(promos).catch(e => console.error(e));
@@ -573,10 +573,10 @@ function esPromocionActiva(promo) {
     return hoy >= new Date(promo.fechaInicio) && hoy <= new Date(promo.fechaFin);
 }
 
-function cargarPromociones() {
+async function cargarPromociones() {
     const container = document.getElementById('promocionesContainer');
     if (!container) return;
-    const promos = cargarPromocionesDesdeStorage();
+    const promos = await cargarPromocionesDesdeStorage();
 
     if (promos.length === 0) {
         container.innerHTML = generarAdminEmptyState(SVG_ADMIN_EMPTY_ORDERS, 'Sin promociones configuradas', 'Crea una nueva promocion para tus productos');
@@ -617,7 +617,7 @@ function cargarPromociones() {
     });
 }
 
-function abrirModalPromocion(promoId) {
+async function abrirModalPromocion(promoId) {
     // Poblar selects de productos
     const selectProd = document.getElementById('formPromoProducto');
     const selectGratis = document.getElementById('formPromoProductoGratis');
@@ -631,7 +631,7 @@ function abrirModalPromocion(promoId) {
     }
 
     if (promoId) {
-        const promo = cargarPromocionesDesdeStorage().find(p => p.id === promoId);
+        const promo = (await cargarPromocionesDesdeStorage()).find(p => p.id === promoId);
         if (promo) {
             document.getElementById('formPromoId').value = promo.id;
             document.getElementById('formPromoNombre').value = promo.nombre;
@@ -691,7 +691,7 @@ function toggleCamposPromo() {
     document.getElementById('camposCombo').style.display = tipo === 'combo' ? '' : 'none';
 }
 
-function guardarPromocion() {
+async function guardarPromocion() {
     const id = document.getElementById('formPromoId').value;
     const nombre = document.getElementById('formPromoNombre').value.trim();
     const productoId = document.getElementById('formPromoProducto').value;
@@ -713,11 +713,11 @@ function guardarPromocion() {
         fechaFin: document.getElementById('formPromoFechaFin').value
     };
 
-    const promos = cargarPromocionesDesdeStorage();
+    const promos = await cargarPromocionesDesdeStorage();
     const idx = promos.findIndex(p => p.id === id);
     if (idx >= 0) promos[idx] = promo;
     else promos.push(promo);
-    guardarPromocionesEnStorage(promos);
+    await guardarPromocionesEnStorage(promos);
 
     if (typeof db !== 'undefined') {
         db.collection('promociones').doc(id).set(promo).catch(e => console.error(e));
@@ -728,17 +728,17 @@ function guardarPromocion() {
     mostrarToast('Promocion guardada', 'success');
 }
 
-function togglePromocion(promoId) {
-    const promos = cargarPromocionesDesdeStorage();
+async function togglePromocion(promoId) {
+    const promos = await cargarPromocionesDesdeStorage();
     const p = promos.find(pr => pr.id === promoId);
-    if (p) { p.activa = !p.activa; guardarPromocionesEnStorage(promos); cargarPromociones(); }
+    if (p) { p.activa = !p.activa; await guardarPromocionesEnStorage(promos); cargarPromociones(); }
 }
 
 async function eliminarPromocion(promoId) {
     if (!await mostrarConfirmModal('¿Eliminar esta promocion?', { destructivo: true, textoConfirmar: 'Eliminar' })) return;
-    let promos = cargarPromocionesDesdeStorage();
+    let promos = await cargarPromocionesDesdeStorage();
     promos = promos.filter(p => p.id !== promoId);
-    guardarPromocionesEnStorage(promos);
+    await guardarPromocionesEnStorage(promos);
     cargarPromociones();
 }
 
@@ -769,13 +769,13 @@ function obtenerRangoSemana(weekStr) {
     return { inicio, fin };
 }
 
-function cargarRendiciones() {
+async function cargarRendiciones() {
     const weekInput = document.getElementById('rendSemana');
     if (!weekInput.value) weekInput.value = obtenerSemanaActual();
     const { inicio, fin } = obtenerRangoSemana(weekInput.value);
 
-    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
-    const gastos = JSON.parse(localStorage.getItem('hdv_gastos') || '[]');
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
+    const gastos = (await HDVStorage.getItem('hdv_gastos')) || [];
 
     // Filtrar pedidos de la semana
     const pedidosSemana = pedidos.filter(p => {
@@ -823,7 +823,7 @@ function cargarRendiciones() {
     }
 
     // Historial de rendiciones
-    const rendiciones = JSON.parse(localStorage.getItem('hdv_rendiciones') || '[]');
+    const rendiciones = (await HDVStorage.getItem('hdv_rendiciones')) || [];
     const histEl = document.getElementById('rendHistorial');
     if (rendiciones.length === 0) {
         histEl.innerHTML = '<p class="p-6 text-center text-gray-500 font-medium">Sin rendiciones anteriores</p>';
@@ -848,16 +848,16 @@ function cargarRendiciones() {
 
 async function eliminarGastoAdmin(gastoId) {
     if (!await mostrarConfirmModal('¿Eliminar este gasto?', { destructivo: true, textoConfirmar: 'Eliminar' })) return;
-    let gastos = JSON.parse(localStorage.getItem('hdv_gastos') || '[]');
+    let gastos = (await HDVStorage.getItem('hdv_gastos')) || [];
     gastos = gastos.filter(g => g.id !== gastoId);
-    localStorage.setItem('hdv_gastos', JSON.stringify(gastos));
+    await HDVStorage.setItem('hdv_gastos', gastos);
     if (typeof guardarGastos === 'function') guardarGastos(gastos).catch(e => console.error(e));
     cargarRendiciones();
 }
 
 // Cuentas bancarias
-function cargarCuentasBancariasAdmin() {
-    const cuentas = JSON.parse(localStorage.getItem('hdv_cuentas_bancarias') || '[]');
+async function cargarCuentasBancariasAdmin() {
+    const cuentas = (await HDVStorage.getItem('hdv_cuentas_bancarias')) || [];
     const el = document.getElementById('cuentasBancariasAdmin');
     if (cuentas.length === 0) {
         el.innerHTML = '<p class="p-6 text-center text-gray-500 font-medium">Sin cuentas bancarias configuradas</p>';
@@ -878,7 +878,7 @@ function cargarCuentasBancariasAdmin() {
     `).join('');
 }
 
-function abrirModalCuentaBancaria(cuentaId) {
+async function abrirModalCuentaBancaria(cuentaId) {
     document.getElementById('formCuentaId').value = '';
     document.getElementById('formCuentaBanco').value = '';
     document.getElementById('formCuentaTipo').value = 'ahorro';
@@ -888,7 +888,7 @@ function abrirModalCuentaBancaria(cuentaId) {
     document.getElementById('formCuentaTitular').value = 'HDV Distribuciones EAS';
     document.getElementById('formCuentaRUC').value = '';
     if (cuentaId) {
-        const cuentas = JSON.parse(localStorage.getItem('hdv_cuentas_bancarias') || '[]');
+        const cuentas = (await HDVStorage.getItem('hdv_cuentas_bancarias')) || [];
         const c = cuentas.find(x => x.id === cuentaId);
         if (c) {
             document.getElementById('formCuentaId').value = c.id;
@@ -910,7 +910,7 @@ function cerrarModalCuentaBancaria() {
 
 function editarCuentaBancaria(id) { abrirModalCuentaBancaria(id); }
 
-function guardarCuentaBancaria() {
+async function guardarCuentaBancaria() {
     const id = document.getElementById('formCuentaId').value || 'CTA' + Date.now();
     const cuenta = {
         id,
@@ -923,10 +923,10 @@ function guardarCuentaBancaria() {
         ruc: document.getElementById('formCuentaRUC').value
     };
     if (!cuenta.banco || !cuenta.numero) { mostrarToast('Banco y numero de cuenta son obligatorios', 'error'); return; }
-    let cuentas = JSON.parse(localStorage.getItem('hdv_cuentas_bancarias') || '[]');
+    let cuentas = (await HDVStorage.getItem('hdv_cuentas_bancarias')) || [];
     const idx = cuentas.findIndex(c => c.id === id);
     if (idx >= 0) cuentas[idx] = cuenta; else cuentas.push(cuenta);
-    localStorage.setItem('hdv_cuentas_bancarias', JSON.stringify(cuentas));
+    await HDVStorage.setItem('hdv_cuentas_bancarias', cuentas);
     if (typeof guardarCuentasBancarias === 'function') guardarCuentasBancarias(cuentas).catch(e => console.error(e));
     cerrarModalCuentaBancaria();
     cargarCuentasBancariasAdmin();
@@ -935,9 +935,9 @@ function guardarCuentaBancaria() {
 
 async function eliminarCuentaBancaria(id) {
     if (!await mostrarConfirmModal('¿Eliminar esta cuenta bancaria?', { destructivo: true, textoConfirmar: 'Eliminar' })) return;
-    let cuentas = JSON.parse(localStorage.getItem('hdv_cuentas_bancarias') || '[]');
+    let cuentas = (await HDVStorage.getItem('hdv_cuentas_bancarias')) || [];
     cuentas = cuentas.filter(c => c.id !== id);
-    localStorage.setItem('hdv_cuentas_bancarias', JSON.stringify(cuentas));
+    await HDVStorage.setItem('hdv_cuentas_bancarias', cuentas);
     if (typeof guardarCuentasBancarias === 'function') guardarCuentasBancarias(cuentas).catch(e => console.error(e));
     cargarCuentasBancariasAdmin();
 }

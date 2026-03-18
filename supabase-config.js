@@ -2,6 +2,7 @@
 // HDV Supabase - Configuracion y Sincronizacion
 // Capa de datos: CRUD + Realtime + Sync
 // Delega queries a SupabaseService (services/supabase.js)
+// Persistencia via HDVStorage (js/utils/storage.js) — IndexedDB
 // ============================================
 
 // ============================================
@@ -83,20 +84,20 @@ async function obtenerPedidos() {
 
 function escucharPedidosRealtime(callback) {
     // Carga inicial
-    SupabaseService.fetchPedidos().then(({ data, error }) => {
+    SupabaseService.fetchPedidos().then(async ({ data, error }) => {
         if (error) {
             console.error('[Supabase] Error carga inicial pedidos:', error);
-            const pedidosLocal = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+            const pedidosLocal = (await HDVStorage.getItem('hdv_pedidos')) || [];
             callback(pedidosLocal, []);
             return;
         }
         const pedidos = data.map(r => r.datos);
-        const pedidosLocal = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+        const pedidosLocal = (await HDVStorage.getItem('hdv_pedidos')) || [];
         if (pedidos.length > 0 || pedidosLocal.length === 0) {
-            localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
+            await HDVStorage.setItem('hdv_pedidos', pedidos);
             callback(pedidos, []);
         } else {
-            console.warn('[Supabase] Carga inicial vacia pero hay datos locales, conservando localStorage');
+            console.warn('[Supabase] Carga inicial vacia pero hay datos locales, conservando');
             callback(pedidosLocal, []);
         }
     });
@@ -105,9 +106,9 @@ function escucharPedidosRealtime(callback) {
     const unsub = SupabaseService.subscribeTo('pedidos-realtime', 'pedidos', async () => {
         const { data } = await SupabaseService.fetchPedidos();
         const pedidos = data.map(r => r.datos);
-        const pedidosLocalRT = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+        const pedidosLocalRT = (await HDVStorage.getItem('hdv_pedidos')) || [];
         if (pedidos.length > 0 || pedidosLocalRT.length === 0) {
-            localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
+            await HDVStorage.setItem('hdv_pedidos', pedidos);
             callback(pedidos, [{ type: 'modified' }]);
         } else {
             console.warn('[Supabase] Realtime devolvio vacio pero hay datos locales, conservando');
@@ -119,7 +120,7 @@ function escucharPedidosRealtime(callback) {
 }
 
 async function sincronizarPedidosLocales() {
-    const pedidosLocal = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    const pedidosLocal = (await HDVStorage.getItem('hdv_pedidos')) || [];
     const sinSincronizar = pedidosLocal.filter(p => p.sincronizado === false);
     if (sinSincronizar.length === 0) return;
 
@@ -130,7 +131,7 @@ async function sincronizarPedidosLocales() {
         if (ok) { pedido.sincronizado = true; sincronizados++; }
     }
     if (sincronizados > 0) {
-        localStorage.setItem('hdv_pedidos', JSON.stringify(pedidosLocal));
+        await HDVStorage.setItem('hdv_pedidos', pedidosLocal);
         console.log(`[Supabase] ${sincronizados} pedidos sincronizados`);
     }
 }
@@ -203,26 +204,19 @@ async function guardarCatalogo(dataCatalogo) {
             categorias: cats.length, productos: prods.length, clientes: clis.length
         });
 
-        // 1. Categorias - upsert batch
         if (cats.length > 0) {
             const catRows = cats.map(c => ({
-                id: c.id,
-                nombre: c.nombre || c.id,
-                subcategorias: c.subcategorias || [],
-                estado: c.estado || 'activa'
+                id: c.id, nombre: c.nombre || c.id,
+                subcategorias: c.subcategorias || [], estado: c.estado || 'activa'
             }));
             const res = await SupabaseService.upsertCategorias(catRows);
             if (!res.success) throw new Error('Error categorias: ' + res.error?.message);
         }
-        // Eliminar categorias que ya no existen
         const { data: dbCats } = await SupabaseService.fetchCategoriasIds();
         const catIds = new Set(cats.map(c => c.id));
         const catsEliminar = (dbCats || []).filter(c => !catIds.has(c.id)).map(c => c.id);
-        if (catsEliminar.length > 0) {
-            await SupabaseService.deleteCategorias(catsEliminar);
-        }
+        if (catsEliminar.length > 0) await SupabaseService.deleteCategorias(catsEliminar);
 
-        // 2. Clientes - upsert batch (dedup por RUC antes de enviar)
         if (clis.length > 0) {
             const rucVisto = new Set();
             const cliRows = [];
@@ -236,71 +230,45 @@ async function guardarCatalogo(dataCatalogo) {
                     rucVisto.add(rucLimpio);
                 }
                 cliRows.push({
-                    id: c.id,
-                    nombre: c.nombre || '',
-                    razon_social: c.razon_social || null,
-                    ruc: rucLimpio,
-                    telefono: c.telefono || null,
-                    direccion: c.direccion || null,
-                    zona: c.zona || null,
-                    encargado: c.encargado || null,
-                    tipo: c.tipo || 'minorista',
-                    oculto: c.oculto || false,
-                    precios_personalizados: c.precios_personalizados || null,
-                    tipo_documento: c.tipo_documento || 'RUC',
-                    pais_documento: c.pais_documento || 'PRY'
+                    id: c.id, nombre: c.nombre || '', razon_social: c.razon_social || null,
+                    ruc: rucLimpio, telefono: c.telefono || null, direccion: c.direccion || null,
+                    zona: c.zona || null, encargado: c.encargado || null, tipo: c.tipo || 'minorista',
+                    oculto: c.oculto || false, precios_personalizados: c.precios_personalizados || null,
+                    tipo_documento: c.tipo_documento || 'RUC', pais_documento: c.pais_documento || 'PRY'
                 });
             }
             const res = await SupabaseService.upsertClientes(cliRows);
             if (!res.success) throw new Error('Error clientes: ' + res.error?.message);
         }
-        // Eliminar clientes que ya no existen
         const { data: dbClis } = await SupabaseService.fetchClientesIds();
         const cliIds = new Set(clis.map(c => c.id));
         const clisEliminar = (dbClis || []).filter(c => !cliIds.has(c.id)).map(c => c.id);
-        if (clisEliminar.length > 0) {
-            await SupabaseService.deleteClientes(clisEliminar);
-        }
+        if (clisEliminar.length > 0) await SupabaseService.deleteClientes(clisEliminar);
 
-        // 3. Productos + Variantes
         if (prods.length > 0) {
             const prodRows = prods.map(p => ({
-                id: p.id,
-                nombre: p.nombre || '',
-                categoria_id: p.categoria || null,
-                subcategoria: p.subcategoria || 'General',
-                imagen_url: p.imagen_url || p.imagen || null,
-                estado: p.estado || 'disponible',
-                oculto: p.oculto || false,
-                tipo_impuesto: _normTipoImpuesto(p.tipo_impuesto),
-                unidad_medida_set: p.unidad_medida_set || '77'
+                id: p.id, nombre: p.nombre || '', categoria_id: p.categoria || null,
+                subcategoria: p.subcategoria || 'General', imagen_url: p.imagen_url || p.imagen || null,
+                estado: p.estado || 'disponible', oculto: p.oculto || false,
+                tipo_impuesto: _normTipoImpuesto(p.tipo_impuesto), unidad_medida_set: p.unidad_medida_set || '77'
             }));
             const res = await SupabaseService.upsertProductos(prodRows);
             if (!res.success) throw new Error('Error productos: ' + res.error?.message);
         }
-        // Eliminar productos que ya no existen (CASCADE borra variantes)
         const { data: dbProds } = await SupabaseService.fetchProductosIds();
         const prodIds = new Set(prods.map(p => p.id));
         const prodsEliminar = (dbProds || []).filter(p => !prodIds.has(p.id)).map(p => p.id);
-        if (prodsEliminar.length > 0) {
-            await SupabaseService.deleteProductos(prodsEliminar);
-        }
+        if (prodsEliminar.length > 0) await SupabaseService.deleteProductos(prodsEliminar);
 
-        // Variantes: borrar todas las existentes y reinsertar
         const allProdIds = prods.map(p => p.id);
-        if (allProdIds.length > 0) {
-            await SupabaseService.deleteVariantesByProductoIds(allProdIds);
-        }
+        if (allProdIds.length > 0) await SupabaseService.deleteVariantesByProductoIds(allProdIds);
         const varRows = [];
         for (const prod of prods) {
             for (const pres of (prod.presentaciones || [])) {
                 varRows.push({
-                    producto_id: prod.id,
-                    nombre_variante: pres.tamano || 'Unidad',
-                    precio: pres.precio_base || 0,
-                    costo: pres.costo || 0,
-                    stock: pres.stock || 0,
-                    activo: pres.activo !== undefined ? pres.activo : true
+                    producto_id: prod.id, nombre_variante: pres.tamano || 'Unidad',
+                    precio: pres.precio_base || 0, costo: pres.costo || 0,
+                    stock: pres.stock || 0, activo: pres.activo !== undefined ? pres.activo : true
                 });
             }
         }
@@ -318,10 +286,8 @@ async function guardarCatalogo(dataCatalogo) {
 }
 
 function escucharCatalogoRealtime(callback) {
-    // Carga inicial
     obtenerCatalogo().then(data => { if (data) callback(data); });
 
-    // Handler comun: recargar todo el catalogo
     let reloadTimeout = null;
     const recargar = () => {
         clearTimeout(reloadTimeout);
@@ -331,7 +297,6 @@ function escucharCatalogoRealtime(callback) {
         }, 500);
     };
 
-    // Escuchar las 4 tablas via SupabaseService
     const unsub1 = SupabaseService.subscribeTo('cat-rt', 'categorias', recargar);
     const unsub2 = SupabaseService.subscribeTo('cli-rt', 'clientes', recargar);
     const unsub3 = SupabaseService.subscribeTo('prod-rt', 'productos', recargar);
@@ -360,16 +325,12 @@ async function obtenerConfig(docId) {
     return data;
 }
 
-function escucharConfigRealtime(docId, localStorageKey) {
+function escucharConfigRealtime(docId, storageKey) {
     return SupabaseService.subscribeTo('config-' + docId, 'configuracion', async () => {
         const datos = await obtenerConfig(docId);
         if (datos !== null) {
             try {
-                if (typeof datos === 'string') {
-                    localStorage.setItem(localStorageKey, datos);
-                } else {
-                    localStorage.setItem(localStorageKey, JSON.stringify(datos));
-                }
+                await HDVStorage.setItem(storageKey, datos);
                 console.log('[Supabase] Config actualizada en tiempo real:', docId);
             } catch(e) {}
         }
@@ -416,7 +377,7 @@ const db = {
                     if (!success) throw error;
                     return true;
                 } else if (collectionName === 'promociones') {
-                    const promos = JSON.parse(localStorage.getItem('hdv_promociones') || '[]');
+                    const promos = (await HDVStorage.getItem('hdv_promociones')) || [];
                     const idx = promos.findIndex(p => p.id === docId);
                     if (idx >= 0) promos[idx] = data; else promos.push(data);
                     return guardarConfig('promociones', promos);
@@ -449,16 +410,9 @@ async function sincronizarDatosNegocio() {
         { key: 'hdv_metas', doc: 'metas_vendedor' }
     ];
     for (const item of mapeo) {
-        const local = localStorage.getItem(item.key);
-        if (local) {
-            try {
-                const datos = JSON.parse(local);
-                if (datos && (Array.isArray(datos) ? datos.length > 0 : true)) {
-                    await guardarConfig(item.doc, datos);
-                }
-            } catch(e) {
-                if (local.length > 0) await guardarConfig(item.doc, local);
-            }
+        const datos = await HDVStorage.getItem(item.key);
+        if (datos && (Array.isArray(datos) ? datos.length > 0 : true)) {
+            await guardarConfig(item.doc, datos);
         }
     }
     console.log('[Supabase] Datos de negocio sincronizados');
@@ -479,11 +433,7 @@ async function cargarDatosNegocio() {
         try {
             const datos = await obtenerConfig(item.doc);
             if (datos !== null) {
-                if (typeof datos === 'string') {
-                    localStorage.setItem(item.key, datos);
-                } else {
-                    localStorage.setItem(item.key, JSON.stringify(datos));
-                }
+                await HDVStorage.setItem(item.key, datos);
                 console.log('[Supabase] Cargado:', item.doc);
             }
         } catch(e) {
@@ -519,9 +469,9 @@ setTimeout(() => {
 async function cerrarSesion() {
     try {
         await supabaseClient.auth.signOut();
-        localStorage.removeItem('hdv_user_rol');
-        localStorage.removeItem('hdv_user_email');
-        localStorage.removeItem('hdv_user_nombre');
+        await HDVStorage.removeItem('hdv_user_rol');
+        await HDVStorage.removeItem('hdv_user_email');
+        await HDVStorage.removeItem('hdv_user_nombre');
         window.location.replace('/login.html');
     } catch (err) {
         console.error('[Supabase] Error cerrando sesion:', err);
@@ -536,4 +486,4 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-console.log('[Supabase] HDV Distribuciones - Inicializado v2.0 (con SupabaseService)');
+console.log('[Supabase] HDV Distribuciones - Inicializado v3.0 (IndexedDB + SupabaseService)');

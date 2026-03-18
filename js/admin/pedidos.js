@@ -9,8 +9,8 @@ let pedidoEditandoId = null;
 // ============================================
 // CARGA Y FILTROS
 // ============================================
-function cargarPedidos() {
-    todosLosPedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+async function cargarPedidos() {
+    todosLosPedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
     aplicarFiltrosPedidos();
 }
 
@@ -88,12 +88,12 @@ function actualizarEstadisticasPedidos(pedidos) {
     el('statRecaudacion', 'Gs. ' + pedidos.reduce((s, p) => s + (p.total || 0), 0).toLocaleString());
 }
 
-function marcarEntregado(id) {
-    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+async function marcarEntregado(id) {
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
     const p = pedidos.find(x => x.id === id);
     if (p) {
         p.estado = 'entregado';
-        localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
+        await HDVStorage.setItem('hdv_pedidos', pedidos);
         if (typeof actualizarEstadoPedido === 'function') {
             actualizarEstadoPedido(id, 'entregado');
         }
@@ -101,12 +101,12 @@ function marcarEntregado(id) {
     }
 }
 
-function marcarPendiente(id) {
-    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+async function marcarPendiente(id) {
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
     const p = pedidos.find(x => x.id === id);
     if (p) {
         p.estado = 'pendiente';
-        localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
+        await HDVStorage.setItem('hdv_pedidos', pedidos);
         if (typeof actualizarEstadoPedido === 'function') {
             actualizarEstadoPedido(id, 'pendiente');
         }
@@ -116,9 +116,9 @@ function marcarPendiente(id) {
 
 async function eliminarPedidoAdmin(id) {
     if (!await mostrarConfirmModal('¿Eliminar este pedido?', { destructivo: true, textoConfirmar: 'Eliminar' })) return;
-    let pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    let pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
     pedidos = pedidos.filter(p => p.id !== id);
-    localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
+    await HDVStorage.setItem('hdv_pedidos', pedidos);
     if (typeof window.eliminarPedidoSupabase === 'function') {
         window.eliminarPedidoSupabase(id);
     }
@@ -142,12 +142,12 @@ function exportarExcelPedidos() {
 // ============================================
 // REPORTES
 // ============================================
-function generarReporte(tipo) {
+async function generarReporte(tipo) {
     const desde = document.getElementById('reporteFechaDesde')?.value;
     const hasta = document.getElementById('reporteFechaHasta')?.value;
     if (!desde || !hasta) { mostrarToast('Selecciona rango de fechas', 'error'); return; }
 
-    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
     const filtrados = pedidos.filter(p => {
         const fecha = new Date(p.fecha).toISOString().split('T')[0];
         return fecha >= desde && fecha <= hasta;
@@ -296,7 +296,7 @@ function recalcularTotalEdicion() {
     document.getElementById('editPedidoTotal').textContent = `Gs. ${total.toLocaleString()}`;
 }
 
-function guardarEdicionPedido() {
+async function guardarEdicionPedido() {
     if (!pedidoEditandoId) return;
     const container = document.getElementById('editPedidoItems');
     const items = [];
@@ -326,8 +326,8 @@ function guardarEdicionPedido() {
     const subtotal = items.reduce((s, i) => s + i.subtotal, 0);
     const total = Math.round(subtotal * (1 - descuento / 100));
 
-    // Update in localStorage
-    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    // Update in HDVStorage
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
     const idx = pedidos.findIndex(p => p.id === pedidoEditandoId);
     if (idx >= 0) {
         pedidos[idx].items = items;
@@ -338,7 +338,7 @@ function guardarEdicionPedido() {
         pedidos[idx].notas = document.getElementById('editPedidoNotas')?.value.trim() || '';
         pedidos[idx].editado = true;
         pedidos[idx].fechaEdicion = new Date().toISOString();
-        localStorage.setItem('hdv_pedidos', JSON.stringify(pedidos));
+        await HDVStorage.setItem('hdv_pedidos', pedidos);
 
         // Sync con Supabase
         if (typeof guardarPedido === 'function') {

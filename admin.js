@@ -162,7 +162,7 @@ function cambiarSeccion(seccionId) {
 // ============================================
 function registrarCambio() {
     if (cambiosSinGuardar === 0) {
-        crearAutoBackupAdmin('Antes de ediciones');
+        crearAutoBackupAdmin('Antes de ediciones'); // fire-and-forget async
     }
     cambiosSinGuardar++;
     actualizarBarraCambios();
@@ -184,10 +184,10 @@ async function guardarTodosCambios() {
 
     try {
         const dataLimpia = { categorias: productosData.categorias, productos: productosData.productos, clientes: productosData.clientes };
-        localStorage.setItem('hdv_catalogo_local', JSON.stringify(dataLimpia));
-        console.log('[Admin] Catalogo guardado en localStorage');
+        await HDVStorage.setItem('hdv_catalogo_local', dataLimpia);
+        console.log('[Admin] Catalogo guardado en IndexedDB');
     } catch (e) {
-        console.error('[Admin] Error guardando en localStorage:', e);
+        console.error('[Admin] Error guardando en IndexedDB:', e);
     }
 
     if (typeof guardarCatalogo === 'function') {
@@ -270,10 +270,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     cambiarSeccion('pedidos');
 
     const autoBackupToggle = document.getElementById('adminAutoBackupToggle');
-    if (autoBackupToggle) autoBackupToggle.checked = localStorage.getItem('hdv_admin_auto_backup') !== 'false';
+    if (autoBackupToggle) autoBackupToggle.checked = (await HDVStorage.getItem('hdv_admin_auto_backup')) !== 'false';
 });
 
 async function cargarDatosIniciales() {
+    await HDVStorage.ready();
     try {
         let data = null;
 
@@ -290,11 +291,11 @@ async function cargarDatosIniciales() {
 
         if (!data || !data.productos) {
             try {
-                const local = localStorage.getItem('hdv_catalogo_local');
+                const local = await HDVStorage.getItem('hdv_catalogo_local');
                 if (local) {
-                    data = JSON.parse(local);
+                    data = local;
                     if (data && data.productos) {
-                        console.log('[Admin] Catalogo cargado desde localStorage (' + data.productos.length + ' productos)');
+                        console.log('[Admin] Catalogo cargado desde IndexedDB (' + data.productos.length + ' productos)');
                     } else { data = null; }
                 }
             } catch (e) { data = null; }
@@ -326,8 +327,8 @@ async function cargarDatosIniciales() {
 // ============================================
 // HERRAMIENTAS Y BACKUP
 // ============================================
-function crearBackup() {
-    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+async function crearBackup() {
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
     const backup = {
         tipo: 'backup_admin_completo',
         fecha: new Date().toISOString(),
@@ -342,7 +343,7 @@ function crearBackup() {
     };
     const fecha = new Date().toISOString().split('T')[0];
     descargarJSON(backup, `hdv_backup_completo_${fecha}.json`);
-    localStorage.setItem('hdv_admin_ultimo_backup', new Date().toISOString());
+    await HDVStorage.setItem('hdv_admin_ultimo_backup', new Date().toISOString());
     actualizarInfoBackupAdmin();
 }
 
@@ -360,8 +361,8 @@ function crearBackupSoloProductos() {
     descargarJSON(backup, `hdv_catalogo_${new Date().toISOString().split('T')[0]}.json`);
 }
 
-function crearBackupSoloPedidos() {
-    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+async function crearBackupSoloPedidos() {
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
     if (pedidos.length === 0) { mostrarToast('No hay pedidos', 'error'); return; }
     const backup = {
         tipo: 'backup_pedidos',
@@ -377,16 +378,16 @@ async function restaurarBackup(event) {
     if (!file) return;
     if (!await mostrarConfirmModal('¿Reemplazar todos los datos actuales con el backup?', { destructivo: true, textoConfirmar: 'Restaurar' })) { event.target.value = ''; return; }
 
-    crearAutoBackupAdmin('Pre-restauracion');
+    await crearAutoBackupAdmin('Pre-restauracion');
 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
         try {
             const backup = JSON.parse(e.target.result);
 
             if (backup.tipo === 'backup_admin_completo' && backup.datos) {
                 productosData = backup.datos.productos;
-                if (backup.datos.pedidos) localStorage.setItem('hdv_pedidos', JSON.stringify(backup.datos.pedidos));
+                if (backup.datos.pedidos) await HDVStorage.setItem('hdv_pedidos', backup.datos.pedidos);
                 productosDataOriginal = JSON.parse(JSON.stringify(productosData));
                 mostrarToast(`Backup completo restaurado. ${backup.resumen?.totalProductos || '?'} productos, ${backup.resumen?.totalPedidos || '?'} pedidos`, 'success');
                 setTimeout(() => location.reload(), 1000);
@@ -398,16 +399,16 @@ async function restaurarBackup(event) {
                 mostrarToast('Catalogo restaurado.', 'success');
                 setTimeout(() => location.reload(), 1000);
             } else if (backup.tipo === 'backup_pedidos' && backup.pedidos) {
-                localStorage.setItem('hdv_pedidos', JSON.stringify(backup.pedidos));
+                await HDVStorage.setItem('hdv_pedidos', backup.pedidos);
                 mostrarToast(`${backup.pedidos.length} pedidos restaurados.`, 'success');
                 cargarPedidos();
             } else if (backup.tipo === 'backup_vendedor_completo' && backup.datos?.pedidos) {
-                localStorage.setItem('hdv_pedidos', JSON.stringify(backup.datos.pedidos));
+                await HDVStorage.setItem('hdv_pedidos', backup.datos.pedidos);
                 mostrarToast(`Pedidos del vendedor restaurados: ${backup.datos.pedidos.length}`, 'success');
                 cargarPedidos();
             } else if (backup.datos) {
                 productosData = backup.datos.productos;
-                if (backup.datos.pedidos) localStorage.setItem('hdv_pedidos', JSON.stringify(backup.datos.pedidos));
+                if (backup.datos.pedidos) await HDVStorage.setItem('hdv_pedidos', backup.datos.pedidos);
                 productosDataOriginal = JSON.parse(JSON.stringify(productosData));
                 mostrarToast('Backup restaurado (formato anterior).', 'success');
                 setTimeout(() => location.reload(), 1000);
@@ -423,16 +424,16 @@ async function restaurarBackup(event) {
 // ============================================
 // AUTO-BACKUP ADMIN
 // ============================================
-function toggleAdminAutoBackup() {
+async function toggleAdminAutoBackup() {
     const toggle = document.getElementById('adminAutoBackupToggle');
-    localStorage.setItem('hdv_admin_auto_backup', toggle?.checked ? 'true' : 'false');
+    await HDVStorage.setItem('hdv_admin_auto_backup', toggle?.checked ? 'true' : 'false');
 }
 
-function crearAutoBackupAdmin(motivo) {
-    const enabled = localStorage.getItem('hdv_admin_auto_backup') !== 'false';
+async function crearAutoBackupAdmin(motivo) {
+    const enabled = (await HDVStorage.getItem('hdv_admin_auto_backup')) !== 'false';
     if (!enabled) return;
 
-    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
     const backup = {
         motivo: motivo || 'Auto-backup',
         fecha: new Date().toISOString(),
@@ -444,38 +445,38 @@ function crearAutoBackupAdmin(motivo) {
         }
     };
 
-    let historial = JSON.parse(localStorage.getItem('hdv_admin_auto_backups') || '[]');
+    let historial = (await HDVStorage.getItem('hdv_admin_auto_backups')) || [];
     historial.unshift(backup);
     if (historial.length > 5) historial = historial.slice(0, 5);
 
     try {
-        localStorage.setItem('hdv_admin_auto_backups', JSON.stringify(historial));
+        await HDVStorage.setItem('hdv_admin_auto_backups', historial);
     } catch (e) {
         console.warn('Auto-backup admin: espacio insuficiente');
         historial = historial.slice(0, 2);
-        localStorage.setItem('hdv_admin_auto_backups', JSON.stringify(historial));
+        await HDVStorage.setItem('hdv_admin_auto_backups', historial);
     }
 }
 
-function actualizarInfoBackupAdmin() {
-    const ultimo = localStorage.getItem('hdv_admin_ultimo_backup');
+async function actualizarInfoBackupAdmin() {
+    const ultimo = await HDVStorage.getItem('hdv_admin_ultimo_backup');
     const el = document.getElementById('adminUltimoBackup');
     if (el) el.textContent = ultimo ? `Ultimo: ${new Date(ultimo).toLocaleString('es-PY')}` : 'Sin backups';
 
-    const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
     const setEl = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
     setEl('adminBackupProductos', productosData.productos?.length || 0);
     setEl('adminBackupClientes', productosData.clientes?.length || 0);
     setEl('adminBackupPedidos', pedidos.length);
 
-    mostrarHistorialBackupsAdmin();
+    await mostrarHistorialBackupsAdmin();
 }
 
-function mostrarHistorialBackupsAdmin() {
+async function mostrarHistorialBackupsAdmin() {
     const container = document.getElementById('adminHistorialBackups');
     if (!container) return;
 
-    const historial = JSON.parse(localStorage.getItem('hdv_admin_auto_backups') || '[]');
+    const historial = (await HDVStorage.getItem('hdv_admin_auto_backups')) || [];
     if (historial.length === 0) {
         container.innerHTML = '<p class="text-xs text-gray-400 italic">Sin auto-backups</p>';
         return;
@@ -501,18 +502,18 @@ function mostrarHistorialBackupsAdmin() {
 
 async function restaurarAutoBackupAdmin(idx) {
     if (!await mostrarConfirmModal('¿Restaurar este auto-backup? Los datos actuales seran reemplazados.', { destructivo: true, textoConfirmar: 'Restaurar' })) return;
-    const historial = JSON.parse(localStorage.getItem('hdv_admin_auto_backups') || '[]');
+    const historial = (await HDVStorage.getItem('hdv_admin_auto_backups')) || [];
     if (historial[idx]?.datos) {
         productosData = historial[idx].datos.productos;
-        if (historial[idx].datos.pedidos) localStorage.setItem('hdv_pedidos', JSON.stringify(historial[idx].datos.pedidos));
+        if (historial[idx].datos.pedidos) await HDVStorage.setItem('hdv_pedidos', historial[idx].datos.pedidos);
         productosDataOriginal = JSON.parse(JSON.stringify(productosData));
         mostrarToast('Auto-backup restaurado. Recargando...', 'success');
         setTimeout(() => location.reload(), 1000);
     }
 }
 
-function descargarAutoBackupAdmin(idx) {
-    const historial = JSON.parse(localStorage.getItem('hdv_admin_auto_backups') || '[]');
+async function descargarAutoBackupAdmin(idx) {
+    const historial = (await HDVStorage.getItem('hdv_admin_auto_backups')) || [];
     if (historial[idx]) {
         descargarJSON(historial[idx], `hdv_autobackup_${new Date(historial[idx].fecha).toISOString().split('T')[0]}.json`);
     }
@@ -521,8 +522,8 @@ function descargarAutoBackupAdmin(idx) {
 async function limpiarPedidos() {
     if (!await mostrarConfirmModal('¿ELIMINAR TODOS LOS PEDIDOS? Esto no se puede deshacer.', { destructivo: true, textoConfirmar: 'Eliminar Todo' })) return;
     if (!await mostrarConfirmModal('¿Estas seguro? Todos los datos de pedidos se perderan.', { destructivo: true, textoConfirmar: 'Si, eliminar' })) return;
-    crearAutoBackupAdmin('Pre-limpieza de pedidos');
-    localStorage.removeItem('hdv_pedidos');
+    await crearAutoBackupAdmin('Pre-limpieza de pedidos');
+    await HDVStorage.removeItem('hdv_pedidos');
     todosLosPedidos = [];
     mostrarToast('Pedidos eliminados. Se guardo un auto-backup por seguridad.', 'success');
     cargarPedidos();

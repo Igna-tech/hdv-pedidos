@@ -63,7 +63,7 @@ function aplicarFiltroStock() {
     renderizarStockGrid();
 }
 
-function renderizarStockGrid() {
+async function renderizarStockGrid() {
     const container = document.getElementById('stockGridContainer');
     if (!container) return;
     const busqueda = document.getElementById('buscarStock')?.value.toLowerCase() || '';
@@ -77,7 +77,7 @@ function renderizarStockGrid() {
                 items.push(prod);
             }
         });
-        renderizarProductosStock(container, items, filtro);
+        await renderizarProductosStock(container, items, filtro);
         return;
     }
 
@@ -89,13 +89,13 @@ function renderizarStockGrid() {
         if (subs.length === 0) {
             // Sin subcategorias, ir directo a productos
             const prods = productosData.productos.filter(p => p.categoria === stockNavCatId);
-            renderizarProductosStock(container, prods, filtro);
+            await renderizarProductosStock(container, prods, filtro);
         } else {
             renderizarSubcategoriasStock(container, subs, filtro);
         }
     } else if (stockNavNivel === 'productos') {
         let prods = productosData.productos.filter(p => p.categoria === stockNavCatId && (stockNavSubId ? p.subcategoria === stockNavSubId : true));
-        renderizarProductosStock(container, prods, filtro);
+        await renderizarProductosStock(container, prods, filtro);
     }
 }
 
@@ -136,18 +136,18 @@ function renderizarSubcategoriasStock(container, subs, filtro) {
     </div>`;
 }
 
-function renderizarProductosStock(container, prods, filtro) {
+async function renderizarProductosStock(container, prods, filtro) {
     // Aplicar ordenamiento/filtro
     if (filtro === 'az') prods = [...prods].sort((a, b) => a.nombre.localeCompare(b.nombre));
     else if (filtro === 'disponibles') prods = prods.filter(p => (p.estado || 'disponible') === 'disponible');
     else if (filtro === 'no-disponibles') prods = prods.filter(p => (p.estado || 'disponible') !== 'disponible');
     else if (filtro === 'mas-vendidos') {
-        const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+        const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
         const conteo = {};
         pedidos.forEach(p => (p.items || []).forEach(it => { conteo[it.productoId] = (conteo[it.productoId] || 0) + (it.cantidad || 1); }));
         prods = [...prods].sort((a, b) => (conteo[b.id] || 0) - (conteo[a.id] || 0));
     } else if (filtro === 'menos-vendidos') {
-        const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+        const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
         const conteo = {};
         pedidos.forEach(p => (p.items || []).forEach(it => { conteo[it.productoId] = (conteo[it.productoId] || 0) + (it.cantidad || 1); }));
         prods = [...prods].sort((a, b) => (conteo[a.id] || 0) - (conteo[b.id] || 0));
@@ -311,7 +311,7 @@ function actualizarBreadcrumbProductos() {
     }
 }
 
-function mostrarProductosGestion() {
+async function mostrarProductosGestion() {
     const container = document.getElementById('productosGridContainer');
     if (!container) return;
     poblarFiltroCategorias();
@@ -328,7 +328,7 @@ function mostrarProductosGestion() {
     if (hayFiltro) {
         let prods = productosFiltrados;
         if (!mostrarOcultos) prods = prods.filter(p => !p.oculto);
-        prods = aplicarOrdenProductos(prods, ordenFiltro);
+        prods = await aplicarOrdenProductos(prods, ordenFiltro);
         renderizarProductosGestionGrid(container, prods);
         actualizarPaginacionProductos(prods.length);
         return;
@@ -344,7 +344,7 @@ function mostrarProductosGestion() {
         if (subs.length === 0) {
             let prods = productosData.productos.filter(p => p.categoria === prodNavCatId);
             if (!mostrarOcultos) prods = prods.filter(p => !p.oculto);
-            prods = aplicarOrdenProductos(prods, ordenFiltro);
+            prods = await aplicarOrdenProductos(prods, ordenFiltro);
             renderizarProductosGestionGrid(container, prods);
             actualizarPaginacionProductos(prods.length);
         } else {
@@ -354,7 +354,7 @@ function mostrarProductosGestion() {
     } else if (prodNavNivel === 'productos') {
         let prods = productosData.productos.filter(p => p.categoria === prodNavCatId && (prodNavSubId ? p.subcategoria === prodNavSubId : true));
         if (!mostrarOcultos) prods = prods.filter(p => !p.oculto);
-        prods = aplicarOrdenProductos(prods, ordenFiltro);
+        prods = await aplicarOrdenProductos(prods, ordenFiltro);
         renderizarProductosGestionGrid(container, prods);
         actualizarPaginacionProductos(prods.length);
     }
@@ -362,17 +362,17 @@ function mostrarProductosGestion() {
     actualizarBreadcrumbProductos();
 }
 
-function aplicarOrdenProductos(prods, orden) {
+async function aplicarOrdenProductos(prods, orden) {
     if (orden === 'az') return [...prods].sort((a, b) => a.nombre.localeCompare(b.nombre));
     if (orden === 'za') return [...prods].sort((a, b) => b.nombre.localeCompare(a.nombre));
     if (orden === 'mas-vendidos') {
-        const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+        const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
         const conteo = {};
         pedidos.forEach(p => (p.items || []).forEach(it => { conteo[it.productoId] = (conteo[it.productoId] || 0) + (it.cantidad || 1); }));
         return [...prods].sort((a, b) => (conteo[b.id] || 0) - (conteo[a.id] || 0));
     }
     if (orden === 'menos-vendidos') {
-        const pedidos = JSON.parse(localStorage.getItem('hdv_pedidos') || '[]');
+        const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
         const conteo = {};
         pedidos.forEach(p => (p.items || []).forEach(it => { conteo[it.productoId] = (conteo[it.productoId] || 0) + (it.cantidad || 1); }));
         return [...prods].sort((a, b) => (conteo[a.id] || 0) - (conteo[b.id] || 0));
@@ -1347,7 +1347,7 @@ async function importarProductosExcel(event) {
         const rows = await _parsearArchivo(file);
         if (rows.length < 2) { mostrarToast('Archivo vacio o sin datos', 'error'); return; }
         _importData = rows;
-        crearAutoBackupAdmin('Pre-importacion productos');
+        await crearAutoBackupAdmin('Pre-importacion productos');
         _mostrarModalMapeo(rows[0], rows.length - 1, 'productos');
     } catch (err) { mostrarToast('Error al leer archivo: ' + err.message, 'error'); }
     event.target.value = '';
@@ -1360,7 +1360,7 @@ async function importarClientesExcel(event) {
         const rows = await _parsearArchivo(file);
         if (rows.length < 2) { mostrarToast('Archivo vacio o sin datos', 'error'); return; }
         _importData = rows;
-        crearAutoBackupAdmin('Pre-importacion clientes');
+        await crearAutoBackupAdmin('Pre-importacion clientes');
         _mostrarModalMapeo(rows[0], rows.length - 1, 'clientes');
     } catch (err) { mostrarToast('Error al leer archivo: ' + err.message, 'error'); }
     event.target.value = '';

@@ -1,12 +1,12 @@
 // ============================================
 // HDV Guard - Proteccion de rutas
-// Requiere supabase-init.js cargado antes
+// Requiere supabase-init.js y js/utils/storage.js cargados antes
 // ============================================
 
 (async function () {
-    // Usa el supabaseClient global de supabase-init.js
-    const sb = supabaseClient;
+    await HDVStorage.ready();
 
+    const sb = supabaseClient;
     const path = window.location.pathname;
     const esAdmin = path.includes('admin');
 
@@ -18,7 +18,6 @@
             return;
         }
 
-        // Usar RPC SECURITY DEFINER para evitar problemas RLS
         const { data: perfilData, error } = await sb.rpc('obtener_rol_usuario', { user_id: session.user.id });
 
         if (error || !perfilData || perfilData.length === 0) {
@@ -49,9 +48,9 @@
             nombre: perfil.nombre_completo || session.user.email
         };
 
-        localStorage.setItem('hdv_user_rol', rol);
-        localStorage.setItem('hdv_user_email', session.user.email);
-        localStorage.setItem('hdv_user_nombre', perfil.nombre_completo || '');
+        await HDVStorage.setItem('hdv_user_rol', rol);
+        await HDVStorage.setItem('hdv_user_email', session.user.email);
+        await HDVStorage.setItem('hdv_user_nombre', perfil.nombre_completo || '');
 
         document.body.style.visibility = 'visible';
 
@@ -60,11 +59,11 @@
         window.location.replace('/login.html');
     }
 
-    sb.auth.onAuthStateChange((event) => {
+    sb.auth.onAuthStateChange(async (event) => {
         if (event === 'SIGNED_OUT') {
-            localStorage.removeItem('hdv_user_rol');
-            localStorage.removeItem('hdv_user_email');
-            localStorage.removeItem('hdv_user_nombre');
+            await HDVStorage.removeItem('hdv_user_rol');
+            await HDVStorage.removeItem('hdv_user_email');
+            await HDVStorage.removeItem('hdv_user_nombre');
             window.location.replace('/login.html');
         }
     });

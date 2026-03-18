@@ -88,8 +88,16 @@ async function facturarPedidoAdmin(pedidoId) {
     await new Promise(resolve => setTimeout(resolve, 2500));
 
     const resultado = await ventasDataFacturar(pedidoId);
-    if (!resultado) { mostrarToast('Pedido no encontrado', 'error'); return; }
-    if (resultado.error) { mostrarToast(resultado.error, 'error'); return; }
+    if (!resultado) {
+        mostrarToast('Pedido no encontrado', 'error');
+        if (btn) { btn.disabled = false; btn.innerHTML = textoOriginal; }
+        return;
+    }
+    if (resultado.error) {
+        mostrarToast(resultado.error, 'error');
+        if (btn) { btn.disabled = false; btn.innerHTML = textoOriginal; }
+        return;
+    }
 
     const { pedido: pedidoActualizado, numFactura, cdc } = resultado;
 
@@ -195,6 +203,8 @@ function cerrarModalElegirImpresion() {
     const modal = document.getElementById('modalElegirImpresion');
     modal.classList.remove('show');
     delete modal.dataset.ventaId;
+    // Limpiar flag NC para evitar que quede activa
+    window._reimprimirNCActiva = false;
 }
 
 async function ejecutarReimpresion(formato) {

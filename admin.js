@@ -676,7 +676,7 @@ function mostrarInputModal(opciones = {}) {
                     el.focus();
                     return;
                 }
-                datos[campo.key] = campo.tipo === 'number' ? (parseInt(val) || 0) : val;
+                datos[campo.key] = campo.tipo === 'number' ? (parseFloat(val) || 0) : val;
             }
             cerrar(datos);
         };
@@ -865,7 +865,7 @@ function ejecutarBusquedaGlobal() {
     if (prods.length > 0) {
         html += '<p class="px-4 py-2 text-xs font-bold text-gray-500 uppercase">Productos</p>';
         prods.forEach(p => {
-            html += `<button onclick="cerrarBusquedaGlobal({target:{currentTarget:{}}});cambiarSeccion('productos');setTimeout(()=>{document.getElementById('buscarProducto').value='${p.nombre.replace(/'/g, "\\'")}';filtrarProductos()},100)" class="w-full text-left px-4 py-3 hover:bg-gray-100 rounded-lg flex items-center gap-3">
+            html += `<button onclick="cerrarBusquedaGlobal(null);cambiarSeccion('productos');setTimeout(()=>{document.getElementById('buscarProducto').value='${p.nombre.replace(/'/g, "\\'")}';filtrarProductos()},100)" class="w-full text-left px-4 py-3 hover:bg-gray-100 rounded-lg flex items-center gap-3">
                 <i data-lucide="package" class="w-5 h-5 text-gray-400"></i>
                 <div><p class="font-medium text-gray-800 text-sm">${escapeHTML(p.nombre)}</p><p class="text-xs text-gray-400">${escapeHTML(p.id)} - ${escapeHTML(p.categoria)}</p></div>
             </button>`;
@@ -877,7 +877,7 @@ function ejecutarBusquedaGlobal() {
     if (clis.length > 0) {
         html += '<p class="px-4 py-2 text-xs font-bold text-gray-500 uppercase">Clientes</p>';
         clis.forEach(c => {
-            html += `<button onclick="cerrarBusquedaGlobal({target:{currentTarget:{}}});cambiarSeccion('clientes');setTimeout(()=>abrirPerfilCliente('${c.id}'),200)" class="w-full text-left px-4 py-3 hover:bg-gray-100 rounded-lg flex items-center gap-3">
+            html += `<button onclick="cerrarBusquedaGlobal(null);cambiarSeccion('clientes');setTimeout(()=>abrirPerfilCliente('${c.id}'),200)" class="w-full text-left px-4 py-3 hover:bg-gray-100 rounded-lg flex items-center gap-3">
                 <i data-lucide="user" class="w-5 h-5 text-gray-400"></i>
                 <div><p class="font-medium text-gray-800 text-sm">${escapeHTML(c.razon_social || c.nombre)}</p><p class="text-xs text-gray-400">${escapeHTML(c.zona || '')} - ${escapeHTML(c.telefono || '')}</p></div>
             </button>`;
@@ -889,9 +889,9 @@ function ejecutarBusquedaGlobal() {
     if (peds.length > 0) {
         html += '<p class="px-4 py-2 text-xs font-bold text-gray-500 uppercase">Pedidos</p>';
         peds.forEach(p => {
-            html += `<button onclick="cerrarBusquedaGlobal({target:{currentTarget:{}}});cambiarSeccion('pedidos');setTimeout(()=>editarPedido('${p.id}'),200)" class="w-full text-left px-4 py-3 hover:bg-gray-100 rounded-lg flex items-center gap-3">
+            html += `<button onclick="cerrarBusquedaGlobal(null);cambiarSeccion('pedidos')" class="w-full text-left px-4 py-3 hover:bg-gray-100 rounded-lg flex items-center gap-3">
                 <i data-lucide="clipboard-list" class="w-5 h-5 text-gray-400"></i>
-                <div><p class="font-medium text-gray-800 text-sm">${escapeHTML(p.cliente?.nombre) || 'N/A'}</p><p class="text-xs text-gray-400">${escapeHTML(p.id)} - Gs. ${(p.total || 0).toLocaleString()}</p></div>
+                <div><p class="font-medium text-gray-800 text-sm">${escapeHTML(p.cliente?.nombre || 'N/A')}</p><p class="text-xs text-gray-400">${escapeHTML(p.id)} - Gs. ${(p.total || 0).toLocaleString()}</p></div>
             </button>`;
         });
     }
@@ -908,21 +908,20 @@ document.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
         e.preventDefault();
         const overlay = document.getElementById('globalSearchOverlay');
-        if (overlay.classList.contains('show')) cerrarBusquedaGlobal({target:{currentTarget:{}}});
+        if (overlay.classList.contains('show')) cerrarBusquedaGlobal(null);
         else abrirBusquedaGlobal();
     }
     if ((e.ctrlKey || e.metaKey) && e.key === 's') {
         e.preventDefault();
         if (cambiosSinGuardar > 0) {
-            guardarTodosCambios();
-            mostrarToast('Cambios guardados y sincronizados', 'success');
+            guardarTodosCambios(); // ya muestra su propio toast
         } else {
             mostrarToast('No hay cambios pendientes', 'info');
         }
     }
     if (e.key === 'Escape') {
         const search = document.getElementById('globalSearchOverlay');
-        if (search.classList.contains('show')) { cerrarBusquedaGlobal({target:{currentTarget:{}}}); return; }
+        if (search.classList.contains('show')) { cerrarBusquedaGlobal(null); return; }
     }
 });
 

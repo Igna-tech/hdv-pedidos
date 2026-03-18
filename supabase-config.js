@@ -93,23 +93,35 @@ function escucharPedidosRealtime(callback) {
         }
         const pedidos = data.map(r => r.datos);
         const pedidosLocal = (await HDVStorage.getItem('hdv_pedidos')) || [];
+        // Preservar pedidos locales no sincronizados en carga inicial
+        const sinSync = pedidosLocal.filter(p => p.sincronizado === false);
+        const remIds = new Set(pedidos.map(p => p.id));
+        const localesExtra = sinSync.filter(p => !remIds.has(p.id));
         if (pedidos.length > 0 || pedidosLocal.length === 0) {
-            await HDVStorage.setItem('hdv_pedidos', pedidos);
-            callback(pedidos, []);
+            const merged = [...pedidos, ...localesExtra];
+            await HDVStorage.setItem('hdv_pedidos', merged);
+            callback(merged, []);
         } else {
             console.warn('[Supabase] Carga inicial vacia pero hay datos locales, conservando');
             callback(pedidosLocal, []);
         }
     });
 
-    // Suscripcion realtime
+    // Suscripcion realtime — preserva pedidos locales no sincronizados
     const unsub = SupabaseService.subscribeTo('pedidos-realtime', 'pedidos', async () => {
         const { data } = await SupabaseService.fetchPedidos();
-        const pedidos = data.map(r => r.datos);
+        const pedidosRemoto = data.map(r => r.datos);
         const pedidosLocalRT = (await HDVStorage.getItem('hdv_pedidos')) || [];
-        if (pedidos.length > 0 || pedidosLocalRT.length === 0) {
-            await HDVStorage.setItem('hdv_pedidos', pedidos);
-            callback(pedidos, [{ type: 'modified' }]);
+
+        // Preservar pedidos locales que aun no se sincronizaron
+        const sinSincronizar = pedidosLocalRT.filter(p => p.sincronizado === false);
+        const remotosIds = new Set(pedidosRemoto.map(p => p.id));
+        const localesNoEnRemoto = sinSincronizar.filter(p => !remotosIds.has(p.id));
+
+        if (pedidosRemoto.length > 0 || pedidosLocalRT.length === 0) {
+            const merged = [...pedidosRemoto, ...localesNoEnRemoto];
+            await HDVStorage.setItem('hdv_pedidos', merged);
+            callback(merged, [{ type: 'modified' }]);
         } else {
             console.warn('[Supabase] Realtime devolvio vacio pero hay datos locales, conservando');
             callback(pedidosLocalRT, [{ type: 'modified' }]);

@@ -77,11 +77,12 @@ SECURITY DEFINER
 SET search_path = ''
 AS $$
 BEGIN
+    -- SEGURIDAD: rol siempre 'vendedor' al registrarse. Solo un admin puede promover via UPDATE.
     INSERT INTO public.perfiles (id, nombre_completo, rol)
     VALUES (
         NEW.id,
         COALESCE(NEW.raw_user_meta_data ->> 'nombre_completo', ''),
-        COALESCE(NEW.raw_user_meta_data ->> 'rol', 'vendedor')
+        'vendedor'
     );
     RETURN NEW;
 END;

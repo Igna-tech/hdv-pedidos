@@ -177,28 +177,28 @@ function volverACategorias() {
 // ============================================
 // PRODUCTOS UI
 // ============================================
-function mostrarProductos() {
+async function mostrarProductos() {
     const container = document.getElementById('productsContainer');
     const busqueda = document.getElementById('searchInput').value.toLowerCase().trim();
 
     if (busqueda || categoriaActual !== 'todas') {
         vistaCatalogo = 'productos';
-        renderizarProductosVendedor(container, busqueda);
+        await renderizarProductosVendedor(container, busqueda);
         return;
     }
 
     if (vistaCatalogo === 'categorias') {
-        renderizarCategoriasVendedor(container);
+        await renderizarCategoriasVendedor(container);
     } else {
-        renderizarProductosVendedor(container, busqueda);
+        await renderizarProductosVendedor(container, busqueda);
     }
 }
 
-function renderizarCategoriasVendedor(container) {
+async function renderizarCategoriasVendedor(container) {
     container.innerHTML = '';
 
     // Widget de meta al inicio
-    const metaHtml = typeof generarWidgetMeta === 'function' ? generarWidgetMeta() : '';
+    const metaHtml = typeof generarWidgetMeta === 'function' ? await generarWidgetMeta() : '';
     if (metaHtml) {
         const metaDiv = document.createElement('div');
         metaDiv.innerHTML = metaHtml;
@@ -207,7 +207,7 @@ function renderizarCategoriasVendedor(container) {
 
     // Productos frecuentes del cliente actual
     if (clienteActual) {
-        const frecuentes = typeof obtenerProductosFrecuentes === 'function' ? obtenerProductosFrecuentes(clienteActual.id, 6) : [];
+        const frecuentes = typeof obtenerProductosFrecuentes === 'function' ? await obtenerProductosFrecuentes(clienteActual.id, 6) : [];
         if (frecuentes.length > 0) {
             const frecDiv = document.createElement('div');
             frecDiv.className = 'mb-4';
@@ -270,7 +270,7 @@ function renderizarCategoriasVendedor(container) {
     initLazyLoadCatCards(grid);
 }
 
-function renderizarProductosVendedor(container, busqueda) {
+async function renderizarProductosVendedor(container, busqueda) {
     let filtrados = productos;
 
     const catFiltro = categoriaActual !== 'todas' ? categoriaActual : categoriaSeleccionada;
@@ -320,7 +320,8 @@ function renderizarProductosVendedor(container, busqueda) {
 
     const noImgSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>`;
 
-    filtrados.forEach((prod, i) => {
+    for (let i = 0; i < filtrados.length; i++) {
+        const prod = filtrados[i];
         const card = document.createElement('div');
         card.className = 'product-card bg-white rounded-xl p-2 shadow-sm border border-gray-100 active:scale-95 transition-transform cursor-pointer';
         card.style.animationDelay = `${i * 0.03}s`;
@@ -337,14 +338,14 @@ function renderizarProductosVendedor(container, busqueda) {
             imgContent = `<div class="w-full h-24 rounded-lg bg-gray-800 flex items-center justify-center">${noImgSvg}</div>`;
         }
 
-        const promoBadge = typeof mostrarPromocionesEnProducto === 'function' ? mostrarPromocionesEnProducto(prod.id) : '';
+        const promoBadge = typeof mostrarPromocionesEnProducto === 'function' ? await mostrarPromocionesEnProducto(prod.id) : '';
         card.innerHTML = `
             ${imgContent}
             <p class="text-xs font-bold text-gray-800 leading-tight mt-1.5">${escapeHTML(prod.nombre)}</p>
             ${promoBadge}
         `;
         grid.appendChild(card);
-    });
+    }
 
     container.appendChild(grid);
     lucide.createIcons();
@@ -699,7 +700,7 @@ function closeCartModal() {
     setTimeout(() => backdrop.classList.add('hidden'), 350);
 }
 
-function renderizarCarrito() {
+async function renderizarCarrito() {
     const container = document.getElementById('cartItemsList');
     container.innerHTML = '';
 
@@ -752,7 +753,7 @@ function renderizarCarrito() {
     let promoHTML = '';
     let descuentoPromo = 0;
     if (typeof aplicarPromociones === 'function') {
-        const resultPromo = aplicarPromociones(carrito);
+        const resultPromo = await aplicarPromociones(carrito);
         descuentoPromo = resultPromo.descuentoTotal;
         promoHTML = typeof mostrarResumenPromociones === 'function' ? mostrarResumenPromociones(resultPromo) : '';
     }
@@ -934,7 +935,7 @@ function mostrarInputModal(opciones = {}) {
                 if (!el) continue;
                 const val = el.value;
                 if (campo.requerido && !val.trim()) { el.classList.add('ring-2', 'ring-red-500'); el.focus(); return; }
-                datos[campo.key] = campo.tipo === 'number' ? (parseInt(val) || 0) : val;
+                datos[campo.key] = campo.tipo === 'number' ? (parseFloat(val) || 0) : val;
             }
             cerrar(datos);
         };
@@ -1225,7 +1226,7 @@ async function mostrarMiCaja() {
     const totalGastos = gastosSemana.reduce((s, g) => s + (g.monto || 0), 0);
     const aRendir = totalContado - totalGastos;
 
-    const metaWidget = generarWidgetMeta();
+    const metaWidget = await generarWidgetMeta();
 
     const rendSemana = rendiciones.find(r => r.semana === semana);
 

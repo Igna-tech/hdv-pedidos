@@ -28,7 +28,7 @@ SET search_path = ''
 AS $$
     SELECT EXISTS (
         SELECT 1 FROM public.perfiles
-        WHERE id = auth.uid() AND rol = 'admin'
+        WHERE id = auth.uid() AND rol = 'admin' AND activo = true
     );
 $$;
 
@@ -170,12 +170,25 @@ DROP POLICY IF EXISTS "Lectura configuracion" ON public.configuracion;
 CREATE POLICY "config_select" ON public.configuracion
     FOR SELECT TO authenticated USING (true);
 
+-- Vendedores solo pueden escribir sus propios docs (gastos, rendiciones, pagos_credito)
+-- Admin puede escribir cualquier doc
 CREATE POLICY "config_insert" ON public.configuracion
-    FOR INSERT TO authenticated WITH CHECK (true);
+    FOR INSERT TO authenticated
+    WITH CHECK (
+        public.es_admin()
+        OR doc_id IN ('gastos_vendedor', 'rendiciones', 'pagos_credito', 'clientes_pendientes')
+    );
 
 CREATE POLICY "config_update" ON public.configuracion
     FOR UPDATE TO authenticated
-    USING (true) WITH CHECK (true);
+    USING (
+        public.es_admin()
+        OR doc_id IN ('gastos_vendedor', 'rendiciones', 'pagos_credito', 'clientes_pendientes')
+    )
+    WITH CHECK (
+        public.es_admin()
+        OR doc_id IN ('gastos_vendedor', 'rendiciones', 'pagos_credito', 'clientes_pendientes')
+    );
 
 CREATE POLICY "config_delete" ON public.configuracion
     FOR DELETE TO authenticated USING (public.es_admin());

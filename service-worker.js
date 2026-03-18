@@ -1,4 +1,4 @@
-const VERSION = '27.0';
+const VERSION = '28.0';
 const CACHE_NAME = `hdv-pedidos-v${VERSION}`;
 
 const urlsToCache = [
@@ -28,11 +28,13 @@ const urlsToCache = [
     './js/admin/productos.js',
     './js/admin/clientes.js',
     './js/admin/creditos.js',
+    './services/supabase.js',
+    './js/utils/storage.js',
+    './js/utils/sanitizer.js',
+    './js/utils/helpers.js',
     './supabase-config.js',
     './productos.json',
-    './manifest.json',
-    './icon-192.png',
-    './icon-512.png'
+    './manifest.json'
 ];
 
 // Archivos que SIEMPRE deben buscar la version mas reciente de la red
@@ -62,6 +64,10 @@ const networkFirstFiles = [
     'login.js',
     'guard.js',
     'supabase-init.js',
+    'services/supabase.js',
+    'js/utils/storage.js',
+    'js/utils/sanitizer.js',
+    'js/utils/helpers.js',
     'supabase-config.js',
     'productos.json'
 ];
@@ -100,7 +106,7 @@ function esImagenProducto(url) {
 
 // Determinar si un request debe usar network-first
 function esNetworkFirst(url) {
-    return networkFirstFiles.some(file => url.includes(file));
+    return networkFirstFiles.some(file => url.endsWith(file) || url.includes('/' + file));
 }
 
 self.addEventListener('fetch', event => {

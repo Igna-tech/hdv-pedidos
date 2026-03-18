@@ -116,10 +116,13 @@ async function procesarPedido() {
         if (typeof guardarPedido === 'function') {
             guardarPedido(pedido).then(async (ok) => {
                 if (ok) {
-                    pedido.sincronizado = true;
-                    await HDVStorage.setItem('hdv_pedidos', pedidos);
+                    // Re-leer pedidos para evitar race condition
+                    const pedidosActuales = (await HDVStorage.getItem('hdv_pedidos')) || [];
+                    const idx = pedidosActuales.findIndex(p => p.id === pedido.id);
+                    if (idx >= 0) { pedidosActuales[idx].sincronizado = true; }
+                    await HDVStorage.setItem('hdv_pedidos', pedidosActuales);
                 }
-            });
+            }).catch(err => console.error('[Checkout] Error sync pedido:', err));
         }
 
         limpiarDespuesDeVenta();
@@ -179,10 +182,12 @@ async function procesarCobroInterno() {
         if (typeof guardarPedido === 'function') {
             guardarPedido(pedido).then(async (ok) => {
                 if (ok) {
-                    pedido.sincronizado = true;
-                    await HDVStorage.setItem('hdv_pedidos', pedidos);
+                    const pedidosActuales = (await HDVStorage.getItem('hdv_pedidos')) || [];
+                    const idx = pedidosActuales.findIndex(p => p.id === pedido.id);
+                    if (idx >= 0) { pedidosActuales[idx].sincronizado = true; }
+                    await HDVStorage.setItem('hdv_pedidos', pedidosActuales);
                 }
-            });
+            }).catch(err => console.error('[Checkout] Error sync cobro:', err));
         }
 
         // Armar ticket de impresion
@@ -248,114 +253,128 @@ async function procesarFacturaMock() {
     }
 
     const btnFactura = document.getElementById('btnFactura');
-    const textoOriginal = btnFactura.innerHTML;
-    btnFactura.disabled = true;
-    btnFactura.innerHTML = '<span class="flex items-center justify-center gap-2"><svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Conectando con SIFEN...</span>';
-
-    const numFactura = generarNumeroFactura();
-    const cdc = generarCDC();
-    const fechaStr = formatearFecha(new Date().toISOString());
-
-    const pedido = {
-        id: 'FAC-' + Date.now(),
-        fecha: new Date().toISOString(),
-        cliente: datos.cliente,
-        items: datos.items,
-        subtotal: datos.subtotal,
-        descuento: datos.descuento,
-        total: datos.total,
-        tipoPago: datos.tipoPago,
-        notas: datos.notas,
-        estado: 'facturado_mock',
-        tipo_comprobante: 'factura_electronica',
-        desgloseIVA: datos.desgloseIVA,
-        numFactura,
-        cdc,
-        vendedor_id: window.hdvUsuario?.id || null,
-        sincronizado: false
-    };
-
-    // Guardar local
-    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
-    pedidos.push(pedido);
-    await HDVStorage.setItem('hdv_pedidos', pedidos);
-
-    // Sincronizar
-    if (typeof guardarPedido === 'function') {
-        guardarPedido(pedido).then(async (ok) => {
-            if (ok) {
-                pedido.sincronizado = true;
-                await HDVStorage.setItem('hdv_pedidos', pedidos);
-            }
-        });
+    if (btnFactura && btnFactura.disabled) return;
+    const textoOriginal = btnFactura ? btnFactura.innerHTML : '';
+    if (btnFactura) {
+        btnFactura.disabled = true;
+        btnFactura.innerHTML = '<span class="flex items-center justify-center gap-2"><svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Conectando con SIFEN...</span>';
     }
 
-    // Preparar KuDE para impresion
-    document.getElementById('printKuDENumero').textContent = numFactura;
-    document.getElementById('printKuDECDC').textContent = cdc;
-    document.getElementById('printKuDEMeta').innerHTML =
-        `<p>Fecha: ${fechaStr}</p>
-         <p>RUC: ${escapeHTML(datos.cliente.ruc)}</p>
-         <p>Cliente: ${escapeHTML(datos.cliente.nombre)}</p>
-         <p>Pago: ${datos.tipoPago === 'credito' ? 'Credito' : 'Contado'}</p>`;
-    document.getElementById('printKuDEItems').innerHTML = generarHTMLItems(datos.items);
+    try {
+        const numFactura = generarNumeroFactura();
+        const cdc = generarCDC();
+        const fechaStr = formatearFecha(new Date().toISOString());
 
-    let totalHTML = `<p>TOTAL: Gs. ${datos.total.toLocaleString()}</p>`;
-    if (datos.descuento > 0) {
-        totalHTML = `<p style="font-size:10px;">Subtotal: Gs. ${datos.subtotal.toLocaleString()}</p>
-                     <p style="font-size:10px;">Desc: ${datos.descuento}%</p>` + totalHTML;
+        const pedido = {
+            id: 'FAC-' + Date.now(),
+            fecha: new Date().toISOString(),
+            cliente: datos.cliente,
+            items: datos.items,
+            subtotal: datos.subtotal,
+            descuento: datos.descuento,
+            total: datos.total,
+            tipoPago: datos.tipoPago,
+            notas: datos.notas,
+            estado: 'facturado_mock',
+            tipo_comprobante: 'factura_electronica',
+            desgloseIVA: datos.desgloseIVA,
+            numFactura,
+            cdc,
+            vendedor_id: window.hdvUsuario?.id || null,
+            sincronizado: false
+        };
+
+        // Guardar local
+        const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
+        pedidos.push(pedido);
+        await HDVStorage.setItem('hdv_pedidos', pedidos);
+
+        // Sincronizar
+        if (typeof guardarPedido === 'function') {
+            guardarPedido(pedido).then(async (ok) => {
+                if (ok) {
+                    const pedidosActuales = (await HDVStorage.getItem('hdv_pedidos')) || [];
+                    const idx = pedidosActuales.findIndex(p => p.id === pedido.id);
+                    if (idx >= 0) { pedidosActuales[idx].sincronizado = true; }
+                    await HDVStorage.setItem('hdv_pedidos', pedidosActuales);
+                }
+            }).catch(err => console.error('[Checkout] Error sync factura:', err));
+        }
+
+        // Preparar KuDE para impresion
+        document.getElementById('printKuDENumero').textContent = numFactura;
+        document.getElementById('printKuDECDC').textContent = cdc;
+        document.getElementById('printKuDEMeta').innerHTML =
+            `<p>Fecha: ${fechaStr}</p>
+             <p>RUC: ${escapeHTML(datos.cliente.ruc)}</p>
+             <p>Cliente: ${escapeHTML(datos.cliente.nombre)}</p>
+             <p>Pago: ${datos.tipoPago === 'credito' ? 'Credito' : 'Contado'}</p>`;
+        document.getElementById('printKuDEItems').innerHTML = generarHTMLItems(datos.items);
+
+        let totalHTML = `<p>TOTAL: Gs. ${datos.total.toLocaleString()}</p>`;
+        if (datos.descuento > 0) {
+            totalHTML = `<p style="font-size:10px;">Subtotal: Gs. ${datos.subtotal.toLocaleString()}</p>
+                         <p style="font-size:10px;">Desc: ${datos.descuento}%</p>` + totalHTML;
+        }
+        document.getElementById('printKuDETotal').innerHTML = totalHTML;
+
+        // Desglose IVA para Factura Electronica (formato SET)
+        const iva = datos.desgloseIVA;
+        if (iva) {
+            document.getElementById('printKuDEIVA').innerHTML = `
+                <div style="display:flex; justify-content:space-between;"><span>Sub. Exentas:</span><span>Gs. ${iva.totalExentas.toLocaleString()}</span></div>
+                <div style="display:flex; justify-content:space-between;"><span>Sub. IVA 5%:</span><span>Gs. ${iva.totalGravada5.toLocaleString()}</span></div>
+                <div style="display:flex; justify-content:space-between;"><span>Sub. IVA 10%:</span><span>Gs. ${iva.totalGravada10.toLocaleString()}</span></div>
+                <div style="display:flex; justify-content:space-between; margin-top:2px; font-weight:bold; border-top:1px dotted #000; padding-top:2px;">
+                    <span>Liq. IVA 5%:</span><span>Gs. ${iva.liqIva5.toLocaleString()}</span></div>
+                <div style="display:flex; justify-content:space-between; font-weight:bold;">
+                    <span>Liq. IVA 10%:</span><span>Gs. ${iva.liqIva10.toLocaleString()}</span></div>
+                <div style="display:flex; justify-content:space-between; font-weight:bold; border-top:1px dotted #000; padding-top:2px; margin-top:2px;">
+                    <span>Total IVA:</span><span>Gs. ${iva.totalIva.toLocaleString()}</span></div>`;
+        }
+
+        // TODO: Fase Futura - Reemplazar con fetch a API FactPy enviando JSON estructurado.
+        await new Promise(resolve => setTimeout(resolve, 2500));
+
+        // Preparar link WhatsApp
+        const textoWA = encodeURIComponent(
+            `Factura Electronica HDV Distribuciones\n` +
+            `N°: ${numFactura}\n` +
+            `Fecha: ${fechaStr}\n` +
+            `Cliente: ${datos.cliente.nombre}\n` +
+            `RUC: ${datos.cliente.ruc}\n` +
+            `Total: Gs. ${datos.total.toLocaleString()}\n` +
+            `CDC: ${cdc}\n` +
+            `Consulta: https://ekuatia.set.gov.py`
+        );
+
+        const telLimpio = (datos.cliente.telefono || '').replace(/\D/g, '');
+        const waLink = telLimpio
+            ? `https://wa.me/595${telLimpio.replace(/^0/, '')}?text=${textoWA}`
+            : `https://wa.me/?text=${textoWA}`;
+
+        document.getElementById('facturaWhatsAppLink').href = waLink;
+        document.getElementById('facturaNumeroDisplay').textContent = `N° ${numFactura} | CDC: ${cdc}`;
+
+        // Guardar datos para impresion posterior
+        window._ultimaFactura = { pedido, datos };
+
+        limpiarDespuesDeVenta();
+
+        // Mostrar modal de exito
+        const modal = document.getElementById('modalFacturaExito');
+        modal.classList.remove('hidden');
+        modal.style.display = 'flex';
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    } catch (err) {
+        console.error('[Checkout] Error procesarFacturaMock:', err);
+        mostrarToast('Error al procesar factura', 'error');
+    } finally {
+        if (btnFactura) {
+            btnFactura.disabled = false;
+            btnFactura.innerHTML = textoOriginal;
+        }
     }
-    document.getElementById('printKuDETotal').innerHTML = totalHTML;
-
-    // Desglose IVA para Factura Electronica (formato SET)
-    const iva = datos.desgloseIVA;
-    if (iva) {
-        document.getElementById('printKuDEIVA').innerHTML = `
-            <div style="display:flex; justify-content:space-between;"><span>Sub. Exentas:</span><span>Gs. ${iva.totalExentas.toLocaleString()}</span></div>
-            <div style="display:flex; justify-content:space-between;"><span>Sub. IVA 5%:</span><span>Gs. ${iva.totalGravada5.toLocaleString()}</span></div>
-            <div style="display:flex; justify-content:space-between;"><span>Sub. IVA 10%:</span><span>Gs. ${iva.totalGravada10.toLocaleString()}</span></div>
-            <div style="display:flex; justify-content:space-between; margin-top:2px; font-weight:bold; border-top:1px dotted #000; padding-top:2px;">
-                <span>Liq. IVA 5%:</span><span>Gs. ${iva.liqIva5.toLocaleString()}</span></div>
-            <div style="display:flex; justify-content:space-between; font-weight:bold;">
-                <span>Liq. IVA 10%:</span><span>Gs. ${iva.liqIva10.toLocaleString()}</span></div>
-            <div style="display:flex; justify-content:space-between; font-weight:bold; border-top:1px dotted #000; padding-top:2px; margin-top:2px;">
-                <span>Total IVA:</span><span>Gs. ${iva.totalIva.toLocaleString()}</span></div>`;
-    }
-
-    // TODO: Fase Futura - Reemplazar con fetch a API FactPy enviando JSON estructurado.
-    await new Promise(resolve => setTimeout(resolve, 2500));
-
-    btnFactura.disabled = false;
-    btnFactura.innerHTML = textoOriginal;
-
-    // Preparar link WhatsApp
-    const textoWA = `Factura Electronica HDV Distribuciones%0A` +
-        `N°: ${numFactura}%0A` +
-        `Fecha: ${fechaStr}%0A` +
-        `Cliente: ${datos.cliente.nombre}%0A` +
-        `RUC: ${datos.cliente.ruc}%0A` +
-        `Total: Gs. ${datos.total.toLocaleString()}%0A` +
-        `CDC: ${cdc}%0A` +
-        `Consulta: https://ekuatia.set.gov.py`;
-
-    const telLimpio = (datos.cliente.telefono || '').replace(/\D/g, '');
-    const waLink = telLimpio
-        ? `https://wa.me/595${telLimpio.replace(/^0/, '')}?text=${textoWA}`
-        : `https://wa.me/?text=${textoWA}`;
-
-    document.getElementById('facturaWhatsAppLink').href = waLink;
-    document.getElementById('facturaNumeroDisplay').textContent = `N° ${numFactura} | CDC: ${cdc}`;
-
-    // Guardar datos para impresion posterior
-    window._ultimaFactura = { pedido, datos };
-
-    limpiarDespuesDeVenta();
-
-    // Mostrar modal de exito
-    const modal = document.getElementById('modalFacturaExito');
-    modal.classList.remove('hidden');
-    modal.style.display = 'flex';
-    lucide.createIcons();
 }
 
 // --- Imprimir KuDE desde el modal ---

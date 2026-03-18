@@ -193,6 +193,7 @@ function cambiarVistaVendedor(vista) {
     if (vista === 'lista') {
         btnLista.className = 'flex flex-col items-center gap-1 text-gray-900 transition-colors';
         searchBox.style.display = '';
+        catFilters.style.display = '';
         // Resetear a vista de categorias
         vistaCatalogo = 'categorias';
         categoriaSeleccionada = null;
@@ -649,6 +650,7 @@ async function toggleAutoBackup() {
     await HDVStorage.setItem('hdv_auto_backup', enabled ? 'true' : 'false');
 
     if (enabled) {
+        if (autoBackupInterval) clearInterval(autoBackupInterval);
         iniciarAutoBackup();
         mostrarExito('Auto-backup activado');
     } else {

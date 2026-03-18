@@ -28,6 +28,10 @@ const HDVStorage = (() => {
             };
             req.onsuccess = () => resolve(req.result);
             req.onerror = () => reject(req.error);
+            req.onblocked = () => {
+                console.warn('[HDVStorage] IndexedDB bloqueado por otra pestana');
+                reject(new Error('IndexedDB blocked'));
+            };
         });
     }
 
@@ -105,6 +109,7 @@ const HDVStorage = (() => {
 
         console.log(`[HDVStorage] Migrando ${keysToMigrate.length} keys de localStorage a IndexedDB...`);
 
+        const migrados = [];
         for (const key of keysToMigrate) {
             const raw = localStorage.getItem(key);
             if (raw === null) continue;
@@ -116,12 +121,17 @@ const HDVStorage = (() => {
                 value = raw;
             }
 
-            await _idbPut(key, value);
-            _cache.set(key, value);
+            try {
+                await _idbPut(key, value);
+                _cache.set(key, value);
+                migrados.push(key);
+            } catch (err) {
+                console.warn(`[HDVStorage] Error migrando key ${key}:`, err);
+            }
         }
 
-        // Limpiar localStorage despues de migracion exitosa
-        for (const key of keysToMigrate) {
+        // Solo limpiar keys que se migraron exitosamente
+        for (const key of migrados) {
             localStorage.removeItem(key);
         }
 
@@ -175,6 +185,13 @@ const HDVStorage = (() => {
                 await _idbPut(key, value);
             } catch (err) {
                 console.error('[HDVStorage] Error escribiendo a IDB:', key, err);
+            }
+        } else {
+            // Fallback: persistir en localStorage cuando IndexedDB no esta disponible
+            try {
+                localStorage.setItem(key, JSON.stringify(value));
+            } catch (e) {
+                console.warn('[HDVStorage] Fallback localStorage lleno:', key);
             }
         }
     }

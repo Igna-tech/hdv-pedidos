@@ -257,11 +257,14 @@ async function confirmarPedido() {
     if (typeof guardarPedido === 'function') {
         guardarPedido(pedido).then(async ok => {
             if (ok) {
-                pedido.sincronizado = true;
-                await HDVStorage.setItem('hdv_pedidos', pedidos);
+                // Re-leer pedidos para evitar race condition
+                const pedidosActuales = (await HDVStorage.getItem('hdv_pedidos')) || [];
+                const idx = pedidosActuales.findIndex(p => p.id === pedido.id);
+                if (idx >= 0) { pedidosActuales[idx].sincronizado = true; }
+                await HDVStorage.setItem('hdv_pedidos', pedidosActuales);
                 console.log('[Vendedor] Pedido sincronizado con Supabase');
             }
-        });
+        }).catch(err => console.error('[Vendedor] Error sync pedido:', err));
     }
 
     // Limpiar carrito

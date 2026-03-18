@@ -123,7 +123,7 @@ function recalcularTotalNC() {
     (facturaSeleccionadaNC.items || []).forEach((item, idx) => {
         const input = document.getElementById(`devCant-${idx}`);
         const cantDev = Math.min(Math.max(parseInt(input?.value) || 0, 0), item.cantidad);
-        input.value = cantDev; // corregir si excede
+        if (input) input.value = cantDev; // corregir si excede
         const monto = cantDev * (item.precio || 0);
         totalNC += monto;
         const montoEl = document.getElementById(`devMonto-${idx}`);
@@ -193,7 +193,7 @@ async function procesarNotaCredito() {
     });
     // Persistir catalogo con stock actualizado
     if (typeof guardarTodosCambios === 'function') {
-        guardarTodosCambios();
+        await guardarTodosCambios();
     }
 
     // --- LOGICA FISCAL: Crear registro NC ---

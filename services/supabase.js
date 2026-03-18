@@ -70,24 +70,10 @@ const SupabaseService = (() => {
 
     async function updateEstadoPedido(pedidoId, nuevoEstado) {
         try {
-            const { data: row, error: fetchErr } = await supabaseClient
-                .from('pedidos')
-                .select('datos')
-                .eq('id', pedidoId)
-                .single();
-            if (fetchErr) throw fetchErr;
-
-            const datosActualizados = { ...(row?.datos || {}), estado: nuevoEstado };
-            const { error } = await supabaseClient
-                .from('pedidos')
-                .update({
-                    estado: nuevoEstado,
-                    datos: datosActualizados,
-                    actualizado_en: new Date().toISOString()
-                })
-                .eq('id', pedidoId);
+            const { data, error } = await supabaseClient
+                .rpc('actualizar_estado_pedido', { p_id: pedidoId, p_estado: nuevoEstado });
             if (error) throw error;
-            return { success: true, error: null };
+            return { success: !!data, error: null };
         } catch (error) {
             console.error('[SupabaseService] updateEstadoPedido:', error);
             return { success: false, error };

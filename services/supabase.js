@@ -130,9 +130,14 @@ const SupabaseService = (() => {
 
     async function fetchProductosConVariantes(limit = 1000, offset = 0) {
         try {
+            // V3-M02: Vendedores no deben ver columna 'costo'
+            const esAdmin = window.hdvUsuario?.rol === 'admin';
+            const variantesSelect = esAdmin
+                ? 'producto_variantes(*)'
+                : 'producto_variantes(id, producto_id, nombre_variante, precio, stock, activo, created_at)';
             const { data, error } = await supabaseClient
                 .from('productos')
-                .select('*, producto_variantes(*)')
+                .select(`*, ${variantesSelect}`)
                 .range(offset, offset + limit - 1);
             if (error) throw error;
             if (data && data.length === limit) {

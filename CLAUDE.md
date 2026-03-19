@@ -175,7 +175,12 @@ Bucket `productos_img` (Supabase Storage). Compresion Canvas → WebP 800px max.
 - **RLS obligatorio** en todas las tablas. Sin acceso para `anon`. RPCs con REVOKE de `public`/`anon`.
 - Funciones criticas validan `auth.uid()` + rol internamente (no confian solo en RLS).
 - `pedidos.vendedor_id` DEFAULT `auth.uid()`. `configuracion_empresa` DELETE bloqueado con `USING(false)`.
-- **Trigger `trg_validar_precios`**: valida precios de items contra `producto_variantes`. Si precio < 50% catalogo, marca `alerta_fraude: true` en el JSONB y fuerza estado `pedido_pendiente`.
+- **Trigger `trg_validar_precios`**: valida precios (< 50% catalogo), descuento (> 30%), total sospechoso (< 40% catalogo), cantidad absurda (> 9999). Marca `alerta_fraude: true` y fuerza `pedido_pendiente`.
+- **Trigger `trg_bloquear_mutacion_terminal`**: impide UPDATE de vendedores en pedidos con estados terminales (facturado_mock, nota_credito_mock, cobrado_sin_factura, entregado, anulado).
+- **Trigger `trg_forzar_fecha_servidor`**: sobreescribe `pedidos.fecha` con `NOW()` del servidor en INSERT, impide fraude de fechas.
+- **DELETE en `pedidos`**: solo admin. Vendedores no pueden borrar pedidos.
+- **RPC `obtener_catalogo_seguro`**: retorna catalogo con `costo=0` para vendedores (defense-in-depth server-side).
+- **VIEW `producto_variantes_vendedor`**: sin columna `costo` (disponible para migracion futura).
 
 ### Storage
 - Bucket `productos_img`: limite 2MB, solo JPEG/PNG/WebP, operaciones restringidas a admin via `es_admin()`.
@@ -198,6 +203,7 @@ Bucket `productos_img` (Supabase Storage). Compresion Canvas → WebP 800px max.
 ### Auditorias de seguridad
 - `AUDITORIA_SEGURIDAD.md`: V1 — 26 hallazgos Zero Trust, todos remediados.
 - `AUDITORIA_SEGURIDAD_V2.md`: V2 — Red Team, 9 hallazgos (1 critico, 3 altos, 4 medios, 1 bajo), **todos remediados 2026-03-19**.
+- `AUDITORIA_SEGURIDAD_V3.md`: V3 — Insider Threats, 10 hallazgos (2 criticos, 3 altos, 3 medios, 2 bajos). 6 remediados. Pendientes: V3-C02 (clientes SELECT), V3-M01 (config pagos_credito), V3-M03 (reportes SELECT), V3-B01 (IDs predecibles).
 
 ## Reglas importantes
 

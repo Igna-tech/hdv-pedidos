@@ -164,7 +164,7 @@ function cambiarSeccion(seccionId) {
     if (seccionId === 'clientes') { clientesFiltrados = [...productosData.clientes]; mostrarClientesGestion(); }
     if (seccionId === 'creditos') cargarCreditos();
     if (seccionId === 'stock') cargarStock();
-    if (seccionId === 'herramientas') actualizarInfoBackupAdmin();
+    if (seccionId === 'herramientas') { actualizarInfoBackupAdmin(); cargarListaVendedores(); }
     if (seccionId === 'dashboard') cargarDashboard();
     if (seccionId === 'promociones') cargarPromociones();
     if (seccionId === 'rendiciones') cargarRendiciones();
@@ -367,6 +367,58 @@ async function cargarDatosIniciales() {
             });
         }
     } catch (error) { console.error('Error cargando datos:', error); }
+}
+
+// ============================================
+// CONTROL DE ACCESO - BOTON DE PANICO
+// ============================================
+async function cargarListaVendedores() {
+    const container = document.getElementById('listaVendedores');
+    if (!container) return;
+    try {
+        const { data, error } = await supabaseClient.from('perfiles').select('id, nombre_completo, rol, activo');
+        if (error) throw error;
+        const vendedores = (data || []).filter(p => p.rol === 'vendedor');
+        if (vendedores.length === 0) {
+            container.innerHTML = '<p class="text-xs text-gray-400 italic">Sin vendedores registrados</p>';
+            return;
+        }
+        container.innerHTML = vendedores.map(v => `
+            <div class="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
+                <div class="flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full ${v.activo ? 'bg-green-500' : 'bg-red-500'}"></span>
+                    <span class="text-sm font-medium text-gray-700">${escapeHTML(v.nombre_completo || 'Sin nombre')}</span>
+                    <span class="text-[10px] text-gray-400">${v.activo ? 'Activo' : 'Bloqueado'}</span>
+                </div>
+                <button onclick="toggleAccesoVendedor('${escapeHTML(v.id)}', ${v.activo})"
+                    class="text-[11px] px-2 py-1 rounded font-bold ${v.activo
+                        ? 'bg-red-100 text-red-700 hover:bg-red-200'
+                        : 'bg-green-100 text-green-700 hover:bg-green-200'}">
+                    ${v.activo ? 'Bloquear' : 'Reactivar'}
+                </button>
+            </div>
+        `).join('');
+    } catch (err) {
+        console.error('[Admin] Error cargando vendedores:', err);
+        container.innerHTML = '<p class="text-xs text-red-400">Error cargando vendedores</p>';
+    }
+}
+
+async function toggleAccesoVendedor(userId, estaActivo) {
+    const accion = estaActivo ? 'BLOQUEAR' : 'REACTIVAR';
+    const msg = estaActivo
+        ? 'Se borraran los datos locales del dispositivo y se bloqueara la sincronizacion.'
+        : 'El vendedor podra iniciar sesion y sincronizar nuevamente.';
+    if (!await mostrarConfirmModal(`¿${accion} este vendedor?\n${msg}`, { destructivo: estaActivo, textoConfirmar: accion })) return;
+    try {
+        const { error } = await supabaseClient.from('perfiles').update({ activo: !estaActivo, actualizado_en: new Date().toISOString() }).eq('id', userId);
+        if (error) throw error;
+        mostrarToast(`Vendedor ${estaActivo ? 'bloqueado' : 'reactivado'}`, estaActivo ? 'error' : 'success');
+        cargarListaVendedores();
+    } catch (err) {
+        console.error('[Admin] Error toggle acceso:', err);
+        mostrarToast('Error al cambiar estado del vendedor', 'error');
+    }
 }
 
 // ============================================

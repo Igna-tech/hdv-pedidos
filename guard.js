@@ -29,8 +29,16 @@
         const perfil = perfilData[0];
 
         if (!perfil.activo) {
+            // KILL SWITCH: Cuenta desactivada — borrar datos locales + logout
+            console.warn('[Guard] KILL SWITCH: cuenta desactivada, purgando datos locales');
+            try {
+                const allKeys = await HDVStorage.keys('hdv_');
+                for (const key of allKeys) {
+                    if (key !== 'hdv_darkmode') await HDVStorage.removeItem(key);
+                }
+            } catch (e) { console.error('[Guard] Error en purga Kill Switch:', e); }
             await sb.auth.signOut();
-            window.location.replace('/login.html');
+            window.location.replace('/login.html?blocked=1');
             return;
         }
 

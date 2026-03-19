@@ -85,6 +85,7 @@ supabase CDN → supabase-init.js → js/utils/storage.js → login.js
 ### RPCs SECURITY DEFINER:
 - `actualizar_estado_pedido(text, text)` — valida auth.uid() + admin o dueno del pedido
 - `reemplazar_variantes(text[], jsonb)` — valida auth.uid() + rol admin estricto
+- `verificar_estado_cuenta()` — retorna boolean `activo` del perfil del usuario autenticado (Kill Switch)
 - `obtener_rol_usuario(uuid)`, `es_admin()`, `obtener_mi_rol()` — EXECUTE solo para `authenticated`
 - `obtener_catalogo_seguro()` — retorna catalogo con costo=0 para vendedores
 
@@ -207,6 +208,14 @@ Bucket `productos_img` (Supabase Storage). Compresion Canvas → WebP 800px max.
 - Logout limpia TODOS los datos de IndexedDB excepto darkmode.
 - SyncManager detecta sesion expirada y detiene sync con feedback al usuario.
 - Tokens JWT en localStorage (limitacion frontend-only). Mitigacion: CSP + eliminar vectores XSS.
+
+### Kill Switch / Boton de Panico (dispositivos robados)
+- **Admin**: Panel "Control de Acceso" en Herramientas. Toggle `perfiles.activo` por vendedor.
+- **Guard.js**: Si `activo === false`, purga IndexedDB (todo excepto darkmode) → signOut → redirect `/login.html?blocked=1`.
+- **SyncManager**: Pre-sync verifica `verificar_estado_cuenta()` RPC. Si inactivo, purga + signOut + redirect.
+- **RLS `pedidos_insert`**: Requiere `activo = true` en perfiles. Vendedor desactivado no puede insertar pedidos.
+- **RPC `verificar_estado_cuenta()`**: SECURITY DEFINER, retorna boolean `activo` del perfil del usuario autenticado.
+- **Login.js**: Parametro `?blocked=1` muestra alerta "Dispositivo bloqueado por seguridad".
 
 ### Auditorias de seguridad
 - `AUDITORIA_SEGURIDAD.md`: V1 — 26 hallazgos Zero Trust, todos remediados.

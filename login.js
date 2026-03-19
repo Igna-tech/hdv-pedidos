@@ -153,5 +153,10 @@ sb.auth.onAuthStateChange(async (event, session) => {
     }
 });
 
+// --- Mostrar alerta si cuenta fue bloqueada (Kill Switch) ---
+if (new URLSearchParams(window.location.search).get('blocked') === '1') {
+    showAlert('Dispositivo bloqueado por seguridad. Contacte al administrador.');
+}
+
 // --- Iniciar ---
 verificarSesionExistente();

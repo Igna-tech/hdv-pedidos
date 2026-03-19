@@ -33,6 +33,25 @@ const SyncManager = (() => {
                 return { synced: 0, failed: 0 };
             }
 
+            // Kill Switch: verificar cuenta activa antes de sincronizar
+            try {
+                const { data: activo } = await supabaseClient.rpc('verificar_estado_cuenta');
+                if (activo === false) {
+                    console.warn('[SyncManager] KILL SWITCH: cuenta desactivada, abortando sync');
+                    if (typeof mostrarToast === 'function') {
+                        mostrarToast('Cuenta bloqueada. Contacte al administrador.', 'error');
+                    }
+                    // Purgar datos locales
+                    const allKeys = await HDVStorage.keys('hdv_');
+                    for (const key of allKeys) {
+                        if (key !== 'hdv_darkmode') await HDVStorage.removeItem(key);
+                    }
+                    await supabaseClient.auth.signOut();
+                    window.location.replace('/login.html?blocked=1');
+                    return { synced: 0, failed: 0 };
+                }
+            } catch (e) { /* Si falla la verificacion, continuar sync normalmente */ }
+
             console.log(`[SyncManager] Sincronizando ${pendientes.length} pedidos...`);
 
             for (const pedido of pendientes) {

@@ -231,7 +231,7 @@ Bucket `productos_img` (Supabase Storage). Compresion Canvas → WebP 800px max.
 ### Frontend
 - `escapeHTML()` obligatorio en TODA interpolacion dentro de `innerHTML`. Prohibido inline `onclick` con variables — usar `data-attributes` + `addEventListener`.
 - CSP header en `vercel.json` como defense-in-depth (whitelist de CDNs, bloquea frame/object).
-- **Subresource Integrity (SRI)**: todos los scripts externos tienen `integrity="sha384-..."` + `crossorigin="anonymous"`. Versiones fijadas: Tailwind 3.4.17, Supabase JS 2.99.2, Chart.js 4.4.0, Lucide 0.468.0, jsPDF 2.5.1, JSZip 3.10.1, SheetJS 0.20.3. Google Fonts (CSS dinamico) excluido de SRI. **Al actualizar cualquier libreria externa, recalcular el hash SRI con `curl -s URL | openssl dgst -sha384 -binary | openssl base64 -A`**.
+- **Subresource Integrity (SRI)**: scripts externos estaticos tienen `integrity="sha384-..."` + `crossorigin="anonymous"`. Versiones fijadas: Supabase JS 2.99.2, Chart.js 4.4.0, Lucide 0.468.0 (URL directa sin redirect), jsPDF 2.5.1, JSZip 3.10.1, SheetJS 0.20.3. **Excluidos de SRI:** Tailwind CDN (compilador JIT dinamico, hash inestable), Google Fonts (CSS dinamico). URLs con redirect (unpkg) deben apuntar al path final para evitar mismatch de hash. **Al actualizar cualquier libreria externa, recalcular el hash SRI con `curl -sL URL | openssl dgst -sha384 -binary | openssl base64 -A`**.
 - `admin.js` verifica rol server-side via RPC `obtener_mi_rol()` al inicializar (no confia solo en `window.hdvUsuario`).
 - Backups vendedor sanitizados: sin `costo`, sin `precios_personalizados`, RUC recortado.
 - Event delegation en admin usa `ACTION_DISPATCH` whitelist (sin `new Function()`).

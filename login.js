@@ -37,6 +37,82 @@ function showAlert(message, type = 'error') {
     alertBox.classList.remove('hidden');
 }
 
+// ============================================
+// LOCKOUT: Prevencion de fuerza bruta (client-side)
+// 5 intentos fallidos → bloqueo 15 minutos
+// ============================================
+const LOCKOUT_MAX_ATTEMPTS = 5;
+const LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutos
+const LOCKOUT_STORAGE_KEY = 'hdv_login_attempts';
+let _lockoutTimerId = null;
+
+function getLockoutState() {
+    try {
+        const raw = localStorage.getItem(LOCKOUT_STORAGE_KEY);
+        if (!raw) return { attempts: 0, lockedUntil: null };
+        return JSON.parse(raw);
+    } catch { return { attempts: 0, lockedUntil: null }; }
+}
+
+function setLockoutState(state) {
+    localStorage.setItem(LOCKOUT_STORAGE_KEY, JSON.stringify(state));
+}
+
+function resetLockout() {
+    localStorage.removeItem(LOCKOUT_STORAGE_KEY);
+    if (_lockoutTimerId) { clearInterval(_lockoutTimerId); _lockoutTimerId = null; }
+    alertBox.classList.add('hidden');
+    btnLogin.disabled = false;
+    btnLogin.textContent = 'Iniciar Sesion';
+}
+
+function registrarIntentoFallido() {
+    const state = getLockoutState();
+    state.attempts += 1;
+    if (state.attempts >= LOCKOUT_MAX_ATTEMPTS) {
+        state.lockedUntil = Date.now() + LOCKOUT_DURATION_MS;
+    }
+    setLockoutState(state);
+    if (state.attempts >= LOCKOUT_MAX_ATTEMPTS) {
+        aplicarLockout(state.lockedUntil);
+    }
+}
+
+function aplicarLockout(lockedUntil) {
+    btnLogin.disabled = true;
+    btnLogin.textContent = 'Bloqueado';
+    if (_lockoutTimerId) clearInterval(_lockoutTimerId);
+
+    _lockoutTimerId = setInterval(() => {
+        const restante = lockedUntil - Date.now();
+        if (restante <= 0) {
+            resetLockout();
+            return;
+        }
+        const min = Math.floor(restante / 60000);
+        const seg = Math.floor((restante % 60000) / 1000);
+        showAlert(`Demasiados intentos fallidos. Por seguridad, intente nuevamente en ${min}:${seg.toString().padStart(2, '0')} minutos.`);
+    }, 1000);
+
+    // Mostrar mensaje inmediato
+    const restante = lockedUntil - Date.now();
+    const min = Math.floor(restante / 60000);
+    const seg = Math.floor((restante % 60000) / 1000);
+    showAlert(`Demasiados intentos fallidos. Por seguridad, intente nuevamente en ${min}:${seg.toString().padStart(2, '0')} minutos.`);
+}
+
+function verificarLockout() {
+    const state = getLockoutState();
+    if (state.lockedUntil) {
+        if (Date.now() < state.lockedUntil) {
+            aplicarLockout(state.lockedUntil);
+            return true;
+        }
+        resetLockout();
+    }
+    return false;
+}
+
 // --- Redirigir segun rol ---
 function redirigirPorRol(rol) {
     if (rol === 'admin') {
@@ -86,7 +162,10 @@ loginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     alertBox.classList.add('hidden');
 
-    const email = emailInput.value.trim();
+    // Verificar lockout antes de procesar
+    if (verificarLockout()) return;
+
+    const email = emailInput.value.trim().toLowerCase();
     const password = passwordInput.value;
 
     if (!email || !password) {
@@ -103,12 +182,21 @@ loginForm.addEventListener('submit', async (e) => {
         const { data, error } = await sb.auth.signInWithPassword({ email, password });
 
         if (error) {
+            // Registrar intento fallido para lockout
+            registrarIntentoFallido();
+
             const mensajes = {
                 'Invalid login credentials': 'Correo o contrasena incorrectos.',
                 'Email not confirmed': 'Debes confirmar tu correo antes de iniciar sesion.',
                 'Too many requests': 'Demasiados intentos. Espera un momento.',
             };
-            showAlert(mensajes[error.message] || 'Error al iniciar sesion. Intenta de nuevo.');
+            // Solo mostrar mensaje genérico si no estamos en lockout (lockout muestra su propio mensaje)
+            if (!verificarLockout()) {
+                const state = getLockoutState();
+                const restantes = LOCKOUT_MAX_ATTEMPTS - state.attempts;
+                const msgBase = mensajes[error.message] || 'Error al iniciar sesion. Intenta de nuevo.';
+                showAlert(restantes > 0 ? `${msgBase} (${restantes} intento${restantes > 1 ? 's' : ''} restante${restantes > 1 ? 's' : ''})` : msgBase);
+            }
             btnLogin.disabled = false;
             btnLogin.textContent = 'Iniciar Sesion';
             return;
@@ -124,6 +212,9 @@ loginForm.addEventListener('submit', async (e) => {
             btnLogin.textContent = 'Iniciar Sesion';
             return;
         }
+
+        // Login exitoso: resetear lockout
+        resetLockout();
 
         // 3. Guardar rol en IndexedDB para uso rapido en guard
         await HDVStorage.setItem('hdv_user_rol', rol);
@@ -159,4 +250,5 @@ if (new URLSearchParams(window.location.search).get('blocked') === '1') {
 }
 
 // --- Iniciar ---
+verificarLockout(); // Restaurar lockout activo si existe
 verificarSesionExistente();

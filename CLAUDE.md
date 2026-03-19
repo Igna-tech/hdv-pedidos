@@ -35,7 +35,7 @@ PWA mobile-first para vendedores de calle + panel admin de escritorio.
 ├── services/supabase.js    → Capa de servicios (Repository Pattern): centraliza TODAS las queries
 ├── supabase-config.js      → Orquestacion: realtime, sync, mapeo legacy (delega queries a SupabaseService)
 ├── guard.js                → Proteccion de rutas (auth + roles + Kill Switch via RPC)
-├── login.html / login.js   → Login con Supabase Auth, redirect por rol, alerta ?blocked=1
+├── login.html / login.js   → Login con Supabase Auth, redirect por rol, alerta ?blocked=1, lockout fuerza bruta
 │
 ├── js/core/state.js        → Singleton hdvState: getters/setters globales (pedidos, catalogo, carrito)
 ├── js/services/sync.js     → SyncManager: sync automatica de pedidos offline con backoff progresivo
@@ -180,6 +180,9 @@ Migra automaticamente de localStorage a IndexedDB al primer uso. Supabase Auth s
 - Supabase Auth email/password. Tabla `perfiles` con rol + activo. Trigger auto-crea perfil.
 - `guard.js` usa RPC `obtener_rol_usuario` (SECURITY DEFINER). Admin → admin.html, Vendedor → index.html.
 - `window.hdvUsuario` expone {id, email, rol, nombre} globalmente.
+- **Lockout fuerza bruta**: 5 intentos fallidos → bloqueo 15 minutos con contador en reversa. Estado en `localStorage` key `hdv_login_attempts`. Login exitoso resetea contador.
+- **Sanitizacion de email**: `trim()` + `toLowerCase()` antes de enviar a Supabase Auth.
+- **Complejidad de contrasenas**: Los usuarios se crean manualmente desde el dashboard de Supabase. Regla minima obligatoria: 8 caracteres, 1 mayuscula, 1 numero, 1 simbolo especial.
 
 ## Facturacion SIFEN
 
@@ -254,3 +257,4 @@ Bucket `productos_img` (Supabase Storage). Compresion Canvas → WebP 800px max.
 - Admin modifica en memoria y guarda todo junto ("Guardar y Sincronizar"), no campo por campo.
 - Pedidos: IndexedDB es fuente primaria para lectura, Supabase para sync entre dispositivos.
 - IDs de pedidos generados con `crypto.randomUUID()` (PED-, REC-, FAC-). No usar Date.now() ni Math.random().
+- **PROHIBIDO modificar** el codigo de generacion XML, CDC, integracion SIFEN/SET o Edge Functions sin autorizacion explicita.

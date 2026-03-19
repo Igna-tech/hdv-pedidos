@@ -71,7 +71,7 @@ CREATE TRIGGER trg_bloquear_mutacion_terminal
 
 ---
 
-### V3-C02: Tabla `clientes` SELECT con `qual = true` — exfiltracion masiva de cartera
+### V3-C02: Tabla `clientes` SELECT con `qual = true` — exfiltracion masiva de cartera ✅ REMEDIADO 2026-03-19
 
 **Evidencia RLS:**
 ```
@@ -193,7 +193,7 @@ END IF;
 
 ## MEDIO
 
-### V3-M01: Vendedor puede escribir en `configuracion` docs `pagos_credito` y `rendiciones`
+### V3-M01: Vendedor puede escribir en `configuracion` docs `pagos_credito` y `rendiciones` ✅ REMEDIADO 2026-03-19
 
 **Evidencia RLS:**
 ```
@@ -239,7 +239,7 @@ CREATE VIEW producto_variantes_vendedor AS
 
 ---
 
-### V3-M03: `reportes_mensuales` y `configuracion_empresa` legibles por vendedor
+### V3-M03: `reportes_mensuales` y `configuracion_empresa` legibles por vendedor ✅ REMEDIADO 2026-03-19
 
 **Evidencia RLS:**
 ```
@@ -261,7 +261,7 @@ CREATE POLICY reportes_select ON reportes_mensuales FOR SELECT USING (es_admin()
 
 ## BAJO
 
-### V3-B01: Pedido ID predecible (timestamp + 4 chars random)
+### V3-B01: Pedido ID predecible (timestamp + 4 chars random) ✅ REMEDIADO 2026-03-19
 
 **Evidencia** (`checkout.js:94`):
 ```javascript

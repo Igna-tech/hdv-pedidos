@@ -172,7 +172,9 @@ Bucket `productos_img` (Supabase Storage). Compresion Canvas → WebP 800px max.
 ## Arquitectura de seguridad (Zero Trust)
 
 ### Backend (PostgreSQL)
-- **RLS obligatorio** en todas las tablas. Sin acceso para `anon`. RPCs con REVOKE de `public`/`anon`.
+- **RLS obligatorio** en todas las tablas. Sin acceso para `anon`. RPCs con REVOKE de `public`/`anon`. `configuracion` INSERT/UPDATE solo admin.
+- **VIEW `clientes_vendedor`**: sin `precios_personalizados`. Vendedores consultan VIEW, admin consulta tabla base.
+- **`reportes_mensuales` SELECT**: solo admin. `configuracion_empresa` SELECT publico (datos fiscales en factura).
 - Funciones criticas validan `auth.uid()` + rol internamente (no confian solo en RLS).
 - `pedidos.vendedor_id` DEFAULT `auth.uid()`. `configuracion_empresa` DELETE bloqueado con `USING(false)`.
 - **Trigger `trg_validar_precios`**: valida precios (< 50% catalogo), descuento (> 30%), total sospechoso (< 40% catalogo), cantidad absurda (> 9999). Marca `alerta_fraude: true` y fuerza `pedido_pendiente`.
@@ -203,7 +205,7 @@ Bucket `productos_img` (Supabase Storage). Compresion Canvas → WebP 800px max.
 ### Auditorias de seguridad
 - `AUDITORIA_SEGURIDAD.md`: V1 — 26 hallazgos Zero Trust, todos remediados.
 - `AUDITORIA_SEGURIDAD_V2.md`: V2 — Red Team, 9 hallazgos (1 critico, 3 altos, 4 medios, 1 bajo), **todos remediados 2026-03-19**.
-- `AUDITORIA_SEGURIDAD_V3.md`: V3 — Insider Threats, 10 hallazgos (2 criticos, 3 altos, 3 medios, 2 bajos). 6 remediados. Pendientes: V3-C02 (clientes SELECT), V3-M01 (config pagos_credito), V3-M03 (reportes SELECT), V3-B01 (IDs predecibles).
+- `AUDITORIA_SEGURIDAD_V3.md`: V3 — Insider Threats, 10 hallazgos (2 criticos, 3 altos, 3 medios, 2 bajos), **todos remediados 2026-03-19**.
 
 ## Reglas importantes
 

@@ -113,8 +113,11 @@ const SupabaseService = (() => {
 
     async function fetchClientes(limit = 1000, offset = 0) {
         try {
+            // V3-C02: Vendedores consultan VIEW sin precios_personalizados
+            const esAdmin = window.hdvUsuario?.rol === 'admin';
+            const tabla = esAdmin ? 'clientes' : 'clientes_vendedor';
             const { data, error } = await supabaseClient
-                .from('clientes')
+                .from(tabla)
                 .select('*')
                 .range(offset, offset + limit - 1);
             if (error) throw error;

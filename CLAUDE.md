@@ -67,9 +67,11 @@ PWA mobile-first para vendedores de calle + panel admin de escritorio.
 ├── AUDITORIA_SEGURIDAD.md    → V1: 26 hallazgos Zero Trust, todos remediados
 ├── AUDITORIA_SEGURIDAD_V2.md → V2: Red Team, 9 hallazgos, todos remediados
 ├── AUDITORIA_SEGURIDAD_V3.md → V3: Insider Threats, 10 hallazgos, todos remediados
-├── supabase-schema.sql     → Schema completo
-├── supabase-auth-setup.sql → Setup auth: perfiles, trigger, RLS, RPCs
-└── package.json            → Solo dependencia: @supabase/supabase-js
+├── DISASTER_RECOVERY.md      → Plan de recuperacion ante desastres (RTO 2h, RPO 24h)
+├── scripts/backup_schema.sh  → Cold backup de esquema DB (estructura sin datos)
+├── supabase-schema.sql       → Schema completo
+├── supabase-auth-setup.sql   → Setup auth: perfiles, trigger, RLS, RPCs
+└── package.json              → Solo dependencia: @supabase/supabase-js
 ```
 
 ## Orden de carga de scripts

@@ -33,21 +33,37 @@ PWA mobile-first para vendedores de calle + panel admin de escritorio.
 │
 ├── supabase-init.js        → Credenciales Supabase (se carga PRIMERO en todos los HTML)
 ├── services/supabase.js    → Capa de servicios (Repository Pattern): centraliza TODAS las queries
+├── supabase-config.js      → Orquestacion: realtime, sync, mapeo legacy (delega queries a SupabaseService)
+├── guard.js                → Proteccion de rutas (auth + roles + Kill Switch via RPC)
+├── login.html / login.js   → Login con Supabase Auth, redirect por rol, alerta ?blocked=1
+│
+├── js/core/state.js        → Singleton hdvState: getters/setters globales (pedidos, catalogo, carrito)
 ├── js/services/sync.js     → SyncManager: sync automatica de pedidos offline con backoff progresivo
 ├── js/utils/storage.js     → HDVStorage: wrapper IndexedDB con cache en memoria
 ├── js/utils/sanitizer.js   → escapeHTML() para prevencion XSS
 ├── js/utils/helpers.js     → Utilidades compartidas (debounce, etc.)
-├── guard.js                → Proteccion de rutas (auth + roles admin/vendedor via RPC)
-├── supabase-config.js      → Orquestacion: realtime, sync, mapeo legacy (delega queries a SupabaseService)
-├── login.html / login.js   → Login con Supabase Auth, redirect por rol
+├── js/utils/formatters.js  → Formateo de moneda, fechas, etc.
+├── js/utils/printer.js     → Impresion de tickets termicos y A4
+├── js/utils/pdf-generator.js → Generacion de PDFs con jsPDF
+├── js/vendedor/ui.js       → UI del vendedor (catalogo visual, navegacion)
+├── js/vendedor/cart.js     → Logica de carrito del vendedor
+├── js/admin/pedidos.js     → Modulo admin: gestion de pedidos entrantes
+├── js/admin/dashboard.js   → Modulo admin: dashboard con Chart.js
+├── js/admin/productos.js   → Modulo admin: CRUD de productos y variantes
+├── js/admin/clientes.js    → Modulo admin: CRUD de clientes
+├── js/admin/creditos.js    → Modulo admin: control de creditos
+├── js/modules/ventas/ventas-data.js      → Datos y logica de ventas/facturacion
+├── js/modules/ventas/ventas-templates.js → Templates HTML para documentos de venta
 │
 ├── service-worker.js       → Cache PWA (version actual en const VERSION)
 ├── manifest.json           → Configuracion PWA (standalone, portrait)
 ├── productos.json          → Fallback estatico del catalogo (offline/primera carga, NO es fuente de verdad)
-├── vercel.json             → Rutas Vercel + headers de seguridad (X-Frame-Options, nosniff, Referrer-Policy)
+├── vercel.json             → Rutas Vercel + headers de seguridad (CSP, X-Frame-Options, nosniff, Referrer-Policy)
 │
 ├── supabase/functions/sifen-generar-xml/ → Edge Function: genera XML DTE SIFEN v150 con CDC Modulo 11
-├── AUDITORIA_SEGURIDAD.md  → Auditoria Zero Trust con hallazgos y estado de remediacion
+├── AUDITORIA_SEGURIDAD.md    → V1: 26 hallazgos Zero Trust, todos remediados
+├── AUDITORIA_SEGURIDAD_V2.md → V2: Red Team, 9 hallazgos, todos remediados
+├── AUDITORIA_SEGURIDAD_V3.md → V3: Insider Threats, 10 hallazgos, todos remediados
 ├── supabase-schema.sql     → Schema completo
 ├── supabase-auth-setup.sql → Setup auth: perfiles, trigger, RLS, RPCs
 └── package.json            → Solo dependencia: @supabase/supabase-js
@@ -73,7 +89,7 @@ supabase CDN → supabase-init.js → js/utils/storage.js → login.js
 - `producto_variantes` (id UUID PK, producto_id FK→productos CASCADE, nombre_variante, precio, costo, stock, activo)
 
 ### Tablas operativas:
-- `pedidos` (id TEXT PK, estado, fecha TEXT, datos JSONB, creado_en, actualizado_en, vendedor_id UUID FK→auth.users DEFAULT auth.uid()) — estados: pedido_pendiente, entregado, cobrado_sin_factura, facturado_mock, nota_credito_mock
+- `pedidos` (id TEXT PK, estado, fecha TEXT, datos JSONB, creado_en, actualizado_en, vendedor_id UUID FK→auth.users DEFAULT auth.uid()) — estados: pedido_pendiente, entregado, cobrado_sin_factura, facturado_mock, nota_credito_mock, anulado
 - `configuracion` (doc_id TEXT PK, datos JSONB) — docs: pagos_credito, creditos_manuales, promociones, whatsapp_plantilla, gastos_vendedor, rendiciones, cuentas_bancarias, metas_vendedor
 - `configuracion_empresa` (id INT PK default 1, ruc_empresa, razon_social, nombre_fantasia, timbrado_numero, timbrado_vencimiento, establecimiento, punto_expedicion, direccion_fiscal, telefono_empresa, email_empresa, actividad_economica) — fila unica, DELETE bloqueado
 - `reportes_mensuales` (mes TEXT PK, datos JSONB)
@@ -138,7 +154,8 @@ productos = [...], categorias = [...], clientes = [...]
 pedido = {
   id, fecha, cliente: { id, nombre, ruc, ... }, items: [{ productoId, nombre, presentacion, precio, cantidad, subtotal }],
   total, tipoPago, descuento, notas, estado, vendedor_id, sincronizado,
-  numFactura?, cdc?, facturaFecha?, sifen_xml_generado?, sifen_cdc?, sifen_qr_url?
+  numFactura?, cdc?, facturaFecha?, sifen_xml_generado?, sifen_cdc?, sifen_qr_url?,
+  alerta_fraude?, fraude_detalle?, fraude_fecha?  // Inyectados por trigger trg_validar_precios
 }
 ```
 
@@ -236,3 +253,4 @@ Bucket `productos_img` (Supabase Storage). Compresion Canvas → WebP 800px max.
 - Variantes se reemplazan atomicamente via RPC `reemplazar_variantes` (no update individual).
 - Admin modifica en memoria y guarda todo junto ("Guardar y Sincronizar"), no campo por campo.
 - Pedidos: IndexedDB es fuente primaria para lectura, Supabase para sync entre dispositivos.
+- IDs de pedidos generados con `crypto.randomUUID()` (PED-, REC-, FAC-). No usar Date.now() ni Math.random().

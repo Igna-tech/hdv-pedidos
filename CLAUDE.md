@@ -217,7 +217,8 @@ Bucket `productos_img` (Supabase Storage). Compresion Canvas → WebP 800px max.
 ### Edge Functions
 - Validacion JWT estricta (`supabase.auth.getUser()`). Rate limit 10 req/min por user.
 - Privilegios divididos: lecturas con client RLS, escritura final con SERVICE_ROLE solo para resultado SIFEN.
-- Anti-doble facturacion: rechaza pedidos con `sifen_cdc` existente. Sanitizacion XML en todos los campos.
+- Anti-doble facturacion: rechaza pedidos con `sifen_cdc` existente.
+- **Sanitizacion Anti-XXE**: `sanitizarParaXML(texto, maxLength)` escapa `& < > " '` y trunca a longitud maxima. Aplicado a todos los campos de texto libre (razon social, direccion, email, telefono, nombres de items). Valores numericos validados con `validarNumero()` (Number.isFinite).
 
 ### Frontend
 - `escapeHTML()` obligatorio en TODA interpolacion dentro de `innerHTML`. Prohibido inline `onclick` con variables — usar `data-attributes` + `addEventListener`.

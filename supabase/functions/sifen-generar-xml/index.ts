@@ -33,12 +33,30 @@ function checkRateLimit(userId: string): boolean {
     return entry.count <= RATE_LIMIT_MAX;
 }
 
-// --- Sanitizacion XML (A-05) ---
+// --- Sanitizacion XML Anti-XXE (A-05) ---
 function sanitizeXML(str: string): string {
     return (str || "").replace(/[<>&'"]/g, (c) => {
         const map: Record<string, string> = { "<": "&lt;", ">": "&gt;", "&": "&amp;", "'": "&apos;", '"': "&quot;" };
         return map[c] || c;
     });
+}
+
+// Sanitizador reforzado: convierte a string, escapa XML, trunca a maxLength
+function sanitizarParaXML(texto: any, maxLength: number = 200): string {
+    const str = String(texto ?? "").trim();
+    const escaped = str
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    return escaped.substring(0, maxLength);
+}
+
+// Validador numerico: asegura que un valor sea numero finito, devuelve fallback si no
+function validarNumero(valor: any, fallback: number = 0): number {
+    const n = Number(valor);
+    return Number.isFinite(n) ? n : fallback;
 }
 
 // --- Mapeos SIFEN v150 ---
@@ -248,13 +266,13 @@ serve(async (req: Request) => {
             clienteDB = data;
         }
         const cliente = {
-            nombre: clienteDB?.nombre || datos.cliente?.nombre || "Sin nombre",
-            razon_social: clienteDB?.razon_social || datos.cliente?.razon_social || datos.cliente?.nombre || "Sin nombre",
-            ruc: clienteDB?.ruc || datos.cliente?.ruc || "",
+            nombre: sanitizarParaXML(clienteDB?.nombre || datos.cliente?.nombre || "Sin nombre", 200),
+            razon_social: sanitizarParaXML(clienteDB?.razon_social || datos.cliente?.razon_social || datos.cliente?.nombre || "Sin nombre", 200),
+            ruc: String(clienteDB?.ruc || datos.cliente?.ruc || "").trim(),
             tipo_documento: clienteDB?.tipo_documento || "RUC",
-            direccion: clienteDB?.direccion || datos.cliente?.direccion || "",
-            telefono: clienteDB?.telefono || datos.cliente?.telefono || "",
-            email: clienteDB?.email || "",
+            direccion: sanitizarParaXML(clienteDB?.direccion || datos.cliente?.direccion || "", 300),
+            telefono: sanitizarParaXML(clienteDB?.telefono || datos.cliente?.telefono || "", 50),
+            email: sanitizarParaXML(clienteDB?.email || "", 100),
         };
         if (!cliente.ruc) {
             return new Response(JSON.stringify({ error: "El cliente no tiene RUC/documento." }),
@@ -301,9 +319,9 @@ serve(async (req: Request) => {
             const prodInfo = productosDB[item.productoId] || {};
             const uMed = prodInfo.unidad_medida_set || "77";
             const uDesc = UNIDAD_MEDIDA_DESC[uMed] || "UNI";
-            const precioUnit = item.precio || 0;
-            const cant = item.cantidad || 1;
-            const totalItem = item.subtotal || precioUnit * cant;
+            const precioUnit = validarNumero(item.precio, 0);
+            const cant = validarNumero(item.cantidad, 1);
+            const totalItem = validarNumero(item.subtotal, precioUnit * cant);
             const iva = calcIVAItem(precioUnit, cant, item.tipo_impuesto || "10");
 
             if (iva.iAfecIVA === 3) totalExe += totalItem;  // Exento
@@ -311,8 +329,8 @@ serve(async (req: Request) => {
             else { totalGrav10 += totalItem; totalIVA10 += iva.dLiqIVAItem; }
 
             return {
-                dCodInt: sanitizeXML(item.productoId || `ITEM${idx + 1}`),
-                dDesProSer: sanitizeXML(`${item.nombre || "Producto"} ${item.presentacion || ""}`.trim()),
+                dCodInt: sanitizarParaXML(item.productoId || `ITEM${idx + 1}`, 50),
+                dDesProSer: sanitizarParaXML(`${item.nombre || "Producto"} ${item.presentacion || ""}`.trim(), 200),
                 cUniMed: Number(uMed),
                 dDesUniMed: uDesc,
                 dCantProSer: cant.toFixed(4),
@@ -341,7 +359,7 @@ serve(async (req: Request) => {
         });
 
         const totalOpe = totalExe + totalGrav5 + totalGrav10;
-        const totalGral = datos.total || totalOpe;
+        const totalGral = validarNumero(datos.total, totalOpe);
         const totalIVA = totalIVA5 + totalIVA10;
         const baseGrav5 = totalGrav5 > 0 ? Math.round((totalGrav5 * 100) / 105) : 0;
         const baseGrav10 = totalGrav10 > 0 ? Math.round((totalGrav10 * 100) / 110) : 0;
@@ -428,9 +446,9 @@ serve(async (req: Request) => {
                             dRucEm: rucEmpresa,
                             dDVEmi: dvEmpresa,
                             iTipCont: 1,  // 1=Persona Juridica
-                            dNomEmi: sanitizeXML(empresa.razon_social),
-                            dNomFanEmi: sanitizeXML(empresa.nombre_fantasia || empresa.razon_social),
-                            dDirEmi: sanitizeXML(empresa.direccion_fiscal || "Sin direccion"),
+                            dNomEmi: sanitizarParaXML(empresa.razon_social, 200),
+                            dNomFanEmi: sanitizarParaXML(empresa.nombre_fantasia || empresa.razon_social, 200),
+                            dDirEmi: sanitizarParaXML(empresa.direccion_fiscal || "Sin direccion", 300),
                             dNumCas: "0",
                             cDepEmi: 1,
                             dDesDepEmi: "CAPITAL",
@@ -438,8 +456,8 @@ serve(async (req: Request) => {
                             dDesDisEmi: "ASUNCION",
                             cCiuEmi: 1,
                             dDesCiuEmi: "ASUNCION",
-                            dTelEmi: sanitizeXML(empresa.telefono_empresa || ""),
-                            dEmailE: sanitizeXML(empresa.email_empresa || ""),
+                            dTelEmi: sanitizarParaXML(empresa.telefono_empresa || "", 50),
+                            dEmailE: sanitizarParaXML(empresa.email_empresa || "", 100),
                             gActEco: {
                                 cActEco: empresa.actividad_economica || "47190",
                                 dDesActEco: "Venta al por menor",
@@ -447,6 +465,7 @@ serve(async (req: Request) => {
                         },
 
                         // XSD: gDatRec — campos corregidos segun DE_v150.xsd
+                        // gDatRec: campos de texto ya sanitizados en objeto `cliente`
                         gDatRec: {
                             iNatRec: 1,           // 1=Contribuyente
                             iTiOpe: 1,            // 1=B2B
@@ -456,11 +475,11 @@ serve(async (req: Request) => {
                             dDTipIDRec: tipoDoc.desc,  // XSD: dDTipIDRec
                             dRucRec: rucCliente,
                             dDVRec: dvCliente,
-                            dNomRec: sanitizeXML(cliente.razon_social || cliente.nombre),
-                            dDirRec: sanitizeXML(cliente.direccion || "Sin direccion"),
-                            dTelRec: sanitizeXML(cliente.telefono || ""),
-                            dCelRec: sanitizeXML(cliente.telefono || ""),
-                            dEmailRec: sanitizeXML(cliente.email || ""),
+                            dNomRec: cliente.razon_social || cliente.nombre,
+                            dDirRec: cliente.direccion || sanitizarParaXML("Sin direccion", 300),
+                            dTelRec: cliente.telefono,
+                            dCelRec: cliente.telefono,
+                            dEmailRec: cliente.email,
                         },
                     },
 

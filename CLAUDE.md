@@ -60,7 +60,10 @@ PWA mobile-first para vendedores de calle + panel admin de escritorio.
 ├── productos.json          → Fallback estatico del catalogo (offline/primera carga, NO es fuente de verdad)
 ├── vercel.json             → Rutas Vercel + headers de seguridad (CSP, X-Frame-Options, nosniff, Referrer-Policy)
 │
-├── supabase/functions/sifen-generar-xml/ → Edge Function: genera XML DTE SIFEN v150 con CDC Modulo 11
+├── supabase/functions/sifen-generar-xml/  → Edge Function: genera XML DTE SIFEN v150 con CDC Modulo 11
+├── supabase/functions/alertas-seguridad/  → Edge Function: alertas WhatsApp ante fraudes, deletes y kill switch
+├── supabase/migrations/                   → SQL de webhooks y triggers de alertas (pg_net)
+│
 ├── AUDITORIA_SEGURIDAD.md    → V1: 26 hallazgos Zero Trust, todos remediados
 ├── AUDITORIA_SEGURIDAD_V2.md → V2: Red Team, 9 hallazgos, todos remediados
 ├── AUDITORIA_SEGURIDAD_V3.md → V3: Insider Threats, 10 hallazgos, todos remediados
@@ -247,6 +250,13 @@ Bucket `productos_img` (Supabase Storage). Compresion Canvas → WebP 800px max.
 - **Radar de Fraudes**: consulta `pedidos` con `datos->>'alerta_fraude' = 'true'`. Tabla roja con fecha, vendedor, cliente, total, boton "Ver" que abre modal JSON.
 - **Caja Negra (Audit Logs)**: consulta `audit_logs` ultimos 50 eventos DESC. Tabla con fecha/hora, accion (INSERT/UPDATE/DELETE), tabla afectada, usuario. Boton "Ver Cambios" con modal diff antes/despues.
 - Renderizado XSS-safe: `textContent` para JSON en modals, `escapeHTML()` en tablas.
+
+### Alertas Activas (WhatsApp en tiempo real)
+- Edge Function `alertas-seguridad`: recibe webhooks de triggers PostgreSQL, clasifica severidad, envia a WhatsApp via API configurable.
+- **Triggers instalados (pg_net)**: `trg_alerta_fraude_pedidos` (INSERT/UPDATE con alerta_fraude), `trg_alerta_audit_logs` (DELETE o cambios en configuracion), `trg_alerta_kill_switch` (perfil desactivado).
+- Funcion `notify_alerta_seguridad()` SECURITY DEFINER: construye payload y envia HTTP async via `net.http_post()`.
+- **Pendiente de configuracion**: `ALTER DATABASE postgres SET app.alertas_url = '...'` y `app.webhook_secret`. Variables de entorno en Edge Function: `WHATSAPP_API_URL`, `WHATSAPP_API_KEY`, `WHATSAPP_DESTINO`.
+- Tolerante a fallos: siempre retorna HTTP 200 para evitar reintentos infinitos del webhook.
 
 ### Auditorias de seguridad
 - `AUDITORIA_SEGURIDAD.md`: V1 — 26 hallazgos Zero Trust, todos remediados.

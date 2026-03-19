@@ -29,10 +29,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     iniciarAutoBackup();
     actualizarInfoBackup();
 
-    // Sincronizar pedidos pendientes con Supabase
-    if (typeof sincronizarPedidosLocales === 'function') {
-        setTimeout(() => sincronizarPedidosLocales(), 2000);
-    }
+    // Sincronizacion automatica de pedidos offline gestionada por SyncManager (js/services/sync.js)
 
     // Escuchar catalogo en tiempo real desde Supabase
     if (typeof escucharCatalogoRealtime === 'function') {

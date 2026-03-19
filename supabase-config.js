@@ -49,7 +49,7 @@ function actualizarIndicadorConexion(conectado) {
 
 window.addEventListener('online', () => {
     monitorearConexion();
-    setTimeout(() => sincronizarPedidosLocales(), 2000);
+    // Sync de pedidos delegado a SyncManager (js/services/sync.js)
 });
 window.addEventListener('offline', () => actualizarIndicadorConexion(false));
 

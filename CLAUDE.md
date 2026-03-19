@@ -36,16 +36,18 @@ PWA mobile-first para vendedores de calle + panel admin de escritorio.
 ├── productos.json          → Fallback estatico del catalogo (offline/primera carga)
 ├── vercel.json             → Rutas de Vercel (/admin → admin.html, etc.)
 │
+├── js/services/sync.js     → SyncManager: sincronizacion automatica de pedidos offline con backoff progresivo
 ├── supabase-schema.sql     → Schema completo (pedidos, catalogo JSONB legacy, configuracion, reportes, RLS, funciones)
 ├── supabase-auth-setup.sql → Setup auth: tabla perfiles, trigger auto-crear perfil, RLS, RPC
 ├── rls-remediation.sql     → Script de remediacion de seguridad RLS (ejecutar en SQL Editor)
+├── AUDITORIA_SEGURIDAD.md  → Auditoria de seguridad Zero Trust con hallazgos y estado de remediacion
 └── package.json            → Solo dependencia: @supabase/supabase-js (para script de migracion)
 ```
 
 ## Orden de carga de scripts
 
 **index.html (vendedor):**
-supabase CDN → supabase-init.js → services/supabase.js → js/utils/storage.js → guard.js → supabase-config.js → app.js → checkout.js
+supabase CDN → supabase-init.js → services/supabase.js → js/utils/storage.js → guard.js → supabase-config.js → js/services/sync.js → app.js → checkout.js
 
 **admin.html:**
 supabase CDN → Chart.js → supabase-init.js → services/supabase.js → js/utils/storage.js → guard.js → supabase-config.js → admin.js → admin-ventas.js → admin-devoluciones.js → admin-contabilidad.js
@@ -384,4 +386,36 @@ Supabase Auth sigue usando localStorage para sus tokens de sesion (no se migra).
 - Al guardar catalogo, se reconcilian eliminaciones (compara IDs en DB vs en memoria, borra los que faltan).
 - Las variantes se borran y reinsertan completas en cada guardado (no update individual).
 - El admin modifica datos en memoria y guarda todo junto ("Guardar y Sincronizar"), no guarda campo por campo.
-- Los pedidos se guardan en localStorage Y Supabase simultaneamente. localStorage es la fuente primaria para lectura, Supabase para sync entre dispositivos.
+- Los pedidos se guardan en IndexedDB Y Supabase simultaneamente. IndexedDB es la fuente primaria para lectura, Supabase para sync entre dispositivos.
+- `SyncManager` (js/services/sync.js) sincroniza automaticamente pedidos con `sincronizado: false` al volver online o al arrancar la app, con backoff progresivo en caso de fallos.
+
+## Arquitectura de seguridad (Zero Trust)
+
+### Backend (Supabase PostgreSQL)
+- **RLS obligatorio** en todas las tablas. Sin acceso para rol `anon`.
+- **RPCs SECURITY DEFINER**: REVOKE EXECUTE de `public`/`anon`, GRANT solo a `authenticated`. Todas las funciones criticas validan `auth.uid()` internamente.
+- `actualizar_estado_pedido`: verifica admin o dueno del pedido (`vendedor_id = auth.uid()`).
+- `reemplazar_variantes`: verifica rol admin estricto.
+- `pedidos.vendedor_id`: DEFAULT `auth.uid()` para prevenir bypass RLS.
+- `configuracion_empresa`: DELETE bloqueado explicitamente con `USING(false)`.
+
+### Storage (Supabase)
+- Bucket `productos_img`: limite 2MB, solo JPEG/PNG/WebP, INSERT/UPDATE/DELETE restringido a admin via `es_admin()`.
+
+### Edge Functions
+- **Certificado .p12 SIFEN**: NUNCA viaja al frontend. Se almacena en Supabase Vault (Secrets: `CERTIFICADO_P12`, `PASS_CERT`) y se procesa exclusivamente en la Edge Function `sifen-generar-xml`.
+- **Validacion JWT**: Todas las Edge Functions validan `supabase.auth.getUser()` con el token del caller.
+- **Privilegios divididos**: lecturas con client RLS del usuario, escritura final con `SERVICE_ROLE_KEY` solo para el resultado oficial.
+- **Rate limiting**: 10 req/min por user ID en `sifen-generar-xml`.
+- **Anti-doble facturacion**: rechaza pedidos con `sifen_cdc` existente.
+- **Sanitizacion XML**: `sanitizeXML()` en todos los campos de texto dinamicos.
+
+### Frontend
+- **XSS**: Usar `escapeHTML()` en TODA interpolacion dentro de `innerHTML`. Prohibido inyectar variables no sanitizadas en atributos `onclick` — usar `data-attributes` + `addEventListener`.
+- **Tokens**: Supabase Auth usa `localStorage` para JWT (limitacion arquitectural frontend-only). La mitigacion principal es eliminar vectores XSS.
+
+## Offline-First
+
+- **Persistencia**: Uso exclusivo de IndexedDB via `HDVStorage`. Prohibido usar `localStorage` para datos pesados (catalogo, pedidos).
+- **Sync**: `SyncManager` auto-sincroniza pedidos pendientes al detectar conexion, con backoff progresivo (5s, 15s, 30s, 60s).
+- **Service Worker**: Cache network-first para JS/HTML, cache-first para assets, cache dedicado para imagenes (max 200 entradas). Incrementar `VERSION` en cada deploy.

@@ -1,4 +1,4 @@
-const VERSION = '31.0';
+const VERSION = '32.0';
 const CACHE_NAME = `hdv-pedidos-v${VERSION}`;
 
 const urlsToCache = [
@@ -32,6 +32,7 @@ const urlsToCache = [
     './js/utils/storage.js',
     './js/utils/sanitizer.js',
     './js/utils/helpers.js',
+    './js/services/sync.js',
     './supabase-config.js',
     './productos.json',
     './manifest.json'
@@ -68,6 +69,7 @@ const networkFirstFiles = [
     'js/utils/storage.js',
     'js/utils/sanitizer.js',
     'js/utils/helpers.js',
+    'js/services/sync.js',
     'supabase-config.js',
     'productos.json'
 ];

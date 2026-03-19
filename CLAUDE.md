@@ -226,6 +226,7 @@ Bucket `productos_img` (Supabase Storage). Compresion Canvas → WebP 800px max.
 ### Frontend
 - `escapeHTML()` obligatorio en TODA interpolacion dentro de `innerHTML`. Prohibido inline `onclick` con variables — usar `data-attributes` + `addEventListener`.
 - CSP header en `vercel.json` como defense-in-depth (whitelist de CDNs, bloquea frame/object).
+- **Subresource Integrity (SRI)**: todos los scripts externos tienen `integrity="sha384-..."` + `crossorigin="anonymous"`. Versiones fijadas: Tailwind 3.4.17, Supabase JS 2.99.2, Chart.js 4.4.0, Lucide 0.468.0, jsPDF 2.5.1, JSZip 3.10.1, SheetJS 0.20.3. Google Fonts (CSS dinamico) excluido de SRI. **Al actualizar cualquier libreria externa, recalcular el hash SRI con `curl -s URL | openssl dgst -sha384 -binary | openssl base64 -A`**.
 - `admin.js` verifica rol server-side via RPC `obtener_mi_rol()` al inicializar (no confia solo en `window.hdvUsuario`).
 - Backups vendedor sanitizados: sin `costo`, sin `precios_personalizados`, RUC recortado.
 - Event delegation en admin usa `ACTION_DISPATCH` whitelist (sin `new Function()`).
@@ -262,3 +263,4 @@ Bucket `productos_img` (Supabase Storage). Compresion Canvas → WebP 800px max.
 - Pedidos: IndexedDB es fuente primaria para lectura, Supabase para sync entre dispositivos.
 - IDs de pedidos generados con `crypto.randomUUID()` (PED-, REC-, FAC-). No usar Date.now() ni Math.random().
 - **PROHIBIDO modificar** el codigo de generacion XML, CDC, integracion SIFEN/SET o Edge Functions sin autorizacion explicita.
+- **SRI obligatorio**: al cambiar version de cualquier libreria CDN, recalcular hash SHA-384 y actualizar `integrity` en TODOS los HTML que la usen.

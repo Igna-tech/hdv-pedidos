@@ -135,7 +135,7 @@ async function limpiarDatosLocales() {
 
 ## MEDIO
 
-### V2-M01: Backups exportan datos sensibles sin cifrar
+### V2-M01: Backups exportan datos sensibles sin cifrar ✅ REMEDIADO 2026-03-19
 
 **Archivos:** `app.js:507-540` (vendedor), `admin.js:350-393` (admin)
 **Impacto:** Vendedor puede descargar y compartir base de clientes completa (RUC, telefono, precios de costo).
@@ -153,7 +153,7 @@ async function limpiarDatosLocales() {
 
 ---
 
-### V2-M03: `window.hdvUsuario` modificable — bypass de UI admin
+### V2-M03: `window.hdvUsuario` modificable — bypass de UI admin ✅ REMEDIADO 2026-03-19
 
 **Archivo:** `guard.js:44-49`
 **Impacto:** Vendedor puede ver interfaz admin (dashboard KPIs), pero RLS bloquea escrituras.

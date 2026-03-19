@@ -504,6 +504,30 @@ function filtrarPedidos() {
 // ============================================
 // SISTEMA DE BACKUP - VENDEDOR
 // ============================================
+
+// V2-M01: Sanitizar datos sensibles antes de exportar
+function sanitizarDatosBackup(pedidos) {
+    return pedidos.map(p => {
+        const copia = JSON.parse(JSON.stringify(p));
+        // Eliminar campos sensibles del cliente
+        if (copia.cliente) {
+            delete copia.cliente.precios_personalizados;
+            if (copia.cliente.ruc && copia.cliente.ruc.length > 4) {
+                copia.cliente.ruc = copia.cliente.ruc.slice(0, -4) + '****';
+            }
+        }
+        // Eliminar costo de items
+        if (copia.items) {
+            copia.items.forEach(item => { delete item.costo; });
+        }
+        // Eliminar flags internos de seguridad
+        delete copia.alerta_fraude;
+        delete copia.fraude_detalle;
+        delete copia.fraude_fecha;
+        return copia;
+    });
+}
+
 async function exportarBackupVendedor() {
     const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
     const carritos = {};
@@ -512,13 +536,15 @@ async function exportarBackupVendedor() {
         carritos[key] = await HDVStorage.getItem(key);
     }
 
+    const pedidosSanitizados = sanitizarDatosBackup(pedidos);
+
     const backup = {
         tipo: 'backup_vendedor_completo',
         fecha: new Date().toISOString(),
-        version: '3.0',
+        version: '3.1',
         dispositivo: navigator.userAgent.substring(0, 50),
         datos: {
-            pedidos,
+            pedidos: pedidosSanitizados,
             carritos,
             configuracion: {
                 darkmode: await HDVStorage.getItem('hdv_darkmode'),
@@ -545,8 +571,8 @@ async function exportarSoloPedidos() {
     const backup = {
         tipo: 'backup_pedidos',
         fecha: new Date().toISOString(),
-        version: '3.0',
-        pedidos
+        version: '3.1',
+        pedidos: sanitizarDatosBackup(pedidos)
     };
 
     descargarArchivoJSON(backup, `hdv_pedidos_${formatearFechaArchivo()}.json`);

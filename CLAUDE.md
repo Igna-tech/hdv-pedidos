@@ -175,6 +175,7 @@ Bucket `productos_img` (Supabase Storage). Compresion Canvas → WebP 800px max.
 - **RLS obligatorio** en todas las tablas. Sin acceso para `anon`. RPCs con REVOKE de `public`/`anon`.
 - Funciones criticas validan `auth.uid()` + rol internamente (no confian solo en RLS).
 - `pedidos.vendedor_id` DEFAULT `auth.uid()`. `configuracion_empresa` DELETE bloqueado con `USING(false)`.
+- **Trigger `trg_validar_precios`**: valida precios de items contra `producto_variantes`. Si precio < 50% catalogo, marca `alerta_fraude: true` en el JSONB y fuerza estado `pedido_pendiente`.
 
 ### Storage
 - Bucket `productos_img`: limite 2MB, solo JPEG/PNG/WebP, operaciones restringidas a admin via `es_admin()`.
@@ -186,9 +187,17 @@ Bucket `productos_img` (Supabase Storage). Compresion Canvas → WebP 800px max.
 
 ### Frontend
 - `escapeHTML()` obligatorio en TODA interpolacion dentro de `innerHTML`. Prohibido inline `onclick` con variables — usar `data-attributes` + `addEventListener`.
-- Tokens JWT en localStorage (limitacion frontend-only). Mitigacion: eliminar vectores XSS.
+- CSP header en `vercel.json` como defense-in-depth (whitelist de CDNs, bloquea frame/object).
+- `admin.js` verifica rol server-side via RPC `obtener_mi_rol()` al inicializar (no confia solo en `window.hdvUsuario`).
+- Backups vendedor sanitizados: sin `costo`, sin `precios_personalizados`, RUC recortado.
+- Event delegation en admin usa `ACTION_DISPATCH` whitelist (sin `new Function()`).
+- Logout limpia TODOS los datos de IndexedDB excepto darkmode.
+- SyncManager detecta sesion expirada y detiene sync con feedback al usuario.
+- Tokens JWT en localStorage (limitacion frontend-only). Mitigacion: CSP + eliminar vectores XSS.
 
-### Referencia: `AUDITORIA_SEGURIDAD.md` tiene el detalle completo de 26 hallazgos con estado de remediacion.
+### Auditorias de seguridad
+- `AUDITORIA_SEGURIDAD.md`: V1 — 26 hallazgos Zero Trust, todos remediados.
+- `AUDITORIA_SEGURIDAD_V2.md`: V2 — Red Team, 9 hallazgos (1 critico, 3 altos, 4 medios, 1 bajo), **todos remediados 2026-03-19**.
 
 ## Reglas importantes
 

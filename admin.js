@@ -263,6 +263,20 @@ window.addEventListener('beforeunload', (e) => {
 let unsubscribePedidos = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
+    // V2-M03: Verificacion server-side del rol admin (no confiar solo en window.hdvUsuario)
+    try {
+        const { data: rol } = await supabaseClient.rpc('obtener_mi_rol');
+        if (rol !== 'admin') {
+            console.warn('[Admin] Rol server-side no es admin:', rol);
+            window.location.replace('/');
+            return;
+        }
+    } catch (err) {
+        console.error('[Admin] Error verificando rol server-side:', err);
+        window.location.replace('/login.html');
+        return;
+    }
+
     await cargarDatosIniciales();
     cargarConfigEmpresa();
 

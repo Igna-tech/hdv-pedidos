@@ -26,7 +26,7 @@ PWA mobile-first para vendedores de calle + panel admin de escritorio.
 ├── checkout.js             → 3 flujos de venta: pedido pendiente, recibo interno, factura SIFEN
 │
 ├── admin.html              → Panel admin (desktop)
-├── admin.js                → Logica admin (dashboard, productos, clientes, stock, pedidos, creditos, promos, backups, rendiciones, metas)
+├── admin.js                → Logica admin (dashboard, productos, clientes, stock, pedidos, creditos, promos, backups, rendiciones, metas, forense)
 ├── admin-ventas.js         → Facturacion: emision facturas SIFEN, reimpresion, WhatsApp
 ├── admin-devoluciones.js   → Notas de credito: devolucion parcial/total, restaura stock, impresion
 ├── admin-contabilidad.js   → Cierre mensual: libro RG90 CSV, paquete ZIP con KuDE+XML
@@ -216,6 +216,12 @@ Bucket `productos_img` (Supabase Storage). Compresion Canvas → WebP 800px max.
 - **RLS `pedidos_insert`**: Requiere `activo = true` en perfiles. Vendedor desactivado no puede insertar pedidos.
 - **RPC `verificar_estado_cuenta()`**: SECURITY DEFINER, retorna boolean `activo` del perfil del usuario autenticado.
 - **Login.js**: Parametro `?blocked=1` muestra alerta "Dispositivo bloqueado por seguridad".
+
+### Centro de Comando Forense (Admin)
+- Seccion "Seguridad / Forense" en sidebar del panel admin.
+- **Radar de Fraudes**: consulta `pedidos` con `datos->>'alerta_fraude' = 'true'`. Tabla roja con fecha, vendedor, cliente, total, boton "Ver" que abre modal JSON.
+- **Caja Negra (Audit Logs)**: consulta `audit_logs` ultimos 50 eventos DESC. Tabla con fecha/hora, accion (INSERT/UPDATE/DELETE), tabla afectada, usuario. Boton "Ver Cambios" con modal diff antes/despues.
+- Renderizado XSS-safe: `textContent` para JSON en modals, `escapeHTML()` en tablas.
 
 ### Auditorias de seguridad
 - `AUDITORIA_SEGURIDAD.md`: V1 — 26 hallazgos Zero Trust, todos remediados.

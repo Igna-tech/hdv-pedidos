@@ -360,6 +360,11 @@
                 <i data-lucide="calculator" class="w-4 h-4 mr-3 text-gray-400"></i> Cierre Mensual
             </button>
 
+            <div class="px-3 mt-5 mb-2 text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Seguridad</div>
+            <button onclick="cambiarSeccion('forense')" class="nav-item w-full flex items-center text-sm">
+                <i data-lucide="shield-alert" class="w-4 h-4 mr-3 text-red-400"></i> Seguridad / Forense
+            </button>
+
             <div class="px-3 mt-5 mb-2 text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Opciones</div>
             <button onclick="cambiarSeccion('herramientas')" class="nav-item w-full flex items-center text-sm">
                 <i data-lucide="settings" class="w-4 h-4 mr-3 text-gray-400"></i> Herramientas
@@ -1290,6 +1295,41 @@
                 </div>
             </section>
 
+            <!-- ======================== SECCION FORENSE ======================== -->
+            <section id="seccion-forense" class="tab-content space-y-6">
+                <div class="space-y-6">
+
+                    <!-- MODULO 1: RADAR DE FRAUDES -->
+                    <div class="saas-card p-6 !border-red-200 bg-red-50/30">
+                        <div class="flex justify-between items-start mb-4">
+                            <h3 class="font-bold text-gray-800 flex items-center gap-2">
+                                <i data-lucide="radar" class="w-5 h-5 text-red-500"></i> Radar de Fraudes
+                            </h3>
+                            <span class="text-[10px] px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-bold">ALERTAS</span>
+                        </div>
+                        <p class="text-xs text-gray-500 mb-4">Pedidos bloqueados por el trigger de validacion de precios. Requieren revision manual.</p>
+                        <div id="forenseFraudes" class="space-y-2">
+                            <p class="text-xs text-gray-400 italic">Cargando...</p>
+                        </div>
+                    </div>
+
+                    <!-- MODULO 2: CAJA NEGRA (AUDIT LOGS) -->
+                    <div class="saas-card p-6 !border-orange-200 bg-orange-50/20">
+                        <div class="flex justify-between items-start mb-4">
+                            <h3 class="font-bold text-gray-800 flex items-center gap-2">
+                                <i data-lucide="file-text" class="w-5 h-5 text-orange-500"></i> Caja Negra — Audit Logs
+                            </h3>
+                            <span class="text-[10px] px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 font-bold">INMUTABLE</span>
+                        </div>
+                        <p class="text-xs text-gray-500 mb-4">Ultimos 50 eventos registrados en la tabla de auditoria forense.</p>
+                        <div id="forenseLogs" class="space-y-2">
+                            <p class="text-xs text-gray-400 italic">Cargando...</p>
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+
             <section id="seccion-herramientas" class="tab-content space-y-6">
                 <div class="max-w-3xl space-y-4">
 
@@ -1874,6 +1914,24 @@
                     </button>
                 </div>
                 <button onclick="cerrarModalNC()" class="w-full bg-gray-100 text-gray-700 py-3 rounded-xl font-bold text-sm">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL FORENSE: Detalle JSON -->
+    <div id="modalForenseDetalle" class="modal-overlay">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden max-h-[90vh] flex flex-col">
+            <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-900">
+                <h3 class="text-base font-bold text-white flex items-center gap-2">
+                    <i data-lucide="code-2" class="w-5 h-5 text-orange-400"></i>
+                    <span id="modalForenseTitulo">Detalle Forense</span>
+                </h3>
+                <button onclick="cerrarModalForense()" class="text-gray-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="p-5 overflow-y-auto flex-1 bg-gray-50" id="modalForenseBody">
+            </div>
+            <div class="p-4 border-t border-gray-100 flex justify-end">
+                <button onclick="cerrarModalForense()" class="bg-gray-200 text-gray-700 px-5 py-2 rounded-lg text-sm font-bold hover:bg-gray-300">Cerrar</button>
             </div>
         </div>
     </div>

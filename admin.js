@@ -84,6 +84,7 @@ const ACTION_DISPATCH = {
     "cambiarSeccion('dashboard')": () => cambiarSeccion('dashboard'),
     "cambiarSeccion('ventas')": () => cambiarSeccion('ventas'),
     "cambiarSeccion('herramientas')": () => cambiarSeccion('herramientas'),
+    "cambiarSeccion('forense')": () => cambiarSeccion('forense'),
 };
 document.addEventListener('click', function(e) {
     const btn = e.target.closest('[data-action]');
@@ -149,7 +150,7 @@ function cambiarSeccion(seccionId) {
         'productos': 'Catalogo de Productos', 'clientes': 'Base de Datos de Clientes',
         'promociones': 'Motor de Promociones',
         'rendiciones': 'Rendiciones de Caja', 'metas': 'Metas y Comisiones',
-        'inactivos': 'Clientes en Riesgo', 'herramientas': 'Sistema y Herramientas'
+        'inactivos': 'Clientes en Riesgo', 'forense': 'Seguridad / Forense', 'herramientas': 'Sistema y Herramientas'
     };
     const titleEl = document.getElementById('currentSectionTitle');
     if (titleEl) titleEl.textContent = titulos[seccionId] || 'Panel Admin';
@@ -173,6 +174,7 @@ function cambiarSeccion(seccionId) {
     if (seccionId === 'devoluciones' && typeof cargarHistorialNC === 'function') cargarHistorialNC();
     if (seccionId === 'cierre' && typeof inicializarCierreMensual === 'function') inicializarCierreMensual();
     if (seccionId === 'inactivos') cargarClientesInactivos();
+    if (seccionId === 'forense') { renderForenseFraudes(); renderForenseLogs(); }
 
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
@@ -419,6 +421,244 @@ async function toggleAccesoVendedor(userId, estaActivo) {
         console.error('[Admin] Error toggle acceso:', err);
         mostrarToast('Error al cambiar estado del vendedor', 'error');
     }
+}
+
+// ============================================
+// CENTRO DE COMANDO FORENSE
+// ============================================
+
+// --- Cache de nombres de perfiles para audit logs ---
+let _perfilesCache = null;
+async function obtenerPerfilesMap() {
+    if (_perfilesCache) return _perfilesCache;
+    try {
+        const { data } = await supabaseClient.from('perfiles').select('id, nombre_completo');
+        _perfilesCache = {};
+        (data || []).forEach(p => { _perfilesCache[p.id] = p.nombre_completo || 'Sin nombre'; });
+    } catch (e) { _perfilesCache = {}; }
+    return _perfilesCache;
+}
+
+// --- MODULO 1: RADAR DE FRAUDES ---
+async function renderForenseFraudes() {
+    const container = document.getElementById('forenseFraudes');
+    if (!container) return;
+    container.innerHTML = generarSkeletonTabla(3, 5);
+    try {
+        const { data, error } = await supabaseClient
+            .from('pedidos')
+            .select('id, fecha, datos, vendedor_id, creado_en')
+            .filter('datos->>alerta_fraude', 'eq', 'true')
+            .order('creado_en', { ascending: false })
+            .limit(30);
+        if (error) throw error;
+
+        const perfiles = await obtenerPerfilesMap();
+
+        if (!data || data.length === 0) {
+            container.innerHTML = `<div class="text-center py-6">
+                <i data-lucide="shield-check" class="w-10 h-10 text-green-400 mx-auto mb-2"></i>
+                <p class="text-sm font-medium text-green-600">Sin alertas de fraude</p>
+                <p class="text-xs text-gray-400 mt-1">El sistema no ha detectado manipulaciones de precios</p>
+            </div>`;
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+            return;
+        }
+
+        let html = `<div class="overflow-x-auto rounded-xl border border-red-200">
+            <table class="w-full text-sm">
+                <thead><tr class="bg-red-50 text-left">
+                    <th class="px-3 py-2 text-xs font-bold text-red-700">Fecha</th>
+                    <th class="px-3 py-2 text-xs font-bold text-red-700">Vendedor</th>
+                    <th class="px-3 py-2 text-xs font-bold text-red-700">Cliente</th>
+                    <th class="px-3 py-2 text-xs font-bold text-red-700 text-right">Total</th>
+                    <th class="px-3 py-2 text-xs font-bold text-red-700 text-center">Detalle</th>
+                </tr></thead><tbody class="divide-y divide-red-100">`;
+
+        data.forEach(p => {
+            const d = p.datos || {};
+            const vendedor = perfiles[p.vendedor_id] || 'Desconocido';
+            const clienteNombre = d.cliente?.nombre || 'N/A';
+            const total = (d.total || 0).toLocaleString();
+            const fecha = p.fecha || p.creado_en?.substring(0, 10) || '';
+            const detalle = d.fraude_detalle || 'Sin detalle';
+
+            html += `<tr class="bg-red-50/50 hover:bg-red-100/50">
+                <td class="px-3 py-2 text-xs text-gray-600">${escapeHTML(fecha)}</td>
+                <td class="px-3 py-2 text-xs font-medium text-gray-800">${escapeHTML(vendedor)}</td>
+                <td class="px-3 py-2 text-xs text-gray-600">${escapeHTML(clienteNombre)}</td>
+                <td class="px-3 py-2 text-xs text-red-700 font-bold text-right">Gs. ${escapeHTML(total)}</td>
+                <td class="px-3 py-2 text-center">
+                    <button data-forense-fraude-id="${escapeHTML(p.id)}" class="text-[11px] px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200 font-bold">Ver</button>
+                </td>
+            </tr>`;
+        });
+
+        html += '</tbody></table></div>';
+        html += `<p class="text-[10px] text-gray-400 mt-2">${data.length} alerta${data.length > 1 ? 's' : ''} detectada${data.length > 1 ? 's' : ''}</p>`;
+        container.innerHTML = html;
+
+        // Event delegation para ver detalle fraude
+        container.querySelectorAll('[data-forense-fraude-id]').forEach(btn => {
+            btn.addEventListener('click', function () {
+                const pedidoId = this.getAttribute('data-forense-fraude-id');
+                const pedido = data.find(p => p.id === pedidoId);
+                if (pedido) mostrarModalForense('Detalle de Fraude — ' + pedidoId, pedido.datos);
+            });
+        });
+
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    } catch (err) {
+        console.error('[Forense] Error cargando fraudes:', err);
+        container.innerHTML = '<p class="text-xs text-red-400">Error al cargar alertas de fraude</p>';
+    }
+}
+
+// --- MODULO 2: VISOR CAJA NEGRA (AUDIT LOGS) ---
+async function renderForenseLogs() {
+    const container = document.getElementById('forenseLogs');
+    if (!container) return;
+    container.innerHTML = generarSkeletonTabla(5, 4);
+    try {
+        const { data, error } = await supabaseClient
+            .from('audit_logs')
+            .select('id, accion, tabla, usuario_id, datos_anteriores, datos_nuevos, creado_en')
+            .order('creado_en', { ascending: false })
+            .limit(50);
+        if (error) throw error;
+
+        const perfiles = await obtenerPerfilesMap();
+
+        if (!data || data.length === 0) {
+            container.innerHTML = `<div class="text-center py-6">
+                <i data-lucide="file-text" class="w-10 h-10 text-gray-300 mx-auto mb-2"></i>
+                <p class="text-sm text-gray-500">Sin registros de auditoria</p>
+            </div>`;
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+            return;
+        }
+
+        const accionBadge = {
+            'INSERT': 'bg-green-100 text-green-700',
+            'UPDATE': 'bg-blue-100 text-blue-700',
+            'DELETE': 'bg-red-100 text-red-700'
+        };
+
+        let html = `<div class="overflow-x-auto rounded-xl border border-orange-200">
+            <table class="w-full text-sm">
+                <thead><tr class="bg-orange-50 text-left">
+                    <th class="px-3 py-2 text-xs font-bold text-orange-700">Fecha / Hora</th>
+                    <th class="px-3 py-2 text-xs font-bold text-orange-700">Accion</th>
+                    <th class="px-3 py-2 text-xs font-bold text-orange-700">Tabla</th>
+                    <th class="px-3 py-2 text-xs font-bold text-orange-700">Usuario</th>
+                    <th class="px-3 py-2 text-xs font-bold text-orange-700 text-center">Cambios</th>
+                </tr></thead><tbody class="divide-y divide-orange-100">`;
+
+        data.forEach((log, idx) => {
+            const fechaRaw = log.creado_en || '';
+            const fecha = fechaRaw ? new Date(fechaRaw).toLocaleString('es-PY', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
+            const badge = accionBadge[log.accion] || 'bg-gray-100 text-gray-700';
+            const usuario = perfiles[log.usuario_id] || log.usuario_id?.substring(0, 8) || 'Sistema';
+
+            html += `<tr class="hover:bg-orange-50/50">
+                <td class="px-3 py-2 text-xs text-gray-600 whitespace-nowrap">${escapeHTML(fecha)}</td>
+                <td class="px-3 py-2"><span class="text-[10px] px-2 py-0.5 rounded-full font-bold ${badge}">${escapeHTML(log.accion)}</span></td>
+                <td class="px-3 py-2 text-xs font-medium text-gray-800">${escapeHTML(log.tabla)}</td>
+                <td class="px-3 py-2 text-xs text-gray-600">${escapeHTML(usuario)}</td>
+                <td class="px-3 py-2 text-center">
+                    <button data-forense-log-idx="${idx}" class="text-[11px] px-2 py-1 rounded bg-orange-100 text-orange-700 hover:bg-orange-200 font-bold">Ver Cambios</button>
+                </td>
+            </tr>`;
+        });
+
+        html += '</tbody></table></div>';
+        html += `<p class="text-[10px] text-gray-400 mt-2">Mostrando ultimos ${data.length} eventos</p>`;
+        container.innerHTML = html;
+
+        // Event delegation para ver cambios
+        container.querySelectorAll('[data-forense-log-idx]').forEach(btn => {
+            btn.addEventListener('click', function () {
+                const idx = parseInt(this.getAttribute('data-forense-log-idx'));
+                const log = data[idx];
+                if (log) {
+                    mostrarModalForenseDiff(
+                        `${log.accion} en ${log.tabla}`,
+                        log.datos_anteriores,
+                        log.datos_nuevos
+                    );
+                }
+            });
+        });
+
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    } catch (err) {
+        console.error('[Forense] Error cargando audit logs:', err);
+        container.innerHTML = '<p class="text-xs text-red-400">Error al cargar logs de auditoria</p>';
+    }
+}
+
+// --- MODAL FORENSE: mostrar JSON generico ---
+function mostrarModalForense(titulo, datos) {
+    const modal = document.getElementById('modalForenseDetalle');
+    const tituloEl = document.getElementById('modalForenseTitulo');
+    const body = document.getElementById('modalForenseBody');
+    tituloEl.textContent = titulo;
+
+    const pre = document.createElement('pre');
+    pre.className = 'bg-gray-900 text-green-400 p-4 rounded-xl text-xs overflow-auto max-h-[60vh] font-mono leading-relaxed';
+    pre.textContent = JSON.stringify(datos, null, 2);
+    body.innerHTML = '';
+    body.appendChild(pre);
+
+    modal.classList.add('show');
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+// --- MODAL FORENSE: diff antes/despues ---
+function mostrarModalForenseDiff(titulo, antes, despues) {
+    const modal = document.getElementById('modalForenseDetalle');
+    const tituloEl = document.getElementById('modalForenseTitulo');
+    const body = document.getElementById('modalForenseBody');
+    tituloEl.textContent = titulo;
+    body.innerHTML = '';
+
+    if (antes) {
+        const labelAntes = document.createElement('p');
+        labelAntes.className = 'text-xs font-bold text-red-500 mb-1 flex items-center gap-1';
+        labelAntes.textContent = 'ANTES (datos_anteriores)';
+        body.appendChild(labelAntes);
+
+        const preAntes = document.createElement('pre');
+        preAntes.className = 'bg-gray-900 text-red-400 p-4 rounded-xl text-xs overflow-auto max-h-[30vh] font-mono leading-relaxed mb-4';
+        preAntes.textContent = JSON.stringify(antes, null, 2);
+        body.appendChild(preAntes);
+    }
+
+    if (despues) {
+        const labelDespues = document.createElement('p');
+        labelDespues.className = 'text-xs font-bold text-green-500 mb-1 flex items-center gap-1';
+        labelDespues.textContent = 'DESPUES (datos_nuevos)';
+        body.appendChild(labelDespues);
+
+        const preDespues = document.createElement('pre');
+        preDespues.className = 'bg-gray-900 text-green-400 p-4 rounded-xl text-xs overflow-auto max-h-[30vh] font-mono leading-relaxed';
+        preDespues.textContent = JSON.stringify(despues, null, 2);
+        body.appendChild(preDespues);
+    }
+
+    if (!antes && !despues) {
+        const empty = document.createElement('p');
+        empty.className = 'text-sm text-gray-500 text-center py-8';
+        empty.textContent = 'Sin datos de cambio registrados para este evento.';
+        body.appendChild(empty);
+    }
+
+    modal.classList.add('show');
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function cerrarModalForense() {
+    document.getElementById('modalForenseDetalle').classList.remove('show');
 }
 
 // ============================================

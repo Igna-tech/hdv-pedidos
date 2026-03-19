@@ -48,6 +48,15 @@ const SyncManager = (() => {
                         synced++;
                         console.log(`[SyncManager] Pedido ${pedido.id} sincronizado`);
                     } else {
+                        // V2-A01: Detectar si es error de auth vs red
+                        const { data: { session } } = await supabaseClient.auth.getSession();
+                        if (!session) {
+                            console.warn('[SyncManager] Sesion expirada, requiere re-login');
+                            if (typeof mostrarToast === 'function') {
+                                mostrarToast('Sesion expirada. Inicie sesion nuevamente.', 'error');
+                            }
+                            break; // No reintentar con token muerto
+                        }
                         failed++;
                         console.warn(`[SyncManager] Fallo sync pedido ${pedido.id}`);
                     }

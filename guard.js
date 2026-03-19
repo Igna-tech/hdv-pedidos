@@ -61,9 +61,18 @@
 
     sb.auth.onAuthStateChange(async (event) => {
         if (event === 'SIGNED_OUT') {
-            await HDVStorage.removeItem('hdv_user_rol');
-            await HDVStorage.removeItem('hdv_user_email');
-            await HDVStorage.removeItem('hdv_user_nombre');
+            // V2-A03: Limpiar TODOS los datos locales al cerrar sesion
+            try {
+                const allKeys = await HDVStorage.keys('hdv_');
+                for (const key of allKeys) {
+                    if (key !== 'hdv_darkmode') {
+                        await HDVStorage.removeItem(key);
+                    }
+                }
+                console.log('[Guard] Datos locales limpiados en logout');
+            } catch (err) {
+                console.error('[Guard] Error limpiando datos locales:', err);
+            }
             window.location.replace('/login.html');
         }
     });

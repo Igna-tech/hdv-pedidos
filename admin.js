@@ -74,12 +74,23 @@ function generarAdminEmptyState(svgIcon, titulo, subtitulo, botonTexto, botonOnc
     </div>`;
 }
 
-// A-07: Event delegation para empty-state buttons (evita inline onclick injection)
+// V2-A02: Whitelist dispatcher para empty-state buttons (reemplaza new Function)
+const ACTION_DISPATCH = {
+    "cambiarSeccion('productos')": () => cambiarSeccion('productos'),
+    "cambiarSeccion('clientes')": () => cambiarSeccion('clientes'),
+    "cambiarSeccion('pedidos')": () => cambiarSeccion('pedidos'),
+    "cambiarSeccion('creditos')": () => cambiarSeccion('creditos'),
+    "cambiarSeccion('stock')": () => cambiarSeccion('stock'),
+    "cambiarSeccion('dashboard')": () => cambiarSeccion('dashboard'),
+    "cambiarSeccion('ventas')": () => cambiarSeccion('ventas'),
+    "cambiarSeccion('herramientas')": () => cambiarSeccion('herramientas'),
+};
 document.addEventListener('click', function(e) {
     const btn = e.target.closest('[data-action]');
     if (btn) {
         const action = btn.getAttribute('data-action');
-        if (action) new Function(action)();
+        if (ACTION_DISPATCH[action]) ACTION_DISPATCH[action]();
+        else console.warn('[Admin] Accion no registrada:', action);
     }
 });
 

@@ -212,7 +212,10 @@ Bucket `productos_img` (Supabase Storage). Compresion Canvas → WebP 800px max.
 - **VIEW `producto_variantes_vendedor`**: sin columna `costo` (disponible para migracion futura).
 
 ### Storage
-- Bucket `productos_img`: limite 2MB, solo JPEG/PNG/WebP, operaciones restringidas a admin via `es_admin()`.
+- Bucket `productos_img` (publico lectura): limite 5MB, MIME-types estrictos (JPEG/PNG/WebP).
+- **INSERT/UPDATE**: solo `es_admin()` + validacion RLS de MIME-type (`metadata->>'mimetype'`), tamaño (`metadata->>'size' <= 5MB`), y coherencia extension-MIME (previene extensiones dobles como `shell.php.jpg`). Bloqueo de nombres con mas de un punto.
+- **DELETE**: solo `es_admin()`. Vendedores no pueden borrar imagenes.
+- **SELECT**: publico para el bucket (imagenes de catalogo visibles sin auth).
 
 ### Edge Functions
 - Validacion JWT estricta (`supabase.auth.getUser()`). Rate limit 10 req/min por user.

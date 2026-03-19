@@ -86,6 +86,12 @@ supabase CDN → supabase-init.js → js/utils/storage.js → login.js
 - `actualizar_estado_pedido(text, text)` — valida auth.uid() + admin o dueno del pedido
 - `reemplazar_variantes(text[], jsonb)` — valida auth.uid() + rol admin estricto
 - `obtener_rol_usuario(uuid)`, `es_admin()`, `obtener_mi_rol()` — EXECUTE solo para `authenticated`
+- `obtener_catalogo_seguro()` — retorna catalogo con costo=0 para vendedores
+
+### Trazabilidad forense (audit_logs):
+- Tabla `audit_logs`: caja negra inmutable (RLS forzado, solo SELECT admin, sin INSERT/UPDATE/DELETE para usuarios)
+- Trigger `log_audit_event()` SECURITY DEFINER: captura accion, datos antes/despues, usuario, timestamp
+- Vigilancia activa en: `pedidos` (INSERT/UPDATE/DELETE), `configuracion` (INSERT/UPDATE/DELETE), `clientes` (UPDATE/DELETE)
 
 ### Realtime:
 - Publicadas: categorias, clientes, productos, producto_variantes, pedidos, configuracion, perfiles

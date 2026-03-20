@@ -49,6 +49,21 @@
             return;
         }
 
+        // MFA: Verificar que admins con TOTP tengan nivel AAL2
+        if (rol === 'admin') {
+            try {
+                const { data: aalData } = await sb.auth.mfa.getAuthenticatorAssuranceLevel();
+                if (aalData && aalData.nextLevel === 'aal2' && aalData.currentLevel !== 'aal2') {
+                    // Admin tiene MFA pero no verifico TOTP — volver a login
+                    console.warn('[Guard] Admin requiere verificacion MFA (AAL2)');
+                    window.location.replace('/login.html');
+                    return;
+                }
+            } catch (mfaErr) {
+                console.error('[Guard] Error verificando AAL:', mfaErr);
+            }
+        }
+
         window.hdvUsuario = {
             id: session.user.id,
             email: session.user.email,

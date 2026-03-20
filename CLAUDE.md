@@ -67,6 +67,7 @@ PWA mobile-first para vendedores de calle + panel admin de escritorio.
 ├── AUDITORIA_SEGURIDAD.md    → V1: 26 hallazgos Zero Trust, todos remediados
 ├── AUDITORIA_SEGURIDAD_V2.md → V2: Red Team, 9 hallazgos, todos remediados
 ├── AUDITORIA_SEGURIDAD_V3.md → V3: Insider Threats, 10 hallazgos, todos remediados
+├── AUDITORIA_SEGURIDAD_V4.md → V4: White-Box Audit integral, Tier 3/5, 9 brechas residuales
 ├── DISASTER_RECOVERY.md      → Plan de recuperacion ante desastres (RTO 2h, RPO 24h)
 ├── scripts/backup_schema.sh  → Cold backup de esquema DB (estructura sin datos)
 ├── supabase-schema.sql       → Schema completo
@@ -182,10 +183,11 @@ Migra automaticamente de localStorage a IndexedDB al primer uso. Supabase Auth s
 
 ## Autenticacion y roles
 
-- Supabase Auth email/password. Tabla `perfiles` con rol + activo. Trigger auto-crea perfil.
+- Supabase Auth email/password + **MFA TOTP para administradores**. Tabla `perfiles` con rol + activo. Trigger auto-crea perfil.
 - `guard.js` usa RPC `obtener_rol_usuario` (SECURITY DEFINER). Admin → admin.html, Vendedor → index.html.
 - `window.hdvUsuario` expone {id, email, rol, nombre} globalmente.
-- **Lockout fuerza bruta**: 5 intentos fallidos → bloqueo 15 minutos con contador en reversa. Estado en `localStorage` key `hdv_login_attempts`. Login exitoso resetea contador.
+- **MFA (TOTP)**: Obligatorio para admin. Flujo: login → `getAuthenticatorAssuranceLevel()` → si admin sin factor TOTP → enroll (QR + secret) → challenge/verify. Si ya tiene TOTP → pantalla de codigo 6 digitos. `guard.js` verifica AAL2 en rutas admin.
+- **Proteccion brute-force**: Delegada al rate limiting nativo de Supabase Auth (`Too many requests`). Lockout client-side eliminado (era evasible limpiando localStorage).
 - **Sanitizacion de email**: `trim()` + `toLowerCase()` antes de enviar a Supabase Auth.
 - **Complejidad de contrasenas**: Los usuarios se crean manualmente desde el dashboard de Supabase. Regla minima obligatoria: 8 caracteres, 1 mayuscula, 1 numero, 1 simbolo especial.
 
@@ -264,6 +266,7 @@ Bucket `productos_img` (Supabase Storage). Compresion Canvas → WebP 800px max.
 - `AUDITORIA_SEGURIDAD.md`: V1 — 26 hallazgos Zero Trust, todos remediados.
 - `AUDITORIA_SEGURIDAD_V2.md`: V2 — Red Team, 9 hallazgos (1 critico, 3 altos, 4 medios, 1 bajo), **todos remediados 2026-03-19**.
 - `AUDITORIA_SEGURIDAD_V3.md`: V3 — Insider Threats, 10 hallazgos (2 criticos, 3 altos, 3 medios, 2 bajos), **todos remediados 2026-03-19**.
+- `AUDITORIA_SEGURIDAD_V4.md`: V4 — White-Box Audit integral de madurez, **2026-03-20**. Grado: Estandar Comercial Avanzado (Tier 3/5, top 3-5% PYMEs LATAM). 9 brechas residuales identificadas (1 critica: sin MFA, 2 altas: unsafe-eval CSP + sin WAF, 6 medias/bajas). Hoja de ruta: MFA → Tailwind estatico → WAF → Dependabot → rotar secreto webhook.
 
 ## Reglas importantes
 

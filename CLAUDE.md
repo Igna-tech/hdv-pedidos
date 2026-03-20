@@ -103,6 +103,7 @@ supabase CDN → supabase-init.js → js/utils/storage.js → login.js
 - `configuracion_empresa` (id INT PK default 1, ruc_empresa, razon_social, nombre_fantasia, timbrado_numero, timbrado_vencimiento, establecimiento, punto_expedicion, direccion_fiscal, telefono_empresa, email_empresa, actividad_economica) — fila unica, DELETE bloqueado
 - `reportes_mensuales` (mes TEXT PK, datos JSONB)
 - `perfiles` (id UUID PK FK→auth.users, nombre_completo, rol CHECK('admin','vendedor'), activo)
+- `app_secrets` (key TEXT PK, value, description, created_at, updated_at) — RLS blindado: zero politicas, solo SECURITY DEFINER puede leer
 
 ### Tabla legacy (no usar):
 - `catalogo` — reemplazada por tablas relacionales, pendiente de eliminacion
@@ -270,7 +271,14 @@ Bucket `productos_img` (Supabase Storage). Compresion Canvas → WebP 800px max.
   - Tolerante a fallos: siempre retorna HTTP 200 (evita reintentos infinitos).
 - **Disaster Recovery**: `DISASTER_RECOVERY.md` (RTO 2h, RPO 24h). `scripts/backup_schema.sh` para cold backup de esquema.
 
-### P6 — EDGE FUNCTIONS (Perimetro de API)
+### P6 — GESTION DE SECRETOS (Zero texto plano en codigo)
+
+- **PROHIBIDO** hardcodear tokens, contrasenas, API keys o webhook secrets en archivos JavaScript, HTML o codigo SQL.
+- **Secretos de DB/triggers**: almacenados en tabla `app_secrets` (RLS blindado: zero politicas = inaccesible para `anon`/`authenticated`). Solo funciones `SECURITY DEFINER` pueden leer. Para rotar: `UPDATE app_secrets SET value = 'nuevo', updated_at = NOW() WHERE key = '...';` desde SQL Editor.
+- **Secretos de Edge Functions**: variables de entorno en Supabase Dashboard → Edge Functions → Secrets (`WHATSAPP_API_URL`, `WHATSAPP_API_KEY`, `WHATSAPP_DESTINO`, `WEBHOOK_SECRET`).
+- **Credenciales frontend** (`supabase-init.js`): `SUPABASE_URL` y `SUPABASE_ANON_KEY` son publicos por diseno (protegidos por RLS). No son secretos.
+
+### P7 — EDGE FUNCTIONS (Perimetro de API)
 
 - JWT obligatorio via `supabase.auth.getUser()`. Rate limit 10 req/min por user (en memoria).
 - Privilegios divididos: lecturas con RLS del cliente, escritura final con SERVICE_ROLE.
@@ -285,7 +293,7 @@ Bucket `productos_img` (Supabase Storage). Compresion Canvas → WebP 800px max.
 | V1 | Zero Trust | 26 | Todos remediados |
 | V2 | Red Team | 9 (1C, 3A, 4M, 1B) | Todos remediados 2026-03-19 |
 | V3 | Insider Threats | 10 (2C, 3A, 3M, 2B) | Todos remediados 2026-03-19 |
-| V4 | White-Box Audit | 9 brechas residuales | B-01 MFA remediado, B-02 CSP remediado. Pendientes: B-03 WAF, B-04 rate limit persistente, B-05 Dependabot, B-06 rotar secreto webhook |
+| V4 | White-Box Audit | 9 brechas residuales | B-01 MFA, B-02 CSP, B-06 secretos — remediados. Pendientes: B-03 WAF, B-04 rate limit persistente, B-05 Dependabot |
 
 ## Reglas operativas
 

@@ -29,10 +29,12 @@
 -- ============================================
 
 -- Funcion generica: envia payload a Edge Function via pg_net
+-- Lee secretos desde tabla blindada app_secrets (RLS: zero politicas = sin acceso web)
 CREATE OR REPLACE FUNCTION notify_alerta_seguridad()
 RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public
 AS $$
 DECLARE
     _payload jsonb;
@@ -48,19 +50,21 @@ BEGIN
         'old_record', CASE WHEN TG_OP = 'UPDATE' THEN row_to_json(OLD)::jsonb ELSE NULL END
     );
 
-    -- URL de la Edge Function y secreto (hardcodeados para evitar error 42501 en GUC)
-    _url := 'https://ngtoshttgnfgbiurnrix.supabase.co/functions/v1/alertas-seguridad';
-    _secret := 'hdv_secreto_123';
+    -- Leer secretos desde tabla blindada (accesible solo por SECURITY DEFINER)
+    SELECT value INTO _url FROM app_secrets WHERE key = 'alertas_url';
+    SELECT value INTO _secret FROM app_secrets WHERE key = 'webhook_secret';
 
-    -- Enviar via pg_net HTTP async (no bloquea la transaccion)
-    PERFORM net.http_post(
-        url := _url,
-        headers := jsonb_build_object(
-            'Content-Type', 'application/json',
-            'x-webhook-secret', _secret
-        ),
-        body := _payload
-    );
+    -- Solo enviar si los secretos estan configurados
+    IF _url IS NOT NULL AND _secret IS NOT NULL THEN
+        PERFORM net.http_post(
+            url := _url,
+            headers := jsonb_build_object(
+                'Content-Type', 'application/json',
+                'x-webhook-secret', _secret
+            ),
+            body := _payload
+        );
+    END IF;
 
     RETURN COALESCE(NEW, OLD);
 END;
@@ -112,7 +116,7 @@ CREATE TRIGGER trg_alerta_kill_switch
     EXECUTE FUNCTION notify_alerta_seguridad();
 
 -- ============================================
--- NOTA: URL y secreto hardcodeados en notify_alerta_seguridad()
--- para evitar error 42501 (Permission denied) de ALTER DATABASE SET app.*
--- Si se cambia la Edge Function URL, actualizar directamente en la funcion.
+-- NOTA: Secretos almacenados en tabla app_secrets (RLS blindado, zero politicas).
+-- Solo funciones SECURITY DEFINER pueden leer. Para rotar:
+--   UPDATE app_secrets SET value = 'nuevo_secreto', updated_at = NOW() WHERE key = 'webhook_secret';
 -- ============================================

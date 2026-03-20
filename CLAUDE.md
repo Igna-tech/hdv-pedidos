@@ -35,7 +35,7 @@ PWA mobile-first para vendedores de calle + panel admin de escritorio.
 ├── services/supabase.js    → Capa de servicios (Repository Pattern): centraliza TODAS las queries
 ├── supabase-config.js      → Orquestacion: realtime, sync, mapeo legacy (delega queries a SupabaseService)
 ├── guard.js                → Proteccion de rutas (auth + roles + Kill Switch via RPC)
-├── login.html / login.js   → Login con Supabase Auth, redirect por rol, alerta ?blocked=1, lockout fuerza bruta
+├── login.html / login.js   → Login con Supabase Auth + MFA TOTP, redirect por rol, alerta ?blocked=1
 │
 ├── js/core/state.js        → Singleton hdvState: getters/setters globales (pedidos, catalogo, carrito)
 ├── js/services/sync.js     → SyncManager: sync automatica de pedidos offline con backoff progresivo
@@ -206,72 +206,88 @@ Migra automaticamente de localStorage a IndexedDB al primer uso. Supabase Auth s
 
 Bucket `productos_img` (Supabase Storage). Compresion Canvas → WebP 800px max. Upload solo admin.
 
-## Arquitectura de seguridad (Zero Trust)
+## MANIFIESTO Y POLITICAS DE SEGURIDAD (STRICT ENFORCEMENT)
 
-### Backend (PostgreSQL)
-- **RLS obligatorio** en todas las tablas. Sin acceso para `anon`. RPCs con REVOKE de `public`/`anon`. `configuracion` INSERT/UPDATE solo admin.
-- **VIEW `clientes_vendedor`**: sin `precios_personalizados`. Vendedores consultan VIEW, admin consulta tabla base.
-- **`reportes_mensuales` SELECT**: solo admin. `configuracion_empresa` SELECT publico (datos fiscales en factura).
-- Funciones criticas validan `auth.uid()` + rol internamente (no confian solo en RLS).
-- `pedidos.vendedor_id` DEFAULT `auth.uid()`. `configuracion_empresa` DELETE bloqueado con `USING(false)`.
-- **Trigger `trg_validar_precios`**: valida precios (< 50% catalogo), descuento (> 30%), total sospechoso (< 40% catalogo), cantidad absurda (> 9999). Marca `alerta_fraude: true` y fuerza `pedido_pendiente`.
-- **Trigger `trg_bloquear_mutacion_terminal`**: impide UPDATE de vendedores en pedidos con estados terminales (facturado_mock, nota_credito_mock, cobrado_sin_factura, entregado, anulado).
-- **Trigger `trg_forzar_fecha_servidor`**: sobreescribe `pedidos.fecha` con `NOW()` del servidor en INSERT, impide fraude de fechas.
-- **DELETE en `pedidos`**: solo admin. Vendedores no pueden borrar pedidos.
-- **RPC `obtener_catalogo_seguro`**: retorna catalogo con `costo=0` para vendedores (defense-in-depth server-side).
-- **VIEW `producto_variantes_vendedor`**: sin columna `costo` (disponible para migracion futura).
+> **DIRECTIVA DE AUTO-ACTUALIZACION:** Cada vez que se implemente una nueva medida o protocolo de seguridad en este proyecto, DEBE documentarse automaticamente en esta seccion sin necesidad de que el usuario lo pida explicitamente. Eliminar entradas obsoletas y mantener este manifiesto como fuente unica de verdad.
 
-### Storage
-- Bucket `productos_img` (publico lectura): limite 5MB, MIME-types estrictos (JPEG/PNG/WebP).
-- **INSERT/UPDATE**: solo `es_admin()` + validacion RLS de MIME-type (`metadata->>'mimetype'`), tamaño (`metadata->>'size' <= 5MB`), y coherencia extension-MIME (previene extensiones dobles como `shell.php.jpg`). Bloqueo de nombres con mas de un punto.
-- **DELETE**: solo `es_admin()`. Vendedores no pueden borrar imagenes.
-- **SELECT**: publico para el bucket (imagenes de catalogo visibles sin auth).
+### P1 — FRONTEND & CSP (Cero tolerancia a ejecucion dinamica)
 
-### Edge Functions
-- Validacion JWT estricta (`supabase.auth.getUser()`). Rate limit 10 req/min por user.
-- Privilegios divididos: lecturas con client RLS, escritura final con SERVICE_ROLE solo para resultado SIFEN.
+- **CSP estricto** en `vercel.json`: `script-src` sin `unsafe-eval` ni `unsafe-inline`. Whitelist explicita de CDNs. `frame-src 'none'`, `object-src 'none'`, `base-uri 'self'`.
+- **Tailwind CSS compilado estatico** (`npm run build:css` → `dist/tailwind.css`). PROHIBIDO re-agregar el CDN JIT (rompe CSP). Al agregar clases Tailwind nuevas, re-ejecutar build antes de deploy.
+- **SRI obligatorio** en todos los scripts externos: `integrity="sha384-..."` + `crossorigin="anonymous"`. Versiones fijadas: Supabase JS 2.99.2, Chart.js 4.4.0, Lucide 0.468.0, jsPDF 2.5.1, JSZip 3.10.1, SheetJS 0.20.3. Excluido: Google Fonts (CSS dinamico). Al actualizar libreria: `curl -sL URL | openssl dgst -sha384 -binary | openssl base64 -A`. URLs con redirect (unpkg) deben apuntar al path final.
+- **Prevencion XSS**: `escapeHTML()` obligatorio en TODA interpolacion `innerHTML`. Prohibido inline `onclick` con variables — usar `data-attributes` + `addEventListener`. Event delegation via `ACTION_DISPATCH` whitelist (sin `new Function()`).
+- **Sanitizacion de datos**: backups vendedor sin `costo`, sin `precios_personalizados`, RUC recortado. `textContent` para JSON en modals.
+- **JWT en localStorage**: mitigado por CSP estricto + eliminacion de vectores XSS.
+
+### P2 — DATABASE ZERO TRUST (La validacion vive en PostgreSQL, no en JS)
+
+- **RLS habilitado y estricto** en TODAS las tablas. Zero politicas `anon`. RPCs con REVOKE de `public`/`anon`.
+- **Triggers de validacion server-side** (NUNCA confiar en frontend):
+  - `trg_validar_precios`: precio < 50% catalogo, descuento > 30%, total < 40%, qty > 9999 → marca `alerta_fraude: true`, fuerza `pedido_pendiente`.
+  - `trg_bloquear_mutacion_terminal`: vendedores no pueden modificar pedidos en estados terminales (facturado, nota_credito, cobrado, entregado, anulado).
+  - `trg_forzar_fecha_servidor`: sobreescribe `pedidos.fecha` con `NOW()` del servidor. Impide backdating.
+- **Aislamiento de datos**:
+  - `pedidos.vendedor_id` DEFAULT `auth.uid()`. DELETE solo admin.
+  - VIEW `clientes_vendedor` sin `precios_personalizados`. VIEW `producto_variantes_vendedor` sin `costo`.
+  - RPC `obtener_catalogo_seguro`: retorna `costo=0` para vendedores.
+  - `reportes_mensuales` SELECT solo admin. `configuracion_empresa` DELETE bloqueado `USING(false)`.
+- **Funciones criticas** (`SECURITY DEFINER`): validan `auth.uid()` + rol internamente, no confian solo en RLS.
+
+### P3 — IDENTIDAD Y AUTENTICACION (MFA obligatorio, zero client-side auth)
+
+- **MFA TOTP obligatorio para admin**: login → `getAuthenticatorAssuranceLevel()` → enroll (QR) o verify (6 digitos). `guard.js` verifica AAL2 en rutas admin.
+- **Proteccion brute-force**: delegada al rate limiting nativo de Supabase Auth. PROHIBIDO implementar lockouts en localStorage (evasible, falsa seguridad).
+- **Sanitizacion de credenciales**: email `trim()` + `toLowerCase()` antes de auth.
+- **Verificacion server-side dual**: `guard.js` usa RPC `obtener_rol_usuario`. `admin.js` re-verifica con RPC `obtener_mi_rol()`. No confiar solo en `window.hdvUsuario`.
+- **Complejidad de contrasenas**: 8+ chars, 1 mayuscula, 1 numero, 1 simbolo. Usuarios creados manualmente desde Supabase Dashboard.
+
+### P4 — STORAGE ADUANA (Validacion estricta de archivos)
+
+- Bucket `productos_img`: lectura publica, escritura solo `es_admin()`.
+- **MIME-type whitelist**: JPEG, PNG, WebP unicamente. Validacion via `metadata->>'mimetype'` en RLS.
+- **Limite de tamaño**: 5MB maximo (`metadata->>'size'`).
+- **Anti-extension-doble**: bloqueo de nombres con mas de un punto (previene `shell.php.jpg`).
+- DELETE solo admin. Compresion Canvas → WebP 800px max antes de upload.
+
+### P5 — CONTINUIDAD, INCIDENTES Y FORENSIA
+
+- **Audit Logs inmutables**: tabla `audit_logs` con RLS solo SELECT admin. Sin INSERT/UPDATE/DELETE para usuarios. Trigger `log_audit_event()` SECURITY DEFINER en: pedidos, configuracion, clientes.
+- **Kill Switch (dispositivos robados)**:
+  - Admin: toggle `perfiles.activo` desde panel "Control de Acceso".
+  - Guard.js: si `activo === false` → purga IndexedDB (todo excepto darkmode) → `signOut()` → redirect `/login.html?blocked=1`.
+  - SyncManager: pre-sync verifica `verificar_estado_cuenta()` RPC. Si inactivo → purga + signOut.
+  - RLS `pedidos_insert`: requiere `activo = true`. Vendedor desactivado no puede insertar.
+  - Login: `?blocked=1` muestra alerta visual.
+- **Centro de Comando Forense** (admin sidebar):
+  - Radar de Fraudes: pedidos con `alerta_fraude = true`. Modal JSON.
+  - Caja Negra: ultimos 50 audit_logs DESC. Modal diff antes/despues.
+  - Renderizado XSS-safe: `textContent` + `escapeHTML()`.
+- **Alertas WhatsApp en tiempo real**:
+  - Edge Function `alertas-seguridad` via CallMeBot (GET con query params).
+  - Triggers pg_net: `trg_alerta_fraude_pedidos_insert/update`, `trg_alerta_audit_logs`, `trg_alerta_kill_switch`.
+  - `notify_alerta_seguridad()` SECURITY DEFINER con URL hardcodeada + secreto `x-webhook-secret`.
+  - Env vars Edge Function: `WHATSAPP_API_URL`, `WHATSAPP_API_KEY`, `WHATSAPP_DESTINO`, `WEBHOOK_SECRET`.
+  - Tolerante a fallos: siempre retorna HTTP 200 (evita reintentos infinitos).
+- **Disaster Recovery**: `DISASTER_RECOVERY.md` (RTO 2h, RPO 24h). `scripts/backup_schema.sh` para cold backup de esquema.
+
+### P6 — EDGE FUNCTIONS (Perimetro de API)
+
+- JWT obligatorio via `supabase.auth.getUser()`. Rate limit 10 req/min por user (en memoria).
+- Privilegios divididos: lecturas con RLS del cliente, escritura final con SERVICE_ROLE.
 - Anti-doble facturacion: rechaza pedidos con `sifen_cdc` existente.
-- **Sanitizacion Anti-XXE**: `sanitizarParaXML(texto, maxLength)` escapa `& < > " '` y trunca a longitud maxima. Aplicado a todos los campos de texto libre (razon social, direccion, email, telefono, nombres de items). Valores numericos validados con `validarNumero()` (Number.isFinite).
+- Sanitizacion Anti-XXE: `sanitizarParaXML(texto, maxLength)` escapa `& < > " '` + trunca. `validarNumero()` con `Number.isFinite`.
+- CORS: `ALLOWED_ORIGIN` env var. En produccion, NO usar `*`.
 
-### Frontend
-- `escapeHTML()` obligatorio en TODA interpolacion dentro de `innerHTML`. Prohibido inline `onclick` con variables — usar `data-attributes` + `addEventListener`.
-- CSP header en `vercel.json` como defense-in-depth (whitelist de CDNs, bloquea frame/object). Sin `unsafe-eval` (eliminado al migrar Tailwind a compilado estatico).
-- **Subresource Integrity (SRI)**: scripts externos estaticos tienen `integrity="sha384-..."` + `crossorigin="anonymous"`. Versiones fijadas: Supabase JS 2.99.2, Chart.js 4.4.0, Lucide 0.468.0 (URL directa sin redirect), jsPDF 2.5.1, JSZip 3.10.1, SheetJS 0.20.3. **Excluido de SRI:** Google Fonts (CSS dinamico). Tailwind CSS ahora es local (`dist/tailwind.css`), no requiere SRI. URLs con redirect (unpkg) deben apuntar al path final para evitar mismatch de hash. **Al actualizar cualquier libreria externa, recalcular el hash SRI con `curl -sL URL | openssl dgst -sha384 -binary | openssl base64 -A`**.
-- `admin.js` verifica rol server-side via RPC `obtener_mi_rol()` al inicializar (no confia solo en `window.hdvUsuario`).
-- Backups vendedor sanitizados: sin `costo`, sin `precios_personalizados`, RUC recortado.
-- Event delegation en admin usa `ACTION_DISPATCH` whitelist (sin `new Function()`).
-- Logout limpia TODOS los datos de IndexedDB excepto darkmode.
-- SyncManager detecta sesion expirada y detiene sync con feedback al usuario.
-- Tokens JWT en localStorage (limitacion frontend-only). Mitigacion: CSP + eliminar vectores XSS.
+### Historial de auditorias
 
-### Kill Switch / Boton de Panico (dispositivos robados)
-- **Admin**: Panel "Control de Acceso" en Herramientas. Toggle `perfiles.activo` por vendedor.
-- **Guard.js**: Si `activo === false`, purga IndexedDB (todo excepto darkmode) → signOut → redirect `/login.html?blocked=1`.
-- **SyncManager**: Pre-sync verifica `verificar_estado_cuenta()` RPC. Si inactivo, purga + signOut + redirect.
-- **RLS `pedidos_insert`**: Requiere `activo = true` en perfiles. Vendedor desactivado no puede insertar pedidos.
-- **RPC `verificar_estado_cuenta()`**: SECURITY DEFINER, retorna boolean `activo` del perfil del usuario autenticado.
-- **Login.js**: Parametro `?blocked=1` muestra alerta "Dispositivo bloqueado por seguridad".
+| Version | Tipo | Hallazgos | Estado |
+|---------|------|-----------|--------|
+| V1 | Zero Trust | 26 | Todos remediados |
+| V2 | Red Team | 9 (1C, 3A, 4M, 1B) | Todos remediados 2026-03-19 |
+| V3 | Insider Threats | 10 (2C, 3A, 3M, 2B) | Todos remediados 2026-03-19 |
+| V4 | White-Box Audit | 9 brechas residuales | B-01 MFA remediado, B-02 CSP remediado. Pendientes: B-03 WAF, B-04 rate limit persistente, B-05 Dependabot, B-06 rotar secreto webhook |
 
-### Centro de Comando Forense (Admin)
-- Seccion "Seguridad / Forense" en sidebar del panel admin.
-- **Radar de Fraudes**: consulta `pedidos` con `datos->>'alerta_fraude' = 'true'`. Tabla roja con fecha, vendedor, cliente, total, boton "Ver" que abre modal JSON.
-- **Caja Negra (Audit Logs)**: consulta `audit_logs` ultimos 50 eventos DESC. Tabla con fecha/hora, accion (INSERT/UPDATE/DELETE), tabla afectada, usuario. Boton "Ver Cambios" con modal diff antes/despues.
-- Renderizado XSS-safe: `textContent` para JSON en modals, `escapeHTML()` en tablas.
-
-### Alertas Activas (WhatsApp en tiempo real)
-- Edge Function `alertas-seguridad`: recibe webhooks de triggers PostgreSQL, clasifica severidad, envia a WhatsApp via API configurable.
-- **Triggers instalados (pg_net)**: `trg_alerta_fraude_pedidos` (INSERT/UPDATE con alerta_fraude), `trg_alerta_audit_logs` (DELETE o cambios en configuracion), `trg_alerta_kill_switch` (perfil desactivado).
-- Funcion `notify_alerta_seguridad()` SECURITY DEFINER: construye payload y envia HTTP async via `net.http_post()`.
-- **Pendiente de configuracion**: `ALTER DATABASE postgres SET app.alertas_url = '...'` y `app.webhook_secret`. Variables de entorno en Edge Function: `WHATSAPP_API_URL`, `WHATSAPP_API_KEY`, `WHATSAPP_DESTINO`.
-- Tolerante a fallos: siempre retorna HTTP 200 para evitar reintentos infinitos del webhook.
-
-### Auditorias de seguridad
-- `AUDITORIA_SEGURIDAD.md`: V1 — 26 hallazgos Zero Trust, todos remediados.
-- `AUDITORIA_SEGURIDAD_V2.md`: V2 — Red Team, 9 hallazgos (1 critico, 3 altos, 4 medios, 1 bajo), **todos remediados 2026-03-19**.
-- `AUDITORIA_SEGURIDAD_V3.md`: V3 — Insider Threats, 10 hallazgos (2 criticos, 3 altos, 3 medios, 2 bajos), **todos remediados 2026-03-19**.
-- `AUDITORIA_SEGURIDAD_V4.md`: V4 — White-Box Audit integral de madurez, **2026-03-20**. Grado: Estandar Comercial Avanzado (Tier 3/5, top 3-5% PYMEs LATAM). 9 brechas residuales identificadas (1 critica: sin MFA, 2 altas: unsafe-eval CSP + sin WAF, 6 medias/bajas). Hoja de ruta: MFA → Tailwind estatico → WAF → Dependabot → rotar secreto webhook.
-
-## Reglas importantes
+## Reglas operativas
 
 - **NO bloquear por stock en la app del vendedor**. Flujo: levantar pedido → comprar mercaderia → entregar.
 - Service worker: incrementar `VERSION` en cada deploy.
@@ -281,5 +297,3 @@ Bucket `productos_img` (Supabase Storage). Compresion Canvas → WebP 800px max.
 - Pedidos: IndexedDB es fuente primaria para lectura, Supabase para sync entre dispositivos.
 - IDs de pedidos generados con `crypto.randomUUID()` (PED-, REC-, FAC-). No usar Date.now() ni Math.random().
 - **PROHIBIDO modificar** el codigo de generacion XML, CDC, integracion SIFEN/SET o Edge Functions sin autorizacion explicita.
-- **SRI obligatorio**: al cambiar version de cualquier libreria CDN, recalcular hash SHA-384 y actualizar `integrity` en TODOS los HTML que la usen.
-- **Tailwind CSS**: compilado estatico (`npm run build:css`). Al agregar clases Tailwind nuevas en HTML/JS, re-ejecutar build. Archivo de salida: `dist/tailwind.css`. NO re-agregar el CDN JIT (romperia CSP).

@@ -1,5 +1,12 @@
 {
   "dependencies": {
     "@supabase/supabase-js": "^2.99.1"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.17"
+  },
+  "scripts": {
+    "build:css": "npx tailwindcss -i ./src/input.css -o ./dist/tailwind.css --minify",
+    "watch:css": "npx tailwindcss -i ./src/input.css -o ./dist/tailwind.css --watch"
   }
 }

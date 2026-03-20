@@ -1,4 +1,4 @@
-const VERSION = '47.0';
+const VERSION = '48.0';
 const CACHE_NAME = `hdv-pedidos-v${VERSION}`;
 
 const urlsToCache = [
@@ -35,7 +35,8 @@ const urlsToCache = [
     './js/services/sync.js',
     './supabase-config.js',
     './productos.json',
-    './manifest.json'
+    './manifest.json',
+    './dist/tailwind.css'
 ];
 
 // Archivos que SIEMPRE deben buscar la version mas reciente de la red

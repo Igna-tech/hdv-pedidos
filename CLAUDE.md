@@ -12,7 +12,7 @@ PWA mobile-first para vendedores de calle + panel admin de escritorio.
 
 ## Stack
 
-- **Frontend**: Vanilla JS, Tailwind CSS (CDN), Lucide Icons (v0.468.0), Chart.js (admin), jsPDF, JSZip
+- **Frontend**: Vanilla JS, Tailwind CSS (compilado estatico, v3.4.17), Lucide Icons (v0.468.0), Chart.js (admin), jsPDF, JSZip
 - **Backend**: Supabase (Auth, PostgreSQL, Storage, Realtime, Edge Functions)
 - **Deploy**: Vercel (archivos estaticos)
 - **PWA**: Service Worker con cache network-first para JS/HTML, cache-first para assets
@@ -55,6 +55,9 @@ PWA mobile-first para vendedores de calle + panel admin de escritorio.
 ├── js/modules/ventas/ventas-data.js      → Datos y logica de ventas/facturacion
 ├── js/modules/ventas/ventas-templates.js → Templates HTML para documentos de venta
 │
+├── src/input.css           → Entrada Tailwind (directivas @tailwind)
+├── dist/tailwind.css       → CSS compilado y minificado (generado por npm run build:css)
+├── tailwind.config.js      → Config Tailwind: content paths para purge
 ├── service-worker.js       → Cache PWA (version actual en const VERSION)
 ├── manifest.json           → Configuracion PWA (standalone, portrait)
 ├── productos.json          → Fallback estatico del catalogo (offline/primera carga, NO es fuente de verdad)
@@ -232,8 +235,8 @@ Bucket `productos_img` (Supabase Storage). Compresion Canvas → WebP 800px max.
 
 ### Frontend
 - `escapeHTML()` obligatorio en TODA interpolacion dentro de `innerHTML`. Prohibido inline `onclick` con variables — usar `data-attributes` + `addEventListener`.
-- CSP header en `vercel.json` como defense-in-depth (whitelist de CDNs, bloquea frame/object).
-- **Subresource Integrity (SRI)**: scripts externos estaticos tienen `integrity="sha384-..."` + `crossorigin="anonymous"`. Versiones fijadas: Supabase JS 2.99.2, Chart.js 4.4.0, Lucide 0.468.0 (URL directa sin redirect), jsPDF 2.5.1, JSZip 3.10.1, SheetJS 0.20.3. **Excluidos de SRI:** Tailwind CDN (compilador JIT dinamico, hash inestable), Google Fonts (CSS dinamico). URLs con redirect (unpkg) deben apuntar al path final para evitar mismatch de hash. **Al actualizar cualquier libreria externa, recalcular el hash SRI con `curl -sL URL | openssl dgst -sha384 -binary | openssl base64 -A`**.
+- CSP header en `vercel.json` como defense-in-depth (whitelist de CDNs, bloquea frame/object). Sin `unsafe-eval` (eliminado al migrar Tailwind a compilado estatico).
+- **Subresource Integrity (SRI)**: scripts externos estaticos tienen `integrity="sha384-..."` + `crossorigin="anonymous"`. Versiones fijadas: Supabase JS 2.99.2, Chart.js 4.4.0, Lucide 0.468.0 (URL directa sin redirect), jsPDF 2.5.1, JSZip 3.10.1, SheetJS 0.20.3. **Excluido de SRI:** Google Fonts (CSS dinamico). Tailwind CSS ahora es local (`dist/tailwind.css`), no requiere SRI. URLs con redirect (unpkg) deben apuntar al path final para evitar mismatch de hash. **Al actualizar cualquier libreria externa, recalcular el hash SRI con `curl -sL URL | openssl dgst -sha384 -binary | openssl base64 -A`**.
 - `admin.js` verifica rol server-side via RPC `obtener_mi_rol()` al inicializar (no confia solo en `window.hdvUsuario`).
 - Backups vendedor sanitizados: sin `costo`, sin `precios_personalizados`, RUC recortado.
 - Event delegation en admin usa `ACTION_DISPATCH` whitelist (sin `new Function()`).
@@ -279,3 +282,4 @@ Bucket `productos_img` (Supabase Storage). Compresion Canvas → WebP 800px max.
 - IDs de pedidos generados con `crypto.randomUUID()` (PED-, REC-, FAC-). No usar Date.now() ni Math.random().
 - **PROHIBIDO modificar** el codigo de generacion XML, CDC, integracion SIFEN/SET o Edge Functions sin autorizacion explicita.
 - **SRI obligatorio**: al cambiar version de cualquier libreria CDN, recalcular hash SHA-384 y actualizar `integrity` en TODOS los HTML que la usen.
+- **Tailwind CSS**: compilado estatico (`npm run build:css`). Al agregar clases Tailwind nuevas en HTML/JS, re-ejecutar build. Archivo de salida: `dist/tailwind.css`. NO re-agregar el CDN JIT (romperia CSP).

@@ -22,6 +22,9 @@
         }
 
         body { background-color: #f3f4f6; -webkit-tap-highlight-color: transparent; font-family: 'Inter', system-ui, -apple-system, sans-serif; visibility: hidden; }
+        /* Fallback: si guard.js no logra mostrar el body en 5s, forzar visibilidad */
+        @keyframes forceVisible { to { visibility: visible; } }
+        body { animation: forceVisible 0s 5s forwards; }
 
         /* Product grid animations */
         .product-card {

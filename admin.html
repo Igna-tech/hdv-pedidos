@@ -33,6 +33,8 @@
             --heading-color: #0f172a;
         }
         body { background-color: var(--content-bg); font-family: 'Inter', system-ui, -apple-system, sans-serif; visibility: hidden; }
+        @keyframes forceVisible { to { visibility: visible; } }
+        body { animation: forceVisible 0s 5s forwards; }
 
         /* A11Y - Focus visible & Microinteractions */
         *:focus-visible {

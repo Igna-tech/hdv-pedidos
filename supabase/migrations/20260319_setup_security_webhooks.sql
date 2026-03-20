@@ -48,40 +48,43 @@ BEGIN
         'old_record', CASE WHEN TG_OP = 'UPDATE' THEN row_to_json(OLD)::jsonb ELSE NULL END
     );
 
-    -- URL de la Edge Function (configurar como parametro de la DB o hardcodear)
-    _url := current_setting('app.alertas_url', true);
-    _secret := current_setting('app.webhook_secret', true);
+    -- URL de la Edge Function y secreto (hardcodeados para evitar error 42501 en GUC)
+    _url := 'https://ngtoshttgnfgbiurnrix.supabase.co/functions/v1/alertas-seguridad';
+    _secret := 'hdv_secreto_123';
 
-    -- Solo enviar si la URL esta configurada
-    IF _url IS NOT NULL AND _url != '' THEN
-        -- Usar pg_net para HTTP async (no bloquea la transaccion)
-        PERFORM net.http_post(
-            url := _url,
-            headers := jsonb_build_object(
-                'Content-Type', 'application/json',
-                'x-webhook-secret', COALESCE(_secret, '')
-            ),
-            body := _payload
-        );
-    END IF;
+    -- Enviar via pg_net HTTP async (no bloquea la transaccion)
+    PERFORM net.http_post(
+        url := _url,
+        headers := jsonb_build_object(
+            'Content-Type', 'application/json',
+            'x-webhook-secret', _secret
+        ),
+        body := _payload
+    );
 
     RETURN COALESCE(NEW, OLD);
 END;
 $$;
 
 -- ============================================
--- TRIGGER 1: Fraude en pedidos (INSERT o UPDATE con alerta_fraude)
+-- TRIGGER 1: Fraude en pedidos (INSERT y UPDATE separados, TG_OP no disponible en WHEN)
 -- ============================================
 DROP TRIGGER IF EXISTS trg_alerta_fraude_pedidos ON public.pedidos;
-CREATE TRIGGER trg_alerta_fraude_pedidos
-    AFTER INSERT OR UPDATE ON public.pedidos
+DROP TRIGGER IF EXISTS trg_alerta_fraude_pedidos_insert ON public.pedidos;
+DROP TRIGGER IF EXISTS trg_alerta_fraude_pedidos_update ON public.pedidos;
+
+CREATE TRIGGER trg_alerta_fraude_pedidos_insert
+    AFTER INSERT ON public.pedidos
+    FOR EACH ROW
+    WHEN ((NEW.datos->>'alerta_fraude')::boolean = true)
+    EXECUTE FUNCTION notify_alerta_seguridad();
+
+CREATE TRIGGER trg_alerta_fraude_pedidos_update
+    AFTER UPDATE ON public.pedidos
     FOR EACH ROW
     WHEN (
         (NEW.datos->>'alerta_fraude')::boolean = true
-        AND (
-            TG_OP = 'INSERT'
-            OR (TG_OP = 'UPDATE' AND (OLD.datos->>'alerta_fraude') IS DISTINCT FROM 'true')
-        )
+        AND (OLD.datos->>'alerta_fraude') IS DISTINCT FROM 'true'
     )
     EXECUTE FUNCTION notify_alerta_seguridad();
 
@@ -109,13 +112,7 @@ CREATE TRIGGER trg_alerta_kill_switch
     EXECUTE FUNCTION notify_alerta_seguridad();
 
 -- ============================================
--- CONFIGURACION: Establecer URL de la Edge Function
--- Ejecutar manualmente despues de desplegar la Edge Function:
---
---   ALTER DATABASE postgres SET app.alertas_url = 'https://<project-ref>.supabase.co/functions/v1/alertas-seguridad';
---   ALTER DATABASE postgres SET app.webhook_secret = '<tu-secreto-aqui>';
---
--- Para verificar:
---   SHOW app.alertas_url;
---   SHOW app.webhook_secret;
+-- NOTA: URL y secreto hardcodeados en notify_alerta_seguridad()
+-- para evitar error 42501 (Permission denied) de ALTER DATABASE SET app.*
+-- Si se cambia la Edge Function URL, actualizar directamente en la funcion.
 -- ============================================

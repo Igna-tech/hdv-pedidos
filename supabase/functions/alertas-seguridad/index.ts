@@ -119,44 +119,33 @@ function clasificarAlerta(payload: AlertaPayload): { tipo: TipoAlerta; mensaje: 
     return null; // Evento no critico, ignorar
 }
 
-// --- Enviar mensaje a WhatsApp via API configurable ---
+// --- Enviar mensaje a WhatsApp via CallMeBot (GET con query params) ---
 async function enviarWhatsApp(mensaje: string): Promise<{ ok: boolean; detalle?: string }> {
-    const apiUrl = Deno.env.get("WHATSAPP_API_URL");
+    const apiUrl = Deno.env.get("WHATSAPP_API_URL"); // https://api.callmebot.com/whatsapp.php
     const apiKey = Deno.env.get("WHATSAPP_API_KEY");
-    const destino = Deno.env.get("WHATSAPP_DESTINO"); // Numero del admin
+    const destino = Deno.env.get("WHATSAPP_DESTINO"); // Numero con codigo de pais (ej: 595981...)
 
     if (!apiUrl) {
         console.warn("[alertas] WHATSAPP_API_URL no configurada. Alerta solo en logs.");
         return { ok: false, detalle: "API URL no configurada" };
     }
 
-    if (!apiKey) {
-        console.warn("[alertas] WHATSAPP_API_KEY no configurada.");
-        return { ok: false, detalle: "API Key no configurada" };
+    if (!apiKey || !destino) {
+        console.warn("[alertas] WHATSAPP_API_KEY o WHATSAPP_DESTINO no configurados.");
+        return { ok: false, detalle: "API Key o destino no configurados" };
     }
 
     try {
-        const response = await fetch(apiUrl, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${apiKey}`,
-            },
-            body: JSON.stringify({
-                messaging_product: "whatsapp",
-                to: destino || "",
-                type: "text",
-                text: { body: mensaje },
-            }),
-        });
+        const urlFinal = `${apiUrl}?phone=${destino}&text=${encodeURIComponent(mensaje)}&apikey=${apiKey}`;
+        const response = await fetch(urlFinal);
 
         if (!response.ok) {
             const errorBody = await response.text();
-            console.error(`[alertas] WhatsApp API error ${response.status}:`, errorBody);
+            console.error(`[alertas] CallMeBot error ${response.status}:`, errorBody);
             return { ok: false, detalle: `HTTP ${response.status}` };
         }
 
-        console.log("[alertas] Mensaje WhatsApp enviado exitosamente");
+        console.log("[alertas] Mensaje WhatsApp enviado via CallMeBot");
         return { ok: true };
     } catch (err: any) {
         console.error("[alertas] Error de red al enviar WhatsApp:", err.message);

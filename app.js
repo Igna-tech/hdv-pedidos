@@ -18,6 +18,9 @@ let categoriaSeleccionada = null; // categoria clickeada en el grid
 let vistaActual = 'lista'; // 'lista', 'pedidos' o 'config'
 let autoBackupInterval = null;
 
+// Flag global: suprime toasts info/success durante carga inicial
+window._hdvAppReady = false;
+
 // ============================================
 // INICIALIZACION
 // ============================================
@@ -28,6 +31,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     registrarSW();
     iniciarAutoBackup();
     actualizarInfoBackup();
+
+    // Marcar app lista — los toasts info/success se desbloquean despues de la carga inicial
+    setTimeout(() => { window._hdvAppReady = true; }, 2000);
 
     // Sincronizacion automatica de pedidos offline gestionada por SyncManager (js/services/sync.js)
 

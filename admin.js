@@ -288,6 +288,9 @@ window.addEventListener('beforeunload', (e) => {
 // ============================================
 let unsubscribePedidos = null;
 
+// Flag global: suprime toasts info/success durante carga inicial
+window._hdvAppReady = false;
+
 document.addEventListener('DOMContentLoaded', async () => {
     // V2-M03: Verificacion server-side del rol admin (no confiar solo en window.hdvUsuario)
     try {
@@ -345,6 +348,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const autoBackupToggle = document.getElementById('adminAutoBackupToggle');
     if (autoBackupToggle) autoBackupToggle.checked = (await HDVStorage.getItem('hdv_admin_auto_backup')) !== 'false';
+
+    // Marcar app lista — los toasts info/success se desbloquean despues de la carga inicial
+    setTimeout(() => { window._hdvAppReady = true; }, 2000);
 });
 
 async function cargarDatosIniciales() {
@@ -894,12 +900,44 @@ async function limpiarPedidos() {
 }
 
 // ============================================
-// TOAST NOTIFICATIONS
+// TOAST NOTIFICATIONS — con agrupacion y silenciado en carga inicial
 // ============================================
+const _toastQueue = {};
+let _toastDebounceTimer = {};
+
 function mostrarToast(mensaje, tipo = 'info', duracion = 3500) {
+    // Suprimir toasts informativos durante carga inicial (errores siempre pasan)
+    if (!window._hdvAppReady && (tipo === 'info' || tipo === 'success')) return;
+
     const container = document.getElementById('toastContainer');
     if (!container) return;
-    const iconos = { success: '✓', error: '✕', info: 'ℹ', warning: '⚠' };
+
+    // Agrupacion: si llegan multiples toasts del mismo tipo en 500ms, agrupar
+    const key = tipo + ':' + mensaje.replace(/[0-9]+/g, '#');
+    if (!_toastQueue[key]) _toastQueue[key] = [];
+    _toastQueue[key].push(mensaje);
+
+    clearTimeout(_toastDebounceTimer[key]);
+    _toastDebounceTimer[key] = setTimeout(() => {
+        const mensajes = _toastQueue[key] || [];
+        delete _toastQueue[key];
+        delete _toastDebounceTimer[key];
+
+        if (mensajes.length === 0) return;
+
+        let textoFinal;
+        if (mensajes.length === 1) {
+            textoFinal = mensajes[0];
+        } else {
+            textoFinal = `(${mensajes.length}) ${mensajes[0]}`;
+        }
+
+        _renderToast(container, textoFinal, tipo, duracion);
+    }, 500);
+}
+
+function _renderToast(container, mensaje, tipo, duracion) {
+    const iconos = { success: '\u2713', error: '\u2715', info: '\u2139', warning: '\u26A0' };
     const toast = document.createElement('div');
     toast.className = `toast toast-${tipo}`;
     toast.innerHTML = `<span style="font-size:18px">${iconos[tipo] || ''}</span><span>${escapeHTML(mensaje)}</span>`;

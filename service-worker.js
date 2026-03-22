@@ -1,4 +1,4 @@
-const VERSION = '53.0';
+const VERSION = '54.0';
 const CACHE_NAME = `hdv-pedidos-v${VERSION}`;
 
 const urlsToCache = [
@@ -107,6 +107,15 @@ function esImagenProducto(url) {
     return url.includes('supabase.co/storage/v1/object/public/productos_img');
 }
 
+// Supabase API/REST/Auth/Realtime — NUNCA cachear (datos dinamicos)
+function esSupabaseAPI(url) {
+    return url.includes('supabase.co/rest/') ||
+           url.includes('supabase.co/auth/') ||
+           url.includes('supabase.co/functions/') ||
+           url.includes('supabase.co/realtime/') ||
+           (url.includes('supabase.co') && !esImagenProducto(url) && url.includes('/v1/'));
+}
+
 // Determinar si un request debe usar network-first
 function esNetworkFirst(url) {
     return networkFirstFiles.some(file => url.endsWith(file) || url.includes('/' + file));
@@ -114,6 +123,19 @@ function esNetworkFirst(url) {
 
 self.addEventListener('fetch', event => {
     const requestUrl = event.request.url;
+
+    // SUPABASE API: Network-Only (NUNCA cachear datos de la base de datos)
+    if (esSupabaseAPI(requestUrl)) {
+        event.respondWith(
+            fetch(event.request).catch(() => {
+                return new Response(JSON.stringify({ error: 'Sin conexion' }), {
+                    status: 503,
+                    headers: { 'Content-Type': 'application/json' }
+                });
+            })
+        );
+        return;
+    }
 
     // IMAGENES DE PRODUCTOS: cache-first con cache dedicado (no se purga con VERSION)
     if (esImagenProducto(requestUrl)) {

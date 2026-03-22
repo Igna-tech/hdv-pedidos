@@ -41,46 +41,123 @@ function mostrarPedidos(pedidos) {
     pedidos.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
 
     pedidos.forEach(p => {
-        const estado = p.estado || 'pendiente';
-        const colorEstado = estado === 'entregado' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800';
-        const clienteInfo = productosData.clientes.find(c => c.id === p.cliente?.id);
-        const zona = clienteInfo?.zona || clienteInfo?.direccion || '';
-
-        const div = document.createElement('div');
-        div.className = 'p-6 hover:bg-gray-50 transition-colors';
-        div.innerHTML = `
-            <div class="flex justify-between items-start mb-3">
-                <div>
-                    <h3 class="text-lg font-bold text-gray-800">${escapeHTML(p.cliente?.nombre || 'Sin cliente')}</h3>
-                    <div class="text-sm text-gray-500 mt-1 flex items-center gap-1"><i data-lucide="map-pin" class="w-3 h-3"></i> ${escapeHTML(zona)} <span class="mx-1">·</span> <i data-lucide="clock" class="w-3 h-3"></i> ${new Date(p.fecha).toLocaleString('es-PY')}</div>
-                </div>
-                <span class="px-3 py-1 rounded-full text-xs font-bold ${colorEstado}">${estado.toUpperCase()}</span>
-            </div>
-            <div class="mb-3 space-y-1">
-                ${(p.items || []).map(i => `
-                <div class="flex justify-between text-sm py-1">
-                    <span>${escapeHTML(i.nombre)} <span class="text-gray-400">(${escapeHTML(i.presentacion)} × ${i.cantidad})</span></span>
-                    <strong>Gs. ${(i.subtotal || 0).toLocaleString()}</strong>
-                </div>`).join('')}
-            </div>
-            ${p.notas ? `<div class="text-sm text-gray-500 italic mb-3 flex items-start gap-1.5"><i data-lucide="message-square" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i> ${escapeHTML(p.notas)}</div>` : ''}
-            <div class="flex justify-between items-center pt-3 border-t border-gray-100">
-                <span class="text-sm text-gray-500">${p.tipoPago || 'contado'}${p.descuento > 0 ? ` | ${p.descuento}% desc.` : ''}</span>
-                <span class="text-xl font-bold text-gray-900">Gs. ${(p.total || 0).toLocaleString()}</span>
-            </div>
-            <div class="flex gap-2 mt-4 flex-wrap">
-                <button class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-emerald-700 inline-flex items-center gap-1.5" id="btnFacturar-${p.id}" onclick="facturarPedidoAdmin('${p.id}')"><i data-lucide="file-check" class="w-3.5 h-3.5"></i> Facturar (SIFEN)</button>
-                ${estado === 'pendiente' || estado === 'pedido_pendiente' ?
-                    `<button class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-green-700 inline-flex items-center gap-1.5" onclick="marcarEntregado('${p.id}')"><i data-lucide="check" class="w-3.5 h-3.5"></i> Entregado</button>` :
-                    `<button class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-300 inline-flex items-center gap-1.5" onclick="marcarPendiente('${p.id}')"><i data-lucide="undo-2" class="w-3.5 h-3.5"></i> Pendiente</button>`}
-                <button class="bg-blue-50 text-blue-600 px-3 py-2 rounded-lg text-sm font-bold hover:bg-blue-100 inline-flex items-center gap-1" onclick="abrirModalEditarPedido('${p.id}')"><i data-lucide="pencil" class="w-3.5 h-3.5"></i> Editar</button>
-                <button class="bg-gray-50 text-gray-700 px-3 py-2 rounded-lg text-sm font-bold hover:bg-gray-100 inline-flex items-center gap-1" onclick="generarPDFRemision('${p.id}')"><i data-lucide="file-text" class="w-3.5 h-3.5"></i> PDF</button>
-                <button class="bg-gray-50 text-gray-700 px-3 py-2 rounded-lg text-sm font-bold hover:bg-gray-100 inline-flex items-center gap-1" onclick="generarTicketTermico('${p.id}')"><i data-lucide="printer" class="w-3.5 h-3.5"></i> Ticket</button>
-                <button class="bg-red-50 text-red-500 px-3 py-2 rounded-lg text-sm font-bold hover:bg-red-100 inline-flex items-center gap-1" onclick="eliminarPedido('${p.id}')"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
-            </div>`;
+        const div = crearTarjetaPedidoAdmin(p);
         container.appendChild(div);
     });
     lucide.createIcons();
+}
+
+// ============================================
+// TARJETA DE PEDIDO — ESTADO COLORS & REACTIVE DOM
+// ============================================
+function obtenerColorEstadoAdmin(estado) {
+    const colores = {
+        'pedido_pendiente': 'bg-yellow-100 text-yellow-800',
+        'pendiente': 'bg-yellow-100 text-yellow-800',
+        'entregado': 'bg-green-100 text-green-800',
+        'cobrado_sin_factura': 'bg-blue-100 text-blue-800',
+        'facturado_mock': 'bg-indigo-100 text-indigo-800',
+        'nota_credito_mock': 'bg-orange-100 text-orange-800',
+        'anulado': 'bg-red-100 text-red-800'
+    };
+    return colores[estado] || 'bg-gray-100 text-gray-800';
+}
+
+function obtenerLabelEstadoAdmin(estado) {
+    const labels = {
+        'pedido_pendiente': 'PENDIENTE',
+        'pendiente': 'PENDIENTE',
+        'entregado': 'ENTREGADO',
+        'cobrado_sin_factura': 'COBRADO',
+        'facturado_mock': 'FACTURADO',
+        'nota_credito_mock': 'NOTA CREDITO',
+        'anulado': 'ANULADO'
+    };
+    return labels[estado] || estado.toUpperCase();
+}
+
+function crearTarjetaPedidoAdmin(p) {
+    const estado = p.estado || 'pendiente';
+    const colorEstado = obtenerColorEstadoAdmin(estado);
+    const labelEstado = obtenerLabelEstadoAdmin(estado);
+    const clienteInfo = productosData.clientes.find(c => c.id === p.cliente?.id);
+    const zona = clienteInfo?.zona || clienteInfo?.direccion || '';
+
+    const div = document.createElement('div');
+    div.className = 'p-6 hover:bg-gray-50 transition-all duration-300';
+    div.setAttribute('data-pedido-id', p.id);
+    div.innerHTML = `
+        <div class="flex justify-between items-start mb-3">
+            <div>
+                <h3 class="text-lg font-bold text-gray-800">${escapeHTML(p.cliente?.nombre || 'Sin cliente')}</h3>
+                <div class="text-sm text-gray-500 mt-1 flex items-center gap-1"><i data-lucide="map-pin" class="w-3 h-3"></i> ${escapeHTML(zona)} <span class="mx-1">·</span> <i data-lucide="clock" class="w-3 h-3"></i> ${new Date(p.fecha).toLocaleString('es-PY')}</div>
+            </div>
+            <span class="pedido-estado-badge px-3 py-1 rounded-full text-xs font-bold ${colorEstado}">${labelEstado}</span>
+        </div>
+        <div class="mb-3 space-y-1">
+            ${(p.items || []).map(i => `
+            <div class="flex justify-between text-sm py-1">
+                <span>${escapeHTML(i.nombre)} <span class="text-gray-400">(${escapeHTML(i.presentacion)} × ${i.cantidad})</span></span>
+                <strong>Gs. ${(i.subtotal || 0).toLocaleString()}</strong>
+            </div>`).join('')}
+        </div>
+        ${p.notas ? `<div class="text-sm text-gray-500 italic mb-3 flex items-start gap-1.5"><i data-lucide="message-square" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i> ${escapeHTML(p.notas)}</div>` : ''}
+        <div class="flex justify-between items-center pt-3 border-t border-gray-100">
+            <span class="text-sm text-gray-500">${p.tipoPago || 'contado'}${p.descuento > 0 ? ` | ${p.descuento}% desc.` : ''}</span>
+            <span class="text-xl font-bold text-gray-900">Gs. ${(p.total || 0).toLocaleString()}</span>
+        </div>
+        <div class="pedido-acciones flex gap-2 mt-4 flex-wrap">
+            <button class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-emerald-700 inline-flex items-center gap-1.5" id="btnFacturar-${p.id}" onclick="facturarPedidoAdmin('${p.id}')"><i data-lucide="file-check" class="w-3.5 h-3.5"></i> Facturar (SIFEN)</button>
+            ${estado === 'pendiente' || estado === 'pedido_pendiente' ?
+                `<button class="btn-estado bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-green-700 inline-flex items-center gap-1.5" onclick="marcarEntregado('${p.id}')"><i data-lucide="check" class="w-3.5 h-3.5"></i> Entregado</button>` :
+                `<button class="btn-estado bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-300 inline-flex items-center gap-1.5" onclick="marcarPendiente('${p.id}')"><i data-lucide="undo-2" class="w-3.5 h-3.5"></i> Pendiente</button>`}
+            <button class="bg-blue-50 text-blue-600 px-3 py-2 rounded-lg text-sm font-bold hover:bg-blue-100 inline-flex items-center gap-1" onclick="abrirModalEditarPedido('${p.id}')"><i data-lucide="pencil" class="w-3.5 h-3.5"></i> Editar</button>
+            <button class="bg-gray-50 text-gray-700 px-3 py-2 rounded-lg text-sm font-bold hover:bg-gray-100 inline-flex items-center gap-1" onclick="generarPDFRemision('${p.id}')"><i data-lucide="file-text" class="w-3.5 h-3.5"></i> PDF</button>
+            <button class="bg-gray-50 text-gray-700 px-3 py-2 rounded-lg text-sm font-bold hover:bg-gray-100 inline-flex items-center gap-1" onclick="generarTicketTermico('${p.id}')"><i data-lucide="printer" class="w-3.5 h-3.5"></i> Ticket</button>
+            <button class="bg-red-50 text-red-500 px-3 py-2 rounded-lg text-sm font-bold hover:bg-red-100 inline-flex items-center gap-1" onclick="eliminarPedido('${p.id}')"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+        </div>`;
+    return div;
+}
+
+function actualizarTarjetaPedidoAdminDOM(pedidoId, nuevoEstado) {
+    const card = document.querySelector(`[data-pedido-id="${pedidoId}"]`);
+    if (!card) return false;
+
+    // Actualizar badge de estado
+    const badge = card.querySelector('.pedido-estado-badge');
+    if (badge) {
+        badge.className = 'pedido-estado-badge px-3 py-1 rounded-full text-xs font-bold ' + obtenerColorEstadoAdmin(nuevoEstado);
+        badge.textContent = obtenerLabelEstadoAdmin(nuevoEstado);
+    }
+
+    // Actualizar boton de estado (Entregado ↔ Pendiente)
+    const btnEstado = card.querySelector('.btn-estado');
+    if (btnEstado) {
+        if (nuevoEstado === 'entregado') {
+            btnEstado.className = 'btn-estado bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-300 inline-flex items-center gap-1.5';
+            btnEstado.innerHTML = `<i data-lucide="undo-2" class="w-3.5 h-3.5"></i> Pendiente`;
+            btnEstado.setAttribute('onclick', `marcarPendiente('${pedidoId}')`);
+        } else {
+            btnEstado.className = 'btn-estado bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-green-700 inline-flex items-center gap-1.5';
+            btnEstado.innerHTML = `<i data-lucide="check" class="w-3.5 h-3.5"></i> Entregado`;
+            btnEstado.setAttribute('onclick', `marcarEntregado('${pedidoId}')`);
+        }
+        lucide.createIcons({ nodes: [btnEstado] });
+    }
+
+    // Flash visual para destacar el cambio
+    card.classList.add('ring-2', 'ring-blue-400', 'bg-blue-50');
+    setTimeout(() => card.classList.remove('ring-2', 'ring-blue-400', 'bg-blue-50'), 2000);
+
+    return true;
+}
+
+function eliminarTarjetaPedidoAdminDOM(pedidoId) {
+    const card = document.querySelector(`[data-pedido-id="${pedidoId}"]`);
+    if (!card) return;
+    card.style.opacity = '0';
+    card.style.transform = 'translateX(-100%)';
+    setTimeout(() => card.remove(), 300);
 }
 
 function actualizarEstadisticasPedidos(pedidos) {
@@ -107,8 +184,13 @@ async function marcarEntregado(id) {
     if (p) {
         p.estado = 'entregado';
         await HDVStorage.setItem('hdv_pedidos', pedidos);
-        if (!unsubscribePedidos) cargarPedidos();
     }
+    // Actualizar DOM inmediatamente sin re-renderizar toda la lista
+    if (!actualizarTarjetaPedidoAdminDOM(id, 'entregado')) {
+        // Fallback: si la tarjeta no existe en DOM, re-renderizar
+        cargarPedidos();
+    }
+    mostrarToast('Pedido marcado como entregado', 'success');
 }
 
 async function marcarPendiente(id) {
@@ -127,8 +209,12 @@ async function marcarPendiente(id) {
     if (p) {
         p.estado = 'pedido_pendiente';
         await HDVStorage.setItem('hdv_pedidos', pedidos);
-        if (!unsubscribePedidos) cargarPedidos();
     }
+    // Actualizar DOM inmediatamente sin re-renderizar toda la lista
+    if (!actualizarTarjetaPedidoAdminDOM(id, 'pedido_pendiente')) {
+        cargarPedidos();
+    }
+    mostrarToast('Pedido marcado como pendiente', 'success');
 }
 
 async function eliminarPedidoAdmin(id) {
@@ -150,7 +236,9 @@ async function eliminarPedidoAdmin(id) {
     let pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
     pedidos = pedidos.filter(p => p.id !== id);
     await HDVStorage.setItem('hdv_pedidos', pedidos);
-    if (!unsubscribePedidos) cargarPedidos();
+    // Animacion de eliminacion en DOM
+    eliminarTarjetaPedidoAdminDOM(id);
+    mostrarToast('Pedido eliminado', 'success');
 }
 // Mantener nombre original para onclick handlers
 var eliminarPedido = eliminarPedidoAdmin;

@@ -266,7 +266,7 @@ Bucket `productos_img` (Supabase Storage). Compresion Canvas → WebP 800px max.
 - **Alertas WhatsApp en tiempo real**:
   - Edge Function `alertas-seguridad` via CallMeBot (GET con query params).
   - Triggers pg_net: `trg_alerta_fraude_pedidos_insert/update`, `trg_alerta_audit_logs`, `trg_alerta_kill_switch`.
-  - `notify_alerta_seguridad()` SECURITY DEFINER con URL hardcodeada + secreto `x-webhook-secret`.
+  - `notify_alerta_seguridad()` SECURITY DEFINER con secretos leidos de tabla `app_secrets` (ver P6).
   - Env vars Edge Function: `WHATSAPP_API_URL`, `WHATSAPP_API_KEY`, `WHATSAPP_DESTINO`, `WEBHOOK_SECRET`.
   - Tolerante a fallos: siempre retorna HTTP 200 (evita reintentos infinitos).
 - **Disaster Recovery**: `DISASTER_RECOVERY.md` (RTO 2h, RPO 24h). `scripts/backup_schema.sh` para cold backup de esquema.
@@ -285,6 +285,30 @@ Bucket `productos_img` (Supabase Storage). Compresion Canvas → WebP 800px max.
 - Anti-doble facturacion: rechaza pedidos con `sifen_cdc` existente.
 - Sanitizacion Anti-XXE: `sanitizarParaXML(texto, maxLength)` escapa `& < > " '` + trunca. `validarNumero()` con `Number.isFinite`.
 - CORS: `ALLOWED_ORIGIN` env var. En produccion, NO usar `*`.
+
+### P8 — OFUSCACION DE DATOS (Vistas Seguras entre frontend y tablas fisicas)
+
+- **VIEW `clientes_vendedor`**: excluye `precios_personalizados`. Vendedores consultan la VIEW, admin consulta la tabla base.
+- **VIEW `producto_variantes_vendedor`**: excluye columna `costo`. Vendedores no ven costos de productos.
+- **RPC `obtener_catalogo_seguro()`**: retorna `costo=0` para vendedores (defense-in-depth server-side, complementa las VIEWs).
+- **Backups vendedor sanitizados**: exportaciones desde la app del vendedor excluyen `costo`, `precios_personalizados` y truncan RUC.
+- **Principio**: el frontend NUNCA debe tener acceso directo a columnas sensibles. Toda consulta de vendedor debe pasar por VIEWs o RPCs filtradas.
+
+### P9 — SEGURIDAD OFFLINE (IndexedDB como perimetro de confianza)
+
+- **HDVStorage** (`js/utils/storage.js`): wrapper IndexedDB con cache en memoria. Los datos locales estan cifrados por dominio (Same-Origin Policy del navegador).
+- **Purga obligatoria en logout**: `guard.js` y `onAuthStateChange('SIGNED_OUT')` limpian TODAS las keys `hdv_*` de IndexedDB (excepto `hdv_darkmode`).
+- **Purga obligatoria en Kill Switch**: si `verificar_estado_cuenta()` retorna `activo=false` → purga completa + `signOut()` + redirect. Aplica en `guard.js` y en `SyncManager` pre-sync.
+- **SyncManager con mutex**: impide sincronizaciones concurrentes. Backoff progresivo (5s→15s→30s→60s). Verifica estado de cuenta antes de cada sync.
+- **Datos sensibles excluidos de cache offline**: `costo` y `precios_personalizados` no se almacenan en IndexedDB del vendedor (filtrados por RPC/VIEWs server-side).
+
+### P10 — DEFENSA PERIMETRAL Y CADENA DE SUMINISTRO
+
+- **Versiones fijadas obligatorias**: todas las librerias CDN tienen version exacta en la URL (no `@latest`). SRI valida integridad de cada script.
+- **Preparacion WAF**: arquitectura compatible con Cloudflare (proxy DNS) o Vercel Firewall (plan Pro). Headers de seguridad ya configurados en `vercel.json`. Pendiente activacion (B-03).
+- **Auditoria SCA**: preparado para Dependabot/Snyk en GitHub (`package.json` con dependencias declaradas). Pendiente activacion (B-05).
+- **Service Worker versionado**: `const VERSION` se incrementa en cada deploy. Cache viejo se purga en `activate`. Network-first para HTML/JS (asegura que parches de seguridad se apliquen inmediatamente).
+- **Principio**: la cadena de suministro (CDNs, npm, service worker) es un vector de ataque. Cada eslabón debe tener version fijada, hash verificado, y mecanismo de actualizacion controlada.
 
 ### Historial de auditorias
 

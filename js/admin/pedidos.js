@@ -6,6 +6,9 @@
 
 let pedidoEditandoId = null;
 
+// Preservar referencia a eliminarPedido de supabase-config.js antes de que sea sobreescrita
+const _eliminarPedidoSupabase = typeof eliminarPedido === 'function' ? eliminarPedido : null;
+
 // ============================================
 // CARGA Y FILTROS
 // ============================================
@@ -89,39 +92,64 @@ function actualizarEstadisticasPedidos(pedidos) {
 }
 
 async function marcarEntregado(id) {
+    // RPC primero: si falla, no mutar estado local
+    if (typeof actualizarEstadoPedido === 'function') {
+        try {
+            await actualizarEstadoPedido(id, 'entregado');
+        } catch(e) {
+            console.error('[Pedidos] Error actualizando estado en Supabase:', e);
+            mostrarToast('Error al actualizar estado en servidor', 'error');
+            return;
+        }
+    }
     const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
     const p = pedidos.find(x => x.id === id);
     if (p) {
         p.estado = 'entregado';
         await HDVStorage.setItem('hdv_pedidos', pedidos);
-        if (typeof actualizarEstadoPedido === 'function') {
-            actualizarEstadoPedido(id, 'entregado');
-        }
         if (!unsubscribePedidos) cargarPedidos();
     }
 }
 
 async function marcarPendiente(id) {
+    // RPC primero: si falla, no mutar estado local
+    if (typeof actualizarEstadoPedido === 'function') {
+        try {
+            await actualizarEstadoPedido(id, 'pedido_pendiente');
+        } catch(e) {
+            console.error('[Pedidos] Error actualizando estado en Supabase:', e);
+            mostrarToast('Error al actualizar estado en servidor', 'error');
+            return;
+        }
+    }
     const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
     const p = pedidos.find(x => x.id === id);
     if (p) {
-        p.estado = 'pendiente';
+        p.estado = 'pedido_pendiente';
         await HDVStorage.setItem('hdv_pedidos', pedidos);
-        if (typeof actualizarEstadoPedido === 'function') {
-            actualizarEstadoPedido(id, 'pendiente');
-        }
         if (!unsubscribePedidos) cargarPedidos();
     }
 }
 
 async function eliminarPedidoAdmin(id) {
     if (!await mostrarConfirmModal('¿Eliminar este pedido?', { destructivo: true, textoConfirmar: 'Eliminar' })) return;
+    // Supabase primero: si falla, no borrar local
+    if (_eliminarPedidoSupabase) {
+        try {
+            const ok = await _eliminarPedidoSupabase(id);
+            if (!ok) {
+                mostrarToast('Error al eliminar pedido en servidor', 'error');
+                return;
+            }
+        } catch(e) {
+            console.error('[Pedidos] Error eliminando pedido en Supabase:', e);
+            mostrarToast('Error al eliminar pedido en servidor', 'error');
+            return;
+        }
+    }
     let pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
     pedidos = pedidos.filter(p => p.id !== id);
     await HDVStorage.setItem('hdv_pedidos', pedidos);
-    if (typeof window.eliminarPedidoSupabase === 'function') {
-        window.eliminarPedidoSupabase(id);
-    }
     if (!unsubscribePedidos) cargarPedidos();
 }
 // Mantener nombre original para onclick handlers

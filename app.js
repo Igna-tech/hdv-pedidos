@@ -354,7 +354,7 @@ async function cerrarSemanaVendedor(semana) {
         return f >= inicio && f <= fin;
     });
     const totalContado = pedidosSemana
-        .filter(p => p.tipoPago === 'contado' && (p.estado === 'entregado' || p.estado === 'pendiente'))
+        .filter(p => p.tipoPago === 'contado' && (p.estado === 'entregado' || p.estado === 'pedido_pendiente' || p.estado === 'pendiente'))
         .reduce((s, p) => s + (p.total || 0), 0);
     const totalGastos = gastos.filter(g => {
         const f = new Date(g.fecha);
@@ -553,7 +553,7 @@ async function exportarBackupVendedor() {
         },
         resumen: {
             totalPedidos: pedidos.length,
-            pedidosPendientes: pedidos.filter(p => (p.estado || 'pendiente') === 'pendiente').length,
+            pedidosPendientes: pedidos.filter(p => p.estado === 'pedido_pendiente' || p.estado === 'pendiente').length,
             totalGuaranies: pedidos.reduce((s, p) => s + (p.total || 0), 0)
         }
     };

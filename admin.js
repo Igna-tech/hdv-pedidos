@@ -129,7 +129,31 @@ function generarSkeletonCards(count = 6) {
 // ============================================
 // NAVEGACION
 // ============================================
+let _seccionActiva = 'pedidos';
+
+// Callback global: supabase-config.js lo invoca cuando llega un update realtime de config
+function _hdvRefrescarSeccionActiva(docId) {
+    const mapeoDocSeccion = {
+        'creditos_manuales': 'creditos',
+        'pagos_credito': 'creditos',
+        'promociones': 'promociones',
+        'rendiciones': 'rendiciones',
+        'metas_vendedor': 'metas',
+        'gastos_vendedor': 'rendiciones',
+        'cuentas_bancarias': 'rendiciones'
+    };
+    const seccion = mapeoDocSeccion[docId];
+    if (seccion && seccion === _seccionActiva) {
+        console.log('[Admin] Re-renderizando seccion activa por update realtime:', docId);
+        if (seccion === 'creditos' && typeof cargarCreditos === 'function') cargarCreditos();
+        if (seccion === 'promociones' && typeof cargarPromociones === 'function') cargarPromociones();
+        if (seccion === 'rendiciones' && typeof cargarRendiciones === 'function') cargarRendiciones();
+        if (seccion === 'metas' && typeof cargarMetas === 'function') cargarMetas();
+    }
+}
+
 function cambiarSeccion(seccionId) {
+    _seccionActiva = seccionId;
     document.querySelectorAll('.tab-content').forEach(el => {
         el.classList.remove('active');
         el.style.display = 'none';
@@ -279,11 +303,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
     }
 
-    await cargarDatosIniciales();
+    await Promise.all([
+        cargarDatosIniciales(),
+        typeof esperarDatosNegocio === 'function' ? esperarDatosNegocio() : Promise.resolve()
+    ]);
     cargarConfigEmpresa();
 
     if (typeof escucharPedidosRealtime === 'function') {
-        unsubscribePedidos = escucharPedidosRealtime((pedidos, cambios) => {
+        unsubscribePedidos = await escucharPedidosRealtime((pedidos, cambios) => {
             todosLosPedidos = pedidos;
             aplicarFiltrosPedidos();
 

@@ -84,30 +84,35 @@ async function obtenerPedidos() {
     return data.map(r => r.datos);
 }
 
-function escucharPedidosRealtime(callback) {
-    // Carga inicial
-    SupabaseService.fetchPedidos().then(async ({ data, error }) => {
+async function escucharPedidosRealtime(callback) {
+    // Carga inicial — await garantiza datos listos antes de renderizar
+    try {
+        const { data, error } = await SupabaseService.fetchPedidos();
         if (error) {
             console.error('[Supabase] Error carga inicial pedidos:', error);
             const pedidosLocal = (await HDVStorage.getItem('hdv_pedidos')) || [];
             callback(pedidosLocal, []);
-            return;
-        }
-        const pedidos = data.map(r => r.datos);
-        const pedidosLocal = (await HDVStorage.getItem('hdv_pedidos')) || [];
-        // Preservar pedidos locales no sincronizados en carga inicial
-        const sinSync = pedidosLocal.filter(p => p.sincronizado === false);
-        const remIds = new Set(pedidos.map(p => p.id));
-        const localesExtra = sinSync.filter(p => !remIds.has(p.id));
-        if (pedidos.length > 0 || pedidosLocal.length === 0) {
-            const merged = [...pedidos, ...localesExtra];
-            await HDVStorage.setItem('hdv_pedidos', merged);
-            callback(merged, []);
         } else {
-            console.warn('[Supabase] Carga inicial vacia pero hay datos locales, conservando');
-            callback(pedidosLocal, []);
+            const pedidos = data.map(r => r.datos);
+            const pedidosLocal = (await HDVStorage.getItem('hdv_pedidos')) || [];
+            // Preservar pedidos locales no sincronizados en carga inicial
+            const sinSync = pedidosLocal.filter(p => p.sincronizado === false);
+            const remIds = new Set(pedidos.map(p => p.id));
+            const localesExtra = sinSync.filter(p => !remIds.has(p.id));
+            if (pedidos.length > 0 || pedidosLocal.length === 0) {
+                const merged = [...pedidos, ...localesExtra];
+                await HDVStorage.setItem('hdv_pedidos', merged);
+                callback(merged, []);
+            } else {
+                console.warn('[Supabase] Carga inicial vacia pero hay datos locales, conservando');
+                callback(pedidosLocal, []);
+            }
         }
-    });
+    } catch(e) {
+        console.error('[Supabase] Error critico carga inicial pedidos:', e);
+        const pedidosLocal = (await HDVStorage.getItem('hdv_pedidos')) || [];
+        callback(pedidosLocal, []);
+    }
 
     // Suscripcion realtime — preserva pedidos locales no sincronizados
     const unsub = SupabaseService.subscribeTo('pedidos-realtime', 'pedidos', async () => {
@@ -345,6 +350,10 @@ function escucharConfigRealtime(docId, storageKey) {
             try {
                 await HDVStorage.setItem(storageKey, datos);
                 console.log('[Supabase] Config actualizada en tiempo real:', docId);
+                // Re-renderizar seccion activa si usa este config
+                if (typeof _hdvRefrescarSeccionActiva === 'function') {
+                    _hdvRefrescarSeccionActiva(docId);
+                }
             } catch(e) {}
         }
     }, `doc_id=eq.${docId}`);
@@ -469,12 +478,18 @@ function iniciarListenersDatosNegocio() {
 // ============================================
 // INICIAR
 // ============================================
+
+// Promesa global: admin.js la espera antes de renderizar secciones
+let _datosNegocioPromise = null;
+
+function esperarDatosNegocio() {
+    return _datosNegocioPromise || Promise.resolve();
+}
+
 HDVStorage.ready().then(() => {
     monitorearConexion();
-    setTimeout(() => {
-        cargarDatosNegocio();
-        iniciarListenersDatosNegocio();
-    }, 1500);
+    _datosNegocioPromise = cargarDatosNegocio();
+    iniciarListenersDatosNegocio();
 });
 
 // ============================================

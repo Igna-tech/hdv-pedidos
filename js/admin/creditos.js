@@ -187,7 +187,11 @@ async function registrarPagoCredito(pedidoId) {
     await HDVStorage.setItem('hdv_pagos_credito', pagos);
 
     if (typeof guardarPagosCredito === 'function') {
-        guardarPagosCredito(pagos).catch(e => console.error(e));
+        try {
+            await guardarPagosCredito(pagos);
+        } catch(e) {
+            console.error('[Creditos] Error sincronizando pago con Supabase:', e);
+        }
     }
 
     if (saldo - monto <= 0) {
@@ -223,7 +227,11 @@ async function registrarPagoManual(creditoId) {
     if (saldo - monto <= 0) credito.pagado = true;
     await HDVStorage.setItem('hdv_creditos_manuales', creditos);
     if (typeof guardarCreditosManuales === 'function') {
-        guardarCreditosManuales(creditos).catch(e => console.error(e));
+        try {
+            await guardarCreditosManuales(creditos);
+        } catch(e) {
+            console.error('[Creditos] Error sincronizando pago manual con Supabase:', e);
+        }
     }
     mostrarToast(`Pago de Gs. ${monto.toLocaleString()} registrado`, 'success');
     cargarCreditos();
@@ -370,9 +378,21 @@ async function agregarCreditoManual() {
     await HDVStorage.setItem('hdv_creditos_manuales', creditos);
 
     if (typeof guardarCreditosManuales === 'function') {
-        guardarCreditosManuales(creditos).catch(e => console.error(e));
+        try {
+            const ok = await guardarCreditosManuales(creditos);
+            if (!ok) {
+                console.error('[Creditos] Error guardando credito en Supabase');
+                mostrarToast('Credito guardado localmente, error al sincronizar con servidor', 'warning');
+            } else {
+                mostrarToast('Credito manual agregado y sincronizado', 'success');
+            }
+        } catch(e) {
+            console.error('[Creditos] Error guardando credito en Supabase:', e);
+            mostrarToast('Credito guardado localmente, error al sincronizar', 'warning');
+        }
+    } else {
+        mostrarToast('Credito manual agregado', 'success');
     }
-    mostrarToast('Credito manual agregado', 'success');
     cargarCreditos();
 }
 
@@ -396,7 +416,13 @@ async function editarCreditoManualItem(creditoId) {
     if (datos.monto > 0) c.monto = datos.monto;
     if (datos.descripcion.trim()) c.descripcion = datos.descripcion;
     await HDVStorage.setItem('hdv_creditos_manuales', creditos);
-    if (typeof guardarCreditosManuales === 'function') guardarCreditosManuales(creditos).catch(e => console.error(e));
+    if (typeof guardarCreditosManuales === 'function') {
+        try {
+            await guardarCreditosManuales(creditos);
+        } catch(e) {
+            console.error('[Creditos] Error sincronizando edicion con Supabase:', e);
+        }
+    }
     mostrarToast('Credito actualizado', 'success');
     cargarCreditos();
 }
@@ -408,7 +434,13 @@ async function eliminarCreditoManualItem(creditoId) {
     if (!await mostrarConfirmModal(`¿Eliminar credito manual de ${c.clienteNombre} (Gs. ${(c.monto || 0).toLocaleString()})?\nEsta accion es irreversible.`, { destructivo: true, textoConfirmar: 'Eliminar' })) return;
     const nuevos = creditos.filter(x => x.id !== creditoId);
     await HDVStorage.setItem('hdv_creditos_manuales', nuevos);
-    if (typeof guardarCreditosManuales === 'function') guardarCreditosManuales(nuevos).catch(e => console.error(e));
+    if (typeof guardarCreditosManuales === 'function') {
+        try {
+            await guardarCreditosManuales(nuevos);
+        } catch(e) {
+            console.error('[Creditos] Error sincronizando eliminacion con Supabase:', e);
+        }
+    }
     cargarCreditos();
 }
 

@@ -71,6 +71,7 @@ PWA mobile-first para vendedores de calle + panel admin de escritorio.
 ├── AUDITORIA_SEGURIDAD_V2.md → V2: Red Team, 9 hallazgos, todos remediados
 ├── AUDITORIA_SEGURIDAD_V3.md → V3: Insider Threats, 10 hallazgos, todos remediados
 ├── AUDITORIA_SEGURIDAD_V4.md → V4: White-Box Audit integral, Tier 3/5, 9 brechas residuales
+├── GUIA_CLOUDFLARE_WAF.md     → Guia paso a paso para activar WAF Cloudflare + Vercel (B-03)
 ├── DISASTER_RECOVERY.md      → Plan de recuperacion ante desastres (RTO 2h, RPO 24h)
 ├── scripts/backup_schema.sh  → Cold backup de esquema DB (estructura sin datos)
 ├── supabase-schema.sql       → Schema completo
@@ -305,8 +306,8 @@ Bucket `productos_img` (Supabase Storage). Compresion Canvas → WebP 800px max.
 ### P10 — DEFENSA PERIMETRAL Y CADENA DE SUMINISTRO
 
 - **Versiones fijadas obligatorias**: todas las librerias CDN tienen version exacta en la URL (no `@latest`). SRI valida integridad de cada script.
-- **Preparacion WAF**: arquitectura compatible con Cloudflare (proxy DNS) o Vercel Firewall (plan Pro). Headers de seguridad ya configurados en `vercel.json`. Pendiente activacion (B-03).
-- **Auditoria SCA**: preparado para Dependabot/Snyk en GitHub (`package.json` con dependencias declaradas). Pendiente activacion (B-05).
+- **WAF Cloudflare (B-03 — PARCIALMENTE REMEDIADO)**: Cuenta Cloudflare creada (`d3176bc9147a3585769632b5818377a1`). Vercel headers de seguridad configurados (HSTS, CSP, X-Frame-Options, nosniff). **Requiere dominio personalizado** para activar proxy WAF + Bot Fight Mode. Ver guia de activacion en `GUIA_CLOUDFLARE_WAF.md`. DDoS y proteccion SSL ya provistas por Vercel Edge Network para subdominios `.vercel.app`.
+- **Auditoria SCA (B-05 — REMEDIADO)**: Dependabot v2 configurado en `.github/dependabot.yml`. Escaneo semanal (lunes) de dependencias npm.
 - **Service Worker versionado**: `const VERSION` se incrementa en cada deploy. Cache viejo se purga en `activate`. Network-first para HTML/JS (asegura que parches de seguridad se apliquen inmediatamente).
 - **Principio**: la cadena de suministro (CDNs, npm, service worker) es un vector de ataque. Cada eslabón debe tener version fijada, hash verificado, y mecanismo de actualizacion controlada.
 
@@ -317,7 +318,7 @@ Bucket `productos_img` (Supabase Storage). Compresion Canvas → WebP 800px max.
 | V1 | Zero Trust | 26 | Todos remediados |
 | V2 | Red Team | 9 (1C, 3A, 4M, 1B) | Todos remediados 2026-03-19 |
 | V3 | Insider Threats | 10 (2C, 3A, 3M, 2B) | Todos remediados 2026-03-19 |
-| V4 | White-Box Audit | 9 brechas residuales | B-01 MFA, B-02 CSP, B-05 Dependabot, B-06 secretos — remediados. Pendientes: B-03 WAF (Cloudflare/Vercel Pro), B-04 rate limit persistente |
+| V4 | White-Box Audit | 9 brechas residuales | B-01 MFA, B-02 CSP, B-05 Dependabot, B-06 secretos — remediados. B-03 WAF parcial (cuenta CF creada, headers Vercel listos, requiere dominio custom). Pendiente: B-04 rate limit persistente |
 
 ## Reglas operativas
 

@@ -92,17 +92,17 @@ La diferencia más marcada: la mayoría de sistemas POS para PYMEs **no tienen n
 |-----------|--------|--------|----------|---------|
 | **CRÍTICA** | **Habilitar MFA/2FA en Supabase Auth** | B-01 | Bajo | Supabase lo soporta nativamente con TOTP. Configurar desde Dashboard → Auth → MFA, luego agregar flujo TOTP en `login.js`. Elimina el vector #1 de compromiso. Un admin con MFA resiste phishing y robo de contraseña. |
 | **ALTA** | **Reemplazar Tailwind CDN por build estático** | B-02 | Medio | Requiere `npx tailwindcss build` en CI/CD. Permite eliminar `unsafe-eval` del CSP, cerrando el mayor agujero de protección XSS. El CSS compilado es estático y compatible con SRI. |
-| **ALTA** | **Activar Vercel WAF o Cloudflare delante del dominio** | B-03, B-07 | Bajo-Medio | Vercel Firewall en plan Pro, o Cloudflare free tier con rate rules. Agrega rate limiting real (server-side), protección DDoS, bot detection, y bloqueo geográfico. Compensa el lockout client-side y el rate limit en memoria. |
+| **ALTA** | **Activar Vercel WAF o Cloudflare delante del dominio** | B-03, B-07 | Bajo-Medio | **PARCIALMENTE REMEDIADO (2026-03-22)**: Cuenta Cloudflare creada y verificada. Headers de seguridad en Vercel configurados. Guia operativa en `GUIA_CLOUDFLARE_WAF.md`. Pendiente: agregar dominio personalizado a Cloudflare y activar Bot Fight Mode. |
 | **MEDIA** | **Configurar Dependabot/Snyk en GitHub** | B-05 | Bajo | Habilitar desde GitHub → Settings → Security. Escaneo automático de `package.json` y alertas de CVE. No cubre CDNs directamente, pero cubre las dependencias npm y genera cultura de actualización. |
 | **MEDIA** | **Rotar secreto webhook y sacarlo del código** | B-06 | Bajo | Usar `vault.secrets` de Supabase o una tabla `configuracion` cifrada. El secreto actual `hdv_secreto_123` es débil y público en Git. Generar un UUID como secreto, almacenarlo en Supabase Vault, y leerlo desde la función PL/pgSQL con `vault.decrypted_secrets`. |
 
 ### Proyección de madurez post-implementación:
 
 ```
-Actual (Tier 3):       ████████████████████░░░░░  80%
-Con MFA + WAF:         ██████████████████████░░░  88%  → Tier 3.5
-+ Static Tailwind:     ███████████████████████░░  92%  → Tier 4 (Enterprise)
-+ Dependabot + Vault:  ████████████████████████░  96%  → Tier 4 sólido
+Original (Tier 3):     ████████████████████░░░░░  80%
+Remediado (actual):    ███████████████████████░░  92%  → Tier 3.5+ (MFA, CSP, Dependabot, Secrets)
++ WAF Cloudflare:      ████████████████████████░  96%  → Tier 4 (requiere dominio custom)
++ Rate limit persist:  █████████████████████████  98%  → Tier 4 sólido (B-04, requiere Redis/DO)
 ```
 
 ---

@@ -317,7 +317,7 @@ Bucket `productos_img` (Supabase Storage). Compresion Canvas → WebP 800px max.
 | V1 | Zero Trust | 26 | Todos remediados |
 | V2 | Red Team | 9 (1C, 3A, 4M, 1B) | Todos remediados 2026-03-19 |
 | V3 | Insider Threats | 10 (2C, 3A, 3M, 2B) | Todos remediados 2026-03-19 |
-| V4 | White-Box Audit | 9 brechas residuales | B-01 MFA, B-02 CSP, B-06 secretos — remediados. Pendientes: B-03 WAF, B-04 rate limit persistente, B-05 Dependabot |
+| V4 | White-Box Audit | 9 brechas residuales | B-01 MFA, B-02 CSP, B-05 Dependabot, B-06 secretos — remediados. Pendientes: B-03 WAF (Cloudflare/Vercel Pro), B-04 rate limit persistente |
 
 ## Reglas operativas
 

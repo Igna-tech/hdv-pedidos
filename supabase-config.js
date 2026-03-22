@@ -34,12 +34,17 @@ function actualizarIndicadorConexion(conectado) {
     const badge = document.getElementById('status-badge');
     if (!badge) return;
     const enLinea = navigator.onLine;
+    // Detectar si estamos en admin (tiene clase con mr-1.5) o vendedor (mr-2)
+    const dotMr = badge.closest('header.bg-white') ? 'mr-1.5' : 'mr-2';
     if (conectado && enLinea) {
-        badge.innerHTML = '<span class="w-2 h-2 bg-green-500 rounded-full mr-2"></span> Sincronizado';
+        badge.innerHTML = `<span class="w-2 h-2 bg-green-500 rounded-full ${dotMr}"></span> Sincronizado`;
+        badge.style.color = '';
     } else if (enLinea && !conectado) {
-        badge.innerHTML = '<span class="w-2 h-2 bg-yellow-500 rounded-full mr-2 animate-pulse"></span> Conectando...';
+        badge.innerHTML = `<span class="w-2 h-2 bg-yellow-500 rounded-full ${dotMr} animate-pulse"></span> Conectando...`;
+        badge.style.color = '#d97706';
     } else {
-        badge.innerHTML = '<span class="w-2 h-2 bg-red-500 rounded-full mr-2 animate-pulse"></span> Sin conexion';
+        badge.innerHTML = `<span class="w-2 h-2 bg-red-500 rounded-full ${dotMr} animate-pulse"></span> Sin conexion`;
+        badge.style.color = '#ef4444';
     }
     const banner = document.getElementById('offline-banner');
     if (banner) {

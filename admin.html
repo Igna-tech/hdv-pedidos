@@ -400,6 +400,9 @@
                 <button onclick="abrirBusquedaGlobal()" class="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-400" title="Buscar (Ctrl+K)">
                     <i data-lucide="search" class="w-4 h-4"></i>
                 </button>
+                <div id="status-badge" class="text-[10px] uppercase tracking-wider font-semibold flex items-center text-gray-400 mr-1">
+                    <span class="w-2 h-2 bg-green-500 rounded-full mr-1.5"></span> <span class="hidden md:inline">En linea</span>
+                </div>
                 <button onclick="forzarActualizacionAdmin()" class="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-400" title="Forzar actualizacion">
                     <i data-lucide="refresh-cw" class="w-4 h-4"></i>
                 </button>
@@ -415,8 +418,13 @@
             </div>
         </header>
 
+        <!-- Banner Offline Admin -->
+        <div id="offline-banner" class="hidden bg-amber-500 text-white text-center text-xs font-bold py-1.5 px-4 flex items-center justify-center gap-2">
+            <i data-lucide="wifi-off" class="w-3.5 h-3.5"></i> Sin conexion — Los cambios se sincronizaran al reconectar
+        </div>
+
         <div class="flex-1 overflow-y-auto p-6 md:p-8">
-            
+
             <!-- DASHBOARD -->
             <section id="seccion-dashboard" class="tab-content space-y-6">
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

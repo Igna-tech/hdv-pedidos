@@ -1,4 +1,4 @@
-const VERSION = '54.0';
+const VERSION = '55.0';
 const CACHE_NAME = `hdv-pedidos-v${VERSION}`;
 
 const urlsToCache = [
@@ -91,7 +91,8 @@ self.addEventListener('activate', event => {
         caches.keys().then(keys => {
             return Promise.all(
                 keys.map(key => {
-                    if (key !== CACHE_NAME) {
+                    // Preservar cache de imagenes (no cambia con VERSION) y cache actual
+                    if (key !== CACHE_NAME && key !== 'hdv-imagenes') {
                         console.log('[SW] Eliminando cache viejo:', key);
                         return caches.delete(key);
                     }
@@ -107,7 +108,7 @@ function esImagenProducto(url) {
     return url.includes('supabase.co/storage/v1/object/public/productos_img');
 }
 
-// Supabase API/REST/Auth/Realtime — NUNCA cachear (datos dinamicos)
+// Supabase API/REST/Auth/Realtime — Network-First (red primero, cache como fallback offline)
 function esSupabaseAPI(url) {
     return url.includes('supabase.co/rest/') ||
            url.includes('supabase.co/auth/') ||
@@ -124,13 +125,28 @@ function esNetworkFirst(url) {
 self.addEventListener('fetch', event => {
     const requestUrl = event.request.url;
 
-    // SUPABASE API: Network-Only (NUNCA cachear datos de la base de datos)
+    // SUPABASE API: Network-First (primero red, cache solo como fallback offline)
+    // Si hay internet, el admin NUNCA ve datos cacheados.
+    // Si no hay internet, se usa la ultima respuesta cacheada como salvavidas.
     if (esSupabaseAPI(requestUrl)) {
         event.respondWith(
-            fetch(event.request).catch(() => {
-                return new Response(JSON.stringify({ error: 'Sin conexion' }), {
-                    status: 503,
-                    headers: { 'Content-Type': 'application/json' }
+            fetch(event.request).then(networkResponse => {
+                // Solo cachear GETs exitosos (lecturas), no mutaciones
+                if (networkResponse && networkResponse.status === 200 && event.request.method === 'GET') {
+                    const responseClone = networkResponse.clone();
+                    caches.open('hdv-supabase-api').then(cache => {
+                        cache.put(event.request, responseClone);
+                    });
+                }
+                return networkResponse;
+            }).catch(() => {
+                // Sin conexion: intentar cache como fallback
+                return caches.match(event.request).then(cachedResponse => {
+                    if (cachedResponse) return cachedResponse;
+                    return new Response(JSON.stringify({ error: 'Sin conexion' }), {
+                        status: 503,
+                        headers: { 'Content-Type': 'application/json' }
+                    });
                 });
             })
         );

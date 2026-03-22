@@ -15,7 +15,7 @@ PWA mobile-first para vendedores de calle + panel admin de escritorio.
 - **Frontend**: Vanilla JS, Tailwind CSS (compilado estatico, v3.4.17), Lucide Icons (v0.468.0), Chart.js (admin), jsPDF, JSZip
 - **Backend**: Supabase (Auth, PostgreSQL, Storage, Realtime, Edge Functions)
 - **Deploy**: Vercel (archivos estaticos)
-- **PWA**: Service Worker con cache network-first para JS/HTML, cache-first para assets
+- **PWA**: Service Worker con estrategia por capas: Network-First para Supabase API (cache como fallback offline), Network-First para JS/HTML, Cache-First para assets estaticos
 - **Font**: Inter (Google Fonts)
 
 ## Arquitectura de archivos
@@ -143,9 +143,9 @@ Retornos: `{ data, error }` para fetches, `{ success, error }` para mutaciones.
 
 Consume `SupabaseService`. Expone funciones globales:
 - **Catalogo**: `obtenerCatalogo()`, `guardarCatalogo(data)`, `escucharCatalogoRealtime(cb)`
-- **Pedidos**: `guardarPedido(pedido)`, `actualizarEstadoPedido(id,estado)`, `eliminarPedido(id)`, `obtenerPedidos()`, `escucharPedidosRealtime(cb)`, `sincronizarPedidosLocales()`
+- **Pedidos**: `guardarPedido(pedido)`, `actualizarEstadoPedido(id,estado)`, `eliminarPedido(id)`, `obtenerPedidos()`, `escucharPedidosRealtime(cb)`, `escucharPedidosRealtimeVendedor(callbacks)` [granular: onEstadoCambiado, onPedidoEliminado, onSync], `sincronizarPedidosLocales()`
 - **Config**: 8 pares guardar/obtener + `sincronizarDatosNegocio()`, `cargarDatosNegocio()`, `iniciarListenersDatosNegocio()`
-- **Conexion**: `monitorearConexion()` — healthCheck cada 30s, badge verde/amarillo/rojo
+- **Conexion**: `monitorearConexion()` — healthCheck cada 30s, `actualizarIndicadorConexion()` — badge verde(sincronizado)/amarillo(conectando)/rojo(sin conexion) + banner offline. Indicador presente en ambos HTML (vendedor header + admin header)
 
 ## Formato de datos en memoria
 
@@ -183,7 +183,7 @@ Migra automaticamente de localStorage a IndexedDB al primer uso. Supabase Auth s
 
 1. **Carga**: `HDVStorage.ready()` → `obtenerCatalogo()` → 3 queries paralelas → mapeo legacy → variables globales + cache IndexedDB
 2. **Edicion admin**: Modifica `productosData` en memoria → "Guardar y Sincronizar" → IndexedDB + `guardarCatalogo()` (upsert batch + reconcilia eliminaciones)
-3. **Realtime**: 4 canales catalogo (debounce 500ms) + pedidos + 8 configs → sync bidireccional IndexedDB ↔ Supabase
+3. **Realtime**: 4 canales catalogo (debounce 500ms) + pedidos (admin: full re-fetch, vendedor: granular INSERT/UPDATE/DELETE con DOM targeting) + 8 configs → sync bidireccional IndexedDB ↔ Supabase
 4. **Offline**: IndexedDB como fuente, service worker para assets, SyncManager sincroniza pedidos al reconectar
 
 ## Autenticacion y roles
@@ -308,7 +308,7 @@ Bucket `productos_img` (Supabase Storage). Compresion Canvas → WebP 800px max.
 - **Versiones fijadas obligatorias**: todas las librerias CDN tienen version exacta en la URL (no `@latest`). SRI valida integridad de cada script.
 - **WAF Cloudflare (B-03 — PARCIALMENTE REMEDIADO)**: Cuenta Cloudflare creada (`d3176bc9147a3585769632b5818377a1`). Vercel headers de seguridad configurados (HSTS, CSP, X-Frame-Options, nosniff). **Requiere dominio personalizado** para activar proxy WAF + Bot Fight Mode. Ver guia de activacion en `GUIA_CLOUDFLARE_WAF.md`. DDoS y proteccion SSL ya provistas por Vercel Edge Network para subdominios `.vercel.app`.
 - **Auditoria SCA (B-05 — REMEDIADO)**: Dependabot v2 configurado en `.github/dependabot.yml`. Escaneo semanal (lunes) de dependencias npm.
-- **Service Worker versionado**: `const VERSION` se incrementa en cada deploy. Cache viejo se purga en `activate`. Network-first para HTML/JS (asegura que parches de seguridad se apliquen inmediatamente).
+- **Service Worker versionado**: `const VERSION` se incrementa en cada deploy. Cache viejo se purga en `activate` (excepto `hdv-imagenes`). Estrategia por capas: Supabase API → Network-First con cache `hdv-supabase-api` como fallback offline (solo cachea GETs, no mutaciones). HTML/JS → Network-First. Assets estaticos → Cache-First. Imagenes → Cache-First dedicado `hdv-imagenes`.
 - **Principio**: la cadena de suministro (CDNs, npm, service worker) es un vector de ataque. Cada eslabón debe tener version fijada, hash verificado, y mecanismo de actualizacion controlada.
 
 ### Historial de auditorias

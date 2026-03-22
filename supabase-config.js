@@ -138,6 +138,81 @@ async function escucharPedidosRealtime(callback) {
     return unsub;
 }
 
+// ============================================
+// REALTIME VENDEDOR — Suscripcion granular para UI reactiva
+// ============================================
+
+function escucharPedidosRealtimeVendedor(callbacks) {
+    // callbacks: { onEstadoCambiado(pedidoId, nuevoEstado, datosPedido), onPedidoEliminado(pedidoId), onSync(pedidosMerged) }
+
+    // Carga inicial silenciosa — merge remoto + local no sincronizado
+    (async () => {
+        try {
+            const { data, error } = await SupabaseService.fetchPedidos();
+            if (!error && data) {
+                const pedidosRemoto = data.map(r => r.datos);
+                const pedidosLocal = (await HDVStorage.getItem('hdv_pedidos')) || [];
+                const sinSync = pedidosLocal.filter(p => p.sincronizado === false);
+                const remIds = new Set(pedidosRemoto.map(p => p.id));
+                const localesExtra = sinSync.filter(p => !remIds.has(p.id));
+                const merged = [...pedidosRemoto, ...localesExtra];
+                await HDVStorage.setItem('hdv_pedidos', merged);
+                if (callbacks.onSync) callbacks.onSync(merged);
+            }
+        } catch(e) {
+            console.warn('[Vendedor RT] Error carga inicial pedidos:', e);
+        }
+    })();
+
+    // Suscripcion realtime granular — detecta cambios individuales
+    const unsub = SupabaseService.subscribeTo('vendedor-pedidos-rt', 'pedidos', async (payload) => {
+        const eventType = payload.eventType; // INSERT, UPDATE, DELETE
+        const newRow = payload.new;
+        const oldRow = payload.old;
+
+        if (eventType === 'UPDATE' && newRow) {
+            const datos = newRow.datos || {};
+            const pedidoId = newRow.id;
+            const nuevoEstado = datos.estado;
+
+            // Actualizar IndexedDB
+            const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
+            const idx = pedidos.findIndex(p => p.id === pedidoId);
+            if (idx >= 0) {
+                // Preservar campos locales, actualizar datos del servidor
+                pedidos[idx] = { ...pedidos[idx], ...datos, sincronizado: true };
+                await HDVStorage.setItem('hdv_pedidos', pedidos);
+            }
+
+            if (callbacks.onEstadoCambiado) {
+                callbacks.onEstadoCambiado(pedidoId, nuevoEstado, datos);
+            }
+        } else if (eventType === 'DELETE' && oldRow) {
+            const pedidoId = oldRow.id;
+            const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
+            const filtered = pedidos.filter(p => p.id !== pedidoId);
+            await HDVStorage.setItem('hdv_pedidos', filtered);
+
+            if (callbacks.onPedidoEliminado) {
+                callbacks.onPedidoEliminado(pedidoId);
+            }
+        } else if (eventType === 'INSERT' && newRow) {
+            // Un pedido nuevo aparecio (ej. sync desde otro dispositivo)
+            const datos = newRow.datos || {};
+            const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
+            if (!pedidos.find(p => p.id === newRow.id)) {
+                pedidos.push({ ...datos, sincronizado: true });
+                await HDVStorage.setItem('hdv_pedidos', pedidos);
+            }
+            if (callbacks.onSync) {
+                callbacks.onSync(pedidos);
+            }
+        }
+    });
+
+    return unsub;
+}
+
 async function sincronizarPedidosLocales() {
     const pedidosLocal = (await HDVStorage.getItem('hdv_pedidos')) || [];
     const sinSincronizar = pedidosLocal.filter(p => p.sincronizado === false);

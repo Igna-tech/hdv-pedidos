@@ -795,6 +795,93 @@ function aplicarDescuento() {
 // ============================================
 // VISTA MIS PEDIDOS
 // ============================================
+// ============================================
+// PEDIDOS — ESTADO COLORS & REACTIVE DOM UPDATES
+// ============================================
+function obtenerColorEstado(estado) {
+    const colores = {
+        'pedido_pendiente': 'bg-yellow-100 text-yellow-700',
+        'pendiente': 'bg-yellow-100 text-yellow-700',
+        'entregado': 'bg-green-100 text-green-700',
+        'cobrado_sin_factura': 'bg-blue-100 text-blue-700',
+        'facturado_mock': 'bg-indigo-100 text-indigo-700',
+        'nota_credito_mock': 'bg-orange-100 text-orange-700',
+        'anulado': 'bg-red-100 text-red-700'
+    };
+    return colores[estado] || 'bg-gray-100 text-gray-700';
+}
+
+function obtenerLabelEstado(estado) {
+    const labels = {
+        'pedido_pendiente': 'PENDIENTE',
+        'pendiente': 'PENDIENTE',
+        'entregado': 'ENTREGADO',
+        'cobrado_sin_factura': 'COBRADO',
+        'facturado_mock': 'FACTURADO',
+        'nota_credito_mock': 'NOTA CREDITO',
+        'anulado': 'ANULADO'
+    };
+    return labels[estado] || estado.toUpperCase();
+}
+
+function crearTarjetaPedidoVendedor(p) {
+    const estado = p.estado || 'pendiente';
+    const colorEstado = obtenerColorEstado(estado);
+    const labelEstado = obtenerLabelEstado(estado);
+
+    const div = document.createElement('div');
+    div.className = 'bg-white rounded-xl p-4 shadow-sm border border-gray-100 mb-3 transition-all duration-300';
+    div.setAttribute('data-pedido-id', p.id);
+    div.innerHTML = `
+        <div class="flex justify-between items-start mb-2">
+            <div>
+                <p class="font-bold text-gray-800">${escapeHTML(p.cliente?.nombre || 'N/A')}</p>
+                <p class="text-xs text-gray-500">${new Date(p.fecha).toLocaleString('es-PY')}</p>
+            </div>
+            <span class="pedido-estado-badge px-2 py-1 rounded-full text-[10px] font-bold ${colorEstado}">${labelEstado}</span>
+        </div>
+        <div class="text-sm text-gray-600 mb-2">
+            ${(p.items || []).map(i => `${escapeHTML(i.nombre)} (${escapeHTML(i.presentacion)} ×${i.cantidad})`).join(', ')}
+        </div>
+        <div class="flex justify-between items-center pt-2 border-t border-gray-100">
+            <span class="text-xs text-gray-500">${p.tipoPago || 'contado'} ${p.descuento > 0 ? `| ${p.descuento}% desc.` : ''}</span>
+            <span class="font-bold text-gray-900">Gs. ${(p.total || 0).toLocaleString()}</span>
+        </div>
+        <div class="flex gap-2 mt-3 pt-2 border-t border-gray-50">
+            <button onclick="imprimirTicketVendedor('${p.id}')" class="flex-1 bg-purple-50 text-purple-700 py-2 rounded-lg text-xs font-bold active:scale-95 transition-transform flex items-center justify-center gap-1"><i data-lucide="printer" class="w-3 h-3"></i> Ticket</button>
+            <button onclick="generarPDFVendedor('${p.id}')" class="flex-1 bg-red-50 text-red-700 py-2 rounded-lg text-xs font-bold active:scale-95 transition-transform flex items-center justify-center gap-1"><i data-lucide="file-text" class="w-3 h-3"></i> PDF</button>
+            <button onclick="enviarPedidoWhatsApp('${p.id}')" class="flex-1 bg-green-50 text-green-700 py-2 rounded-lg text-xs font-bold active:scale-95 transition-transform flex items-center justify-center gap-1"><i data-lucide="send" class="w-3 h-3"></i> WhatsApp</button>
+        </div>
+    `;
+    return div;
+}
+
+function actualizarTarjetaPedidoDOM(pedidoId, nuevoEstado) {
+    const card = document.querySelector(`[data-pedido-id="${pedidoId}"]`);
+    if (!card) return false;
+
+    const badge = card.querySelector('.pedido-estado-badge');
+    if (badge) {
+        // Limpiar clases de color anteriores
+        badge.className = 'pedido-estado-badge px-2 py-1 rounded-full text-[10px] font-bold ' + obtenerColorEstado(nuevoEstado);
+        badge.textContent = obtenerLabelEstado(nuevoEstado);
+
+        // Animacion de flash para destacar el cambio
+        card.classList.add('ring-2', 'ring-blue-400');
+        setTimeout(() => card.classList.remove('ring-2', 'ring-blue-400'), 2000);
+    }
+    return true;
+}
+
+function eliminarTarjetaPedidoDOM(pedidoId) {
+    const card = document.querySelector(`[data-pedido-id="${pedidoId}"]`);
+    if (!card) return;
+
+    card.style.opacity = '0';
+    card.style.transform = 'translateX(-100%)';
+    setTimeout(() => card.remove(), 300);
+}
+
 async function mostrarMisPedidos() {
     const container = document.getElementById('productsContainer');
     const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
@@ -809,34 +896,7 @@ async function mostrarMisPedidos() {
     container.innerHTML = '<h3 class="text-lg font-bold text-gray-800 mb-4">Mis Pedidos</h3>';
 
     misPedidos.forEach(p => {
-        const estado = p.estado || 'pendiente';
-        const colorEstado = estado === 'entregado'
-            ? 'bg-green-100 text-green-700'
-            : 'bg-yellow-100 text-yellow-700';
-
-        const div = document.createElement('div');
-        div.className = 'bg-white rounded-xl p-4 shadow-sm border border-gray-100 mb-3';
-        div.innerHTML = `
-            <div class="flex justify-between items-start mb-2">
-                <div>
-                    <p class="font-bold text-gray-800">${escapeHTML(p.cliente.nombre)}</p>
-                    <p class="text-xs text-gray-500">${new Date(p.fecha).toLocaleString('es-PY')}</p>
-                </div>
-                <span class="px-2 py-1 rounded-full text-[10px] font-bold ${colorEstado}">${estado.toUpperCase()}</span>
-            </div>
-            <div class="text-sm text-gray-600 mb-2">
-                ${p.items.map(i => `${escapeHTML(i.nombre)} (${escapeHTML(i.presentacion)} ×${i.cantidad})`).join(', ')}
-            </div>
-            <div class="flex justify-between items-center pt-2 border-t border-gray-100">
-                <span class="text-xs text-gray-500">${p.tipoPago || 'contado'} ${p.descuento > 0 ? `| ${p.descuento}% desc.` : ''}</span>
-                <span class="font-bold text-gray-900">Gs. ${p.total.toLocaleString()}</span>
-            </div>
-            <div class="flex gap-2 mt-3 pt-2 border-t border-gray-50">
-                <button onclick="imprimirTicketVendedor('${p.id}')" class="flex-1 bg-purple-50 text-purple-700 py-2 rounded-lg text-xs font-bold active:scale-95 transition-transform flex items-center justify-center gap-1"><i data-lucide="printer" class="w-3 h-3"></i> Ticket</button>
-                <button onclick="generarPDFVendedor('${p.id}')" class="flex-1 bg-red-50 text-red-700 py-2 rounded-lg text-xs font-bold active:scale-95 transition-transform flex items-center justify-center gap-1"><i data-lucide="file-text" class="w-3 h-3"></i> PDF</button>
-                <button onclick="enviarPedidoWhatsApp('${p.id}')" class="flex-1 bg-green-50 text-green-700 py-2 rounded-lg text-xs font-bold active:scale-95 transition-transform flex items-center justify-center gap-1"><i data-lucide="send" class="w-3 h-3"></i> WhatsApp</button>
-            </div>
-        `;
+        const div = crearTarjetaPedidoVendedor(p);
         container.appendChild(div);
     });
     lucide.createIcons();

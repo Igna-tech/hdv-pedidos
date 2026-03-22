@@ -31,7 +31,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Sincronizacion automatica de pedidos offline gestionada por SyncManager (js/services/sync.js)
 
-    // Escuchar catalogo en tiempo real desde Supabase
+    // ============================================
+    // RADAR EN TIEMPO REAL — Suscripciones Supabase Realtime
+    // ============================================
+
+    // Canal 1: Catalogo (productos, precios, stock, clientes)
     if (typeof escucharCatalogoRealtime === 'function') {
         escucharCatalogoRealtime(async (data) => {
             if (data && data.categorias && data.productos) {
@@ -41,7 +45,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 poblarClientes();
                 crearFiltrosCategorias();
                 if (vistaActual === 'lista') mostrarProductos();
-                // Cachear en IndexedDB para uso offline
                 try {
                     await HDVStorage.setItem('hdv_catalogo_local', {
                         categorias: data.categorias,
@@ -49,13 +52,73 @@ document.addEventListener('DOMContentLoaded', async () => {
                         clientes: data.clientes
                     });
                 } catch(e) {}
-                console.log('[Vendedor] Catalogo actualizado desde Supabase y cacheado');
+                console.log('[Vendedor RT] Catalogo actualizado en tiempo real');
                 if (typeof mostrarToast === 'function') {
                     mostrarToast('Catalogo actualizado', 'info');
                 }
             }
         });
     }
+
+    // Canal 2: Pedidos — actualizaciones granulares de estado
+    if (typeof escucharPedidosRealtimeVendedor === 'function') {
+        escucharPedidosRealtimeVendedor({
+            onEstadoCambiado: (pedidoId, nuevoEstado, datos) => {
+                console.log(`[Vendedor RT] Pedido ${pedidoId} -> ${nuevoEstado}`);
+                // Actualizar tarjeta en el DOM si la vista de pedidos esta activa
+                if (vistaActual === 'pedidos' && typeof actualizarTarjetaPedidoDOM === 'function') {
+                    const updated = actualizarTarjetaPedidoDOM(pedidoId, nuevoEstado);
+                    if (updated) {
+                        mostrarToast(`Pedido actualizado: ${nuevoEstado === 'entregado' ? 'Entregado' : nuevoEstado === 'anulado' ? 'Anulado' : nuevoEstado}`, 'info');
+                    }
+                }
+                // Actualizar widget de caja si esta visible
+                if (vistaActual === 'caja' && typeof mostrarMiCaja === 'function') {
+                    mostrarMiCaja();
+                }
+            },
+            onPedidoEliminado: (pedidoId) => {
+                console.log(`[Vendedor RT] Pedido eliminado: ${pedidoId}`);
+                if (vistaActual === 'pedidos' && typeof eliminarTarjetaPedidoDOM === 'function') {
+                    eliminarTarjetaPedidoDOM(pedidoId);
+                    mostrarToast('Un pedido fue eliminado por el administrador', 'warning');
+                }
+            },
+            onSync: (pedidosMerged) => {
+                console.log(`[Vendedor RT] Sync completa: ${pedidosMerged.length} pedidos`);
+                // Re-renderizar vista completa solo si estamos en pedidos
+                if (vistaActual === 'pedidos' && typeof mostrarMisPedidos === 'function') {
+                    mostrarMisPedidos();
+                }
+            }
+        });
+    }
+
+    // Re-sync al reconectar: re-fetch silencioso de pedidos
+    // (Supabase Realtime maneja la reconexion de canales automaticamente)
+    window.addEventListener('online', async () => {
+        console.log('[Vendedor RT] Conexion restaurada, re-sincronizando pedidos...');
+        try {
+            if (typeof SupabaseService !== 'undefined') {
+                const { data, error } = await SupabaseService.fetchPedidos();
+                if (!error && data) {
+                    const pedidosRemoto = data.map(r => r.datos);
+                    const pedidosLocal = (await HDVStorage.getItem('hdv_pedidos')) || [];
+                    const sinSync = pedidosLocal.filter(p => p.sincronizado === false);
+                    const remIds = new Set(pedidosRemoto.map(p => p.id));
+                    const localesExtra = sinSync.filter(p => !remIds.has(p.id));
+                    const merged = [...pedidosRemoto, ...localesExtra];
+                    await HDVStorage.setItem('hdv_pedidos', merged);
+                    if (vistaActual === 'pedidos' && typeof mostrarMisPedidos === 'function') {
+                        mostrarMisPedidos();
+                    }
+                    console.log('[Vendedor RT] Pedidos re-sincronizados:', merged.length);
+                }
+            }
+        } catch(e) {
+            console.warn('[Vendedor RT] Error re-sync online:', e);
+        }
+    });
 });
 
 async function cargarDatos() {
@@ -120,7 +183,7 @@ async function cargarDatos() {
         document.getElementById('productsContainer').innerHTML = generarEmptyState(
             `<svg viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="100" cy="80" r="35" stroke="#fca5a5" stroke-width="3" fill="#fef2f2"/><path d="M88 70l24 20M112 70L88 90" stroke="#f87171" stroke-width="3" stroke-linecap="round"/><path d="M60 140h80" stroke="#fca5a5" stroke-width="2" stroke-linecap="round"/><path d="M75 155h50" stroke="#fecaca" stroke-width="2" stroke-linecap="round"/></svg>`,
             'Error al cargar catalogo', 'Verifica tu conexion a internet e intenta de nuevo',
-            'Reintentar', 'location.reload()'
+            'Reintentar', 'cargarDatos()'
         );
     }
 }

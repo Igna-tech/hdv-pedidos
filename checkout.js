@@ -110,7 +110,10 @@ async function procesarPedido() {
         // Guardar local
         const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
         pedidos.push(pedido);
-        await HDVStorage.setItem('hdv_pedidos', pedidos);
+        const persisted = await HDVStorage.setItem('hdv_pedidos', pedidos);
+        if (!persisted) {
+            mostrarToast('Pedido creado pero no se pudo guardar localmente. Sincronice cuanto antes.', 'warning');
+        }
 
         // Sincronizar con Supabase
         if (typeof guardarPedido === 'function') {
@@ -176,7 +179,10 @@ async function procesarCobroInterno() {
         // Guardar local
         const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
         pedidos.push(pedido);
-        await HDVStorage.setItem('hdv_pedidos', pedidos);
+        const persisted = await HDVStorage.setItem('hdv_pedidos', pedidos);
+        if (!persisted) {
+            mostrarToast('Cobro creado pero no se pudo guardar localmente. Sincronice cuanto antes.', 'warning');
+        }
 
         // Sincronizar
         if (typeof guardarPedido === 'function') {
@@ -287,7 +293,10 @@ async function procesarFacturaMock() {
         // Guardar local
         const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
         pedidos.push(pedido);
-        await HDVStorage.setItem('hdv_pedidos', pedidos);
+        const persisted = await HDVStorage.setItem('hdv_pedidos', pedidos);
+        if (!persisted) {
+            mostrarToast('Factura creada pero no se pudo guardar localmente. Sincronice cuanto antes.', 'warning');
+        }
 
         // Sincronizar
         if (typeof guardarPedido === 'function') {

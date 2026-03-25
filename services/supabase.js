@@ -12,16 +12,34 @@ const SupabaseService = (() => {
 
     async function fetchPedidos(limit = 500, offset = 0) {
         try {
-            const { data, error } = await supabaseClient
-                .from('pedidos')
-                .select('id, estado, fecha, datos, vendedor_id, creado_en, actualizado_en')
-                .order('fecha', { ascending: false })
-                .range(offset, offset + limit - 1);
-            if (error) throw error;
-            if (data && data.length === limit) {
-                console.warn(`[SupabaseService] fetchPedidos: se alcanzo el limite de ${limit} registros, pueden faltar datos`);
+            const PAGE_SIZE = limit;
+            let allData = [];
+            let currentOffset = offset;
+            let hasMore = true;
+
+            while (hasMore) {
+                const { data, error } = await supabaseClient
+                    .from('pedidos')
+                    .select('id, estado, fecha, datos, vendedor_id, creado_en, actualizado_en')
+                    .order('fecha', { ascending: false })
+                    .range(currentOffset, currentOffset + PAGE_SIZE - 1);
+                if (error) throw error;
+
+                allData = allData.concat(data || []);
+
+                if (!data || data.length < PAGE_SIZE) {
+                    hasMore = false;
+                } else {
+                    currentOffset += PAGE_SIZE;
+                    // Safety cap: maximo 10 paginas (5000 registros) para evitar loops infinitos
+                    if (allData.length >= PAGE_SIZE * 10) {
+                        console.warn(`[SupabaseService] fetchPedidos: cap de ${allData.length} registros alcanzado`);
+                        hasMore = false;
+                    }
+                }
             }
-            return { data: data || [], error: null };
+
+            return { data: allData, error: null };
         } catch (error) {
             console.error('[SupabaseService] fetchPedidos:', error);
             return { data: [], error };

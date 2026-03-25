@@ -119,25 +119,29 @@ async function escucharPedidosRealtime(callback) {
         callback(pedidosLocal, []);
     }
 
-    // Suscripcion realtime — preserva pedidos locales no sincronizados
-    const unsub = SupabaseService.subscribeTo('pedidos-realtime', 'pedidos', async () => {
-        const { data } = await SupabaseService.fetchPedidos();
-        const pedidosRemoto = data.map(r => r.datos);
-        const pedidosLocalRT = (await HDVStorage.getItem('hdv_pedidos')) || [];
+    // Suscripcion realtime con debounce 500ms — preserva pedidos locales no sincronizados
+    let _pedidosRealtimeTimer = null;
+    const unsub = SupabaseService.subscribeTo('pedidos-realtime', 'pedidos', () => {
+        if (_pedidosRealtimeTimer) clearTimeout(_pedidosRealtimeTimer);
+        _pedidosRealtimeTimer = setTimeout(async () => {
+            const { data } = await SupabaseService.fetchPedidos();
+            const pedidosRemoto = data.map(r => r.datos);
+            const pedidosLocalRT = (await HDVStorage.getItem('hdv_pedidos')) || [];
 
-        // Preservar pedidos locales que aun no se sincronizaron
-        const sinSincronizar = pedidosLocalRT.filter(p => p.sincronizado === false);
-        const remotosIds = new Set(pedidosRemoto.map(p => p.id));
-        const localesNoEnRemoto = sinSincronizar.filter(p => !remotosIds.has(p.id));
+            // Preservar pedidos locales que aun no se sincronizaron
+            const sinSincronizar = pedidosLocalRT.filter(p => p.sincronizado === false);
+            const remotosIds = new Set(pedidosRemoto.map(p => p.id));
+            const localesNoEnRemoto = sinSincronizar.filter(p => !remotosIds.has(p.id));
 
-        if (pedidosRemoto.length > 0 || pedidosLocalRT.length === 0) {
-            const merged = [...pedidosRemoto, ...localesNoEnRemoto];
-            await HDVStorage.setItem('hdv_pedidos', merged);
-            callback(merged, [{ type: 'modified' }]);
-        } else {
-            console.warn('[Supabase] Realtime devolvio vacio pero hay datos locales, conservando');
-            callback(pedidosLocalRT, [{ type: 'modified' }]);
-        }
+            if (pedidosRemoto.length > 0 || pedidosLocalRT.length === 0) {
+                const merged = [...pedidosRemoto, ...localesNoEnRemoto];
+                await HDVStorage.setItem('hdv_pedidos', merged);
+                callback(merged, [{ type: 'modified' }]);
+            } else {
+                console.warn('[Supabase] Realtime devolvio vacio pero hay datos locales, conservando');
+                callback(pedidosLocalRT, [{ type: 'modified' }]);
+            }
+        }, 500);
     });
 
     return unsub;
@@ -453,11 +457,27 @@ async function obtenerPromociones() { return await obtenerConfig('promociones');
 function guardarPlantillaWhatsApp(plantilla) { return guardarConfig('whatsapp_plantilla', plantilla); }
 async function obtenerPlantillaWhatsApp() { return await obtenerConfig('whatsapp_plantilla'); }
 
-function guardarGastos(gastos) { return guardarConfig('gastos_vendedor', gastos); }
-async function obtenerGastos() { return await obtenerConfig('gastos_vendedor'); }
+function guardarGastos(gastos) {
+    const vendedorId = window.hdvUsuario?.id;
+    const docId = vendedorId ? `gastos_vendedor_${vendedorId}` : 'gastos_vendedor';
+    return guardarConfig(docId, gastos);
+}
+async function obtenerGastos() {
+    const vendedorId = window.hdvUsuario?.id;
+    const docId = vendedorId ? `gastos_vendedor_${vendedorId}` : 'gastos_vendedor';
+    return await obtenerConfig(docId);
+}
 
-function guardarRendiciones(rendiciones) { return guardarConfig('rendiciones', rendiciones); }
-async function obtenerRendiciones() { return await obtenerConfig('rendiciones'); }
+function guardarRendiciones(rendiciones) {
+    const vendedorId = window.hdvUsuario?.id;
+    const docId = vendedorId ? `rendiciones_${vendedorId}` : 'rendiciones';
+    return guardarConfig(docId, rendiciones);
+}
+async function obtenerRendiciones() {
+    const vendedorId = window.hdvUsuario?.id;
+    const docId = vendedorId ? `rendiciones_${vendedorId}` : 'rendiciones';
+    return await obtenerConfig(docId);
+}
 
 function guardarCuentasBancarias(cuentas) { return guardarConfig('cuentas_bancarias', cuentas); }
 async function obtenerCuentasBancarias() { return await obtenerConfig('cuentas_bancarias'); }

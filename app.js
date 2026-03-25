@@ -35,6 +35,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Marcar app lista — los toasts info/success se desbloquean despues de la carga inicial
     setTimeout(() => { window._hdvAppReady = true; }, 2000);
 
+    // Alerta al cerrar/recargar si hay pedidos sin sincronizar
+    window.addEventListener('beforeunload', async (e) => {
+        try {
+            const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
+            const sinSync = pedidos.filter(p => p.sincronizado === false);
+            if (sinSync.length > 0) {
+                e.preventDefault();
+                // Navegadores modernos ignoran el mensaje custom pero requieren returnValue
+                e.returnValue = '';
+            }
+        } catch (_err) { /* silencioso si storage falla */ }
+    });
+
     // Sincronizacion automatica de pedidos offline gestionada por SyncManager (js/services/sync.js)
 
     // ============================================

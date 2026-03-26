@@ -62,8 +62,8 @@ async function cargarCreditos() {
     ]).size;
 
     const el = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
-    el('totalCreditos', 'Gs. ' + totalDeuda.toLocaleString());
-    el('totalCobrado', 'Gs. ' + totalCobrado.toLocaleString());
+    el('totalCreditos', formatearGuaranies(totalDeuda));
+    el('totalCobrado', formatearGuaranies(totalCobrado));
     el('clientesConCredito', clientesUnicos);
     el('pedidosCredito', pedidosCredito.length + creditosManuales.length);
 
@@ -103,9 +103,9 @@ async function cargarCreditos() {
                 </div>
             </div>
             <div class="grid grid-cols-3 gap-4 mb-3 text-sm">
-                <div><span class="text-gray-500">Total:</span> <strong>Gs. ${(p.total || 0).toLocaleString()}</strong></div>
-                <div><span class="text-gray-500">Pagado:</span> <strong class="text-green-600">Gs. ${totalPagado.toLocaleString()}</strong></div>
-                <div><span class="text-gray-500">Saldo:</span> <strong class="text-red-600">Gs. ${saldo.toLocaleString()}</strong></div>
+                <div><span class="text-gray-500">Total:</span> <strong>${formatearGuaranies(p.total)}</strong></div>
+                <div><span class="text-gray-500">Pagado:</span> <strong class="text-green-600">${formatearGuaranies(totalPagado)}</strong></div>
+                <div><span class="text-gray-500">Saldo:</span> <strong class="text-red-600">${formatearGuaranies(saldo)}</strong></div>
             </div>
             ${totalPagado > 0 ? `
                 <div class="w-full bg-gray-200 rounded-full h-2 mb-3">
@@ -147,9 +147,9 @@ async function cargarCreditos() {
                 </div>
             </div>
             <div class="grid grid-cols-3 gap-4 mb-3 text-sm">
-                <div><span class="text-gray-500">Total:</span> <strong>Gs. ${(c.monto || 0).toLocaleString()}</strong></div>
-                <div><span class="text-gray-500">Pagado:</span> <strong class="text-green-600">Gs. ${totalPagado.toLocaleString()}</strong></div>
-                <div><span class="text-gray-500">Saldo:</span> <strong class="text-red-600">Gs. ${saldo.toLocaleString()}</strong></div>
+                <div><span class="text-gray-500">Total:</span> <strong>${formatearGuaranies(c.monto)}</strong></div>
+                <div><span class="text-gray-500">Pagado:</span> <strong class="text-green-600">${formatearGuaranies(totalPagado)}</strong></div>
+                <div><span class="text-gray-500">Saldo:</span> <strong class="text-red-600">${formatearGuaranies(saldo)}</strong></div>
             </div>
             <div class="flex gap-2 flex-wrap">
                 <button onclick="registrarPagoManual('${c.id}')" class="bg-green-600 text-white px-3 py-2 rounded-lg text-xs font-bold">Registrar Pago</button>
@@ -168,7 +168,7 @@ async function registrarPagoCredito(pedidoId) {
 
     const datos = await mostrarInputModal({
         titulo: 'Registrar Pago',
-        subtitulo: `Cliente: ${pedido.cliente?.nombre || 'N/A'} — Saldo: Gs. ${saldo.toLocaleString()}`,
+        subtitulo: `Cliente: ${pedido.cliente?.nombre || 'N/A'} — Saldo: ${formatearGuaranies(saldo)}`,
         icono: 'banknote',
         campos: [
             { key: 'monto', label: 'Monto del pago (Gs.)', tipo: 'number', placeholder: saldo.toLocaleString(), requerido: true },
@@ -198,7 +198,7 @@ async function registrarPagoCredito(pedidoId) {
         marcarPagado(pedidoId);
     }
 
-    mostrarToast(`Pago de Gs. ${monto.toLocaleString()} registrado exitosamente`, 'success');
+    mostrarToast(`Pago de ${formatearGuaranies(monto)} registrado exitosamente`, 'success');
     cargarCreditos();
 }
 
@@ -210,7 +210,7 @@ async function registrarPagoManual(creditoId) {
 
     const datos = await mostrarInputModal({
         titulo: 'Registrar Pago',
-        subtitulo: `Cliente: ${credito.clienteNombre} — Saldo: Gs. ${saldo.toLocaleString()}`,
+        subtitulo: `Cliente: ${credito.clienteNombre} — Saldo: ${formatearGuaranies(saldo)}`,
         icono: 'banknote',
         campos: [
             { key: 'monto', label: 'Monto del pago (Gs.)', tipo: 'number', placeholder: saldo.toLocaleString(), requerido: true },
@@ -233,7 +233,7 @@ async function registrarPagoManual(creditoId) {
             console.error('[Creditos] Error sincronizando pago manual con Supabase:', e);
         }
     }
-    mostrarToast(`Pago de Gs. ${monto.toLocaleString()} registrado`, 'success');
+    mostrarToast(`Pago de ${formatearGuaranies(monto)} registrado`, 'success');
     cargarCreditos();
 }
 
@@ -253,10 +253,10 @@ async function verHistorialPagos(pedidoId) {
     if (pagos.length === 0) { mostrarToast('Sin pagos registrados para este credito', 'info'); return; }
     let msg = 'HISTORIAL DE PAGOS\n' + '='.repeat(30) + '\n';
     pagos.forEach((p, i) => {
-        msg += `\n${i + 1}. Gs. ${p.monto.toLocaleString()} - ${new Date(p.fecha).toLocaleDateString('es-PY')}`;
+        msg += `\n${i + 1}. ${formatearGuaranies(p.monto)} - ${new Date(p.fecha).toLocaleDateString('es-PY')}`;
         if (p.nota) msg += ` (${p.nota})`;
     });
-    msg += `\n\nTotal pagado: Gs. ${pagos.reduce((s, p) => s + p.monto, 0).toLocaleString()}`;
+    msg += `\n\nTotal pagado: ${formatearGuaranies(pagos.reduce((s, p) => s + p.monto, 0))}`;
     mostrarConfirmModal(msg, { textoConfirmar: 'Cerrar' });
 }
 
@@ -290,8 +290,8 @@ async function enviarRecordatorioWhatsApp(pedidoId) {
 
     const mensaje = plantilla
         .replace(/{cliente}/g, pedido.cliente?.nombre || '')
-        .replace(/{monto}/g, (pedido.total || 0).toLocaleString())
-        .replace(/{saldo}/g, saldo.toLocaleString())
+        .replace(/{monto}/g, formatearGuaranies(pedido.total))
+        .replace(/{saldo}/g, formatearGuaranies(saldo))
         .replace(/{dias}/g, dias)
         .replace(/{fecha}/g, new Date(pedido.fecha).toLocaleDateString('es-PY'));
 
@@ -312,7 +312,7 @@ async function enviarRecordatorioManualWhatsApp(creditoId) {
 
     const saldo = obtenerSaldoManual(credito);
     const dias = calcularDiasDesde(credito.fecha);
-    const mensaje = `Hola ${credito.clienteNombre}, le recordamos que tiene un saldo pendiente de Gs. ${saldo.toLocaleString()} desde hace ${dias} dias por: ${credito.descripcion}. Agradecemos su pronto pago. HDV Distribuciones`;
+    const mensaje = `Hola ${credito.clienteNombre}, le recordamos que tiene un saldo pendiente de ${formatearGuaranies(saldo)} desde hace ${dias} dias por: ${credito.descripcion}. Agradecemos su pronto pago. HDV Distribuciones`;
 
     let tel = telefono.replace(/\D/g, '');
     if (tel.startsWith('0')) tel = '595' + tel.substring(1);
@@ -334,7 +334,12 @@ async function editarMensajeRecordatorio() {
     if (datos) {
         await HDVStorage.setItem('hdv_whatsapp_mensaje_credito', datos.plantilla);
         if (typeof guardarPlantillaWhatsApp === 'function') {
-            guardarPlantillaWhatsApp(datos.plantilla).catch(e => console.error(e));
+            try {
+                await guardarPlantillaWhatsApp(datos.plantilla);
+            } catch (e) {
+                console.error('[WhatsApp] Error sincronizando plantilla:', e);
+                mostrarToast('Plantilla guardada local pero fallo la sincronizacion', 'warning');
+            }
         }
         mostrarToast('Mensaje actualizado', 'success');
     }
@@ -431,7 +436,7 @@ async function eliminarCreditoManualItem(creditoId) {
     const creditos = await obtenerCreditosManuales();
     const c = creditos.find(x => x.id === creditoId);
     if (!c) return;
-    if (!await mostrarConfirmModal(`¿Eliminar credito manual de ${c.clienteNombre} (Gs. ${(c.monto || 0).toLocaleString()})?\nEsta accion es irreversible.`, { destructivo: true, textoConfirmar: 'Eliminar' })) return;
+    if (!await mostrarConfirmModal(`¿Eliminar credito manual de ${c.clienteNombre} (${formatearGuaranies(c.monto)})?\nEsta accion es irreversible.`, { destructivo: true, textoConfirmar: 'Eliminar' })) return;
     const nuevos = creditos.filter(x => x.id !== creditoId);
     await HDVStorage.setItem('hdv_creditos_manuales', nuevos);
     if (typeof guardarCreditosManuales === 'function') {
@@ -451,7 +456,7 @@ async function editarPagosCreditoPedido(pedidoId) {
 
     const pagoOpts = pagos.map((p, i) => ({
         value: String(i),
-        label: `Gs. ${(p.monto || 0).toLocaleString()} — ${new Date(p.fecha).toLocaleDateString('es-PY')}${p.nota ? ' — ' + p.nota : ''}`
+        label: `${formatearGuaranies(p.monto)} — ${new Date(p.fecha).toLocaleDateString('es-PY')}${p.nota ? ' — ' + p.nota : ''}`
     }));
 
     const datos = await mostrarInputModal({
@@ -468,7 +473,7 @@ async function editarPagosCreditoPedido(pedidoId) {
     const idx = parseInt(datos.idx);
     if (isNaN(idx) || idx < 0 || idx >= pagos.length) { mostrarToast('Seleccion invalida', 'error'); return; }
 
-    if (!await mostrarConfirmModal(`¿Eliminar pago de Gs. ${pagos[idx].monto.toLocaleString()}?`, { destructivo: true, textoConfirmar: 'Eliminar' })) return;
+    if (!await mostrarConfirmModal(`¿Eliminar pago de ${formatearGuaranies(pagos[idx].monto)}?`, { destructivo: true, textoConfirmar: 'Eliminar' })) return;
     const pagoAEliminar = pagos[idx];
     const nuevosPagos = allPagos.filter(p => !(p.pedidoId === pedidoId && p.fecha === pagoAEliminar.fecha && p.monto === pagoAEliminar.monto));
     await HDVStorage.setItem('hdv_pagos_credito', nuevosPagos);
@@ -528,9 +533,9 @@ async function mostrarDeudaPorCliente() {
                     return `<tr class="${saldo > 0 ? 'bg-red-50' : 'bg-green-50'}">
                         <td class="px-4 py-3 font-bold">${escapeHTML(nombre)}</td>
                         <td class="px-4 py-3 text-center">${d.creditos}</td>
-                        <td class="px-4 py-3 text-center">Gs. ${d.deuda.toLocaleString()}</td>
-                        <td class="px-4 py-3 text-center text-green-600 font-bold">Gs. ${d.pagado.toLocaleString()}</td>
-                        <td class="px-4 py-3 text-center text-red-600 font-bold">Gs. ${saldo.toLocaleString()}</td>
+                        <td class="px-4 py-3 text-center">${formatearGuaranies(d.deuda)}</td>
+                        <td class="px-4 py-3 text-center text-green-600 font-bold">${formatearGuaranies(d.pagado)}</td>
+                        <td class="px-4 py-3 text-center text-red-600 font-bold">${formatearGuaranies(saldo)}</td>
                     </tr>`;
                 }).join('')}
             </tbody>
@@ -595,7 +600,12 @@ async function guardarPromocionesEnStorage(promos) {
     await HDVStorage.setItem('hdv_promociones', promos);
     // Sincronizar con Supabase
     if (typeof guardarPromociones === 'function') {
-        guardarPromociones(promos).catch(e => console.error(e));
+        try {
+            await guardarPromociones(promos);
+        } catch (e) {
+            console.error('[Promos] Error sincronizando promociones:', e);
+            mostrarToast('Promociones guardadas local pero fallo la sincronizacion', 'warning');
+        }
     }
 }
 
@@ -637,7 +647,7 @@ async function cargarPromociones() {
                 <span class="font-medium">${prod?.nombre || p.productoId}</span>
                 ${p.presentacion !== 'todas' ? ` (${p.presentacion})` : ' (todas)'}
                 - Min: ${p.cantidadMinima} unid.
-                ${p.tipo !== 'combo' ? ` - Precio: Gs. ${(p.precioEspecial || 0).toLocaleString()}` : ` - Gratis: ${p.cantidadGratis} unid.`}
+                ${p.tipo !== 'combo' ? ` - Precio: ${formatearGuaranies(p.precioEspecial)}` : ` - Gratis: ${p.cantidadGratis} unid.`}
             </div>
             <div class="text-xs text-gray-400 mb-3">${new Date(p.fechaInicio).toLocaleDateString('es-PY')} al ${new Date(p.fechaFin).toLocaleDateString('es-PY')}</div>
             <div class="flex gap-2">
@@ -711,7 +721,7 @@ function actualizarPresentacionesPromo() {
         const prod = productosData.productos.find(p => p.id === prodId);
         if (prod) {
             prod.presentaciones.forEach(pres => {
-                select.innerHTML += `<option value="${escapeHTML(pres.tamano)}">${escapeHTML(pres.tamano)} - Gs.${pres.precio_base.toLocaleString()}</option>`;
+                select.innerHTML += `<option value="${escapeHTML(pres.tamano)}">${escapeHTML(pres.tamano)} - ${formatearGuaranies(pres.precio_base)}</option>`;
             });
         }
     }
@@ -842,10 +852,10 @@ async function cargarRendiciones() {
     const totalGastos = gastosSemana.reduce((sum, g) => sum + (g.monto || 0), 0);
     const aRendir = totalContado - totalGastos;
 
-    document.getElementById('rendContado').textContent = `Gs. ${totalContado.toLocaleString()}`;
-    document.getElementById('rendCredito').textContent = `Gs. ${totalCredito.toLocaleString()}`;
-    document.getElementById('rendGastos').textContent = `Gs. ${totalGastos.toLocaleString()}`;
-    document.getElementById('rendTotal').textContent = `Gs. ${aRendir.toLocaleString()}`;
+    document.getElementById('rendContado').textContent = formatearGuaranies(totalContado);
+    document.getElementById('rendCredito').textContent = formatearGuaranies(totalCredito);
+    document.getElementById('rendGastos').textContent = formatearGuaranies(totalGastos);
+    document.getElementById('rendTotal').textContent = formatearGuaranies(aRendir);
 
     // Mostrar gastos
     const gastosEl = document.getElementById('rendGastosLista');
@@ -859,7 +869,7 @@ async function cargarRendiciones() {
                     <p class="text-xs text-gray-400">${new Date(g.fecha).toLocaleDateString('es-PY')}</p>
                 </div>
                 <div class="text-right">
-                    <p class="font-bold text-red-600">- Gs. ${(g.monto || 0).toLocaleString()}</p>
+                    <p class="font-bold text-red-600">- ${formatearGuaranies(g.monto)}</p>
                     <button onclick="eliminarGastoAdmin('${g.id}')" class="text-xs text-red-400 hover:underline">Eliminar</button>
                 </div>
             </div>
@@ -876,10 +886,10 @@ async function cargarRendiciones() {
             <div class="p-4 flex justify-between items-center">
                 <div>
                     <p class="font-bold text-gray-800">Semana ${r.semana}</p>
-                    <p class="text-xs text-gray-400">Rendido: ${new Date(r.fecha).toLocaleDateString('es-PY')} - Contado: Gs. ${(r.contado || 0).toLocaleString()} | Gastos: Gs. ${(r.gastos || 0).toLocaleString()}</p>
+                    <p class="text-xs text-gray-400">Rendido: ${new Date(r.fecha).toLocaleDateString('es-PY')} - Contado: ${formatearGuaranies(r.contado)} | Gastos: ${formatearGuaranies(r.gastos)}</p>
                 </div>
                 <div class="text-right">
-                    <p class="font-bold ${r.aRendir >= 0 ? 'text-green-600' : 'text-red-600'}">Gs. ${(r.aRendir || 0).toLocaleString()}</p>
+                    <p class="font-bold ${r.aRendir >= 0 ? 'text-green-600' : 'text-red-600'}">${formatearGuaranies(r.aRendir)}</p>
                     <span class="text-xs px-2 py-1 rounded-full ${r.estado === 'rendido' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}">${r.estado || 'pendiente'}</span>
                 </div>
             </div>
@@ -895,7 +905,10 @@ async function eliminarGastoAdmin(gastoId) {
     let gastos = (await HDVStorage.getItem('hdv_gastos')) || [];
     gastos = gastos.filter(g => g.id !== gastoId);
     await HDVStorage.setItem('hdv_gastos', gastos);
-    if (typeof guardarGastos === 'function') guardarGastos(gastos).catch(e => console.error(e));
+    if (typeof guardarGastos === 'function') {
+        try { await guardarGastos(gastos); }
+        catch (e) { console.error('[Gastos] Error sincronizando:', e); mostrarToast('Gasto eliminado local pero fallo la sincronizacion', 'warning'); }
+    }
     cargarRendiciones();
 }
 
@@ -971,7 +984,10 @@ async function guardarCuentaBancaria() {
     const idx = cuentas.findIndex(c => c.id === id);
     if (idx >= 0) cuentas[idx] = cuenta; else cuentas.push(cuenta);
     await HDVStorage.setItem('hdv_cuentas_bancarias', cuentas);
-    if (typeof guardarCuentasBancarias === 'function') guardarCuentasBancarias(cuentas).catch(e => console.error(e));
+    if (typeof guardarCuentasBancarias === 'function') {
+        try { await guardarCuentasBancarias(cuentas); }
+        catch (e) { console.error('[Cuentas] Error sincronizando:', e); mostrarToast('Cuenta guardada local pero fallo la sincronizacion', 'warning'); }
+    }
     cerrarModalCuentaBancaria();
     cargarCuentasBancariasAdmin();
     mostrarToast('Cuenta bancaria guardada', 'success');
@@ -982,6 +998,9 @@ async function eliminarCuentaBancaria(id) {
     let cuentas = (await HDVStorage.getItem('hdv_cuentas_bancarias')) || [];
     cuentas = cuentas.filter(c => c.id !== id);
     await HDVStorage.setItem('hdv_cuentas_bancarias', cuentas);
-    if (typeof guardarCuentasBancarias === 'function') guardarCuentasBancarias(cuentas).catch(e => console.error(e));
+    if (typeof guardarCuentasBancarias === 'function') {
+        try { await guardarCuentasBancarias(cuentas); }
+        catch (e) { console.error('[Cuentas] Error sincronizando eliminacion:', e); mostrarToast('Cuenta eliminada local pero fallo la sincronizacion', 'warning'); }
+    }
     cargarCuentasBancariasAdmin();
 }

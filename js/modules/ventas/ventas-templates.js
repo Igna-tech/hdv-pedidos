@@ -29,7 +29,7 @@ function tplVentaCard(v, zona, telefono, esFactura) {
     const itemsHTML = (v.items || []).map(i => `
         <div class="flex justify-between text-sm py-1">
             <span>${escapeHTML(i.nombre)} <span class="text-gray-400">(${escapeHTML(i.presentacion)} x ${i.cantidad})</span></span>
-            <strong>Gs. ${(i.subtotal || 0).toLocaleString()}</strong>
+            <strong>${formatearGuaranies(i.subtotal)}</strong>
         </div>`).join('');
 
     const notasHTML = v.notas
@@ -63,7 +63,7 @@ function tplVentaCard(v, zona, telefono, esFactura) {
             ${notasHTML}
             <div class="flex justify-between items-center pt-3 border-t border-gray-100">
                 <span class="text-sm text-gray-500">${v.tipoPago || 'contado'}${v.descuento > 0 ? ` | ${v.descuento}% desc.` : ''}</span>
-                <span class="text-xl font-bold text-gray-900">Gs. ${(v.total || 0).toLocaleString()}</span>
+                <span class="text-xl font-bold text-gray-900">${formatearGuaranies(v.total)}</span>
             </div>
             <div class="flex gap-2 mt-4 flex-wrap">
                 <button class="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-700 inline-flex items-center gap-1.5" onclick="ventasCtrl.abrirReimpresion('${v.id}')"><i data-lucide="printer" class="w-3.5 h-3.5"></i> Re-imprimir</button>
@@ -99,27 +99,27 @@ function tplTicketThermal(pedido, clienteInfo) {
     (pedido.items || []).forEach(i => {
         html += `<div style="display:flex; justify-content:space-between; font-size:10px; margin:2px 0;">
             <span style="flex:1;">${i.cantidad}x ${escapeHTML(i.nombre)} ${escapeHTML(i.presentacion)}</span>
-            <span style="white-space:nowrap;">Gs.${(i.subtotal || 0).toLocaleString()}</span>
+            <span style="white-space:nowrap;">${formatearGuaranies(i.subtotal)}</span>
         </div>`;
     });
 
     html += `<hr style="border:none; border-top:1px dashed #000; margin:4px 0;">`;
     if (pedido.descuento > 0) {
-        html += `<div style="font-size:10px; text-align:right;">Subtotal: Gs. ${(pedido.subtotal || 0).toLocaleString()}</div>`;
+        html += `<div style="font-size:10px; text-align:right;">Subtotal: ${formatearGuaranies(pedido.subtotal)}</div>`;
         html += `<div style="font-size:10px; text-align:right;">Desc: ${pedido.descuento}%</div>`;
     }
-    html += `<div style="font-size:12px; font-weight:bold; text-align:right;">TOTAL: Gs. ${(pedido.total || 0).toLocaleString()}</div>`;
+    html += `<div style="font-size:12px; font-weight:bold; text-align:right;">TOTAL: ${formatearGuaranies(pedido.total)}</div>`;
 
     if (esFactura && pedido.desgloseIVA) {
         const iva = pedido.desgloseIVA;
         html += `<hr style="border:none; border-top:1px dashed #000; margin:4px 0;">`;
         html += `<div style="font-size:9px;">`;
-        html += `<div style="display:flex; justify-content:space-between;"><span>Sub. Exentas:</span><span>Gs. ${(iva.totalExentas || 0).toLocaleString()}</span></div>`;
-        html += `<div style="display:flex; justify-content:space-between;"><span>Sub. IVA 5%:</span><span>Gs. ${(iva.totalGravada5 || 0).toLocaleString()}</span></div>`;
-        html += `<div style="display:flex; justify-content:space-between;"><span>Sub. IVA 10%:</span><span>Gs. ${(iva.totalGravada10 || 0).toLocaleString()}</span></div>`;
-        html += `<div style="display:flex; justify-content:space-between; font-weight:bold; border-top:1px dotted #000; padding-top:2px; margin-top:2px;"><span>Liq. IVA 5%:</span><span>Gs. ${(iva.liqIva5 || 0).toLocaleString()}</span></div>`;
-        html += `<div style="display:flex; justify-content:space-between; font-weight:bold;"><span>Liq. IVA 10%:</span><span>Gs. ${(iva.liqIva10 || 0).toLocaleString()}</span></div>`;
-        html += `<div style="display:flex; justify-content:space-between; font-weight:bold; border-top:1px dotted #000; padding-top:2px; margin-top:2px;"><span>Total IVA:</span><span>Gs. ${(iva.totalIva || 0).toLocaleString()}</span></div>`;
+        html += `<div style="display:flex; justify-content:space-between;"><span>Sub. Exentas:</span><span>${formatearGuaranies(iva.totalExentas)}</span></div>`;
+        html += `<div style="display:flex; justify-content:space-between;"><span>Sub. IVA 5%:</span><span>${formatearGuaranies(iva.totalGravada5)}</span></div>`;
+        html += `<div style="display:flex; justify-content:space-between;"><span>Sub. IVA 10%:</span><span>${formatearGuaranies(iva.totalGravada10)}</span></div>`;
+        html += `<div style="display:flex; justify-content:space-between; font-weight:bold; border-top:1px dotted #000; padding-top:2px; margin-top:2px;"><span>Liq. IVA 5%:</span><span>${formatearGuaranies(iva.liqIva5)}</span></div>`;
+        html += `<div style="display:flex; justify-content:space-between; font-weight:bold;"><span>Liq. IVA 10%:</span><span>${formatearGuaranies(iva.liqIva10)}</span></div>`;
+        html += `<div style="display:flex; justify-content:space-between; font-weight:bold; border-top:1px dotted #000; padding-top:2px; margin-top:2px;"><span>Total IVA:</span><span>${formatearGuaranies(iva.totalIva)}</span></div>`;
         html += `</div>`;
     }
     html += `<hr style="border:none; border-top:1px dashed #000; margin:4px 0;">`;
@@ -151,8 +151,8 @@ function tplDocA4(pedido, clienteInfo) {
             <td style="padding:8px 12px; font-size:12px;">${idx + 1}</td>
             <td style="padding:8px 12px; font-size:12px;">${escapeHTML(i.nombre)} - ${escapeHTML(i.presentacion)}</td>
             <td style="padding:8px 12px; font-size:12px; text-align:center;">${i.cantidad}</td>
-            <td style="padding:8px 12px; font-size:12px; text-align:right;">Gs. ${(i.precio || 0).toLocaleString()}</td>
-            <td style="padding:8px 12px; font-size:12px; text-align:right; font-weight:bold;">Gs. ${(i.subtotal || 0).toLocaleString()}</td>
+            <td style="padding:8px 12px; font-size:12px; text-align:right;">${formatearGuaranies(i.precio)}</td>
+            <td style="padding:8px 12px; font-size:12px; text-align:right; font-weight:bold;">${formatearGuaranies(i.subtotal)}</td>
         </tr>`;
     });
 
@@ -194,20 +194,20 @@ function tplDocA4(pedido, clienteInfo) {
         </table>
         <div style="text-align:right; margin-bottom:16px;">
             ${pedido.descuento > 0 ? `
-                <p style="font-size:12px; margin:2px 0;">Subtotal: Gs. ${(pedido.subtotal || 0).toLocaleString()}</p>
+                <p style="font-size:12px; margin:2px 0;">Subtotal: ${formatearGuaranies(pedido.subtotal)}</p>
                 <p style="font-size:12px; margin:2px 0;">Descuento: ${pedido.descuento}%</p>
             ` : ''}
-            <p style="font-size:18px; font-weight:900; margin:8px 0 0; border-top:2px solid #111827; padding-top:8px;">TOTAL: Gs. ${(pedido.total || 0).toLocaleString()}</p>
+            <p style="font-size:18px; font-weight:900; margin:8px 0 0; border-top:2px solid #111827; padding-top:8px;">TOTAL: ${formatearGuaranies(pedido.total)}</p>
         </div>
         ${esFactura && pedido.desgloseIVA ? `
             <div style="display:flex; justify-content:flex-end; margin-bottom:16px;">
                 <table style="border-collapse:collapse; font-size:11px;">
-                    <tr><td style="padding:2px 12px;">Sub. Exentas</td><td style="padding:2px 12px; text-align:right;">Gs. ${(pedido.desgloseIVA.totalExentas || 0).toLocaleString()}</td></tr>
-                    <tr><td style="padding:2px 12px;">Sub. Gravadas 5%</td><td style="padding:2px 12px; text-align:right;">Gs. ${(pedido.desgloseIVA.totalGravada5 || 0).toLocaleString()}</td></tr>
-                    <tr><td style="padding:2px 12px;">Sub. Gravadas 10%</td><td style="padding:2px 12px; text-align:right;">Gs. ${(pedido.desgloseIVA.totalGravada10 || 0).toLocaleString()}</td></tr>
-                    <tr style="border-top:1px solid #d1d5db;"><td style="padding:2px 12px; font-weight:bold;">Liquidacion IVA 5%</td><td style="padding:2px 12px; text-align:right; font-weight:bold;">Gs. ${(pedido.desgloseIVA.liqIva5 || 0).toLocaleString()}</td></tr>
-                    <tr><td style="padding:2px 12px; font-weight:bold;">Liquidacion IVA 10%</td><td style="padding:2px 12px; text-align:right; font-weight:bold;">Gs. ${(pedido.desgloseIVA.liqIva10 || 0).toLocaleString()}</td></tr>
-                    <tr style="border-top:2px solid #111827;"><td style="padding:4px 12px; font-weight:900;">Total IVA</td><td style="padding:4px 12px; text-align:right; font-weight:900;">Gs. ${(pedido.desgloseIVA.totalIva || 0).toLocaleString()}</td></tr>
+                    <tr><td style="padding:2px 12px;">Sub. Exentas</td><td style="padding:2px 12px; text-align:right;">${formatearGuaranies(pedido.desgloseIVA.totalExentas)}</td></tr>
+                    <tr><td style="padding:2px 12px;">Sub. Gravadas 5%</td><td style="padding:2px 12px; text-align:right;">${formatearGuaranies(pedido.desgloseIVA.totalGravada5)}</td></tr>
+                    <tr><td style="padding:2px 12px;">Sub. Gravadas 10%</td><td style="padding:2px 12px; text-align:right;">${formatearGuaranies(pedido.desgloseIVA.totalGravada10)}</td></tr>
+                    <tr style="border-top:1px solid #d1d5db;"><td style="padding:2px 12px; font-weight:bold;">Liquidacion IVA 5%</td><td style="padding:2px 12px; text-align:right; font-weight:bold;">${formatearGuaranies(pedido.desgloseIVA.liqIva5)}</td></tr>
+                    <tr><td style="padding:2px 12px; font-weight:bold;">Liquidacion IVA 10%</td><td style="padding:2px 12px; text-align:right; font-weight:bold;">${formatearGuaranies(pedido.desgloseIVA.liqIva10)}</td></tr>
+                    <tr style="border-top:2px solid #111827;"><td style="padding:4px 12px; font-weight:900;">Total IVA</td><td style="padding:4px 12px; text-align:right; font-weight:900;">${formatearGuaranies(pedido.desgloseIVA.totalIva)}</td></tr>
                 </table>
             </div>
         ` : ''}
@@ -263,7 +263,7 @@ function tplXMLSifenModal(result) {
                     <span><strong>Factura:</strong> ${result.numFactura || 'N/A'}</span>
                     <span><strong>Emisor:</strong> ${escapeHTML(result.empresa || '')}</span>
                     <span><strong>Receptor:</strong> ${escapeHTML(result.cliente || '')}</span>
-                    <span><strong>Total:</strong> Gs. ${(result.total || 0).toLocaleString()}</span>
+                    <span><strong>Total:</strong> ${formatearGuaranies(result.total)}</span>
                     <span><strong>Fecha:</strong> ${result.fechaEmision || ''}</span>
                 </div>
                 ${result.qr_url ? `
@@ -272,12 +272,12 @@ function tplXMLSifenModal(result) {
                     <a href="${result.qr_url}" target="_blank" rel="noopener" class="text-blue-600 hover:text-blue-800 text-xs font-medium underline underline-offset-2 break-all">Consultar en e-Kuatia (enlace QR simulado)</a>
                 </div>` : ''}
                 <div class="flex flex-wrap gap-x-5 gap-y-1 mt-3 text-xs text-gray-500">
-                    <span>Exentas: Gs. ${(desglose.totalExentas || 0).toLocaleString()}</span>
-                    <span>Grav. 5%: Gs. ${(desglose.totalGravada5 || 0).toLocaleString()}</span>
-                    <span>Grav. 10%: Gs. ${(desglose.totalGravada10 || 0).toLocaleString()}</span>
-                    <span>IVA 5%: Gs. ${(desglose.totalIVA5 || 0).toLocaleString()}</span>
-                    <span>IVA 10%: Gs. ${(desglose.totalIVA10 || 0).toLocaleString()}</span>
-                    <span class="font-bold text-gray-700">Total IVA: Gs. ${(desglose.totalIVA || 0).toLocaleString()}</span>
+                    <span>Exentas: ${formatearGuaranies(desglose.totalExentas)}</span>
+                    <span>Grav. 5%: ${formatearGuaranies(desglose.totalGravada5)}</span>
+                    <span>Grav. 10%: ${formatearGuaranies(desglose.totalGravada10)}</span>
+                    <span>IVA 5%: ${formatearGuaranies(desglose.totalIVA5)}</span>
+                    <span>IVA 10%: ${formatearGuaranies(desglose.totalIVA10)}</span>
+                    <span class="font-bold text-gray-700">Total IVA: ${formatearGuaranies(desglose.totalIVA)}</span>
                 </div>
             </div>
 
@@ -342,7 +342,7 @@ function tplKuDEModal(pedidoId, numFactura, cdc, clienteNombre, total, qrUrl) {
                 </div>
                 <div class="flex justify-between text-sm">
                     <div><span class="text-gray-500">Cliente:</span> <strong>${escapeHTML(clienteNombre)}</strong></div>
-                    <div><span class="text-gray-500">Total:</span> <strong>Gs. ${(total || 0).toLocaleString()}</strong></div>
+                    <div><span class="text-gray-500">Total:</span> <strong>${formatearGuaranies(total)}</strong></div>
                 </div>
                 ${qrUrl ? `
                 <div class="bg-gray-50 p-3 rounded-lg flex items-center gap-2">
@@ -497,37 +497,37 @@ function tplKuDEA4(pedido, clienteInfo, empresa) {
             <tr>
                 <td style="width:48%; border:2px solid #000; padding:6px 10px; vertical-align:top; font-size:10px;">
                     ${pedido.descuento > 0 ? `<div><strong>Descuento:</strong> ${pedido.descuento}%</div>` : ''}
-                    <div><strong>Subtotal:</strong> Gs. ${totalOpe.toLocaleString()}</div>
+                    <div><strong>Subtotal:</strong> ${formatearGuaranies(totalOpe)}</div>
                 </td>
                 <td style="width:52%; border:2px solid #000; border-left:none; padding:0; vertical-align:top;">
                     <table style="width:100%; border-collapse:collapse; font-size:10px;">
                         <tr>
                             <td style="padding:4px 8px; border-bottom:1px solid #000;"><strong>Total Operaci&oacute;n:</strong></td>
-                            <td style="padding:4px 8px; border-bottom:1px solid #000; text-align:right; font-weight:bold;">Gs. ${totalOpe.toLocaleString()}</td>
+                            <td style="padding:4px 8px; border-bottom:1px solid #000; text-align:right; font-weight:bold;">${formatearGuaranies(totalOpe)}</td>
                         </tr>
                         <tr>
                             <td style="padding:4px 8px; border-bottom:1px solid #000;">Sub. Exentas:</td>
-                            <td style="padding:4px 8px; border-bottom:1px solid #000; text-align:right;">Gs. ${totalExe.toLocaleString()}</td>
+                            <td style="padding:4px 8px; border-bottom:1px solid #000; text-align:right;">${formatearGuaranies(totalExe)}</td>
                         </tr>
                         <tr>
                             <td style="padding:4px 8px; border-bottom:1px solid #000;">Sub. Gravadas 5%:</td>
-                            <td style="padding:4px 8px; border-bottom:1px solid #000; text-align:right;">Gs. ${totalG5.toLocaleString()}</td>
+                            <td style="padding:4px 8px; border-bottom:1px solid #000; text-align:right;">${formatearGuaranies(totalG5)}</td>
                         </tr>
                         <tr>
                             <td style="padding:4px 8px; border-bottom:1px solid #000;">Sub. Gravadas 10%:</td>
-                            <td style="padding:4px 8px; border-bottom:1px solid #000; text-align:right;">Gs. ${totalG10.toLocaleString()}</td>
+                            <td style="padding:4px 8px; border-bottom:1px solid #000; text-align:right;">${formatearGuaranies(totalG10)}</td>
                         </tr>
                         <tr>
                             <td style="padding:4px 8px; border-bottom:1px solid #000;">Liquidaci&oacute;n IVA 5%:</td>
-                            <td style="padding:4px 8px; border-bottom:1px solid #000; text-align:right;">Gs. ${liqIva5.toLocaleString()}</td>
+                            <td style="padding:4px 8px; border-bottom:1px solid #000; text-align:right;">${formatearGuaranies(liqIva5)}</td>
                         </tr>
                         <tr>
                             <td style="padding:4px 8px; border-bottom:1px solid #000;">Liquidaci&oacute;n IVA 10%:</td>
-                            <td style="padding:4px 8px; border-bottom:1px solid #000; text-align:right;">Gs. ${liqIva10.toLocaleString()}</td>
+                            <td style="padding:4px 8px; border-bottom:1px solid #000; text-align:right;">${formatearGuaranies(liqIva10)}</td>
                         </tr>
                         <tr>
                             <td style="padding:5px 8px; font-weight:900; font-size:12px;">TOTAL IVA:</td>
-                            <td style="padding:5px 8px; text-align:right; font-weight:900; font-size:12px;">Gs. ${totalIva.toLocaleString()}</td>
+                            <td style="padding:5px 8px; text-align:right; font-weight:900; font-size:12px;">${formatearGuaranies(totalIva)}</td>
                         </tr>
                     </table>
                 </td>

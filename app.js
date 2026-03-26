@@ -445,7 +445,7 @@ async function cerrarSemanaVendedor(semana) {
 
     const aRendir = totalContado - totalGastos;
 
-    if (!await mostrarConfirmModal(`Cerrar rendicion de la semana?\n\nContado cobrado: Gs. ${totalContado.toLocaleString()}\nGastos: Gs. ${totalGastos.toLocaleString()}\n\nA RENDIR: Gs. ${aRendir.toLocaleString()}`, { textoConfirmar: 'Cerrar Semana' })) return;
+    if (!await mostrarConfirmModal(`Cerrar rendicion de la semana?\n\nContado cobrado: ${formatearGuaranies(totalContado)}\nGastos: ${formatearGuaranies(totalGastos)}\n\nA RENDIR: ${formatearGuaranies(aRendir)}`, { textoConfirmar: 'Cerrar Semana' })) return;
 
     const rendicion = {
         id: 'REND' + Date.now(),
@@ -513,7 +513,7 @@ async function generarWidgetMeta() {
             </div>
             <div>
                 <p class="text-xs text-gray-500">Comision</p>
-                <p class="text-sm font-bold text-purple-700">Gs. ${comisionEstimada.toLocaleString()}</p>
+                <p class="text-sm font-bold text-purple-700">${formatearGuaranies(comisionEstimada)}</p>
             </div>
         </div>
     </div>`;
@@ -668,13 +668,13 @@ async function compartirBackupWhatsApp() {
 
     let mensaje = `*HDV Pedidos - Resumen ${hoy}*\n\n`;
     mensaje += `Total pedidos hoy: ${pedidosHoy.length}\n`;
-    mensaje += `Total general: Gs. ${pedidosHoy.reduce((s, p) => s + (p.total || 0), 0).toLocaleString()}\n\n`;
+    mensaje += `Total general: ${formatearGuaranies(pedidosHoy.reduce((s, p) => s + (p.total || 0), 0))}\n\n`;
 
     if (pedidosHoy.length > 0) {
         pedidosHoy.forEach((p, i) => {
             mensaje += `${i + 1}. ${p.cliente?.nombre || 'N/A'}\n`;
             mensaje += `   ${p.items.map(it => `${it.nombre} x${it.cantidad}`).join(', ')}\n`;
-            mensaje += `   Total: Gs. ${(p.total || 0).toLocaleString()} (${p.tipoPago || 'contado'})\n\n`;
+            mensaje += `   Total: ${formatearGuaranies(p.total)} (${p.tipoPago || 'contado'})\n\n`;
         });
     } else {
         mensaje += 'Sin pedidos registrados hoy.\n';
@@ -852,9 +852,9 @@ async function enviarPedidoWhatsApp(pedidoId) {
     msg += `Cliente: ${pedido.cliente?.nombre || 'N/A'}\n\n`;
     msg += `*Detalle:*\n`;
     (pedido.items || []).forEach(i => {
-        msg += `• ${i.nombre} (${i.presentacion}) x${i.cantidad} = Gs.${(i.subtotal||0).toLocaleString()}\n`;
+        msg += `• ${i.nombre} (${i.presentacion}) x${i.cantidad} = ${formatearGuaranies(i.subtotal)}\n`;
     });
-    msg += `\n*TOTAL: Gs. ${(pedido.total||0).toLocaleString()}*\n`;
+    msg += `\n*TOTAL: ${formatearGuaranies(pedido.total)}*\n`;
     msg += `Pago: ${pedido.tipoPago || 'contado'}`;
     if (pedido.descuento > 0) msg += ` | Desc: ${pedido.descuento}%`;
     if (pedido.notas) msg += `\nNotas: ${pedido.notas}`;

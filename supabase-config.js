@@ -124,22 +124,30 @@ async function escucharPedidosRealtime(callback) {
     const unsub = SupabaseService.subscribeTo('pedidos-realtime', 'pedidos', () => {
         if (_pedidosRealtimeTimer) clearTimeout(_pedidosRealtimeTimer);
         _pedidosRealtimeTimer = setTimeout(async () => {
-            const { data } = await SupabaseService.fetchPedidos();
-            const pedidosRemoto = data.map(r => r.datos);
-            const pedidosLocalRT = (await HDVStorage.getItem('hdv_pedidos')) || [];
+            try {
+                const { data, error } = await SupabaseService.fetchPedidos();
+                if (error || !data) {
+                    console.error('[Supabase] Error en realtime fetch pedidos:', error);
+                    return;
+                }
+                const pedidosRemoto = data.map(r => r.datos);
+                const pedidosLocalRT = (await HDVStorage.getItem('hdv_pedidos')) || [];
 
-            // Preservar pedidos locales que aun no se sincronizaron
-            const sinSincronizar = pedidosLocalRT.filter(p => p.sincronizado === false);
-            const remotosIds = new Set(pedidosRemoto.map(p => p.id));
-            const localesNoEnRemoto = sinSincronizar.filter(p => !remotosIds.has(p.id));
+                // Preservar pedidos locales que aun no se sincronizaron
+                const sinSincronizar = pedidosLocalRT.filter(p => p.sincronizado === false);
+                const remotosIds = new Set(pedidosRemoto.map(p => p.id));
+                const localesNoEnRemoto = sinSincronizar.filter(p => !remotosIds.has(p.id));
 
-            if (pedidosRemoto.length > 0 || pedidosLocalRT.length === 0) {
-                const merged = [...pedidosRemoto, ...localesNoEnRemoto];
-                await HDVStorage.setItem('hdv_pedidos', merged);
-                callback(merged, [{ type: 'modified' }]);
-            } else {
-                console.warn('[Supabase] Realtime devolvio vacio pero hay datos locales, conservando');
-                callback(pedidosLocalRT, [{ type: 'modified' }]);
+                if (pedidosRemoto.length > 0 || pedidosLocalRT.length === 0) {
+                    const merged = [...pedidosRemoto, ...localesNoEnRemoto];
+                    await HDVStorage.setItem('hdv_pedidos', merged);
+                    callback(merged, [{ type: 'modified' }]);
+                } else {
+                    console.warn('[Supabase] Realtime devolvio vacio pero hay datos locales, conservando');
+                    callback(pedidosLocalRT, [{ type: 'modified' }]);
+                }
+            } catch (err) {
+                console.error('[Supabase] Error critico en callback realtime pedidos admin:', err);
             }
         }, 500);
     });
@@ -175,6 +183,7 @@ function escucharPedidosRealtimeVendedor(callbacks) {
 
     // Suscripcion realtime granular — detecta cambios individuales
     const unsub = SupabaseService.subscribeTo('vendedor-pedidos-rt', 'pedidos', async (payload) => {
+        try {
         const eventType = payload.eventType; // INSERT, UPDATE, DELETE
         const newRow = payload.new;
         const oldRow = payload.old;
@@ -216,6 +225,9 @@ function escucharPedidosRealtimeVendedor(callbacks) {
             if (callbacks.onSync) {
                 callbacks.onSync(pedidos);
             }
+        }
+        } catch (err) {
+            console.error('[Vendedor RT] Error en callback realtime pedidos:', err);
         }
     });
 

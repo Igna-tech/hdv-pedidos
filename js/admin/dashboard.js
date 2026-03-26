@@ -23,15 +23,15 @@ function cargarDashboard() {
     const ticketPromedio = pedidosMes.length > 0 ? Math.round(ventasMes / pedidosMes.length) : 0;
 
     const el = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
-    el('dashVentasMes', `Gs. ${ventasMes.toLocaleString()}`);
+    el('dashVentasMes', formatearGuaranies(ventasMes));
     el('dashPedidosMes', pedidosMes.length);
     el('dashClientesActivos', clientesActivosMes);
-    el('dashTicketPromedio', `Gs. ${ticketPromedio.toLocaleString()}`);
+    el('dashTicketPromedio', formatearGuaranies(ticketPromedio));
 
     // Ganancia Neta del Mes
     const gananciaMes = calcularGananciaPedidos(pedidosMes);
-    el('dashGananciaNeta', `Gs. ${gananciaMes.gananciaTotal.toLocaleString()}`);
-    el('dashCostoTotal', `Gs. ${gananciaMes.costoTotal.toLocaleString()}`);
+    el('dashGananciaNeta', formatearGuaranies(gananciaMes.gananciaTotal));
+    el('dashCostoTotal', formatearGuaranies(gananciaMes.costoTotal));
 
     const elMargen = document.getElementById('dashMargenPromedio');
     if (elMargen) {
@@ -53,7 +53,7 @@ function cargarDashboard() {
     const elMargenDet = document.getElementById('dashMargenDetalle');
     if (elMargenDet) {
         elMargenDet.textContent = gananciaMes.costoTotal > 0
-            ? `Ventas Gs. ${ventasMes.toLocaleString()} - Costos Gs. ${gananciaMes.costoTotal.toLocaleString()}`
+            ? `Ventas ${formatearGuaranies(ventasMes)} - Costos ${formatearGuaranies(gananciaMes.costoTotal)}`
             : 'Sin costos definidos aun';
     }
     const elCostoDet = document.getElementById('dashCostoDetalle');
@@ -173,7 +173,7 @@ function cargarDashboard() {
                     <div class="flex-1">
                         <div class="flex justify-between mb-1">
                             <span class="text-sm font-bold text-gray-800">${escapeHTML(nombre)}</span>
-                            <span class="text-sm font-bold text-gray-600">Gs. ${data.total.toLocaleString()} (${data.pedidos})</span>
+                            <span class="text-sm font-bold text-gray-600">${formatearGuaranies(data.total)} (${data.pedidos})</span>
                         </div>
                         <div class="w-full bg-gray-100 rounded-full h-2"><div class="bg-gray-800 h-2 rounded-full" style="width:${pct}%"></div></div>
                     </div>
@@ -227,10 +227,10 @@ function cargarResumenMensual() {
     if (container) {
         container.innerHTML = `
             <div class="grid grid-cols-2 gap-3">
-                <div class="bg-green-50 p-3 rounded-lg"><p class="text-xs text-gray-500">Total Ventas</p><p class="font-bold text-green-700">Gs. ${totalVentas.toLocaleString()}</p></div>
+                <div class="bg-green-50 p-3 rounded-lg"><p class="text-xs text-gray-500">Total Ventas</p><p class="font-bold text-green-700">${formatearGuaranies(totalVentas)}</p></div>
                 <div class="bg-blue-50 p-3 rounded-lg"><p class="text-xs text-gray-500">Pedidos</p><p class="font-bold text-blue-700">${totalPedidos}</p></div>
-                <div class="bg-gray-50 p-3 rounded-lg"><p class="text-xs text-gray-500">Contado</p><p class="font-bold">Gs. ${contado.toLocaleString()}</p></div>
-                <div class="bg-red-50 p-3 rounded-lg"><p class="text-xs text-gray-500">Credito</p><p class="font-bold text-red-600">Gs. ${credito.toLocaleString()}</p></div>
+                <div class="bg-gray-50 p-3 rounded-lg"><p class="text-xs text-gray-500">Contado</p><p class="font-bold">${formatearGuaranies(contado)}</p></div>
+                <div class="bg-red-50 p-3 rounded-lg"><p class="text-xs text-gray-500">Credito</p><p class="font-bold text-red-600">${formatearGuaranies(credito)}</p></div>
                 <div class="bg-purple-50 p-3 rounded-lg"><p class="text-xs text-gray-500">Entregados</p><p class="font-bold text-purple-700">${entregados} / ${totalPedidos}</p></div>
                 <div class="bg-yellow-50 p-3 rounded-lg"><p class="text-xs text-gray-500">Clientes</p><p class="font-bold text-yellow-700">${clientesUnicos}</p></div>
             </div>
@@ -246,8 +246,8 @@ function cargarResumenMensual() {
         if (gMes.costoTotal > 0) {
             gananciaContainer.innerHTML = `
                 <div class="grid grid-cols-3 gap-3 border-t border-gray-200 pt-3">
-                    <div class="bg-orange-50 p-3 rounded-lg"><p class="text-xs text-gray-500">Costo Total</p><p class="font-bold text-orange-700">Gs. ${gMes.costoTotal.toLocaleString()}</p></div>
-                    <div class="bg-green-50 p-3 rounded-lg"><p class="text-xs text-gray-500">Ganancia Neta</p><p class="font-bold text-green-700">Gs. ${gMes.gananciaTotal.toLocaleString()}</p></div>
+                    <div class="bg-orange-50 p-3 rounded-lg"><p class="text-xs text-gray-500">Costo Total</p><p class="font-bold text-orange-700">${formatearGuaranies(gMes.costoTotal)}</p></div>
+                    <div class="bg-green-50 p-3 rounded-lg"><p class="text-xs text-gray-500">Ganancia Neta</p><p class="font-bold text-green-700">${formatearGuaranies(gMes.gananciaTotal)}</p></div>
                     <div class="bg-blue-50 p-3 rounded-lg"><p class="text-xs text-gray-500">Margen</p><p class="font-bold ${margenColor}">${gMes.margenPromedio}%</p></div>
                 </div>
                 <p class="text-xs text-gray-400 mt-2">${gMes.itemsConCosto}/${gMes.itemsTotales} items con costo definido</p>
@@ -318,10 +318,10 @@ function exportarResumenMensualPDF() {
     doc.text('Resumen General', 15, y); y += 8;
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
-    doc.text(`Total Ventas: Gs. ${totalVentas.toLocaleString()}`, 15, y); y += 6;
+    doc.text(`Total Ventas: ${formatearGuaranies(totalVentas)}`, 15, y); y += 6;
     doc.text(`Total Pedidos: ${pedidosMes.length}`, 15, y); y += 6;
-    doc.text(`Ventas Contado: Gs. ${contado.toLocaleString()}`, 15, y); y += 6;
-    doc.text(`Ventas Credito: Gs. ${credito.toLocaleString()}`, 15, y); y += 6;
+    doc.text(`Ventas Contado: ${formatearGuaranies(contado)}`, 15, y); y += 6;
+    doc.text(`Ventas Credito: ${formatearGuaranies(credito)}`, 15, y); y += 6;
     doc.text(`Clientes Activos: ${Object.keys(porCliente).length}`, 15, y); y += 12;
 
     // Top clientes
@@ -335,7 +335,7 @@ function exportarResumenMensualPDF() {
         doc.text(`${nombre}`, 15, y);
         doc.text(`${data.pedidos} pedidos`, 120, y);
         doc.setFont('helvetica', 'bold');
-        doc.text(`Gs. ${data.total.toLocaleString()}`, 195, y, { align: 'right' });
+        doc.text(formatearGuaranies(data.total), 195, y, { align: 'right' });
         y += 6;
     });
 
@@ -351,7 +351,7 @@ function exportarResumenMensualPDF() {
         doc.text(`${nombre}`, 15, y);
         doc.text(`${data.cantidad} unid.`, 120, y);
         doc.setFont('helvetica', 'bold');
-        doc.text(`Gs. ${data.total.toLocaleString()}`, 195, y, { align: 'right' });
+        doc.text(formatearGuaranies(data.total), 195, y, { align: 'right' });
         y += 6;
     });
 
@@ -426,12 +426,12 @@ async function cargarMetas() {
         const comisionEstimada = Math.round(totalVendido * (comisionPct / 100));
         const faltante = Math.max(0, objetivo - totalVendido);
 
-        document.getElementById('metaObjetivo').textContent = `Gs. ${objetivo.toLocaleString()}`;
-        document.getElementById('metaVendido').textContent = `Gs. ${totalVendido.toLocaleString()}`;
-        document.getElementById('metaComision').textContent = `Gs. ${comisionEstimada.toLocaleString()}`;
+        document.getElementById('metaObjetivo').textContent = formatearGuaranies(objetivo);
+        document.getElementById('metaVendido').textContent = formatearGuaranies(totalVendido);
+        document.getElementById('metaComision').textContent = formatearGuaranies(comisionEstimada);
         document.getElementById('metaPorcentaje').textContent = `${porcentaje}%`;
         document.getElementById('metaFaltante').textContent = faltante > 0
-            ? `Faltan Gs. ${faltante.toLocaleString()} para alcanzar la meta`
+            ? `Faltan ${formatearGuaranies(faltante)} para alcanzar la meta`
             : 'Meta alcanzada!';
 
         const barra = document.getElementById('metaBarraProgreso');
@@ -440,7 +440,7 @@ async function cargarMetas() {
         barra.className = `h-6 rounded-full transition-all duration-700 flex items-center justify-center text-white text-xs font-bold ${porcentaje < 50 ? 'bg-red-500' : porcentaje < 80 ? 'bg-yellow-500' : 'bg-green-500'}`;
     } else {
         document.getElementById('metaObjetivo').textContent = 'Sin meta';
-        document.getElementById('metaVendido').textContent = `Gs. ${totalVendido.toLocaleString()}`;
+        document.getElementById('metaVendido').textContent = formatearGuaranies(totalVendido);
         document.getElementById('metaComision').textContent = 'Gs. 0';
         document.getElementById('metaPorcentaje').textContent = '-';
         document.getElementById('metaFaltante').textContent = 'Configure una meta para ver el progreso';
@@ -460,7 +460,7 @@ async function cargarMetas() {
             <div class="p-4 flex justify-between items-center">
                 <div>
                     <p class="font-bold text-gray-800">${escapeHTML(m.vendedor)} - ${escapeHTML(m.mes)}</p>
-                    <p class="text-sm text-gray-500">Meta: Gs. ${(m.monto || 0).toLocaleString()} | Comision: ${m.comision}%</p>
+                    <p class="text-sm text-gray-500">Meta: ${formatearGuaranies(m.monto)} | Comision: ${m.comision}%</p>
                     <div class="mt-2 w-48 bg-gray-200 rounded-full h-3">
                         <div class="h-3 rounded-full ${pct < 50 ? 'bg-red-500' : pct < 80 ? 'bg-yellow-500' : 'bg-green-500'}" style="width: ${pct}%"></div>
                     </div>
@@ -523,7 +523,10 @@ async function guardarMeta() {
         const idx = metas.findIndex(m => m.id === id);
         if (idx >= 0) metas[idx] = meta; else metas.push(meta);
         await HDVStorage.setItem('hdv_metas', metas);
-        if (typeof guardarMetas === 'function') guardarMetas(metas).catch(e => console.error(e));
+        if (typeof guardarMetas === 'function') {
+            try { await guardarMetas(metas); }
+            catch (e) { console.error('[Metas] Error sincronizando:', e); mostrarToast('Meta guardada local pero fallo la sincronizacion', 'warning'); }
+        }
         cerrarModalMeta();
         cargarMetas();
         mostrarToast('Meta guardada', 'success');
@@ -540,6 +543,9 @@ async function eliminarMeta(id) {
     let metas = (await HDVStorage.getItem('hdv_metas')) || [];
     metas = metas.filter(m => m.id !== id);
     await HDVStorage.setItem('hdv_metas', metas);
-    if (typeof guardarMetas === 'function') guardarMetas(metas).catch(e => console.error(e));
+    if (typeof guardarMetas === 'function') {
+        try { await guardarMetas(metas); }
+        catch (e) { console.error('[Metas] Error sincronizando eliminacion:', e); mostrarToast('Meta eliminada local pero fallo la sincronizacion', 'warning'); }
+    }
     cargarMetas();
 }

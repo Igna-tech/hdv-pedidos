@@ -227,8 +227,10 @@ const SyncManager = (() => {
         const delay = _calcDelay(_currentAttempt);
         _currentAttempt++;
         console.log(`[SyncManager] Reintento #${_currentAttempt} programado en ${(delay / 1000).toFixed(1)}s`);
-        _retryTimeout = setTimeout(async () => {
-            await syncPedidosPendientes();
+        _retryTimeout = setTimeout(() => {
+            syncPedidosPendientes().catch(err => {
+                console.error('[SyncManager] Error en reintento #' + _currentAttempt + ':', err);
+            });
         }, delay);
     }
 

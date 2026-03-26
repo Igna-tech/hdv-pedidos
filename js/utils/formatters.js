@@ -41,6 +41,12 @@ function generarCDC() {
 // Alias admin
 function generarCDCAdmin() { return generarCDC(); }
 
+// --- Formato de moneda centralizado ---
+
+function formatearGuaranies(monto) {
+    return 'Gs. ' + (monto || 0).toLocaleString('es-PY');
+}
+
 // --- Desglose IVA (Paraguay — precios con IVA incluido) ---
 
 function calcularDesgloseIVA(items) {

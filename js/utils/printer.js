@@ -46,14 +46,14 @@ ${direccion ? `<div>Dir: ${direccion}</div>` : ''}
 <table>
 ${(pedido.items || []).map(i => `<tr>
     <td>${i.nombre}<br><span class="small">${i.presentacion} x${i.cantidad}</span></td>
-    <td class="right bold">Gs.${(i.subtotal || 0).toLocaleString()}</td>
+    <td class="right bold">${formatearGuaranies(i.subtotal)}</td>
 </tr>`).join('')}
 </table>
 <div class="line"></div>
-<div class="row"><span>Subtotal:</span><span>Gs. ${(pedido.subtotal || pedido.total || 0).toLocaleString()}</span></div>
-${pedido.descuento > 0 ? `<div class="row"><span>Desc. ${pedido.descuento}%:</span><span>-Gs. ${Math.round((pedido.subtotal || 0) * pedido.descuento / 100).toLocaleString()}</span></div>` : ''}
+<div class="row"><span>Subtotal:</span><span>${formatearGuaranies(pedido.subtotal || pedido.total)}</span></div>
+${pedido.descuento > 0 ? `<div class="row"><span>Desc. ${pedido.descuento}%:</span><span>-${formatearGuaranies(Math.round((pedido.subtotal || 0) * pedido.descuento / 100))}</span></div>` : ''}
 <div class="line"></div>
-<div class="row total-row"><span>TOTAL:</span><span>Gs. ${(pedido.total || 0).toLocaleString()}</span></div>
+<div class="row total-row"><span>TOTAL:</span><span>${formatearGuaranies(pedido.total)}</span></div>
 <div class="line"></div>
 <div class="row"><span>Pago: ${pedido.tipoPago || 'contado'}</span>${mostrarEstado ? `<span>Estado: ${(pedido.estado || 'pendiente').toUpperCase()}</span>` : ''}</div>
 ${pedido.notas ? `<div class="small">Notas: ${pedido.notas}</div>` : ''}

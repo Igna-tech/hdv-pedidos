@@ -62,7 +62,7 @@ function generarPDFPedido(pedido, opciones) {
         doc.text(item.presentacion, 90, y);
         doc.text(String(item.cantidad), 130, y);
         doc.setFont('helvetica', 'bold');
-        doc.text(`Gs. ${(item.subtotal || 0).toLocaleString()}`, 190, y, { align: 'right' });
+        doc.text(formatearGuaranies(item.subtotal), 190, y, { align: 'right' });
         y += 7;
     });
 
@@ -70,7 +70,7 @@ function generarPDFPedido(pedido, opciones) {
     y += 8;
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
-    doc.text(`TOTAL: Gs. ${(pedido.total || 0).toLocaleString()}`, 190, y, { align: 'right' });
+    doc.text(`TOTAL: ${formatearGuaranies(pedido.total)}`, 190, y, { align: 'right' });
 
     // Footer
     y += 10;
@@ -150,9 +150,9 @@ function generarPDFRemisionDoc(pedido, clienteInfo) {
         doc.text(item.nombre || '', 15, y);
         doc.text(item.presentacion || '', 80, y);
         doc.text(String(item.cantidad || 0), 130, y);
-        doc.text(`Gs. ${(item.precio || 0).toLocaleString()}`, 145, y);
+        doc.text(formatearGuaranies(item.precio), 145, y);
         doc.setFont('helvetica', 'bold');
-        doc.text(`Gs. ${(item.subtotal || 0).toLocaleString()}`, 195, y, { align: 'right' });
+        doc.text(formatearGuaranies(item.subtotal), 195, y, { align: 'right' });
         doc.setFont('helvetica', 'normal');
         y += 8;
     });
@@ -164,11 +164,11 @@ function generarPDFRemisionDoc(pedido, clienteInfo) {
     y += 8;
     doc.setFontSize(9);
     doc.text('Subtotal:', 140, y);
-    doc.text(`Gs. ${(pedido.subtotal || 0).toLocaleString()}`, 195, y, { align: 'right' });
+    doc.text(formatearGuaranies(pedido.subtotal), 195, y, { align: 'right' });
     if (pedido.descuento > 0) {
         y += 7;
         doc.text(`Descuento (${pedido.descuento}%):`, 140, y);
-        doc.text(`-Gs. ${Math.round((pedido.subtotal || 0) * pedido.descuento / 100).toLocaleString()}`, 195, y, { align: 'right' });
+        doc.text(`-${formatearGuaranies(Math.round((pedido.subtotal || 0) * pedido.descuento / 100))}`, 195, y, { align: 'right' });
     }
     y += 7;
     doc.setFillColor(17, 24, 39);
@@ -177,7 +177,7 @@ function generarPDFRemisionDoc(pedido, clienteInfo) {
     doc.setFontSize(11);
     doc.setFont('helvetica', 'bold');
     doc.text('TOTAL:', 135, y + 1);
-    doc.text(`Gs. ${(pedido.total || 0).toLocaleString()}`, 195, y + 1, { align: 'right' });
+    doc.text(formatearGuaranies(pedido.total), 195, y + 1, { align: 'right' });
 
     // Footer
     y += 20;

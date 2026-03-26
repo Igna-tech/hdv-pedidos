@@ -312,7 +312,7 @@ async function abrirPerfilCliente(clienteId) {
         pedidosCliente.sort((a, b) => new Date(b.fecha) - new Date(a.fecha))[0] : null;
     const preciosEsp = cliente.precios_personalizados ? Object.keys(cliente.precios_personalizados).length : 0;
 
-    document.getElementById('perfilTotalComprado').textContent = `Gs. ${totalComprado.toLocaleString()}`;
+    document.getElementById('perfilTotalComprado').textContent = formatearGuaranies(totalComprado);
     document.getElementById('perfilTotalPedidos').textContent = pedidosCliente.length;
     document.getElementById('perfilUltimoPedido').textContent = ultimoPedido ? new Date(ultimoPedido.fecha).toLocaleDateString('es-PY') : '-';
     document.getElementById('perfilPreciosEsp').textContent = preciosEsp;
@@ -365,8 +365,8 @@ function renderizarPerfilPrecios() {
                 html += `<tr class="hover:bg-gray-50">
                     <td class="px-4 py-2 font-medium">${escapeHTML(prod?.nombre || prodId)}</td>
                     <td class="px-4 py-2 text-gray-500">${escapeHTML(pe.tamano)}</td>
-                    <td class="px-4 py-2 text-gray-400">Gs. ${precioBase.toLocaleString()}</td>
-                    <td class="px-4 py-2 font-bold text-blue-700">Gs. ${(pe.precio || 0).toLocaleString()}</td>
+                    <td class="px-4 py-2 text-gray-400">${formatearGuaranies(precioBase)}</td>
+                    <td class="px-4 py-2 font-bold text-blue-700">${formatearGuaranies(pe.precio)}</td>
                     <td class="px-4 py-2 text-center"><button onclick="eliminarPrecioEspecial('${escapeHTML(prodId)}','${escapeHTML(pe.tamano)}')" class="text-red-500 text-xs font-bold">x</button></td>
                 </tr>`;
             });
@@ -400,7 +400,7 @@ async function agregarPrecioEspecial() {
     // Paso 2: seleccionar presentacion y precio
     const presOpts = prod.presentaciones.map(p => ({
         value: p.tamano,
-        label: `${p.tamano} — Precio base: Gs. ${(p.precio_base || 0).toLocaleString()}`
+        label: `${p.tamano} — Precio base: ${formatearGuaranies(p.precio_base)}`
     }));
 
     const camposPrecio = [
@@ -468,7 +468,7 @@ async function renderizarPerfilHistorial() {
             <p class="text-sm text-gray-600">${items || 'Sin items'}</p>
             <div class="flex justify-between items-center mt-1">
                 <span class="text-xs text-gray-400">${p.tipoPago || 'contado'}</span>
-                <span class="font-bold text-gray-800">Gs. ${(p.total || 0).toLocaleString()}</span>
+                <span class="font-bold text-gray-800">${formatearGuaranies(p.total)}</span>
             </div>
         </div>`;
     }).join('') + '</div>';
@@ -531,9 +531,9 @@ async function renderizarPerfilEstadisticas() {
         const hace1a = new Date(hoy); hace1a.setFullYear(hace1a.getFullYear() - 1);
         const total1a = pedidosCliente.filter(p => new Date(p.fecha) >= hace1a).reduce((s, p) => s + (p.total || 0), 0);
         desglose.innerHTML = `
-            <div class="bg-blue-50 rounded-lg p-3 text-center"><p class="text-xs text-blue-600 font-bold">ESTE MES</p><p class="text-lg font-bold text-blue-800">Gs. ${totalMes.toLocaleString()}</p></div>
-            <div class="bg-green-50 rounded-lg p-3 text-center"><p class="text-xs text-green-600 font-bold">ULTIMOS 6 MESES</p><p class="text-lg font-bold text-green-800">Gs. ${total6m.toLocaleString()}</p></div>
-            <div class="bg-purple-50 rounded-lg p-3 text-center"><p class="text-xs text-purple-600 font-bold">ULTIMO ANO</p><p class="text-lg font-bold text-purple-800">Gs. ${total1a.toLocaleString()}</p></div>`;
+            <div class="bg-blue-50 rounded-lg p-3 text-center"><p class="text-xs text-blue-600 font-bold">ESTE MES</p><p class="text-lg font-bold text-blue-800">${formatearGuaranies(totalMes)}</p></div>
+            <div class="bg-green-50 rounded-lg p-3 text-center"><p class="text-xs text-green-600 font-bold">ULTIMOS 6 MESES</p><p class="text-lg font-bold text-green-800">${formatearGuaranies(total6m)}</p></div>
+            <div class="bg-purple-50 rounded-lg p-3 text-center"><p class="text-xs text-purple-600 font-bold">ULTIMO ANO</p><p class="text-lg font-bold text-purple-800">${formatearGuaranies(total1a)}</p></div>`;
     }
 }
 
@@ -604,7 +604,7 @@ async function cargarClientesInactivos() {
     document.getElementById('inactivosAtencion').textContent = atencion;
     document.getElementById('inactivosRiesgo').textContent = riesgo;
     document.getElementById('inactivosPerdidos').textContent = perdidos;
-    document.getElementById('inactivosIngreso').textContent = `Gs. ${ingresoRiesgo.toLocaleString()}`;
+    document.getElementById('inactivosIngreso').textContent = formatearGuaranies(ingresoRiesgo);
 
     // Renderizar lista
     const container = document.getElementById('inactivosContainer');
@@ -640,8 +640,8 @@ async function cargarClientesInactivos() {
                         <span class="text-xs px-2 py-0.5 rounded-full font-bold ${badgeColor}">${badgeText}</span>
                     </div>
                     <p class="text-sm text-gray-500">Zona: ${escapeHTML(zona)} | ${a.cantidadPedidos} pedidos historicos</p>
-                    <p class="text-xs text-gray-400 mt-1">Ultimo pedido: ${ultimaFecha} (hace ${a.diasInactivo} dias) | Total historico: Gs. ${a.totalHistorico.toLocaleString()}</p>
-                    <p class="text-xs text-blue-600 mt-1">Promedio mensual estimado: Gs. ${a.promedioMensual.toLocaleString()}</p>
+                    <p class="text-xs text-gray-400 mt-1">Ultimo pedido: ${ultimaFecha} (hace ${a.diasInactivo} dias) | Total historico: ${formatearGuaranies(a.totalHistorico)}</p>
+                    <p class="text-xs text-blue-600 mt-1">Promedio mensual estimado: ${formatearGuaranies(a.promedioMensual)}</p>
                 </div>
                 <div class="flex gap-2 ml-4">
                     ${tel ? `<button onclick="enviarWhatsAppReactivacion('${escapeHTML(tel)}', '${escapeHTML(nombre.replace(/'/g, ''))}')" class="bg-green-50 text-green-700 px-3 py-2 rounded-lg text-xs font-bold hover:bg-green-100 inline-flex items-center gap-1"><i data-lucide="send" class="w-3 h-3"></i> WhatsApp</button>` : ''}

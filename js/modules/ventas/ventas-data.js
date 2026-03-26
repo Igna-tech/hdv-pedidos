@@ -170,7 +170,7 @@ async function ventasDataBuildWhatsAppURL(pedidoId) {
 
     texto += `Fecha: ${tplFormatearFechaAdmin(pedido.fecha)}%0A`;
     texto += `Cliente: ${pedido.cliente?.nombre}%0A`;
-    texto += `Total: Gs. ${(pedido.total || 0).toLocaleString()}%0A`;
+    texto += `Total: ${formatearGuaranies(pedido.total)}%0A`;
 
     if (esFactura && pedido.cdc) {
         texto += `CDC: ${pedido.cdc}%0AConsulta: https://ekuatia.set.gov.py`;

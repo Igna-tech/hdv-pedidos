@@ -512,7 +512,7 @@ async function renderForenseFraudes() {
             const d = p.datos || {};
             const vendedor = perfiles[p.vendedor_id] || 'Desconocido';
             const clienteNombre = d.cliente?.nombre || 'N/A';
-            const total = (d.total || 0).toLocaleString();
+            const total = d.total || 0;
             const fecha = p.fecha || p.creado_en?.substring(0, 10) || '';
             const detalle = d.fraude_detalle || 'Sin detalle';
 
@@ -520,7 +520,7 @@ async function renderForenseFraudes() {
                 <td class="px-3 py-2 text-xs text-gray-600">${escapeHTML(fecha)}</td>
                 <td class="px-3 py-2 text-xs font-medium text-gray-800">${escapeHTML(vendedor)}</td>
                 <td class="px-3 py-2 text-xs text-gray-600">${escapeHTML(clienteNombre)}</td>
-                <td class="px-3 py-2 text-xs text-red-700 font-bold text-right">Gs. ${escapeHTML(total)}</td>
+                <td class="px-3 py-2 text-xs text-red-700 font-bold text-right">${escapeHTML(formatearGuaranies(total))}</td>
                 <td class="px-3 py-2 text-center">
                     <button data-forense-fraude-id="${escapeHTML(p.id)}" class="text-[11px] px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200 font-bold">Ver</button>
                 </td>
@@ -1282,7 +1282,7 @@ function ejecutarBusquedaGlobal() {
         peds.forEach(p => {
             html += `<button data-search-type="pedido" class="w-full text-left px-4 py-3 hover:bg-gray-100 rounded-lg flex items-center gap-3">
                 <i data-lucide="clipboard-list" class="w-5 h-5 text-gray-400"></i>
-                <div><p class="font-medium text-gray-800 text-sm">${escapeHTML(p.cliente?.nombre || 'N/A')}</p><p class="text-xs text-gray-400">${escapeHTML(p.id)} - Gs. ${(p.total || 0).toLocaleString()}</p></div>
+                <div><p class="font-medium text-gray-800 text-sm">${escapeHTML(p.cliente?.nombre || 'N/A')}</p><p class="text-xs text-gray-400">${escapeHTML(p.id)} - ${formatearGuaranies(p.total)}</p></div>
             </button>`;
         });
     }

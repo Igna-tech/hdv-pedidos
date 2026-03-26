@@ -855,7 +855,7 @@ async function cargarRendiciones() {
         gastosEl.innerHTML = gastosSemana.map(g => `
             <div class="p-4 flex justify-between items-center">
                 <div>
-                    <p class="font-bold text-gray-800">${g.concepto}</p>
+                    <p class="font-bold text-gray-800">${escapeHTML(g.concepto)}</p>
                     <p class="text-xs text-gray-400">${new Date(g.fecha).toLocaleDateString('es-PY')}</p>
                 </div>
                 <div class="text-right">

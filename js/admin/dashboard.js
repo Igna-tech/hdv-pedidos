@@ -367,12 +367,7 @@ async function guardarResumenMensual() {
     const mesStr = document.getElementById('dashMesSelect')?.value;
     if (!mesStr) return;
 
-    const btn = document.getElementById('btnGuardarResumen');
-    if (btn && btn.disabled) return;
-    const textoOriginal = btn ? btn.innerHTML : '';
-    if (btn) { btn.disabled = true; btn.innerHTML = 'Guardando...'; }
-
-    try {
+    await withButtonLock('btnGuardarResumen', async () => {
         const [anio, mes] = mesStr.split('-').map(Number);
         const inicio = new Date(anio, mes - 1, 1);
         const fin = new Date(anio, mes, 0, 23, 59, 59);
@@ -399,11 +394,7 @@ async function guardarResumenMensual() {
         } else {
             mostrarToast('Error: cliente de base de datos no disponible', 'error');
         }
-    } catch(e) {
-        mostrarToast('Error guardando resumen: ' + e.message, 'error');
-    } finally {
-        if (btn) { btn.disabled = false; btn.innerHTML = textoOriginal; }
-    }
+    }, 'Guardando...')();
 }
 
 // ============================================
@@ -513,12 +504,7 @@ async function guardarMeta() {
     };
     if (!meta.monto) { mostrarToast('Monto de meta es obligatorio', 'error'); return; }
 
-    const btn = document.getElementById('btnGuardarMeta');
-    if (btn && btn.disabled) return;
-    const textoOriginal = btn ? btn.innerHTML : '';
-    if (btn) { btn.disabled = true; btn.innerHTML = 'Guardando...'; }
-
-    try {
+    await withButtonLock('btnGuardarMeta', async () => {
         let metas = (await HDVStorage.getItem('hdv_metas')) || [];
         const idx = metas.findIndex(m => m.id === id);
         if (idx >= 0) metas[idx] = meta; else metas.push(meta);
@@ -530,12 +516,7 @@ async function guardarMeta() {
         cerrarModalMeta();
         cargarMetas();
         mostrarToast('Meta guardada', 'success');
-    } catch (err) {
-        console.error('[Metas] Error:', err);
-        mostrarToast('Error al guardar meta', 'error');
-    } finally {
-        if (btn) { btn.disabled = false; btn.innerHTML = textoOriginal; }
-    }
+    }, 'Guardando...')();
 }
 
 async function eliminarMeta(id) {

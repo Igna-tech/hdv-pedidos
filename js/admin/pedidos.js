@@ -6,6 +6,31 @@
 
 let pedidoEditandoId = null;
 
+// Cache de perfiles para mostrar nombres de vendedores en tarjetas
+let _pedidosPerfilesCache = null;
+async function obtenerPerfilesPedidosMap() {
+    if (_pedidosPerfilesCache) return _pedidosPerfilesCache;
+    try {
+        const { data } = await supabaseClient.from('perfiles').select('id, nombre_completo');
+        _pedidosPerfilesCache = {};
+        (data || []).forEach(p => { _pedidosPerfilesCache[p.id] = p.nombre_completo || 'Sin nombre'; });
+    } catch (e) { _pedidosPerfilesCache = {}; }
+    return _pedidosPerfilesCache;
+}
+
+// Poblar el select de vendedores con los perfiles
+async function poblarFiltroVendedor() {
+    const select = document.getElementById('filtroVendedor');
+    if (!select) return;
+    const perfiles = await obtenerPerfilesPedidosMap();
+    Object.entries(perfiles).forEach(([id, nombre]) => {
+        const opt = document.createElement('option');
+        opt.value = id;
+        opt.textContent = nombre;
+        select.appendChild(opt);
+    });
+}
+
 // Preservar referencia a eliminarPedido de supabase-config.js antes de que sea sobreescrita
 const _eliminarPedidoSupabase = typeof eliminarPedido === 'function' ? eliminarPedido : null;
 
@@ -14,6 +39,7 @@ const _eliminarPedidoSupabase = typeof eliminarPedido === 'function' ? eliminarP
 // ============================================
 async function cargarPedidos() {
     todosLosPedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
+    await poblarFiltroVendedor();
     aplicarFiltrosPedidos();
 }
 
@@ -22,10 +48,17 @@ function filtrarPedidos() { aplicarFiltrosPedidos(); }
 function aplicarFiltrosPedidos() {
     const fecha = document.getElementById('filtroFecha')?.value;
     const cliente = document.getElementById('filtroCliente')?.value;
-    // Solo mostrar pedidos pendientes en esta seccion
-    let filtrados = todosLosPedidos.filter(p => p.estado === 'pedido_pendiente' || p.estado === 'pendiente');
+    const vendedor = document.getElementById('filtroVendedor')?.value;
+    const estado = document.getElementById('filtroEstado')?.value;
+
+    let filtrados = todosLosPedidos;
+    // Filtrar por estado (default: pedido_pendiente via select)
+    if (estado) {
+        filtrados = filtrados.filter(p => p.estado === estado || (estado === 'pedido_pendiente' && p.estado === 'pendiente'));
+    }
     if (fecha) filtrados = filtrados.filter(p => new Date(p.fecha).toISOString().split('T')[0] === fecha);
     if (cliente) filtrados = filtrados.filter(p => p.cliente?.id === cliente);
+    if (vendedor) filtrados = filtrados.filter(p => p.vendedor_id === vendedor);
     mostrarPedidos(filtrados);
     actualizarEstadisticasPedidos(filtrados);
 }
@@ -83,6 +116,17 @@ function crearTarjetaPedidoAdmin(p) {
     const clienteInfo = productosData.clientes.find(c => c.id === p.cliente?.id);
     const zona = clienteInfo?.zona || clienteInfo?.direccion || '';
 
+    // Nombre del vendedor desde cache de perfiles
+    const vendedorNombre = p.vendedor_id && _pedidosPerfilesCache ? (_pedidosPerfilesCache[p.vendedor_id] || 'Vendedor desconocido') : '';
+
+    // Tipo de comprobante
+    const tipoComprobante = p.tipo_comprobante === 'recibo' ? 'REC' : p.tipo_comprobante === 'factura' ? 'FAC' : 'PED';
+    const colorComprobante = tipoComprobante === 'FAC' ? 'bg-indigo-100 text-indigo-700' : tipoComprobante === 'REC' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600';
+
+    // Indicadores de alerta y sync
+    const alertaFraude = p.alerta_fraude ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-700" title="${escapeHTML(p.fraude_detalle || 'Alerta de fraude detectada')}"><i data-lucide="alert-triangle" class="w-3 h-3"></i> FRAUDE</span>` : '';
+    const editadoBadge = p.editado ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-amber-100 text-amber-700" title="Editado: ${escapeHTML(p.fechaEdicion || '')}"><i data-lucide="pencil" class="w-3 h-3"></i></span>` : '';
+
     const div = document.createElement('div');
     div.className = 'p-6 hover:bg-gray-50 transition-all duration-300';
     div.setAttribute('data-pedido-id', p.id);
@@ -90,21 +134,30 @@ function crearTarjetaPedidoAdmin(p) {
         <div class="flex justify-between items-start mb-3">
             <div>
                 <h3 class="text-lg font-bold text-gray-800">${escapeHTML(p.cliente?.nombre || 'Sin cliente')}</h3>
-                <div class="text-sm text-gray-500 mt-1 flex items-center gap-1"><i data-lucide="map-pin" class="w-3 h-3"></i> ${escapeHTML(zona)} <span class="mx-1">·</span> <i data-lucide="clock" class="w-3 h-3"></i> ${new Date(p.fecha).toLocaleString('es-PY')}</div>
+                <div class="text-sm text-gray-500 mt-1 flex items-center gap-1 flex-wrap">
+                    <i data-lucide="map-pin" class="w-3 h-3"></i> ${escapeHTML(zona)}
+                    <span class="mx-1">·</span> <i data-lucide="clock" class="w-3 h-3"></i> ${new Date(p.fecha).toLocaleString('es-PY')}
+                    ${vendedorNombre ? `<span class="mx-1">·</span> <i data-lucide="user" class="w-3 h-3"></i> ${escapeHTML(vendedorNombre)}` : ''}
+                </div>
             </div>
-            <span class="pedido-estado-badge px-3 py-1 rounded-full text-xs font-bold ${colorEstado}">${labelEstado}</span>
+            <div class="flex items-center gap-2 flex-shrink-0">
+                ${alertaFraude}
+                ${editadoBadge}
+                <span class="px-2 py-0.5 rounded text-xs font-bold ${colorComprobante}">${tipoComprobante}</span>
+                <span class="pedido-estado-badge px-3 py-1 rounded-full text-xs font-bold ${colorEstado}">${labelEstado}</span>
+            </div>
         </div>
         <div class="mb-3 space-y-1">
             ${(p.items || []).map(i => `
             <div class="flex justify-between text-sm py-1">
                 <span>${escapeHTML(i.nombre)} <span class="text-gray-400">(${escapeHTML(i.presentacion)} × ${i.cantidad})</span></span>
-                <strong>Gs. ${(i.subtotal || 0).toLocaleString()}</strong>
+                <strong>${formatearGuaranies(i.subtotal)}</strong>
             </div>`).join('')}
         </div>
         ${p.notas ? `<div class="text-sm text-gray-500 italic mb-3 flex items-start gap-1.5"><i data-lucide="message-square" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i> ${escapeHTML(p.notas)}</div>` : ''}
         <div class="flex justify-between items-center pt-3 border-t border-gray-100">
-            <span class="text-sm text-gray-500">${p.tipoPago || 'contado'}${p.descuento > 0 ? ` | ${p.descuento}% desc.` : ''}</span>
-            <span class="text-xl font-bold text-gray-900">Gs. ${(p.total || 0).toLocaleString()}</span>
+            <span class="text-sm text-gray-500">${p.tipoPago || 'contado'}${p.descuento > 0 ? ` | ${p.descuento}% desc.` : ''}${p.desgloseIVA ? ` | IVA 10%: ${formatearGuaranies(p.desgloseIVA.iva10)} · 5%: ${formatearGuaranies(p.desgloseIVA.iva5)} · Ex: ${formatearGuaranies(p.desgloseIVA.exenta)}` : ''}</span>
+            <span class="text-xl font-bold text-gray-900">${formatearGuaranies(p.total)}</span>
         </div>
         <div class="pedido-acciones flex gap-2 mt-4 flex-wrap">
             <button class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-emerald-700 inline-flex items-center gap-1.5" id="btnFacturar-${p.id}" onclick="facturarPedidoAdmin('${p.id}')"><i data-lucide="file-check" class="w-3.5 h-3.5"></i> Facturar (SIFEN)</button>
@@ -165,7 +218,7 @@ function actualizarEstadisticasPedidos(pedidos) {
     el('statTotalPedidos', pedidos.length);
     el('statPendientes', pedidos.filter(p => (p.estado || 'pendiente') === 'pendiente').length);
     el('statEntregados', pedidos.filter(p => p.estado === 'entregado').length);
-    el('statRecaudacion', 'Gs. ' + pedidos.reduce((s, p) => s + (p.total || 0), 0).toLocaleString());
+    el('statRecaudacion', formatearGuaranies(pedidos.reduce((s, p) => s + (p.total || 0), 0)));
 }
 
 async function marcarEntregado(id) {
@@ -246,10 +299,26 @@ var eliminarPedido = eliminarPedidoAdmin;
 function exportarExcelPedidos() {
     const pedidos = todosLosPedidos;
     if (pedidos.length === 0) { mostrarToast('No hay pedidos para exportar', 'error'); return; }
-    let csv = 'Fecha,Cliente,Producto,Presentacion,Cantidad,Precio,Subtotal,Total Pedido,Estado,Pago\n';
+    let csv = 'Fecha,Cliente,Vendedor,Producto,Presentacion,Cantidad,Precio,Subtotal,Total Pedido,Estado,Pago,Tipo,Notas,Alerta Fraude\n';
     pedidos.forEach(p => {
+        const vendedor = p.vendedor_id && _pedidosPerfilesCache ? (_pedidosPerfilesCache[p.vendedor_id] || '') : '';
+        const tipo = p.tipo_comprobante || 'pedido';
+        const notas = p.notas || '';
+        const alerta = p.alerta_fraude ? 'SI' : '';
         (p.items || []).forEach(i => {
-            csv += `"${new Date(p.fecha).toLocaleDateString('es-PY')}","${p.cliente?.nombre}","${i.nombre}","${i.presentacion}",${i.cantidad},${i.precio},${i.subtotal},${p.total},${p.estado || 'pendiente'},${p.tipoPago || 'contado'}\n`;
+            csv += [
+                escaparCSV(new Date(p.fecha).toLocaleDateString('es-PY')),
+                escaparCSV(p.cliente?.nombre),
+                escaparCSV(vendedor),
+                escaparCSV(i.nombre),
+                escaparCSV(i.presentacion),
+                i.cantidad, i.precio, i.subtotal, p.total,
+                escaparCSV(p.estado || 'pendiente'),
+                escaparCSV(p.tipoPago || 'contado'),
+                escaparCSV(tipo),
+                escaparCSV(notas),
+                escaparCSV(alerta)
+            ].join(',') + '\n';
         });
     });
     descargarCSV(csv, 'pedidos_hdv.csv');
@@ -288,7 +357,7 @@ async function generarReporte(tipo) {
 
         let html = '<table class="w-full text-sm"><thead class="bg-gray-50"><tr><th class="px-4 py-2 text-left">Cliente</th><th class="px-4 py-2 text-right">Pedidos</th><th class="px-4 py-2 text-right">Total</th></tr></thead><tbody>';
         Object.entries(porCliente).sort((a, b) => b[1].total - a[1].total).forEach(([nombre, data]) => {
-            html += `<tr class="border-b"><td class="px-4 py-3 font-medium">${escapeHTML(nombre)}</td><td class="px-4 py-3 text-right">${data.pedidos}</td><td class="px-4 py-3 text-right font-bold">Gs. ${data.total.toLocaleString()}</td></tr>`;
+            html += `<tr class="border-b"><td class="px-4 py-3 font-medium">${escapeHTML(nombre)}</td><td class="px-4 py-3 text-right">${data.pedidos}</td><td class="px-4 py-3 text-right font-bold">${formatearGuaranies(data.total)}</td></tr>`;
         });
         html += '</tbody></table>';
         container.innerHTML = html;
@@ -305,7 +374,7 @@ async function generarReporte(tipo) {
 
         let html = '<table class="w-full text-sm"><thead class="bg-gray-50"><tr><th class="px-4 py-2 text-left">Producto</th><th class="px-4 py-2 text-right">Cantidad</th><th class="px-4 py-2 text-right">Total</th></tr></thead><tbody>';
         Object.entries(porProducto).sort((a, b) => b[1].total - a[1].total).forEach(([nombre, data]) => {
-            html += `<tr class="border-b"><td class="px-4 py-3 font-medium">${escapeHTML(nombre)}</td><td class="px-4 py-3 text-right">${data.cantidad}</td><td class="px-4 py-3 text-right font-bold">Gs. ${data.total.toLocaleString()}</td></tr>`;
+            html += `<tr class="border-b"><td class="px-4 py-3 font-medium">${escapeHTML(nombre)}</td><td class="px-4 py-3 text-right">${data.cantidad}</td><td class="px-4 py-3 text-right font-bold">${formatearGuaranies(data.total)}</td></tr>`;
         });
         html += '</tbody></table>';
         container.innerHTML = html;
@@ -347,12 +416,12 @@ function renderizarItemsEdicion(items) {
                 <option value="">-- Producto --</option>
                 ${productosData.productos.map(p =>
                     p.presentaciones.map(pres =>
-                        `<option value="${escapeHTML(p.id)}|${escapeHTML(pres.tamano)}|${pres.precio_base}" ${p.nombre === item.nombre && pres.tamano === item.presentacion ? 'selected' : ''}>${escapeHTML(p.nombre)} - ${escapeHTML(pres.tamano)} (Gs.${pres.precio_base.toLocaleString()})</option>`
+                        `<option value="${escapeHTML(p.id)}|${escapeHTML(pres.tamano)}|${pres.precio_base}" ${p.nombre === item.nombre && pres.tamano === item.presentacion ? 'selected' : ''}>${escapeHTML(p.nombre)} - ${escapeHTML(pres.tamano)} (${formatearGuaranies(pres.precio_base)})</option>`
                     ).join('')
                 ).join('')}
             </select>
             <input type="number" value="${item.cantidad}" min="1" onchange="actualizarItemEdicion(${idx},'cantidad',this.value);recalcularTotalEdicion()" class="w-16 border border-gray-300 rounded px-2 py-1 text-sm text-center font-bold edit-item-cantidad">
-            <span class="text-sm font-bold text-gray-700 w-32 text-right edit-item-subtotal">Gs. ${(item.subtotal || 0).toLocaleString()}</span>
+            <span class="text-sm font-bold text-gray-700 w-32 text-right edit-item-subtotal">${formatearGuaranies(item.subtotal)}</span>
             <button onclick="eliminarItemEdicion(${idx})" class="text-red-500 font-bold text-lg">×</button>
         `;
         container.appendChild(div);
@@ -373,7 +442,7 @@ function agregarItemEditPedido() {
             <option value="">-- Seleccionar Producto --</option>
             ${productosData.productos.map(p =>
                 p.presentaciones.map(pres =>
-                    `<option value="${escapeHTML(p.id)}|${escapeHTML(pres.tamano)}|${pres.precio_base}">${escapeHTML(p.nombre)} - ${escapeHTML(pres.tamano)} (Gs.${pres.precio_base.toLocaleString()})</option>`
+                    `<option value="${escapeHTML(p.id)}|${escapeHTML(pres.tamano)}|${pres.precio_base}">${escapeHTML(p.nombre)} - ${escapeHTML(pres.tamano)} (${formatearGuaranies(pres.precio_base)})</option>`
                 ).join('')
             ).join('')}
         </select>
@@ -404,12 +473,12 @@ function recalcularTotalEdicion() {
             const cant = parseInt(cantInput.value) || 1;
             const sub = precio * cant;
             subtotal += sub;
-            if (subtotalSpan) subtotalSpan.textContent = `Gs. ${sub.toLocaleString()}`;
+            if (subtotalSpan) subtotalSpan.textContent = formatearGuaranies(sub);
         }
     });
     const desc = parseFloat(document.getElementById('editPedidoDescuento')?.value) || 0;
     const total = Math.round(subtotal * (1 - desc / 100));
-    document.getElementById('editPedidoTotal').textContent = `Gs. ${total.toLocaleString()}`;
+    document.getElementById('editPedidoTotal').textContent = formatearGuaranies(total);
 }
 
 async function guardarEdicionPedido() {
@@ -438,12 +507,7 @@ async function guardarEdicionPedido() {
     });
     if (items.length === 0) { mostrarToast('Agrega al menos un producto', 'error'); return; }
 
-    const btn = document.getElementById('btnGuardarEdicionPedido');
-    if (btn && btn.disabled) return;
-    const textoOriginal = btn ? btn.innerHTML : '';
-    if (btn) { btn.disabled = true; btn.innerHTML = 'Guardando...'; }
-
-    try {
+    await withButtonLock('btnGuardarEdicionPedido', async () => {
         const descuento = parseFloat(document.getElementById('editPedidoDescuento')?.value) || 0;
         const subtotal = items.reduce((s, i) => s + i.subtotal, 0);
         const total = Math.round(subtotal * (1 - descuento / 100));
@@ -471,12 +535,7 @@ async function guardarEdicionPedido() {
         cerrarModalEditarPedido();
         if (typeof cargarPedidos === 'function' && !unsubscribePedidos) cargarPedidos();
         else aplicarFiltrosPedidos();
-    } catch (err) {
-        console.error('[Pedidos] Error guardando edicion:', err);
-        mostrarToast('Error al guardar cambios', 'error');
-    } finally {
-        if (btn) { btn.disabled = false; btn.innerHTML = textoOriginal; }
-    }
+    }, 'Guardando...')();
 }
 
 // ============================================

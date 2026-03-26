@@ -79,16 +79,7 @@ function generarHTMLItems(items) {
 async function procesarPedido() {
     if (!validarCarritoYCliente()) return;
 
-    const btn = document.getElementById('btnPedido');
-    if (btn && btn.disabled) return;
-    const textoOriginal = btn ? btn.innerHTML : '';
-    if (btn) {
-        btn.disabled = true;
-        btn.classList.add('opacity-50', 'cursor-not-allowed');
-        btn.innerHTML = '<span class="flex items-center justify-center gap-2"><svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Enviando...</span>';
-    }
-
-    try {
+    await withButtonLock('btnPedido', async () => {
         const datos = obtenerDatosVenta();
         const pedido = {
             id: 'PED-' + crypto.randomUUID(),
@@ -130,16 +121,7 @@ async function procesarPedido() {
 
         limpiarDespuesDeVenta();
         mostrarToast('Pedido enviado a oficina', 'success');
-    } catch (err) {
-        console.error('[Checkout] Error procesarPedido:', err);
-        mostrarToast('Error al procesar pedido', 'error');
-    } finally {
-        if (btn) {
-            btn.disabled = false;
-            btn.classList.remove('opacity-50', 'cursor-not-allowed');
-            btn.innerHTML = textoOriginal;
-        }
-    }
+    }, 'Enviando...')();
 }
 
 // ============================================
@@ -148,16 +130,7 @@ async function procesarPedido() {
 async function procesarCobroInterno() {
     if (!validarCarritoYCliente()) return;
 
-    const btn = document.getElementById('btnCobro');
-    if (btn && btn.disabled) return;
-    const textoOriginal = btn ? btn.innerHTML : '';
-    if (btn) {
-        btn.disabled = true;
-        btn.classList.add('opacity-50', 'cursor-not-allowed');
-        btn.innerHTML = '<span class="flex items-center justify-center gap-2"><svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Procesando...</span>';
-    }
-
-    try {
+    await withButtonLock('btnCobro', async () => {
         const datos = obtenerDatosVenta();
         const pedido = {
             id: 'REC-' + crypto.randomUUID(),
@@ -228,16 +201,7 @@ async function procesarCobroInterno() {
         }, 300);
 
         mostrarToast('Cobro registrado', 'success');
-    } catch (err) {
-        console.error('[Checkout] Error procesarCobroInterno:', err);
-        mostrarToast('Error al procesar cobro', 'error');
-    } finally {
-        if (btn) {
-            btn.disabled = false;
-            btn.classList.remove('opacity-50', 'cursor-not-allowed');
-            btn.innerHTML = textoOriginal;
-        }
-    }
+    }, 'Procesando...')();
 }
 
 // ============================================
@@ -258,15 +222,7 @@ async function procesarFacturaMock() {
         return;
     }
 
-    const btnFactura = document.getElementById('btnFactura');
-    if (btnFactura && btnFactura.disabled) return;
-    const textoOriginal = btnFactura ? btnFactura.innerHTML : '';
-    if (btnFactura) {
-        btnFactura.disabled = true;
-        btnFactura.innerHTML = '<span class="flex items-center justify-center gap-2"><svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Conectando con SIFEN...</span>';
-    }
-
-    try {
+    await withButtonLock('btnFactura', async () => {
         const numFactura = generarNumeroFactura();
         const cdc = generarCDC();
         const fechaStr = formatearFecha(new Date().toISOString());
@@ -375,15 +331,7 @@ async function procesarFacturaMock() {
         modal.classList.remove('hidden');
         modal.style.display = 'flex';
         if (typeof lucide !== 'undefined') lucide.createIcons();
-    } catch (err) {
-        console.error('[Checkout] Error procesarFacturaMock:', err);
-        mostrarToast('Error al procesar factura', 'error');
-    } finally {
-        if (btnFactura) {
-            btnFactura.disabled = false;
-            btnFactura.innerHTML = textoOriginal;
-        }
-    }
+    }, 'Conectando con SIFEN...')();
 }
 
 // --- Imprimir KuDE desde el modal ---

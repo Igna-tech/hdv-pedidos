@@ -84,6 +84,8 @@
 
     sb.auth.onAuthStateChange(async (event) => {
         if (event === 'SIGNED_OUT') {
+            // Limpiar timers para evitar zombie requests con token expirado
+            if (typeof limpiarTimers === 'function') limpiarTimers();
             // V2-A03: Limpiar TODOS los datos locales al cerrar sesion
             try {
                 const allKeys = await HDVStorage.keys('hdv_');

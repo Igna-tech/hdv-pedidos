@@ -48,7 +48,7 @@ function withButtonLock(btnId, fn, loadingText) {
         const texto = loadingText || 'Guardando...';
         btn.disabled = true;
         btn.classList.add('opacity-50', 'cursor-not-allowed');
-        btn.innerHTML = '<svg class="w-4 h-4 animate-spin inline mr-1.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> ' + texto;
+        btn.innerHTML = SPINNER_SVG + ' ' + texto;
 
         try {
             return await fn.apply(this, args);

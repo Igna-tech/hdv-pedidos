@@ -314,6 +314,7 @@ function actualizarBreadcrumbProductos() {
 async function mostrarProductosGestion() {
     const container = document.getElementById('productosGridContainer');
     if (!container) return;
+    _initProductosGridDelegation(container);
     poblarFiltroCategorias();
 
     const busqueda = document.getElementById('buscarProducto')?.value.toLowerCase() || '';
@@ -362,6 +363,67 @@ async function mostrarProductosGestion() {
     actualizarBreadcrumbProductos();
 }
 
+// ============================================
+// EVENT DELEGATION — Productos Grid + Paginacion
+// ============================================
+
+const _productosActionMap = {
+    'nav-categoria': (id) => {
+        prodNavCatId = id;
+        prodNavNivel = 'subcategorias';
+        actualizarBreadcrumbProductos();
+        mostrarProductosGestion();
+    },
+    'nav-subcategoria': (id) => {
+        prodNavSubId = id || null;
+        prodNavNivel = 'productos';
+        actualizarBreadcrumbProductos();
+        mostrarProductosGestion();
+    },
+    'abrir-perfil': (id) => {
+        abrirPerfilProducto(id);
+    },
+    'pag-primera': () => {
+        paginaProductos = 1;
+        mostrarProductosGestion();
+    },
+    'pag-anterior': () => {
+        if (paginaProductos > 1) { paginaProductos--; mostrarProductosGestion(); }
+    },
+    'pag-siguiente': () => {
+        paginaProductos++;
+        mostrarProductosGestion();
+    },
+    'pag-ultima': (id) => {
+        paginaProductos = parseInt(id) || 1;
+        mostrarProductosGestion();
+    }
+};
+
+function _handleProductoAction(event) {
+    const target = event.target.closest('[data-action]');
+    if (!target) return;
+    if (target.disabled) return;
+    const action = target.dataset.action;
+    const id = target.dataset.id;
+    const handler = _productosActionMap[action];
+    if (handler) handler(id);
+}
+
+function _initProductosGridDelegation(container) {
+    if (container && !container._delegated) {
+        container.addEventListener('click', _handleProductoAction);
+        container._delegated = true;
+    }
+}
+
+function _initPaginacionDelegation(pagEl) {
+    if (pagEl && !pagEl._delegated) {
+        pagEl.addEventListener('click', _handleProductoAction);
+        pagEl._delegated = true;
+    }
+}
+
 async function aplicarOrdenProductos(prods, orden) {
     if (orden === 'az') return [...prods].sort((a, b) => a.nombre.localeCompare(b.nombre));
     if (orden === 'za') return [...prods].sort((a, b) => b.nombre.localeCompare(a.nombre));
@@ -387,7 +449,7 @@ function renderizarCategoriasGestion(container) {
             const count = productosData.productos.filter(p => p.categoria === cat.id).length;
             const prods = productosData.productos.filter(p => p.categoria === cat.id && (p.imagen_url || p.imagen));
             const img = prods.length > 0 ? (prods[0].imagen_url || prods[0].imagen) : '';
-            return `<div onclick="prodNavCatId='${cat.id}';prodNavNivel='subcategorias';actualizarBreadcrumbProductos();mostrarProductosGestion()"
+            return `<div data-action="nav-categoria" data-id="${cat.id}"
                 class="catalog-card" ${img ? `data-bg="${img}"` : ''}>
                 ${!img ? '<div class="catalog-card-noimg"><i data-lucide="folder-open" class="w-10 h-10 text-gray-400"></i></div>' : ''}
                 <div class="catalog-card-label">
@@ -403,7 +465,7 @@ function renderizarCategoriasGestion(container) {
 
 function renderizarSubcategoriasGestion(container, subs) {
     container.innerHTML = `<div class="catalog-grid">
-        <div onclick="prodNavSubId=null;prodNavNivel='productos';actualizarBreadcrumbProductos();mostrarProductosGestion()"
+        <div data-action="nav-subcategoria" data-id=""
             class="catalog-card catalog-card--loaded" style="border:2px dashed rgba(255,255,255,0.3)">
             <div class="catalog-card-noimg" style="background:linear-gradient(135deg,#4b5563,#374151)"><i data-lucide="list" class="w-10 h-10 text-gray-400"></i></div>
             <div class="catalog-card-label"><div>Ver todos</div></div>
@@ -413,7 +475,7 @@ function renderizarSubcategoriasGestion(container, subs) {
             const count = prods.length;
             const imgProd = prods.find(p => p.imagen_url || p.imagen);
             const img = imgProd ? (imgProd.imagen_url || imgProd.imagen) : '';
-            return `<div onclick="prodNavSubId='${sub}';prodNavNivel='productos';actualizarBreadcrumbProductos();mostrarProductosGestion()"
+            return `<div data-action="nav-subcategoria" data-id="${escapeHTML(sub)}"
                 class="catalog-card" ${img ? `data-bg="${img}"` : ''}>
                 ${!img ? '<div class="catalog-card-noimg"><i data-lucide="folder" class="w-10 h-10 text-gray-400"></i></div>' : ''}
                 <div class="catalog-card-label">
@@ -443,12 +505,12 @@ function renderizarProductosGestionGrid(container, prods) {
             const oculto = prod.oculto || false;
             const img = prod.imagen_url || prod.imagen || '';
             const precio = prod.presentaciones && prod.presentaciones.length > 0 ? (prod.presentaciones[0].precio_base || 0) : 0;
-            return `<div onclick="abrirPerfilProducto('${prod.id}')" class="catalog-card ${oculto ? 'oculto' : ''}" ${img ? `data-bg="${img}"` : ''}>
+            return `<div data-action="abrir-perfil" data-id="${prod.id}" class="catalog-card ${oculto ? 'oculto' : ''}" ${img ? `data-bg="${img}"` : ''}>
                 ${!img ? '<div class="catalog-card-noimg"><svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg></div>' : ''}
                 <span class="catalog-card-badge" style="${estadoBg}">${estado}</span>
                 <div class="catalog-card-label">
                     <div>${escapeHTML(prod.nombre)}</div>
-                    <div class="card-sub">${precio > 0 ? 'Gs. ' + precio.toLocaleString() : prod.presentaciones.length + ' pres.'}</div>
+                    <div class="card-sub">${precio > 0 ? formatearGuaranies(precio) : prod.presentaciones.length + ' pres.'}</div>
                 </div>
             </div>`;
         }).join('')}
@@ -463,11 +525,12 @@ function actualizarPaginacionProductos(total) {
     const totalPaginas = Math.ceil(total / productosPorPagina);
     pagEl.innerHTML = `<span class="text-sm">${total} productos | Pag. ${paginaProductos} de ${totalPaginas}</span>
     <div class="flex gap-2">
-        <button onclick="paginaProductos=1;mostrarProductosGestion()" class="px-3 py-1 rounded border text-xs ${paginaProductos <= 1 ? 'opacity-30' : 'hover:bg-gray-100'}" ${paginaProductos <= 1 ? 'disabled' : ''}>|&lt;</button>
-        <button onclick="if(paginaProductos>1){paginaProductos--;mostrarProductosGestion()}" class="px-3 py-1 rounded border text-xs ${paginaProductos <= 1 ? 'opacity-30' : 'hover:bg-gray-100'}">&lt;</button>
-        <button onclick="if(paginaProductos<${totalPaginas}){paginaProductos++;mostrarProductosGestion()}" class="px-3 py-1 rounded border text-xs ${paginaProductos >= totalPaginas ? 'opacity-30' : 'hover:bg-gray-100'}">&gt;</button>
-        <button onclick="paginaProductos=${totalPaginas};mostrarProductosGestion()" class="px-3 py-1 rounded border text-xs ${paginaProductos >= totalPaginas ? 'opacity-30' : 'hover:bg-gray-100'}" ${paginaProductos >= totalPaginas ? 'disabled' : ''}>&gt;|</button>
+        <button data-action="pag-primera" class="px-3 py-1 rounded border text-xs ${paginaProductos <= 1 ? 'opacity-30' : 'hover:bg-gray-100'}" ${paginaProductos <= 1 ? 'disabled' : ''}>|&lt;</button>
+        <button data-action="pag-anterior" class="px-3 py-1 rounded border text-xs ${paginaProductos <= 1 ? 'opacity-30' : 'hover:bg-gray-100'}" ${paginaProductos <= 1 ? 'disabled' : ''}>&lt;</button>
+        <button data-action="pag-siguiente" class="px-3 py-1 rounded border text-xs ${paginaProductos >= totalPaginas ? 'opacity-30' : 'hover:bg-gray-100'}" ${paginaProductos >= totalPaginas ? 'disabled' : ''}>&gt;</button>
+        <button data-action="pag-ultima" data-id="${totalPaginas}" class="px-3 py-1 rounded border text-xs ${paginaProductos >= totalPaginas ? 'opacity-30' : 'hover:bg-gray-100'}" ${paginaProductos >= totalPaginas ? 'disabled' : ''}>&gt;|</button>
     </div>`;
+    _initPaginacionDelegation(pagEl);
 }
 
 // Perfil de producto
@@ -503,8 +566,8 @@ function abrirPerfilProducto(prodId) {
         return `<div class="flex justify-between items-center py-2 border-b border-gray-100 last:border-0 text-sm">
             <span class="font-medium text-gray-700">${escapeHTML(p.tamano)}</span>
             <div class="flex gap-4 text-right">
-                ${costo > 0 ? `<span class="text-gray-500">Costo: <strong>Gs. ${costo.toLocaleString()}</strong></span>` : ''}
-                <span class="text-gray-800">Precio: <strong>Gs. ${precio.toLocaleString()}</strong></span>
+                ${costo > 0 ? `<span class="text-gray-500">Costo: <strong>${formatearGuaranies(costo)}</strong></span>` : ''}
+                <span class="text-gray-800">Precio: <strong>${formatearGuaranies(precio)}</strong></span>
                 ${margen !== null ? `<span class="${margen > 30 ? 'text-green-600' : margen > 15 ? 'text-yellow-600' : 'text-red-600'} font-bold">${margen}%</span>` : ''}
             </div>
         </div>`;
@@ -896,16 +959,7 @@ async function guardarProductoModal() {
 
     if (!nombre) { mostrarToast('Ingresa el nombre del producto', 'error'); return; }
 
-    // Bloquear boton para prevenir doble envio
-    const btnGuardar = document.getElementById('btnGuardarProducto');
-    const textoOriginalBtn = btnGuardar ? btnGuardar.innerHTML : 'Guardar';
-    if (btnGuardar) {
-        btnGuardar.disabled = true;
-        btnGuardar.classList.add('opacity-50', 'cursor-not-allowed');
-        btnGuardar.innerHTML = '<svg class="w-4 h-4 animate-spin inline mr-1.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Guardando...';
-    }
-
-    try {
+    await withButtonLock('btnGuardarProducto', async () => {
         // Subir imagen si hay archivo seleccionado
         let imagenUrl = imagen;
         if (archivoImagenProducto) {
@@ -957,17 +1011,7 @@ async function guardarProductoModal() {
         mostrarProductosGestion();
         cerrarModalProducto();
         mostrarToast('Producto guardado correctamente', 'success');
-    } catch (err) {
-        console.error('[Admin] Error guardando producto:', err);
-        mostrarToast('Error al guardar: ' + err.message, 'error');
-    } finally {
-        // Restaurar boton siempre
-        if (btnGuardar) {
-            btnGuardar.disabled = false;
-            btnGuardar.classList.remove('opacity-50', 'cursor-not-allowed');
-            btnGuardar.innerHTML = textoOriginalBtn;
-        }
-    }
+    }, 'Guardando...')();
 }
 
 // ============================================

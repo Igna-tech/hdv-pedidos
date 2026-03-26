@@ -739,12 +739,7 @@ async function guardarPromocion() {
     const productoId = document.getElementById('formPromoProducto').value;
     if (!nombre || !productoId) { mostrarToast('Completa nombre y producto', 'error'); return; }
 
-    const btn = document.getElementById('btnGuardarPromo');
-    if (btn && btn.disabled) return;
-    const textoOriginal = btn ? btn.innerHTML : '';
-    if (btn) { btn.disabled = true; btn.innerHTML = 'Guardando...'; }
-
-    try {
+    await withButtonLock('btnGuardarPromo', async () => {
         const promo = {
             id,
             tipo: document.getElementById('formPromoTipo').value,
@@ -774,12 +769,7 @@ async function guardarPromocion() {
         cerrarModalPromocion();
         cargarPromociones();
         mostrarToast('Promocion guardada', 'success');
-    } catch (err) {
-        console.error('[Promos] Error:', err);
-        mostrarToast('Error al guardar promocion', 'error');
-    } finally {
-        if (btn) { btn.disabled = false; btn.innerHTML = textoOriginal; }
-    }
+    }, 'Guardando...')();
 }
 
 async function togglePromocion(promoId) {

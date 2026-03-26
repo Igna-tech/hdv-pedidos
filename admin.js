@@ -224,16 +224,7 @@ function actualizarBarraCambios() {
 }
 
 async function guardarTodosCambios() {
-    const btn = document.getElementById('btnGuardarSync');
-    if (btn && btn.disabled) return;
-    const textoOriginal = btn ? btn.innerHTML : '';
-    if (btn) {
-        btn.disabled = true;
-        btn.classList.add('opacity-50', 'cursor-not-allowed');
-        btn.innerHTML = '<svg class="w-4 h-4 animate-spin inline mr-1.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Sincronizando...';
-    }
-
-    try {
+    await withButtonLock('btnGuardarSync', async () => {
         cambiosSinGuardar = 0;
         actualizarBarraCambios();
         productosDataOriginal = JSON.parse(JSON.stringify(productosData));
@@ -256,16 +247,7 @@ async function guardarTodosCambios() {
             console.error('[Admin] guardarCatalogo no esta definida. supabase-config.js puede tener un error de carga.');
             mostrarToast('Error: modulo de sincronizacion no cargado. Cambios guardados localmente.', 'error');
         }
-    } catch (err) {
-        console.error('[Admin] Error guardando:', err);
-        mostrarToast('Error de sincronizacion: ' + err.message, 'error');
-    } finally {
-        if (btn) {
-            btn.disabled = false;
-            btn.classList.remove('opacity-50', 'cursor-not-allowed');
-            btn.innerHTML = textoOriginal;
-        }
-    }
+    }, 'Sincronizando...')();
 }
 
 async function descartarCambios() {
@@ -1132,29 +1114,16 @@ async function guardarConfigEmpresa() {
     if (!datos.ruc_empresa) { mostrarToast('Ingresa el RUC de la empresa', 'error'); return; }
     if (!datos.razon_social) { mostrarToast('Ingresa la razon social', 'error'); return; }
 
-    const btn = document.getElementById('btnGuardarConfigEmpresa');
-    if (btn && btn.disabled) return;
-    const textoOriginal = btn ? btn.innerHTML : '';
-    if (btn) {
-        btn.disabled = true;
-        btn.classList.add('opacity-50', 'cursor-not-allowed');
-        btn.innerHTML = '<svg class="w-4 h-4 animate-spin inline mr-1.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Guardando...';
-    }
-
-    try {
-        const { success, error } = await SupabaseService.upsertConfigEmpresa(datos);
-        if (!success) throw error;
-        mostrarToast('Datos fiscales guardados correctamente', 'success');
-    } catch (e) {
-        console.error('[Config Empresa] Error guardando:', e);
-        mostrarToast('Error al guardar: ' + (e?.message || e), 'error');
-    } finally {
-        if (btn) {
-            btn.disabled = false;
-            btn.classList.remove('opacity-50', 'cursor-not-allowed');
-            btn.innerHTML = textoOriginal;
+    await withButtonLock('btnGuardarConfigEmpresa', async () => {
+        try {
+            const { success, error } = await SupabaseService.upsertConfigEmpresa(datos);
+            if (!success) throw error;
+            mostrarToast('Datos fiscales guardados correctamente', 'success');
+        } catch (e) {
+            console.error('[Config Empresa] Error guardando:', e);
+            mostrarToast('Error al guardar: ' + (e?.message || e), 'error');
         }
-    }
+    }, 'Guardando...')();
 }
 
 // ============================================

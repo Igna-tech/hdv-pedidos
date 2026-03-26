@@ -75,62 +75,52 @@ async function facturarPedidoAdmin(pedidoId) {
         return;
     }
 
-    // Deshabilitar boton y mostrar loading
-    const btn = document.getElementById(`btnFacturar-${pedidoId}`);
-    let textoOriginal = '';
-    if (btn) {
-        textoOriginal = btn.innerHTML;
-        btn.disabled = true;
-        btn.innerHTML = '<svg class="w-4 h-4 animate-spin inline mr-1" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Procesando con la SET...';
-    }
+    // Dynamic button ID per pedido
+    const btnId = `btnFacturar-${pedidoId}`;
 
-    // Simular latencia SET
-    await new Promise(resolve => setTimeout(resolve, 2500));
+    await withButtonLock(btnId, async () => {
+        // Simular latencia SET
+        await new Promise(resolve => setTimeout(resolve, 2500));
 
-    const resultado = await ventasDataFacturar(pedidoId);
-    if (!resultado) {
-        mostrarToast('Pedido no encontrado', 'error');
-        if (btn) { btn.disabled = false; btn.innerHTML = textoOriginal; }
-        return;
-    }
-    if (resultado.error) {
-        mostrarToast(resultado.error, 'error');
-        if (btn) { btn.disabled = false; btn.innerHTML = textoOriginal; }
-        return;
-    }
+        const resultado = await ventasDataFacturar(pedidoId);
+        if (!resultado) {
+            mostrarToast('Pedido no encontrado', 'error');
+            return;
+        }
+        if (resultado.error) {
+            mostrarToast(resultado.error, 'error');
+            return;
+        }
 
-    const { pedido: pedidoActualizado, numFactura, cdc } = resultado;
+        const { pedido: pedidoActualizado, numFactura, cdc } = resultado;
 
-    // Preparar modal factura
-    document.getElementById('adminFacturaNumero').textContent = `N° ${numFactura} | CDC: ${cdc}`;
+        // Preparar modal factura
+        document.getElementById('adminFacturaNumero').textContent = `N° ${numFactura} | CDC: ${cdc}`;
 
-    const telefono = clienteInfo?.telefono || pedido.cliente?.telefono || '';
-    const textoWA = `Factura Electronica HDV Distribuciones%0A` +
-        `N°: ${numFactura}%0A` +
-        `Fecha: ${tplFormatearFechaAdmin(pedido.fecha)}%0A` +
-        `Cliente: ${pedido.cliente?.nombre}%0A` +
-        `RUC: ${ruc}%0A` +
-        `Total: Gs. ${(pedido.total || 0).toLocaleString()}%0A` +
-        `CDC: ${cdc}%0A` +
-        `Consulta: https://ekuatia.set.gov.py`;
-    const telLimpio = telefono.replace(/\D/g, '');
-    document.getElementById('adminFacturaWhatsApp').href = telLimpio
-        ? `https://wa.me/595${telLimpio.replace(/^0/, '')}?text=${textoWA}`
-        : `https://wa.me/?text=${textoWA}`;
+        const telefono = clienteInfo?.telefono || pedido.cliente?.telefono || '';
+        const textoWA = `Factura Electronica HDV Distribuciones%0A` +
+            `N°: ${numFactura}%0A` +
+            `Fecha: ${tplFormatearFechaAdmin(pedido.fecha)}%0A` +
+            `Cliente: ${pedido.cliente?.nombre}%0A` +
+            `RUC: ${ruc}%0A` +
+            `Total: ${formatearGuaranies(pedido.total)}%0A` +
+            `CDC: ${cdc}%0A` +
+            `Consulta: https://ekuatia.set.gov.py`;
+        const telLimpio = telefono.replace(/\D/g, '');
+        document.getElementById('adminFacturaWhatsApp').href = telLimpio
+            ? `https://wa.me/595${telLimpio.replace(/^0/, '')}?text=${textoWA}`
+            : `https://wa.me/?text=${textoWA}`;
 
-    // Guardar referencia para impresion post-facturacion via closure
-    _ultimaFactura = { pedido: pedidoActualizado, clienteInfo, numFactura, cdc };
+        // Guardar referencia para impresion post-facturacion via closure
+        _ultimaFactura = { pedido: pedidoActualizado, clienteInfo, numFactura, cdc };
 
-    document.getElementById('modalFacturaAdmin').classList.add('show');
+        document.getElementById('modalFacturaAdmin').classList.add('show');
 
-    // Refrescar lista pedidos
-    cargarPedidos();
+        // Refrescar lista pedidos
+        cargarPedidos();
 
-    if (btn) {
-        btn.disabled = false;
-        btn.innerHTML = textoOriginal;
-    }
-    lucide.createIcons();
+        lucide.createIcons();
+    }, 'Procesando con la SET...')();
 }
 
 // Closure para impresion post-facturacion

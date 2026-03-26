@@ -140,12 +140,18 @@ async function ventasDataExportCSVSemanal() {
     ventasSemana.forEach(p => {
         const estado = p.estado === 'facturado_mock' ? 'Facturado' : 'Recibo';
         const numFact = p.numFactura || '';
-        const notas = (p.notas || '').replace(/"/g, '""');
-        const clienteNombre = (p.cliente?.nombre || 'Sin cliente').replace(/"/g, '""');
+        const notas = p.notas || '';
+        const clienteNombre = p.cliente?.nombre || 'Sin cliente';
         const fechaStr = new Date(p.fecha).toLocaleDateString('es-PY', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
         (p.items || []).forEach(i => {
-            csv += `"${fechaStr}","${clienteNombre}","${(i.nombre || '').replace(/"/g, '""')}","${(i.presentacion || '').replace(/"/g, '""')}",${i.cantidad || 0},${i.precio || 0},${i.subtotal || 0},${p.total || 0},"${estado}","${p.tipoPago || 'contado'}","${numFact}","${notas}"\n`;
+            csv += [
+                escaparCSV(fechaStr), escaparCSV(clienteNombre),
+                escaparCSV(i.nombre), escaparCSV(i.presentacion),
+                i.cantidad || 0, i.precio || 0, i.subtotal || 0, p.total || 0,
+                escaparCSV(estado), escaparCSV(p.tipoPago || 'contado'),
+                escaparCSV(numFact), escaparCSV(notas)
+            ].join(',') + '\n';
         });
     });
 

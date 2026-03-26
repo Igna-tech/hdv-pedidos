@@ -215,7 +215,7 @@ function cerrarModalCliente() {
     document.getElementById('modalCliente')?.classList.remove('show');
 }
 
-function guardarClienteModal() {
+async function guardarClienteModal() {
     const id = document.getElementById('formClienteId')?.value;
     const razon = document.getElementById('nuevoClienteRazon')?.value.trim();
     const ruc = document.getElementById('nuevoClienteRUC')?.value.trim();
@@ -227,11 +227,7 @@ function guardarClienteModal() {
 
     if (!razon) { mostrarToast('Ingresa la razon social', 'error'); return; }
 
-    const btn = document.getElementById('btnGuardarCliente');
-    if (btn && btn.disabled) return;
-    if (btn) { btn.disabled = true; btn.innerHTML = 'Guardando...'; }
-
-    try {
+    await withButtonLock('btnGuardarCliente', async () => {
         if (id) {
             // Edicion
             const c = productosData.clientes.find(x => x.id === id);
@@ -260,9 +256,7 @@ function guardarClienteModal() {
         registrarCambio();
         mostrarClientesGestion();
         cerrarModalCliente();
-    } finally {
-        if (btn) { btn.disabled = false; btn.innerHTML = 'Guardar'; }
-    }
+    }, 'Guardando...')();
 }
 
 // ============================================

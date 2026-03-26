@@ -97,6 +97,16 @@ function calcularDesglose(total, pedido) {
     return { exentas: 0, gravada5: 0, iva5: 0, gravada10: base10, iva10: iva10, totalIva: iva10, total: total };
 }
 
+// --- Escapado CSV seguro (RFC 4180) ---
+
+function escaparCSV(valor) {
+    const str = String(valor == null ? '' : valor);
+    if (/[",\n\r]/.test(str)) {
+        return '"' + str.replace(/"/g, '""') + '"';
+    }
+    return str;
+}
+
 // --- Utilidades de descarga ---
 
 function descargarCSV(contenido, nombreArchivo) {

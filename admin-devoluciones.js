@@ -53,7 +53,7 @@ async function buscarFacturaDevolucion() {
                 <p class="text-xs text-gray-500">${escapeHTML(f.numFactura || f.id)} ${ruc ? '| RUC: ' + escapeHTML(ruc) : ''} | ${new Date(f.fecha).toLocaleDateString('es-PY')}</p>
             </div>
             <div class="text-right">
-                <p class="text-sm font-bold text-gray-900">Gs. ${(f.total || 0).toLocaleString()}</p>
+                <p class="text-sm font-bold text-gray-900">${formatearGuaranies(f.total)}</p>
                 <p class="text-xs text-emerald-600 font-bold">${f.items?.length || 0} items</p>
             </div>`;
         lista.appendChild(div);
@@ -79,7 +79,7 @@ async function seleccionarFacturaNC(facturaId) {
         `RUC: ${ruc || 'N/A'} | Fecha: ${formatearFechaAdmin(factura.fecha)} | Pago: ${factura.tipoPago || 'contado'}`;
     document.getElementById('devFacturaNumero').textContent =
         `N° ${factura.numFactura || factura.id} | CDC: ${factura.cdc || 'N/A'}`;
-    document.getElementById('devFacturaTotal').textContent = `Gs. ${(factura.total || 0).toLocaleString()}`;
+    document.getElementById('devFacturaTotal').textContent = formatearGuaranies(factura.total);
 
     // Llenar tabla de items
     const tbody = document.getElementById('devTablaItems');
@@ -91,7 +91,7 @@ async function seleccionarFacturaNC(facturaId) {
             <td class="px-4 py-3 font-medium text-gray-800">${escapeHTML(item.nombre)}</td>
             <td class="px-4 py-3 text-gray-500">${escapeHTML(item.presentacion)}</td>
             <td class="px-4 py-3 text-center font-bold">${item.cantidad}</td>
-            <td class="px-4 py-3 text-center text-gray-500">Gs. ${(item.precio || 0).toLocaleString()}</td>
+            <td class="px-4 py-3 text-center text-gray-500">${formatearGuaranies(item.precio)}</td>
             <td class="px-4 py-3 text-center">
                 <input type="number" id="devCant-${idx}" value="0" min="0" max="${item.cantidad}"
                     class="w-20 border border-gray-300 rounded-lg px-2 py-1.5 text-sm text-center outline-none font-bold"
@@ -127,10 +127,10 @@ function recalcularTotalNC() {
         const monto = cantDev * (item.precio || 0);
         totalNC += monto;
         const montoEl = document.getElementById(`devMonto-${idx}`);
-        if (montoEl) montoEl.textContent = monto > 0 ? `-Gs. ${monto.toLocaleString()}` : 'Gs. 0';
+        if (montoEl) montoEl.textContent = monto > 0 ? `-${formatearGuaranies(monto)}` : formatearGuaranies(0);
     });
 
-    document.getElementById('devTotalNC').textContent = totalNC > 0 ? `-Gs. ${totalNC.toLocaleString()}` : 'Gs. 0';
+    document.getElementById('devTotalNC').textContent = totalNC > 0 ? `-${formatearGuaranies(totalNC)}` : formatearGuaranies(0);
 }
 
 // ============================================
@@ -167,97 +167,89 @@ async function procesarNotaCredito() {
         return;
     }
 
-    // Loading
-    const btn = document.getElementById('btnEmitirNC');
-    const textoOriginal = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = '<svg class="w-4 h-4 animate-spin inline mr-1.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Conectando con SIFEN...';
+    await withButtonLock('btnEmitirNC', async () => {
+        const numNC = 'NC-' + generarNumeroFacturaAdmin();
+        const cdcNC = generarCDCAdmin();
 
-    const numNC = 'NC-' + generarNumeroFacturaAdmin();
-    const cdcNC = generarCDCAdmin();
+        // TODO: Fase Futura - Enviar JSON a FactPy (tipoDocumento: 5) con los montos NEGATIVOS y el CDC original.
+        await new Promise(resolve => setTimeout(resolve, 2500));
 
-    // TODO: Fase Futura - Enviar JSON a FactPy (tipoDocumento: 5) con los montos NEGATIVOS y el CDC original.
-    await new Promise(resolve => setTimeout(resolve, 2500));
-
-    // --- LOGICA DE STOCK: Sumar cantidades devueltas al inventario ---
-    itemsDevueltos.forEach(devItem => {
-        const cantDevuelta = Math.abs(devItem.cantidad);
-        // Buscar el producto original en el catálogo
-        const prod = productosData.productos.find(p => p.id === devItem.productoId || p.nombre === devItem.nombre);
-        if (prod) {
-            const pres = prod.presentaciones.find(pr => pr.tamano === devItem.presentacion);
-            if (pres) {
-                pres.stock = (pres.stock || 0) + cantDevuelta;
-            }
-        }
-    });
-    // Persistir catalogo con stock actualizado
-    if (typeof guardarTodosCambios === 'function') {
-        await guardarTodosCambios();
-    }
-
-    // --- LOGICA FISCAL: Crear registro NC ---
-    const motivosTexto = {
-        'devolucion_ajuste': 'Devolucion y Ajuste de precios',
-        'descuento': 'Descuento',
-        'mercaderia_danada': 'Mercaderia Danada'
-    };
-
-    const notaCredito = {
-        id: 'NC-' + Date.now(),
-        fecha: new Date().toISOString(),
-        cliente: { ...facturaSeleccionadaNC.cliente },
-        items: itemsDevueltos,
-        subtotal: -totalNC,      // NEGATIVO
-        descuento: 0,
-        total: -totalNC,         // NEGATIVO
-        tipoPago: facturaSeleccionadaNC.tipoPago,
-        notas: `NC por: ${motivosTexto[motivo] || motivo}`,
-        estado: 'nota_credito_mock',
-        numFactura: numNC,
-        cdc: cdcNC,
-        facturaOrigenId: facturaSeleccionadaNC.id,
-        facturaOrigenNum: facturaSeleccionadaNC.numFactura || '',
-        cdcOriginal: facturaSeleccionadaNC.cdc || '',
-        motivoSIFEN: motivo,
-        sincronizado: false
-    };
-
-    // Guardar en HDVStorage
-    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
-    pedidos.push(notaCredito);
-    await HDVStorage.setItem('hdv_pedidos', pedidos);
-
-    // Sincronizar con Supabase
-    if (typeof guardarPedido === 'function') {
-        guardarPedido(notaCredito).then(async (ok) => {
-            if (ok) {
-                notaCredito.sincronizado = true;
-                const p = (await HDVStorage.getItem('hdv_pedidos')) || [];
-                const idx = p.findIndex(x => x.id === notaCredito.id);
-                if (idx >= 0) { p[idx].sincronizado = true; await HDVStorage.setItem('hdv_pedidos', p); }
+        // --- LOGICA DE STOCK: Sumar cantidades devueltas al inventario ---
+        itemsDevueltos.forEach(devItem => {
+            const cantDevuelta = Math.abs(devItem.cantidad);
+            // Buscar el producto original en el catálogo
+            const prod = productosData.productos.find(p => p.id === devItem.productoId || p.nombre === devItem.nombre);
+            if (prod) {
+                const pres = prod.presentaciones.find(pr => pr.tamano === devItem.presentacion);
+                if (pres) {
+                    pres.stock = (pres.stock || 0) + cantDevuelta;
+                }
             }
         });
-    }
+        // Persistir catalogo con stock actualizado
+        if (typeof guardarTodosCambios === 'function') {
+            await guardarTodosCambios();
+        }
 
-    // Guardar para impresion
-    const clienteInfo = productosData.clientes.find(c => c.id === facturaSeleccionadaNC.cliente?.id);
-    ultimaNCEmitida = { notaCredito, clienteInfo, totalNC };
+        // --- LOGICA FISCAL: Crear registro NC ---
+        const motivosTexto = {
+            'devolucion_ajuste': 'Devolucion y Ajuste de precios',
+            'descuento': 'Descuento',
+            'mercaderia_danada': 'Mercaderia Danada'
+        };
 
-    // Restaurar boton
-    btn.disabled = false;
-    btn.innerHTML = textoOriginal;
+        const notaCredito = {
+            id: 'NC-' + Date.now(),
+            fecha: new Date().toISOString(),
+            cliente: { ...facturaSeleccionadaNC.cliente },
+            items: itemsDevueltos,
+            subtotal: -totalNC,      // NEGATIVO
+            descuento: 0,
+            total: -totalNC,         // NEGATIVO
+            tipoPago: facturaSeleccionadaNC.tipoPago,
+            notas: `NC por: ${motivosTexto[motivo] || motivo}`,
+            estado: 'nota_credito_mock',
+            numFactura: numNC,
+            cdc: cdcNC,
+            facturaOrigenId: facturaSeleccionadaNC.id,
+            facturaOrigenNum: facturaSeleccionadaNC.numFactura || '',
+            cdcOriginal: facturaSeleccionadaNC.cdc || '',
+            motivoSIFEN: motivo,
+            sincronizado: false
+        };
 
-    // Mostrar modal exito
-    document.getElementById('ncNumeroDisplay').textContent = `${numNC} | CDC: ${cdcNC}\nRef: ${facturaSeleccionadaNC.numFactura || facturaSeleccionadaNC.id}`;
-    document.getElementById('modalNCExito').classList.add('show');
+        // Guardar en HDVStorage
+        const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
+        pedidos.push(notaCredito);
+        await HDVStorage.setItem('hdv_pedidos', pedidos);
 
-    // Limpiar y refrescar historial
-    limpiarDevolucion();
-    cargarHistorialNC();
+        // Sincronizar con Supabase
+        if (typeof guardarPedido === 'function') {
+            guardarPedido(notaCredito).then(async (ok) => {
+                if (ok) {
+                    notaCredito.sincronizado = true;
+                    const p = (await HDVStorage.getItem('hdv_pedidos')) || [];
+                    const idx = p.findIndex(x => x.id === notaCredito.id);
+                    if (idx >= 0) { p[idx].sincronizado = true; await HDVStorage.setItem('hdv_pedidos', p); }
+                }
+            });
+        }
 
-    lucide.createIcons();
-    mostrarToast('Nota de Credito emitida correctamente', 'success');
+        // Guardar para impresion
+        const clienteInfo = productosData.clientes.find(c => c.id === facturaSeleccionadaNC.cliente?.id);
+        ultimaNCEmitida = { notaCredito, clienteInfo, totalNC };
+
+        // Mostrar modal exito
+        document.getElementById('ncNumeroDisplay').textContent = `${numNC} | CDC: ${cdcNC}\nRef: ${facturaSeleccionadaNC.numFactura || facturaSeleccionadaNC.id}`;
+        document.getElementById('modalNCExito').classList.add('show');
+
+        // Limpiar y refrescar historial
+        limpiarDevolucion();
+        cargarHistorialNC();
+
+        lucide.createIcons();
+        mostrarToast('Nota de Credito emitida correctamente', 'success');
+    }, 'Conectando con SIFEN...')();
 }
 
 // ============================================
@@ -342,7 +334,7 @@ async function cargarHistorialNC() {
                 </div>
                 <div class="text-right">
                     <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-800">NOTA DE CREDITO</span>
-                    <p class="text-lg font-bold text-red-600 mt-1">-Gs. ${Math.abs(nc.total || 0).toLocaleString()}</p>
+                    <p class="text-lg font-bold text-red-600 mt-1">-${formatearGuaranies(Math.abs(nc.total || 0))}</p>
                     <p class="text-xs text-gray-400">${cantItems} unid. devueltas</p>
                 </div>
             </div>
@@ -380,13 +372,13 @@ function construirTicketNC(nc, clienteInfo) {
     (nc.items || []).forEach(i => {
         html += `<div style="display:flex; justify-content:space-between; font-size:10px; margin:2px 0;">
             <span style="flex:1;">${Math.abs(i.cantidad)}x ${i.nombre} ${i.presentacion}</span>
-            <span style="white-space:nowrap;">-Gs.${Math.abs(i.subtotal || 0).toLocaleString()}</span>
+            <span style="white-space:nowrap;">-${formatearGuaranies(Math.abs(i.subtotal || 0))}</span>
         </div>`;
     });
 
     html += `
         <hr style="border:none; border-top:1px dashed #000; margin:4px 0;">
-        <div style="font-size:12px; font-weight:bold; text-align:right;">TOTAL NC: -Gs. ${Math.abs(nc.total || 0).toLocaleString()}</div>
+        <div style="font-size:12px; font-weight:bold; text-align:right;">TOTAL NC: -${formatearGuaranies(Math.abs(nc.total || 0))}</div>
         <hr style="border:none; border-top:1px dashed #000; margin:4px 0;">`;
 
     if (nc.cdc) {
@@ -407,8 +399,8 @@ function construirA4NC(nc, clienteInfo) {
             <td style="padding:8px 12px; font-size:12px;">${idx + 1}</td>
             <td style="padding:8px 12px; font-size:12px;">${i.nombre} - ${i.presentacion}</td>
             <td style="padding:8px 12px; font-size:12px; text-align:center;">${Math.abs(i.cantidad)}</td>
-            <td style="padding:8px 12px; font-size:12px; text-align:right;">Gs. ${(i.precio || 0).toLocaleString()}</td>
-            <td style="padding:8px 12px; font-size:12px; text-align:right; font-weight:bold; color:#dc2626;">-Gs. ${Math.abs(i.subtotal || 0).toLocaleString()}</td>
+            <td style="padding:8px 12px; font-size:12px; text-align:right;">${formatearGuaranies(i.precio)}</td>
+            <td style="padding:8px 12px; font-size:12px; text-align:right; font-weight:bold; color:#dc2626;">-${formatearGuaranies(Math.abs(i.subtotal || 0))}</td>
         </tr>`;
     });
 
@@ -448,7 +440,7 @@ function construirA4NC(nc, clienteInfo) {
             <tbody>${itemsHTML}</tbody>
         </table>
         <div style="text-align:right; margin-bottom:16px;">
-            <p style="font-size:18px; font-weight:900; margin:8px 0 0; border-top:2px solid #dc2626; padding-top:8px; color:#dc2626;">TOTAL NC: -Gs. ${Math.abs(nc.total || 0).toLocaleString()}</p>
+            <p style="font-size:18px; font-weight:900; margin:8px 0 0; border-top:2px solid #dc2626; padding-top:8px; color:#dc2626;">TOTAL NC: -${formatearGuaranies(Math.abs(nc.total || 0))}</p>
         </div>
         ${nc.cdc ? `
             <div style="margin-top:20px; padding-top:12px; border-top:1px solid #e5e7eb; display:flex; align-items:center; gap:16px;">

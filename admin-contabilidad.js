@@ -73,8 +73,8 @@ async function previsualizarCierre() {
 
     document.getElementById('cierreFacturas').textContent = facturas.length;
     document.getElementById('cierreNCs').textContent = ncs.length;
-    document.getElementById('cierreTotalBruto').textContent = 'Gs. ' + totalBruto.toLocaleString();
-    document.getElementById('cierreTotalNeto').textContent = 'Gs. ' + (totalBruto - totalNCs).toLocaleString();
+    document.getElementById('cierreTotalBruto').textContent = formatearGuaranies(totalBruto);
+    document.getElementById('cierreTotalNeto').textContent = formatearGuaranies(totalBruto - totalNCs);
     document.getElementById('cierreRegistrosCount').textContent = registrosCierreMensual.length + ' registros';
 
     // Tabla preview
@@ -104,10 +104,10 @@ async function previsualizarCierre() {
             <td class="px-4 py-2.5">
                 <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${esNC ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}">${tipo}</span>
             </td>
-            <td class="px-4 py-2.5 text-right text-xs">${desglose.exentas === 0 ? '-' : 'Gs. ' + desglose.exentas.toLocaleString()}</td>
-            <td class="px-4 py-2.5 text-right text-xs">${desglose.iva5 === 0 ? '-' : 'Gs. ' + desglose.iva5.toLocaleString()}</td>
-            <td class="px-4 py-2.5 text-right text-xs">Gs. ${desglose.iva10.toLocaleString()}</td>
-            <td class="px-4 py-2.5 text-right font-bold text-sm ${esNC ? 'text-red-600' : ''}">${esNC ? '-' : ''}Gs. ${Math.abs(total).toLocaleString()}</td>`;
+            <td class="px-4 py-2.5 text-right text-xs">${desglose.exentas === 0 ? '-' : formatearGuaranies(desglose.exentas)}</td>
+            <td class="px-4 py-2.5 text-right text-xs">${desglose.iva5 === 0 ? '-' : formatearGuaranies(desglose.iva5)}</td>
+            <td class="px-4 py-2.5 text-right text-xs">${formatearGuaranies(desglose.iva10)}</td>
+            <td class="px-4 py-2.5 text-right font-bold text-sm ${esNC ? 'text-red-600' : ''}">${esNC ? '-' : ''}${formatearGuaranies(Math.abs(total))}</td>`;
         tbody.appendChild(tr);
     });
 
@@ -125,51 +125,50 @@ async function exportarLibroRG90() {
         return;
     }
 
-    const btn = document.getElementById('btnRG90');
-    const textoOriginal = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = '<svg class="w-4 h-4 animate-spin inline mr-1.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Generando reporte...';
+    await withButtonLock('btnRG90', async () => {
+        // Simular procesamiento
+        await new Promise(r => setTimeout(r, 800));
 
-    // Simular procesamiento
-    await new Promise(r => setTimeout(r, 800));
+        const mes = document.getElementById('cierreMes').value;
+        const anio = document.getElementById('cierreAnio').value;
+        const nombreMes = getNombreMes(parseInt(mes));
 
-    const mes = document.getElementById('cierreMes').value;
-    const anio = document.getElementById('cierreAnio').value;
-    const nombreMes = getNombreMes(parseInt(mes));
+        // Header CSV
+        let csv = '\uFEFF'; // BOM para Excel
+        csv += 'Fecha,RUC,Razon Social,Nro Comprobante,Tipo Documento,CDC,Exentas,Gravada 5%,IVA 5%,Gravada 10%,IVA 10%,Total\n';
 
-    // Header CSV
-    let csv = '\uFEFF'; // BOM para Excel
-    csv += 'Fecha,RUC,Razon Social,Nro Comprobante,Tipo Documento,CDC,Exentas,Gravada 5%,IVA 5%,Gravada 10%,IVA 10%,Total\n';
+        registros.forEach(r => {
+            const clienteInfo = productosData.clientes.find(c => c.id === r.cliente?.id);
+            const ruc = clienteInfo?.ruc || r.cliente?.ruc || '';
+            const esNC = r.estado === 'nota_credito_mock';
+            const tipo = esNC ? 'Nota de Credito' : 'Factura Electronica';
+            const total = r.total || 0;
+            const desglose = calcularDesglose(total, r);
 
-    registros.forEach(r => {
-        const clienteInfo = productosData.clientes.find(c => c.id === r.cliente?.id);
-        const ruc = clienteInfo?.ruc || r.cliente?.ruc || '';
-        const esNC = r.estado === 'nota_credito_mock';
-        const tipo = esNC ? 'Nota de Credito' : 'Factura Electronica';
-        const total = r.total || 0;
-        const desglose = calcularDesglose(total, r);
+            const fecha = new Date(r.fecha).toLocaleDateString('es-PY');
+            const nombre = r.cliente?.nombre || '';
+            const numDoc = r.numFactura || r.id;
+            const cdc = r.cdc || '';
 
-        const fecha = new Date(r.fecha).toLocaleDateString('es-PY');
-        const nombre = (r.cliente?.nombre || '').replace(/,/g, ' ');
-        const numDoc = r.numFactura || r.id;
-        const cdc = r.cdc || '';
+            csv += [
+                escaparCSV(fecha), escaparCSV(ruc), escaparCSV(nombre),
+                escaparCSV(numDoc), escaparCSV(tipo), escaparCSV(cdc),
+                desglose.exentas, desglose.gravada5 || 0, desglose.iva5,
+                desglose.gravada10 || 0, desglose.iva10, total
+            ].join(',') + '\n';
+        });
 
-        csv += `${fecha},"${ruc}","${nombre}","${numDoc}","${tipo}","${cdc}",`;
-        csv += `${desglose.exentas},${desglose.gravada5 || 0},${desglose.iva5},${desglose.gravada10 || 0},${desglose.iva10},${total}\n`;
-    });
+        // Descargar
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `RG90_${nombreMes}_${anio}.csv`;
+        link.click();
+        URL.revokeObjectURL(url);
 
-    // Descargar
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `RG90_${nombreMes}_${anio}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
-
-    btn.disabled = false;
-    btn.innerHTML = textoOriginal;
-    mostrarToast(`Libro RG90 de ${nombreMes} ${anio} descargado`, 'success');
+        mostrarToast(`Libro RG90 de ${nombreMes} ${anio} descargado`, 'success');
+    }, 'Generando reporte...')();
 }
 
 // ============================================
@@ -188,107 +187,102 @@ async function exportarPaqueteZIP() {
         return;
     }
 
-    const btn = document.getElementById('btnZIP');
-    const textoOriginal = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = '<svg class="w-4 h-4 animate-spin inline mr-1.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Comprimiendo archivos...';
+    await withButtonLock('btnZIP', async () => {
+        const mes = document.getElementById('cierreMes').value;
+        const anio = document.getElementById('cierreAnio').value;
+        const nombreMes = getNombreMes(parseInt(mes));
 
-    const mes = document.getElementById('cierreMes').value;
-    const anio = document.getElementById('cierreAnio').value;
-    const nombreMes = getNombreMes(parseInt(mes));
+        const zip = new JSZip();
 
-    const zip = new JSZip();
+        // Simular procesamiento
+        await new Promise(r => setTimeout(r, 1200));
 
-    // Simular procesamiento
-    await new Promise(r => setTimeout(r, 1200));
+        registros.forEach(r => {
+            const cdc = r.cdc || r.id.replace(/[^a-zA-Z0-9]/g, '');
+            const clienteInfo = productosData.clientes.find(c => c.id === r.cliente?.id);
+            const ruc = clienteInfo?.ruc || r.cliente?.ruc || 'SIN_RUC';
+            const esNC = r.estado === 'nota_credito_mock';
+            const tipoDoc = esNC ? 'NotaCredito' : 'Factura';
 
-    registros.forEach(r => {
-        const cdc = r.cdc || r.id.replace(/[^a-zA-Z0-9]/g, '');
-        const clienteInfo = productosData.clientes.find(c => c.id === r.cliente?.id);
-        const ruc = clienteInfo?.ruc || r.cliente?.ruc || 'SIN_RUC';
-        const esNC = r.estado === 'nota_credito_mock';
-        const tipoDoc = esNC ? 'NotaCredito' : 'Factura';
+            // Mock KuDE (contenido simulado de texto)
+            const kudeContent = [
+                `=== ${tipoDoc.toUpperCase()} ELECTRONICA - KuDE ===`,
+                ``,
+                `HDV DISTRIBUCIONES`,
+                `RUC Emisor: 80000000-0`,
+                `Timbrado: 12345678`,
+                ``,
+                `Documento: ${r.numFactura || r.id}`,
+                `CDC: ${cdc}`,
+                `Fecha: ${new Date(r.fecha).toLocaleString('es-PY')}`,
+                ``,
+                `Cliente: ${r.cliente?.nombre || 'N/A'}`,
+                `RUC Cliente: ${ruc}`,
+                ``,
+                `--- DETALLE ---`,
+                ...(r.items || []).map(i =>
+                    `${Math.abs(i.cantidad)}x ${i.nombre} ${i.presentacion} ... ${formatearGuaranies(i.subtotal)}`
+                ),
+                ``,
+                `TOTAL: ${formatearGuaranies(r.total)}`,
+                ``,
+                `[QR SIFEN - Simulado]`,
+                `Consulte en: https://ekuatia.set.gov.py/consultas/qr?cdc=${cdc}`,
+            ].join('\n');
 
-        // Mock KuDE (contenido simulado de texto)
-        const kudeContent = [
-            `=== ${tipoDoc.toUpperCase()} ELECTRONICA - KuDE ===`,
-            ``,
-            `HDV DISTRIBUCIONES`,
-            `RUC Emisor: 80000000-0`,
-            `Timbrado: 12345678`,
-            ``,
-            `Documento: ${r.numFactura || r.id}`,
-            `CDC: ${cdc}`,
-            `Fecha: ${new Date(r.fecha).toLocaleString('es-PY')}`,
-            ``,
-            `Cliente: ${r.cliente?.nombre || 'N/A'}`,
-            `RUC Cliente: ${ruc}`,
-            ``,
-            `--- DETALLE ---`,
-            ...(r.items || []).map(i =>
-                `${Math.abs(i.cantidad)}x ${i.nombre} ${i.presentacion} ... Gs. ${(i.subtotal || 0).toLocaleString()}`
-            ),
-            ``,
-            `TOTAL: Gs. ${(r.total || 0).toLocaleString()}`,
-            ``,
-            `[QR SIFEN - Simulado]`,
-            `Consulte en: https://ekuatia.set.gov.py/consultas/qr?cdc=${cdc}`,
-        ].join('\n');
+            // Mock XML (estructura simulada SIFEN)
+            const xmlContent = [
+                `<?xml version="1.0" encoding="UTF-8"?>`,
+                `<!-- DOCUMENTO ELECTRONICO SIMULADO - FASE MOCK -->`,
+                `<!-- TODO: Fase Futura - Reemplazar con XML real de FactPy -->`,
+                `<rDE xmlns="http://ekuatia.set.gov.py/sifen/xsd">`,
+                `  <dVerFor>150</dVerFor>`,
+                `  <gTimb>`,
+                `    <iTiDE>${esNC ? 5 : 1}</iTiDE>`,
+                `    <dNumTim>12345678</dNumTim>`,
+                `    <dEst>001</dEst>`,
+                `    <dPunExp>001</dPunExp>`,
+                `    <dNumDoc>${(r.numFactura || r.id).split('-').pop() || '0000001'}</dNumDoc>`,
+                `  </gTimb>`,
+                `  <gDatGralOpe>`,
+                `    <dFeEmiDE>${new Date(r.fecha).toISOString()}</dFeEmiDE>`,
+                `  </gDatGralOpe>`,
+                `  <gDatRec>`,
+                `    <dRucRec>${ruc}</dRucRec>`,
+                `    <dNomRec>${r.cliente?.nombre || 'N/A'}</dNomRec>`,
+                `  </gDatRec>`,
+                `  <gDtipDE>`,
+                ...(r.items || []).map(i => [
+                    `    <gCamItem>`,
+                    `      <dDesProSer>${i.nombre} ${i.presentacion}</dDesProSer>`,
+                    `      <dCantProSer>${Math.abs(i.cantidad)}</dCantProSer>`,
+                    `      <gValorItem>`,
+                    `        <dPUniProSer>${Math.abs(i.precio || 0)}</dPUniProSer>`,
+                    `        <dTotBruOpeItem>${Math.abs(i.subtotal || 0)}</dTotBruOpeItem>`,
+                    `      </gValorItem>`,
+                    `    </gCamItem>`,
+                ].join('\n')),
+                `  </gDtipDE>`,
+                `  <gTotSub>`,
+                `    <dTotGralOpe>${r.total || 0}</dTotGralOpe>`,
+                `  </gTotSub>`,
+                `  <dCDC>${cdc}</dCDC>`,
+                `</rDE>`,
+            ].join('\n');
 
-        // Mock XML (estructura simulada SIFEN)
-        const xmlContent = [
-            `<?xml version="1.0" encoding="UTF-8"?>`,
-            `<!-- DOCUMENTO ELECTRONICO SIMULADO - FASE MOCK -->`,
-            `<!-- TODO: Fase Futura - Reemplazar con XML real de FactPy -->`,
-            `<rDE xmlns="http://ekuatia.set.gov.py/sifen/xsd">`,
-            `  <dVerFor>150</dVerFor>`,
-            `  <gTimb>`,
-            `    <iTiDE>${esNC ? 5 : 1}</iTiDE>`,
-            `    <dNumTim>12345678</dNumTim>`,
-            `    <dEst>001</dEst>`,
-            `    <dPunExp>001</dPunExp>`,
-            `    <dNumDoc>${(r.numFactura || r.id).split('-').pop() || '0000001'}</dNumDoc>`,
-            `  </gTimb>`,
-            `  <gDatGralOpe>`,
-            `    <dFeEmiDE>${new Date(r.fecha).toISOString()}</dFeEmiDE>`,
-            `  </gDatGralOpe>`,
-            `  <gDatRec>`,
-            `    <dRucRec>${ruc}</dRucRec>`,
-            `    <dNomRec>${r.cliente?.nombre || 'N/A'}</dNomRec>`,
-            `  </gDatRec>`,
-            `  <gDtipDE>`,
-            ...(r.items || []).map(i => [
-                `    <gCamItem>`,
-                `      <dDesProSer>${i.nombre} ${i.presentacion}</dDesProSer>`,
-                `      <dCantProSer>${Math.abs(i.cantidad)}</dCantProSer>`,
-                `      <gValorItem>`,
-                `        <dPUniProSer>${Math.abs(i.precio || 0)}</dPUniProSer>`,
-                `        <dTotBruOpeItem>${Math.abs(i.subtotal || 0)}</dTotBruOpeItem>`,
-                `      </gValorItem>`,
-                `    </gCamItem>`,
-            ].join('\n')),
-            `  </gDtipDE>`,
-            `  <gTotSub>`,
-            `    <dTotGralOpe>${r.total || 0}</dTotGralOpe>`,
-            `  </gTotSub>`,
-            `  <dCDC>${cdc}</dCDC>`,
-            `</rDE>`,
-        ].join('\n');
+            zip.file(`${cdc}_KuDE.txt`, kudeContent);
+            zip.file(`${cdc}_${tipoDoc}.xml`, xmlContent);
+        });
 
-        zip.file(`${cdc}_KuDE.txt`, kudeContent);
-        zip.file(`${cdc}_${tipoDoc}.xml`, xmlContent);
-    });
+        // Generar y descargar ZIP
+        const zipBlob = await zip.generateAsync({ type: 'blob' });
+        const url = URL.createObjectURL(zipBlob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `Facturas_Electronicas_${nombreMes}_${anio}.zip`;
+        link.click();
+        URL.revokeObjectURL(url);
 
-    // Generar y descargar ZIP
-    const zipBlob = await zip.generateAsync({ type: 'blob' });
-    const url = URL.createObjectURL(zipBlob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `Facturas_Electronicas_${nombreMes}_${anio}.zip`;
-    link.click();
-    URL.revokeObjectURL(url);
-
-    btn.disabled = false;
-    btn.innerHTML = textoOriginal;
-    mostrarToast(`Paquete tributario de ${nombreMes} ${anio} descargado (${registros.length} documentos)`, 'success');
+        mostrarToast(`Paquete tributario de ${nombreMes} ${anio} descargado (${registros.length} documentos)`, 'success');
+    }, 'Comprimiendo archivos...')();
 }

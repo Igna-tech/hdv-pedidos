@@ -263,10 +263,21 @@ const SyncManager = (() => {
         console.log('[SyncManager] Inicializado (batch=' + BATCH_SIZE + ', maxDelay=' + MAX_DELAY/1000 + 's)');
     }
 
+    function stop() {
+        if (_retryTimeout) {
+            clearTimeout(_retryTimeout);
+            _retryTimeout = null;
+        }
+        _syncing = false;
+        _currentAttempt = 0;
+        console.log('[SyncManager] Detenido');
+    }
+
     return {
         syncPedidosPendientes,
         getQueueStatus,
-        init
+        init,
+        stop
     };
 })();
 

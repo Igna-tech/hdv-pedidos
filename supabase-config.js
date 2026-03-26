@@ -288,7 +288,34 @@ function _mapProductoRelacional(p) {
 }
 
 async function obtenerCatalogo() {
-    const { data, error } = await SupabaseService.fetchCatalogo();
+    const CATALOG_TIMEOUT_MS = 15000;
+
+    let result;
+    try {
+        result = await Promise.race([
+            SupabaseService.fetchCatalogo(),
+            new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('CATALOG_TIMEOUT')), CATALOG_TIMEOUT_MS)
+            )
+        ]);
+    } catch (err) {
+        if (err.message === 'CATALOG_TIMEOUT') {
+            console.warn('[Supabase] Timeout de ' + CATALOG_TIMEOUT_MS + 'ms obteniendo catalogo, usando cache local');
+            const cached = await HDVStorage.getItem('hdv_catalogo_local');
+            if (cached) {
+                if (typeof mostrarToast === 'function') {
+                    mostrarToast('Conexion lenta — catalogo cargado desde cache local', 'info');
+                }
+                return cached;
+            }
+            console.error('[Supabase] Timeout y sin cache local disponible');
+            return null;
+        }
+        console.error('[Supabase] Error obteniendo catalogo:', err);
+        return null;
+    }
+
+    const { data, error } = result;
     if (error || !data) {
         console.error('[Supabase] Error obteniendo catalogo:', error);
         return null;
@@ -605,11 +632,34 @@ HDVStorage.ready().then(() => {
 });
 
 // ============================================
+// LIMPIEZA DE TIMERS (previene zombie requests post-logout)
+// ============================================
+
+function limpiarTimers() {
+    // Health check monitor
+    if (_monitorTimer) {
+        clearTimeout(_monitorTimer);
+        _monitorTimer = null;
+    }
+    // SyncManager retry timer
+    if (typeof SyncManager !== 'undefined' && typeof SyncManager.stop === 'function') {
+        SyncManager.stop();
+    }
+    // Auto-backup interval (app vendedor)
+    if (typeof autoBackupInterval !== 'undefined' && autoBackupInterval) {
+        clearInterval(autoBackupInterval);
+        autoBackupInterval = null;
+    }
+    console.log('[Supabase] Timers limpiados');
+}
+
+// ============================================
 // CERRAR SESION
 // ============================================
 
 async function cerrarSesion() {
     try {
+        limpiarTimers();
         await supabaseClient.auth.signOut();
         await HDVStorage.removeItem('hdv_user_rol');
         await HDVStorage.removeItem('hdv_user_email');

@@ -6,6 +6,36 @@
 
 let pedidoEditandoId = null;
 
+// ============================================
+// EVENT DELEGATION — despacho de acciones de pedidos
+// ============================================
+const _pedidosActionMap = {
+    'facturar':          (id) => { if (typeof facturarPedidoAdmin === 'function') facturarPedidoAdmin(id); },
+    'marcar-entregado':  (id) => marcarEntregado(id),
+    'marcar-pendiente':  (id) => marcarPendiente(id),
+    'editar':            (id) => abrirModalEditarPedido(id),
+    'pdf':               (id) => generarPDFRemision(id),
+    'ticket':            (id) => generarTicketTermico(id),
+    'eliminar':          (id) => eliminarPedidoAdmin(id),
+};
+
+function _handlePedidoAction(event) {
+    const target = event.target.closest('[data-action]');
+    if (!target) return;
+    if (target.disabled) return;
+    const action = target.dataset.action;
+    const id = target.dataset.id;
+    const handler = _pedidosActionMap[action];
+    if (handler) handler(id);
+}
+
+function _initPedidosDelegation(container) {
+    if (container && !container._delegated) {
+        container.addEventListener('click', _handlePedidoAction);
+        container._delegated = true;
+    }
+}
+
 // Cache de perfiles para mostrar nombres de vendedores en tarjetas
 let _pedidosPerfilesCache = null;
 async function obtenerPerfilesPedidosMap() {
@@ -66,6 +96,7 @@ function aplicarFiltrosPedidos() {
 function mostrarPedidos(pedidos) {
     const container = document.getElementById('listaPedidos');
     if (!container) return;
+    _initPedidosDelegation(container);
     if (pedidos.length === 0) {
         container.innerHTML = generarAdminEmptyState(SVG_ADMIN_EMPTY_ORDERS, 'No hay pedidos para mostrar', 'Los pedidos nuevos apareceran aqui automaticamente');
         return;
@@ -133,14 +164,14 @@ function crearTarjetaPedidoAdmin(p) {
             <span class="text-xl font-bold text-gray-900">${formatearGuaranies(p.total)}</span>
         </div>
         <div class="pedido-acciones flex gap-2 mt-4 flex-wrap">
-            <button class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-emerald-700 inline-flex items-center gap-1.5" id="btnFacturar-${p.id}" onclick="facturarPedidoAdmin('${p.id}')"><i data-lucide="file-check" class="w-3.5 h-3.5"></i> Facturar (SIFEN)</button>
+            <button class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-emerald-700 inline-flex items-center gap-1.5" data-action="facturar" data-id="${p.id}"><i data-lucide="file-check" class="w-3.5 h-3.5"></i> Facturar (SIFEN)</button>
             ${estado === 'pendiente' || estado === PEDIDO_ESTADOS.PENDIENTE ?
-                `<button class="btn-estado bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-green-700 inline-flex items-center gap-1.5" onclick="marcarEntregado('${p.id}')"><i data-lucide="check" class="w-3.5 h-3.5"></i> Entregado</button>` :
-                `<button class="btn-estado bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-300 inline-flex items-center gap-1.5" onclick="marcarPendiente('${p.id}')"><i data-lucide="undo-2" class="w-3.5 h-3.5"></i> Pendiente</button>`}
-            <button class="bg-blue-50 text-blue-600 px-3 py-2 rounded-lg text-sm font-bold hover:bg-blue-100 inline-flex items-center gap-1" onclick="abrirModalEditarPedido('${p.id}')"><i data-lucide="pencil" class="w-3.5 h-3.5"></i> Editar</button>
-            <button class="bg-gray-50 text-gray-700 px-3 py-2 rounded-lg text-sm font-bold hover:bg-gray-100 inline-flex items-center gap-1" onclick="generarPDFRemision('${p.id}')"><i data-lucide="file-text" class="w-3.5 h-3.5"></i> PDF</button>
-            <button class="bg-gray-50 text-gray-700 px-3 py-2 rounded-lg text-sm font-bold hover:bg-gray-100 inline-flex items-center gap-1" onclick="generarTicketTermico('${p.id}')"><i data-lucide="printer" class="w-3.5 h-3.5"></i> Ticket</button>
-            <button class="bg-red-50 text-red-500 px-3 py-2 rounded-lg text-sm font-bold hover:bg-red-100 inline-flex items-center gap-1" onclick="eliminarPedido('${p.id}')"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+                `<button class="btn-estado bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-green-700 inline-flex items-center gap-1.5" data-action="marcar-entregado" data-id="${p.id}"><i data-lucide="check" class="w-3.5 h-3.5"></i> Entregado</button>` :
+                `<button class="btn-estado bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-300 inline-flex items-center gap-1.5" data-action="marcar-pendiente" data-id="${p.id}"><i data-lucide="undo-2" class="w-3.5 h-3.5"></i> Pendiente</button>`}
+            <button class="bg-blue-50 text-blue-600 px-3 py-2 rounded-lg text-sm font-bold hover:bg-blue-100 inline-flex items-center gap-1" data-action="editar" data-id="${p.id}"><i data-lucide="pencil" class="w-3.5 h-3.5"></i> Editar</button>
+            <button class="bg-gray-50 text-gray-700 px-3 py-2 rounded-lg text-sm font-bold hover:bg-gray-100 inline-flex items-center gap-1" data-action="pdf" data-id="${p.id}"><i data-lucide="file-text" class="w-3.5 h-3.5"></i> PDF</button>
+            <button class="bg-gray-50 text-gray-700 px-3 py-2 rounded-lg text-sm font-bold hover:bg-gray-100 inline-flex items-center gap-1" data-action="ticket" data-id="${p.id}"><i data-lucide="printer" class="w-3.5 h-3.5"></i> Ticket</button>
+            <button class="bg-red-50 text-red-500 px-3 py-2 rounded-lg text-sm font-bold hover:bg-red-100 inline-flex items-center gap-1" data-action="eliminar" data-id="${p.id}"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
         </div>`;
     return div;
 }
@@ -163,11 +194,13 @@ function actualizarTarjetaPedidoAdminDOM(pedidoId, nuevoEstado) {
         if (nuevoEstado === PEDIDO_ESTADOS.ENTREGADO) {
             btnEstado.className = 'btn-estado bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-300 inline-flex items-center gap-1.5';
             btnEstado.innerHTML = `<i data-lucide="undo-2" class="w-3.5 h-3.5"></i> Pendiente`;
-            btnEstado.setAttribute('onclick', `marcarPendiente('${pedidoId}')`);
+            btnEstado.dataset.action = 'marcar-pendiente';
+            btnEstado.dataset.id = pedidoId;
         } else {
             btnEstado.className = 'btn-estado bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-green-700 inline-flex items-center gap-1.5';
             btnEstado.innerHTML = `<i data-lucide="check" class="w-3.5 h-3.5"></i> Entregado`;
-            btnEstado.setAttribute('onclick', `marcarEntregado('${pedidoId}')`);
+            btnEstado.dataset.action = 'marcar-entregado';
+            btnEstado.dataset.id = pedidoId;
         }
         lucide.createIcons({ nodes: [btnEstado] });
     }

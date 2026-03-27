@@ -23,9 +23,9 @@ PWA mobile-first para vendedores de calle + panel admin de escritorio.
 ```
 ├── index.html              → App vendedor (mobile PWA)
 ├── app.js                  → Logica vendedor (catalogo, carrito, pedidos, zonas, caja, metas)
-├── checkout.js             → 3 flujos de venta: pedido pendiente, recibo interno, factura SIFEN
+├── checkout.js             → 3 flujos de venta: pedido pendiente, recibo interno, factura SIFEN (con verificacion de persistencia)
 │
-├── admin.html              → Panel admin (desktop)
+├── admin.html              → Panel admin (desktop) — incluye filtros vendedor/estado en seccion pedidos
 ├── admin.js                → Logica admin (dashboard, productos, clientes, stock, pedidos, creditos, promos, backups, rendiciones, metas, forense)
 ├── admin-ventas.js         → Facturacion: emision facturas SIFEN, reimpresion, WhatsApp
 ├── admin-devoluciones.js   → Notas de credito: devolucion parcial/total, restaura stock, impresion
@@ -38,8 +38,8 @@ PWA mobile-first para vendedores de calle + panel admin de escritorio.
 ├── login.html / login.js   → Login con Supabase Auth + MFA TOTP, redirect por rol, alerta ?blocked=1
 │
 ├── js/core/state.js        → Singleton hdvState: getters/setters globales (pedidos, catalogo, carrito)
-├── js/services/sync.js     → SyncManager: sync automatica de pedidos offline con backoff progresivo
-├── js/utils/storage.js     → HDVStorage: wrapper IndexedDB con cache en memoria
+├── js/services/sync.js     → SyncManager: sync automatica con batch upsert, pre-flight check, backoff exponencial + jitter
+├── js/utils/storage.js     → HDVStorage: wrapper IndexedDB blindado (persistent storage, quota monitoring, eviction detection)
 ├── js/utils/sanitizer.js   → escapeHTML() para prevencion XSS
 ├── js/utils/helpers.js     → Utilidades compartidas (debounce, etc.)
 ├── js/utils/formatters.js  → Formateo de moneda, fechas, etc.
@@ -47,7 +47,7 @@ PWA mobile-first para vendedores de calle + panel admin de escritorio.
 ├── js/utils/pdf-generator.js → Generacion de PDFs con jsPDF
 ├── js/vendedor/ui.js       → UI del vendedor (catalogo visual, navegacion)
 ├── js/vendedor/cart.js     → Logica de carrito del vendedor
-├── js/admin/pedidos.js     → Modulo admin: gestion de pedidos entrantes
+├── js/admin/pedidos.js     → Modulo admin: pedidos con filtros vendedor/estado, badges fraude/tipo/editado, desglose IVA, CSV enriquecido
 ├── js/admin/dashboard.js   → Modulo admin: dashboard con Chart.js
 ├── js/admin/productos.js   → Modulo admin: CRUD de productos y variantes
 ├── js/admin/clientes.js    → Modulo admin: CRUD de clientes
@@ -71,6 +71,8 @@ PWA mobile-first para vendedores de calle + panel admin de escritorio.
 ├── AUDITORIA_SEGURIDAD_V2.md → V2: Red Team, 9 hallazgos, todos remediados
 ├── AUDITORIA_SEGURIDAD_V3.md → V3: Insider Threats, 10 hallazgos, todos remediados
 ├── AUDITORIA_SEGURIDAD_V4.md → V4: White-Box Audit integral, Tier 3/5, 9 brechas residuales
+├── AUDITORIA_FASE1_INTEGRIDAD_DATOS.md → Fase 1: 14 hallazgos integridad de datos, 12 remediados
+├── AUDITORIA_FLUJO_DATOS_E2E.md        → E2E: mapeo escrituras vendedor→admin, 10 puntos ciegos, 7 reparados
 ├── GUIA_CLOUDFLARE_WAF.md     → Guia paso a paso para activar WAF Cloudflare + Vercel (B-03)
 ├── DISASTER_RECOVERY.md      → Plan de recuperacion ante desastres (RTO 2h, RPO 24h)
 ├── scripts/backup_schema.sh  → Cold backup de esquema DB (estructura sin datos)
@@ -100,7 +102,7 @@ supabase CDN → supabase-init.js → js/utils/storage.js → login.js
 
 ### Tablas operativas:
 - `pedidos` (id TEXT PK, estado, fecha TEXT, datos JSONB, creado_en, actualizado_en, vendedor_id UUID FK→auth.users DEFAULT auth.uid()) — estados: pedido_pendiente, entregado, cobrado_sin_factura, facturado_mock, nota_credito_mock, anulado
-- `configuracion` (doc_id TEXT PK, datos JSONB) — docs: pagos_credito, creditos_manuales, promociones, whatsapp_plantilla, gastos_vendedor, rendiciones, cuentas_bancarias, metas_vendedor
+- `configuracion` (doc_id TEXT PK, datos JSONB) — docs: pagos_credito, creditos_manuales, promociones, whatsapp_plantilla, gastos_vendedor_${vendedorId}, rendiciones_${vendedorId}, cuentas_bancarias, metas_vendedor. NOTA: gastos y rendiciones particionados por vendedor_id desde Fase 1 (antes era doc_id compartido → last-write-wins)
 - `configuracion_empresa` (id INT PK default 1, ruc_empresa, razon_social, nombre_fantasia, timbrado_numero, timbrado_vencimiento, establecimiento, punto_expedicion, direccion_fiscal, telefono_empresa, email_empresa, actividad_economica) — fila unica, DELETE bloqueado
 - `reportes_mensuales` (mes TEXT PK, datos JSONB)
 - `perfiles` (id UUID PK FK→auth.users, nombre_completo, rol CHECK('admin','vendedor'), activo)
@@ -129,7 +131,7 @@ supabase CDN → supabase-init.js → js/utils/storage.js → login.js
 Patron Repository. Singleton global `SupabaseService` (IIFE). Centraliza TODAS las queries. Ningun otro archivo debe hacer `supabaseClient.from()` directamente.
 
 **API publica:**
-- **Pedidos**: `fetchPedidos(limit,offset)`, `fetchPedidoDatos(id)`, `upsertPedido(pedido)`, `updateEstadoPedido(id,estado)` [RPC atomica], `deletePedido(id)`
+- **Pedidos**: `fetchPedidos(limit,offset)` [auto-paginacion, cap 5000], `fetchPedidoDatos(id)`, `upsertPedido(pedido)`, `updateEstadoPedido(id,estado)` [RPC atomica], `deletePedido(id)`
 - **Catalogo**: `fetchCatalogo()`, `fetchCategorias()`, `fetchClientes(limit,offset)`, `fetchProductosConVariantes(limit,offset)`
 - **CRUD**: `upsertCategorias/Clientes/Productos(rows)`, `deleteCategorias/Clientes/Productos(ids)`, `fetch*Ids()`
 - **Variantes**: `deleteVariantesByProductoIds(ids)`, `insertVariantes(rows)`, `updateVariante(id,campos)`, `upsertVariante(row)`, `reemplazarVariantes(ids, rows)` [RPC atomica]
@@ -143,8 +145,8 @@ Retornos: `{ data, error }` para fetches, `{ success, error }` para mutaciones.
 
 Consume `SupabaseService`. Expone funciones globales:
 - **Catalogo**: `obtenerCatalogo()`, `guardarCatalogo(data)`, `escucharCatalogoRealtime(cb)`
-- **Pedidos**: `guardarPedido(pedido)`, `actualizarEstadoPedido(id,estado)`, `eliminarPedido(id)`, `obtenerPedidos()`, `escucharPedidosRealtime(cb)`, `escucharPedidosRealtimeVendedor(callbacks)` [granular: onEstadoCambiado, onPedidoEliminado, onSync], `sincronizarPedidosLocales()`
-- **Config**: 8 pares guardar/obtener + `sincronizarDatosNegocio()`, `cargarDatosNegocio()`, `iniciarListenersDatosNegocio()`
+- **Pedidos**: `guardarPedido(pedido)`, `actualizarEstadoPedido(id,estado)`, `eliminarPedido(id)`, `obtenerPedidos()`, `escucharPedidosRealtime(cb)` [debounce 500ms], `escucharPedidosRealtimeVendedor(callbacks)` [granular: onEstadoCambiado, onPedidoEliminado, onSync], `sincronizarPedidosLocales()`
+- **Config**: 8 pares guardar/obtener + `sincronizarDatosNegocio()`, `cargarDatosNegocio()`, `iniciarListenersDatosNegocio()`. `guardarGastos()`/`guardarRendiciones()` particionan por `vendedor_id` automaticamente
 - **Conexion**: `monitorearConexion()` — healthCheck cada 30s, `actualizarIndicadorConexion()` — badge verde(sincronizado)/amarillo(conectando)/rojo(sin conexion) + banner offline. Indicador presente en ambos HTML (vendedor header + admin header)
 
 ## Formato de datos en memoria
@@ -175,15 +177,31 @@ pedido = {
 `HDVStorage` (js/utils/storage.js): wrapper IndexedDB (base `HDV_ERP_DB`, store `keyval`) con cache en memoria.
 Migra automaticamente de localStorage a IndexedDB al primer uso. Supabase Auth sigue en localStorage.
 
+**Blindaje Fase 1 (2026-03-25):**
+- `navigator.storage.persist()` al init — solicita almacenamiento persistente (protege contra eviccion del navegador)
+- `navigator.storage.estimate()` — monitoreo de cuota, alerta al 80%
+- `_detectarEviccion()` post-init — detecta keys perdidas y las recupera desde cache en memoria
+- `setItem()` retorna `boolean` (`true`=persistido, `false`=fallo). Fallback a localStorage para keys criticas (`hdv_pedidos`, `hdv_catalogo_local`, `hdv_carrito`)
+- `getItem()` retorna `structuredClone()` (copia profunda) — evita race conditions por referencia compartida
+- `isHealthy()` — flag global de salud del storage
+- `atomicUpdate(key, updaterFn)` — mutex per-key (promise-queue) para read-modify-write seguro. `updaterFn` recibe valor actual, retorna nuevo valor. Libera lock en `finally` ante errores. **OBLIGATORIO** para toda mutacion de `hdv_pedidos` en callbacks realtime.
+
 **Keys principales:** `hdv_catalogo_local`, `hdv_pedidos`, `hdv_carrito_${clienteId}`, `hdv_pagos_credito`, `hdv_creditos_manuales`, `hdv_promociones`, `hdv_gastos`, `hdv_rendiciones`, `hdv_cuentas_bancarias`, `hdv_metas`, `hdv_user_rol/email/nombre`, `hdv_darkmode`, `hdv_auto_backup(s)`.
 
-**SyncManager** (js/services/sync.js): auto-sincroniza pedidos con `sincronizado: false` al detectar conexion online o al arrancar. Backoff progresivo (5s→15s→30s→60s). Mutex para evitar sync concurrentes.
+**SyncManager** (js/services/sync.js): auto-sincroniza pedidos con `sincronizado: false` al detectar conexion online o al arrancar. Mutex para evitar sync concurrentes.
+
+**Blindaje Fase 1 (2026-03-25):**
+- **Pre-flight**: `_isSupabaseReachable(5000ms)` antes de cada sync — detecta portales cautivos y zombie 3G (no confiar solo en `navigator.onLine`)
+- **Batch upsert**: 50 pedidos/lote via `.upsert(rows, { onConflict: 'id' })` con fallback a individual si batch falla
+- **Persistencia incremental**: `HDVStorage.setItem()` tras cada batch exitoso (no al final del loop) — protege contra tab kill mid-sync
+- **Retry infinito**: backoff exponencial `5s * 2^attempt` con ±30% jitter, cap 5 min. Sin limite de intentos (antes: max 4)
+- **beforeunload** en `app.js`: advierte al vendedor si cierra pestana con pedidos sin sincronizar
 
 ## Flujo de datos
 
 1. **Carga**: `HDVStorage.ready()` → `obtenerCatalogo()` → 3 queries paralelas → mapeo legacy → variables globales + cache IndexedDB
 2. **Edicion admin**: Modifica `productosData` en memoria → "Guardar y Sincronizar" → IndexedDB + `guardarCatalogo()` (upsert batch + reconcilia eliminaciones)
-3. **Realtime**: 4 canales catalogo (debounce 500ms) + pedidos (admin: full re-fetch, vendedor: granular INSERT/UPDATE/DELETE con DOM targeting) + 8 configs → sync bidireccional IndexedDB ↔ Supabase
+3. **Realtime**: 4 canales catalogo (debounce 500ms) + pedidos (admin: full re-fetch con debounce 500ms, vendedor: granular INSERT/UPDATE/DELETE con DOM targeting) + 8 configs → sync bidireccional IndexedDB ↔ Supabase
 4. **Offline**: IndexedDB como fuente, service worker para assets, SyncManager sincroniza pedidos al reconectar
 
 ## Autenticacion y roles
@@ -298,9 +316,14 @@ Bucket `productos_img` (Supabase Storage). Compresion Canvas → WebP 800px max.
 ### P9 — SEGURIDAD OFFLINE (IndexedDB como perimetro de confianza)
 
 - **HDVStorage** (`js/utils/storage.js`): wrapper IndexedDB con cache en memoria. Los datos locales estan cifrados por dominio (Same-Origin Policy del navegador).
+- **Persistent Storage**: `navigator.storage.persist()` solicitado al init. Monitoreo de cuota con `navigator.storage.estimate()` (alerta al 80%). Deteccion automatica de eviccion con recuperacion desde cache en memoria.
+- **setItem() con retorno boolean**: permite a los consumidores (checkout, SyncManager) detectar fallos de persistencia y alertar al usuario. Fallback a localStorage para keys criticas.
+- **getItem() con structuredClone**: retorna copia profunda, eliminando race conditions por referencia compartida entre reads concurrentes.
 - **Purga obligatoria en logout**: `guard.js` y `onAuthStateChange('SIGNED_OUT')` limpian TODAS las keys `hdv_*` de IndexedDB (excepto `hdv_darkmode`).
 - **Purga obligatoria en Kill Switch**: si `verificar_estado_cuenta()` retorna `activo=false` → purga completa + `signOut()` + redirect. Aplica en `guard.js` y en `SyncManager` pre-sync.
-- **SyncManager con mutex**: impide sincronizaciones concurrentes. Backoff progresivo (5s→15s→30s→60s). Verifica estado de cuenta antes de cada sync.
+- **SyncManager blindado**: mutex + pre-flight reachability check + batch upsert (50/lote) + persistencia incremental + retry infinito con backoff exponencial + jitter (cap 5 min). Verifica estado de cuenta antes de cada sync.
+- **beforeunload en app vendedor**: advierte al cerrar pestana si hay pedidos con `sincronizado: false`.
+- **Checkout con verificacion de persistencia**: los 3 flujos (PED/REC/FAC) verifican retorno boolean de `setItem()` y muestran warning toast si falla.
 - **Datos sensibles excluidos de cache offline**: `costo` y `precios_personalizados` no se almacenan en IndexedDB del vendedor (filtrados por RPC/VIEWs server-side).
 
 ### P10 — DEFENSA PERIMETRAL Y CADENA DE SUMINISTRO
@@ -319,6 +342,8 @@ Bucket `productos_img` (Supabase Storage). Compresion Canvas → WebP 800px max.
 | V2 | Red Team | 9 (1C, 3A, 4M, 1B) | Todos remediados 2026-03-19 |
 | V3 | Insider Threats | 10 (2C, 3A, 3M, 2B) | Todos remediados 2026-03-19 |
 | V4 | White-Box Audit | 9 brechas residuales | B-01 MFA, B-02 CSP, B-05 Dependabot, B-06 secretos — remediados. B-03 WAF parcial (cuenta CF creada, headers Vercel listos, requiere dominio custom). Pendiente: B-04 rate limit persistente |
+| E2E | Flujo Datos E2E | 10 puntos ciegos | 7 reparados (vendedor badge, fraude, filtros, CSV, tipo comprobante, editado, IVA). 3 pendientes decision negocio. 2026-03-25 |
+| Fase 1 | Integridad de Datos | 14 (3C, 6M, 5B) | 12 remediados: storage blindaje, sync robustez, gastos aislamiento, auto-paginacion, debounce realtime, beforeunload. 2026-03-25 |
 
 ## Reglas operativas
 

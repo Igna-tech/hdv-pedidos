@@ -933,78 +933,95 @@ function cerrarModalProducto() {
     document.getElementById('modalProducto')?.classList.remove('show');
 }
 
-async function guardarProductoModal() {
-    const id = document.getElementById('formProductoId')?.value;
-    const nombre = document.getElementById('nuevoProductoNombre')?.value.trim();
-    let imagen = document.getElementById('nuevoProductoImagen')?.value.trim();
-    const categoria = document.getElementById('nuevoProductoCategoria')?.value;
-    let subcategoria = document.getElementById('nuevoProductoSubcategoria')?.value;
-    const estado = document.getElementById('nuevoProductoEstado')?.value || 'disponible';
-    const tipoImpuesto = document.getElementById('nuevoProductoTipoImpuesto')?.value || '10';
-    const unidadMedida = document.getElementById('nuevoProductoUnidadMedida')?.value || '77';
-    const precio = parseInt(document.getElementById('nuevoProductoPrecio')?.value) || 0;
-    const costo = parseInt(document.getElementById('nuevoProductoCosto')?.value) || 0;
-    const stockSimple = parseInt(document.getElementById('nuevoProductoStock')?.value) || 0;
+function _leerFormProducto() {
+    return {
+        id: document.getElementById('formProductoId')?.value,
+        nombre: document.getElementById('nuevoProductoNombre')?.value.trim(),
+        imagen: document.getElementById('nuevoProductoImagen')?.value.trim(),
+        categoria: document.getElementById('nuevoProductoCategoria')?.value,
+        subcategoria: document.getElementById('nuevoProductoSubcategoria')?.value,
+        estado: document.getElementById('nuevoProductoEstado')?.value || 'disponible',
+        tipoImpuesto: document.getElementById('nuevoProductoTipoImpuesto')?.value || '10',
+        unidadMedida: document.getElementById('nuevoProductoUnidadMedida')?.value || '77',
+        precio: parseInt(document.getElementById('nuevoProductoPrecio')?.value) || 0,
+        costo: parseInt(document.getElementById('nuevoProductoCosto')?.value) || 0,
+        stockSimple: parseInt(document.getElementById('nuevoProductoStock')?.value) || 0
+    };
+}
 
-    if (subcategoria === '__otra__') {
-        const datos = await mostrarInputModal({
+function _parsearPresentaciones(precio, costo, stockSimple) {
+    const modoVariantes = document.getElementById('toggleVariantes').checked;
+    if (modoVariantes) {
+        const variantes = recogerVariantes();
+        if (variantes.length === 0) return null;
+        return variantes;
+    }
+    const presStr = document.getElementById('nuevoProductoPresentaciones')?.value.trim();
+    return presStr
+        ? presStr.split(',').map(p => ({ tamano: p.trim(), precio_base: precio, costo, stock: stockSimple }))
+        : [{ tamano: 'Unidad', precio_base: precio, costo, stock: stockSimple }];
+}
+
+function _aplicarCambiosProducto(id, datos, presentaciones, imagenUrl) {
+    if (id) {
+        const prod = productosData.productos.find(p => p.id === id);
+        if (!prod) return;
+        prod.nombre = datos.nombre;
+        prod.imagen_url = imagenUrl || undefined;
+        prod.imagen = imagenUrl || undefined;
+        prod.categoria = datos.categoria;
+        prod.subcategoria = datos.subcategoria || 'General';
+        prod.estado = datos.estado;
+        prod.tipo_impuesto = datos.tipoImpuesto;
+        prod.unidad_medida_set = datos.unidadMedida;
+        prod.presentaciones = presentaciones;
+    } else {
+        const ultimoId = productosData.productos.length > 0 ?
+            Math.max(...productosData.productos.map(p => parseInt(p.id.replace('P', '')) || 0)) : 0;
+        const nuevoId = `P${String(ultimoId + 1).padStart(3, '0')}`;
+        const nuevo = {
+            id: nuevoId, nombre: datos.nombre,
+            categoria: datos.categoria || 'cuidado_personal',
+            subcategoria: datos.subcategoria || 'General',
+            presentaciones, estado: datos.estado,
+            tipo_impuesto: datos.tipoImpuesto,
+            unidad_medida_set: datos.unidadMedida
+        };
+        if (imagenUrl) { nuevo.imagen = imagenUrl; nuevo.imagen_url = imagenUrl; }
+        productosData.productos.push(nuevo);
+    }
+}
+
+async function guardarProductoModal() {
+    const datos = _leerFormProducto();
+
+    if (datos.subcategoria === '__otra__') {
+        const modal = await mostrarInputModal({
             titulo: 'Nueva Subcategoria',
             icono: 'tag',
             campos: [{ key: 'nombre', label: 'Nombre de la subcategoria', tipo: 'text', requerido: true }],
             textoConfirmar: 'Crear'
         });
-        if (!datos) return;
-        subcategoria = datos.nombre;
+        if (!modal) return;
+        datos.subcategoria = modal.nombre;
     }
 
-    if (!nombre) { mostrarToast('Ingresa el nombre del producto', 'error'); return; }
+    if (!datos.nombre) { mostrarToast('Ingresa el nombre del producto', 'error'); return; }
 
     await withButtonLock('btnGuardarProducto', async () => {
-        // Subir imagen si hay archivo seleccionado
-        let imagenUrl = imagen;
+        let imagenUrl = datos.imagen;
         if (archivoImagenProducto) {
             imagenUrl = await subirImagenProducto(archivoImagenProducto);
             archivoImagenProducto = null;
         }
 
-        // Construir presentaciones segun el modo
-        const modoVariantes = document.getElementById('toggleVariantes').checked;
-        let presentaciones;
-        if (modoVariantes) {
-            presentaciones = recogerVariantes();
-            if (presentaciones.length === 0) {
-                mostrarToast('Agrega al menos una variante', 'error');
-                return;
-            }
-        } else {
-            const presStr = document.getElementById('nuevoProductoPresentaciones')?.value.trim();
-            presentaciones = presStr
-                ? presStr.split(',').map(p => ({ tamano: p.trim(), precio_base: precio, costo, stock: stockSimple }))
-                : [{ tamano: 'Unidad', precio_base: precio, costo, stock: stockSimple }];
+        const presentaciones = _parsearPresentaciones(datos.precio, datos.costo, datos.stockSimple);
+        if (presentaciones === null) {
+            mostrarToast('Agrega al menos una variante', 'error');
+            return;
         }
 
-        if (id) {
-            // Edicion
-            const prod = productosData.productos.find(p => p.id === id);
-            if (!prod) return;
-            prod.nombre = nombre;
-            prod.imagen_url = imagenUrl || undefined;
-            prod.imagen = imagenUrl || undefined;
-            prod.categoria = categoria;
-            prod.subcategoria = subcategoria || 'General';
-            prod.estado = estado;
-            prod.tipo_impuesto = tipoImpuesto;
-            prod.unidad_medida_set = unidadMedida;
-            prod.presentaciones = presentaciones;
-        } else {
-            // Creacion
-            const ultimoId = productosData.productos.length > 0 ?
-                Math.max(...productosData.productos.map(p => parseInt(p.id.replace('P', '')) || 0)) : 0;
-            const nuevoId = `P${String(ultimoId + 1).padStart(3, '0')}`;
-            const nuevo = { id: nuevoId, nombre, categoria: categoria || 'cuidado_personal', subcategoria: subcategoria || 'General', presentaciones, estado, tipo_impuesto: tipoImpuesto, unidad_medida_set: unidadMedida };
-            if (imagenUrl) { nuevo.imagen = imagenUrl; nuevo.imagen_url = imagenUrl; }
-            productosData.productos.push(nuevo);
-        }
+        _aplicarCambiosProducto(datos.id, datos, presentaciones, imagenUrl);
 
         productosFiltrados = [...productosData.productos];
         registrarCambio();

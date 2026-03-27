@@ -110,7 +110,7 @@ async function mostrarInfoCliente(cliente) {
     });
     const elDeuda = document.getElementById('clienteInfoDeuda');
     if (deudaTotal > 0) {
-        elDeuda.innerHTML = `<i data-lucide="credit-card" class="w-3 h-3"></i> Gs.${deudaTotal.toLocaleString()}`;
+        elDeuda.innerHTML = `<i data-lucide="credit-card" class="w-3 h-3"></i> ${formatearGuaranies(deudaTotal)}`;
         elDeuda.className = 'flex items-center gap-1 text-red-500 font-bold';
     } else {
         elDeuda.innerHTML = '<i data-lucide="credit-card" class="w-3 h-3"></i> Al dia';
@@ -457,7 +457,7 @@ function mostrarMatrizProducto(producto) {
                     class="w-full text-center text-2xl font-bold border-0 border-b-2 border-gray-200 focus:border-blue-500 outline-none bg-transparent py-1 mtz-input"
                     data-idx="${idx}" data-precio="${precio}"
                     oninput="actualizarCeldaMatriz('${producto.id}',${idx})">
-                <p class="text-[10px] text-blue-600 font-bold mt-1">Gs. ${precio.toLocaleString()}</p>
+                <p class="text-[10px] text-blue-600 font-bold mt-1">${formatearGuaranies(precio)}</p>
             </div>`;
     }).join('');
 
@@ -549,7 +549,7 @@ function recalcularTotalesMatriz(productoId) {
     const elBtn = document.getElementById(`mtzBtnCount-${productoId}`);
 
     if (elPares) elPares.textContent = totalPares;
-    if (elGs) elGs.textContent = 'Gs. ' + totalGs.toLocaleString();
+    if (elGs) elGs.textContent = formatearGuaranies(totalGs);
     if (elBtn) elBtn.textContent = totalPares;
 }
 
@@ -590,7 +590,7 @@ function mostrarDetalleMasivo(producto) {
             <div class="flex items-center justify-between py-3 px-4">
                 <div class="flex-1 min-w-0">
                     <p class="font-bold text-gray-800">${escapeHTML(pres.tamano)}</p>
-                    <p class="text-blue-600 font-bold text-sm">Gs. ${precio.toLocaleString()}</p>
+                    <p class="text-blue-600 font-bold text-sm">${formatearGuaranies(precio)}</p>
                 </div>
                 <div class="flex items-center gap-2">
                     <button onclick="ajustarQty('${producto.id}',${idx},-1)" class="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center font-bold text-lg text-gray-700 active:scale-90 transition-transform">-</button>
@@ -659,7 +659,7 @@ function recalcularTotalMasivo(productoId) {
 
     const elTotal = document.getElementById(`masivoTotal-${productoId}`);
     const elItems = document.getElementById(`masivoItems-${productoId}`);
-    if (elTotal) elTotal.textContent = 'Gs. ' + totalGs.toLocaleString();
+    if (elTotal) elTotal.textContent = formatearGuaranies(totalGs);
     if (elItems) elItems.textContent = totalItems;
 }
 
@@ -718,13 +718,13 @@ async function renderizarCarrito() {
                 <div class="flex justify-between items-center gap-2">
                     <div class="flex-1 min-w-0">
                         <p class="font-semibold text-gray-800 text-sm truncate">${escapeHTML(item.nombre)}${item.precioEspecial ? ' <span class="inline-block bg-amber-100 text-amber-700 text-[10px] font-bold px-1.5 py-0.5 rounded-full ml-1 align-middle">P.Esp</span>' : ''}</p>
-                        <p class="text-xs text-gray-500">${escapeHTML(item.presentacion)} · Gs. ${item.precio.toLocaleString()} c/u</p>
+                        <p class="text-xs text-gray-500">${escapeHTML(item.presentacion)} · ${formatearGuaranies(item.precio)} c/u</p>
                     </div>
                     <div class="flex items-center gap-1.5 shrink-0">
                         <button onclick="cambiarCantidadCarrito(${idx},-1)" class="w-7 h-7 bg-white border border-gray-200 rounded-lg font-bold text-sm flex items-center justify-center hover:bg-gray-50">-</button>
                         <span class="font-bold text-sm w-6 text-center">${item.cantidad}</span>
                         <button onclick="cambiarCantidadCarrito(${idx},1)" class="w-7 h-7 bg-white border border-gray-200 rounded-lg font-bold text-sm flex items-center justify-center hover:bg-gray-50">+</button>
-                        <p class="font-bold text-gray-900 ml-1 text-sm text-right whitespace-nowrap">Gs. ${item.subtotal.toLocaleString()}</p>
+                        <p class="font-bold text-gray-900 ml-1 text-sm text-right whitespace-nowrap">${formatearGuaranies(item.subtotal)}</p>
                     </div>
                 </div>
             </div>`;
@@ -762,15 +762,15 @@ async function renderizarCarrito() {
     totalSection.innerHTML = `
         <div class="flex justify-between items-center">
             <span class="text-gray-500 font-bold">SUBTOTAL</span>
-            <span class="text-xl font-bold text-gray-900" id="cartSubtotal">Gs. ${total.toLocaleString()}</span>
+            <span class="text-xl font-bold text-gray-900" id="cartSubtotal">${formatearGuaranies(total)}</span>
         </div>
         ${descuentoPromo > 0 ? `<div class="flex justify-between items-center text-green-600">
             <span class="font-bold">DESCUENTO PROMO</span>
-            <span class="font-bold">-Gs. ${descuentoPromo.toLocaleString()}</span>
+            <span class="font-bold">-${formatearGuaranies(descuentoPromo)}</span>
         </div>` : ''}
         <div class="flex justify-between items-center" id="cartTotalFinal">
             <span class="text-gray-500 font-bold">TOTAL</span>
-            <span class="text-2xl font-bold text-gray-900">Gs. ${totalConPromo.toLocaleString()}</span>
+            <span class="text-2xl font-bold text-gray-900">${formatearGuaranies(totalConPromo)}</span>
         </div>
         ${promoHTML}
     `;
@@ -787,7 +787,7 @@ function aplicarDescuento() {
     if (totalFinal) {
         totalFinal.innerHTML = `
             <span class="text-gray-500 font-bold">TOTAL (${desc}% desc.)</span>
-            <span class="text-2xl font-bold text-green-600">Gs. ${totalConDesc.toLocaleString()}</span>
+            <span class="text-2xl font-bold text-green-600">${formatearGuaranies(totalConDesc)}</span>
         `;
     }
 }
@@ -845,7 +845,7 @@ function crearTarjetaPedidoVendedor(p) {
         </div>
         <div class="flex justify-between items-center pt-2 border-t border-gray-100">
             <span class="text-xs text-gray-500">${p.tipoPago || 'contado'} ${p.descuento > 0 ? `| ${p.descuento}% desc.` : ''}</span>
-            <span class="font-bold text-gray-900">Gs. ${(p.total || 0).toLocaleString()}</span>
+            <span class="font-bold text-gray-900">${formatearGuaranies(p.total)}</span>
         </div>
         <div class="flex gap-2 mt-3 pt-2 border-t border-gray-50">
             <button onclick="imprimirTicketVendedor('${p.id}')" class="flex-1 bg-purple-50 text-purple-700 py-2 rounded-lg text-xs font-bold active:scale-95 transition-transform flex items-center justify-center gap-1"><i data-lucide="printer" class="w-3 h-3"></i> Ticket</button>
@@ -868,7 +868,7 @@ function actualizarTarjetaPedidoDOM(pedidoId, nuevoEstado) {
 
         // Animacion de flash para destacar el cambio
         card.classList.add('ring-2', 'ring-blue-400');
-        setTimeout(() => card.classList.remove('ring-2', 'ring-blue-400'), 2000);
+        setTimeout(() => card.classList.remove('ring-2', 'ring-blue-400'), TIEMPOS.SYNC_DELAY_ONLINE_MS);
     }
     return true;
 }
@@ -879,7 +879,7 @@ function eliminarTarjetaPedidoDOM(pedidoId) {
 
     card.style.opacity = '0';
     card.style.transform = 'translateX(-100%)';
-    setTimeout(() => card.remove(), 300);
+    setTimeout(() => card.remove(), TIEMPOS.DEBOUNCE_BUSQUEDA_MS);
 }
 
 async function mostrarMisPedidos() {
@@ -1335,19 +1335,19 @@ async function mostrarMiCaja() {
             ${rendSemana ? '<span class="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-bold">RENDIDO</span>' : ''}
             <div class="grid grid-cols-2 gap-3 mt-3">
                 <div class="bg-green-50 rounded-lg p-3 text-center">
-                    <p class="text-lg font-bold text-green-700">Gs. ${totalContado.toLocaleString()}</p>
+                    <p class="text-lg font-bold text-green-700">${formatearGuaranies(totalContado)}</p>
                     <p class="text-[10px] text-gray-500 font-bold">CONTADO</p>
                 </div>
                 <div class="bg-yellow-50 rounded-lg p-3 text-center">
-                    <p class="text-lg font-bold text-yellow-700">Gs. ${totalCredito.toLocaleString()}</p>
+                    <p class="text-lg font-bold text-yellow-700">${formatearGuaranies(totalCredito)}</p>
                     <p class="text-[10px] text-gray-500 font-bold">CREDITO</p>
                 </div>
                 <div class="bg-red-50 rounded-lg p-3 text-center">
-                    <p class="text-lg font-bold text-red-700">Gs. ${totalGastos.toLocaleString()}</p>
+                    <p class="text-lg font-bold text-red-700">${formatearGuaranies(totalGastos)}</p>
                     <p class="text-[10px] text-gray-500 font-bold">GASTOS</p>
                 </div>
                 <div class="bg-blue-50 rounded-lg p-3 text-center">
-                    <p class="text-lg font-bold text-blue-800">Gs. ${aRendir.toLocaleString()}</p>
+                    <p class="text-lg font-bold text-blue-800">${formatearGuaranies(aRendir)}</p>
                     <p class="text-[10px] text-gray-500 font-bold">A RENDIR</p>
                 </div>
             </div>
@@ -1368,7 +1368,7 @@ async function mostrarMiCaja() {
                         <p class="text-xs text-gray-400">${new Date(g.fecha).toLocaleDateString('es-PY')}</p>
                     </div>
                     <div class="text-right">
-                        <p class="text-sm font-bold text-red-600">- Gs. ${(g.monto || 0).toLocaleString()}</p>
+                        <p class="text-sm font-bold text-red-600">- ${formatearGuaranies(g.monto)}</p>
                         <button onclick="eliminarGastoVendedor('${g.id}')" class="text-[10px] text-red-400">Eliminar</button>
                     </div>
                 </div>

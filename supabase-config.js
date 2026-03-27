@@ -18,7 +18,7 @@ async function monitorearConexion() {
         if (!session) {
             supabaseConectado = false;
             actualizarIndicadorConexion(false);
-            _monitorTimer = setTimeout(monitorearConexion, 5000);
+            _monitorTimer = setTimeout(monitorearConexion, TIEMPOS.RECONNECT_RETRY_MS);
             return;
         }
         supabaseConectado = await SupabaseService.healthCheck();
@@ -27,7 +27,7 @@ async function monitorearConexion() {
         supabaseConectado = false;
         actualizarIndicadorConexion(false);
     }
-    _monitorTimer = setTimeout(monitorearConexion, 30000);
+    _monitorTimer = setTimeout(monitorearConexion, TIEMPOS.HEALTH_CHECK_INTERVAL_MS);
 }
 
 function actualizarIndicadorConexion(conectado) {
@@ -131,25 +131,25 @@ async function escucharPedidosRealtime(callback) {
                     return;
                 }
                 const pedidosRemoto = data.map(r => r.datos);
-                const pedidosLocalRT = (await HDVStorage.getItem('hdv_pedidos')) || [];
 
-                // Preservar pedidos locales que aun no se sincronizaron
-                const sinSincronizar = pedidosLocalRT.filter(p => p.sincronizado === false);
-                const remotosIds = new Set(pedidosRemoto.map(p => p.id));
-                const localesNoEnRemoto = sinSincronizar.filter(p => !remotosIds.has(p.id));
+                // atomicUpdate garantiza que no hay race condition con otros writers
+                const merged = await HDVStorage.atomicUpdate('hdv_pedidos', (pedidosLocal) => {
+                    const locales = pedidosLocal || [];
+                    const sinSincronizar = locales.filter(p => p.sincronizado === false);
+                    const remotosIds = new Set(pedidosRemoto.map(p => p.id));
+                    const localesNoEnRemoto = sinSincronizar.filter(p => !remotosIds.has(p.id));
 
-                if (pedidosRemoto.length > 0 || pedidosLocalRT.length === 0) {
-                    const merged = [...pedidosRemoto, ...localesNoEnRemoto];
-                    await HDVStorage.setItem('hdv_pedidos', merged);
-                    callback(merged, [{ type: 'modified' }]);
-                } else {
-                    console.warn('[Supabase] Realtime devolvio vacio pero hay datos locales, conservando');
-                    callback(pedidosLocalRT, [{ type: 'modified' }]);
-                }
+                    if (pedidosRemoto.length > 0 || locales.length === 0) {
+                        return [...pedidosRemoto, ...localesNoEnRemoto];
+                    }
+                    return locales; // Conservar locales si remoto vacio
+                });
+
+                callback(merged, [{ type: 'modified' }]);
             } catch (err) {
                 console.error('[Supabase] Error critico en callback realtime pedidos admin:', err);
             }
-        }, 500);
+        }, TIEMPOS.DEBOUNCE_REALTIME_MS);
     });
 
     return unsub;
@@ -193,37 +193,42 @@ function escucharPedidosRealtimeVendedor(callbacks) {
             const pedidoId = newRow.id;
             const nuevoEstado = datos.estado;
 
-            // Actualizar IndexedDB
-            const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
-            const idx = pedidos.findIndex(p => p.id === pedidoId);
-            if (idx >= 0) {
-                // Preservar campos locales, actualizar datos del servidor
-                pedidos[idx] = { ...pedidos[idx], ...datos, sincronizado: true };
-                await HDVStorage.setItem('hdv_pedidos', pedidos);
-            }
+            // atomicUpdate garantiza secuencialidad ante eventos concurrentes
+            await HDVStorage.atomicUpdate('hdv_pedidos', (pedidos) => {
+                const list = pedidos || [];
+                const idx = list.findIndex(p => p.id === pedidoId);
+                if (idx >= 0) {
+                    list[idx] = { ...list[idx], ...datos, sincronizado: true };
+                }
+                return list;
+            });
 
             if (callbacks.onEstadoCambiado) {
                 callbacks.onEstadoCambiado(pedidoId, nuevoEstado, datos);
             }
         } else if (eventType === 'DELETE' && oldRow) {
             const pedidoId = oldRow.id;
-            const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
-            const filtered = pedidos.filter(p => p.id !== pedidoId);
-            await HDVStorage.setItem('hdv_pedidos', filtered);
+
+            await HDVStorage.atomicUpdate('hdv_pedidos', (pedidos) => {
+                return (pedidos || []).filter(p => p.id !== pedidoId);
+            });
 
             if (callbacks.onPedidoEliminado) {
                 callbacks.onPedidoEliminado(pedidoId);
             }
         } else if (eventType === 'INSERT' && newRow) {
-            // Un pedido nuevo aparecio (ej. sync desde otro dispositivo)
             const datos = newRow.datos || {};
-            const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
-            if (!pedidos.find(p => p.id === newRow.id)) {
-                pedidos.push({ ...datos, sincronizado: true });
-                await HDVStorage.setItem('hdv_pedidos', pedidos);
-            }
+
+            const updated = await HDVStorage.atomicUpdate('hdv_pedidos', (pedidos) => {
+                const list = pedidos || [];
+                if (!list.find(p => p.id === newRow.id)) {
+                    list.push({ ...datos, sincronizado: true });
+                }
+                return list;
+            });
+
             if (callbacks.onSync) {
-                callbacks.onSync(pedidos);
+                callbacks.onSync(updated);
             }
         }
         } catch (err) {
@@ -240,14 +245,20 @@ async function sincronizarPedidosLocales() {
     if (sinSincronizar.length === 0) return;
 
     console.log(`[Supabase] Sincronizando ${sinSincronizar.length} pedidos locales...`);
-    let sincronizados = 0;
+    const syncedIds = new Set();
     for (const pedido of sinSincronizar) {
         const ok = await guardarPedido(pedido);
-        if (ok) { pedido.sincronizado = true; sincronizados++; }
+        if (ok) syncedIds.add(pedido.id);
     }
-    if (sincronizados > 0) {
-        await HDVStorage.setItem('hdv_pedidos', pedidosLocal);
-        console.log(`[Supabase] ${sincronizados} pedidos sincronizados`);
+    if (syncedIds.size > 0) {
+        await HDVStorage.atomicUpdate('hdv_pedidos', (pedidos) => {
+            const list = pedidos || [];
+            for (const p of list) {
+                if (syncedIds.has(p.id)) p.sincronizado = true;
+            }
+            return list;
+        });
+        console.log(`[Supabase] ${syncedIds.size} pedidos sincronizados`);
     }
 }
 
@@ -435,7 +446,7 @@ function escucharCatalogoRealtime(callback) {
         reloadTimeout = setTimeout(async () => {
             const data = await obtenerCatalogo();
             if (data) callback(data);
-        }, 500);
+        }, TIEMPOS.DEBOUNCE_REALTIME_MS);
     };
 
     const unsub1 = SupabaseService.subscribeTo('cat-rt', 'categorias', recargar);

@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     actualizarInfoBackup();
 
     // Marcar app lista — los toasts info/success se desbloquean despues de la carga inicial
-    setTimeout(() => { window._hdvAppReady = true; }, 2000);
+    setTimeout(() => { window._hdvAppReady = true; }, TIEMPOS.SYNC_DELAY_ONLINE_MS);
 
     // Alerta al cerrar/recargar si hay pedidos sin sincronizar
     window.addEventListener('beforeunload', async (e) => {
@@ -546,7 +546,7 @@ function forzarActualizacion() {
             regs.forEach(r => r.unregister());
         });
     }
-    setTimeout(() => location.reload(true), 500);
+    setTimeout(() => location.reload(true), TIEMPOS.NAV_DELAY_MS);
 }
 
 function registrarSW() {
@@ -554,7 +554,7 @@ function registrarSW() {
         navigator.serviceWorker.register('service-worker.js')
             .then(reg => {
                 console.log('[SW] Registrado');
-                setInterval(() => { try { reg.update(); } catch(e) {} }, 30000);
+                setInterval(() => { try { reg.update(); } catch(e) {} }, TIEMPOS.HEALTH_CHECK_INTERVAL_MS);
                 reg.addEventListener('updatefound', () => {
                     const newWorker = reg.installing;
                     if (!newWorker) return;
@@ -563,7 +563,7 @@ function registrarSW() {
                             if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
                                 newWorker.postMessage('skipWaiting');
                                 mostrarExito('Actualizando app...');
-                                setTimeout(() => location.reload(true), 1500);
+                                setTimeout(() => location.reload(true), TIEMPOS.PAGE_RELOAD_MS);
                             }
                         } catch(e) { console.log('[SW] statechange error ignorado'); }
                     });
@@ -742,10 +742,10 @@ async function iniciarAutoBackup() {
     if (toggle) toggle.checked = enabled;
 
     if (enabled) {
-        autoBackupInterval = setInterval(realizarAutoBackup, 5 * 60 * 1000);
+        autoBackupInterval = setInterval(realizarAutoBackup, TIEMPOS.BACKOFF_MAX_MS);
         const ultimo = await HDVStorage.getItem('hdv_auto_backup_ultimo');
-        if (!ultimo || (Date.now() - new Date(ultimo).getTime() > 5 * 60 * 1000)) {
-            setTimeout(realizarAutoBackup, 3000);
+        if (!ultimo || (Date.now() - new Date(ultimo).getTime() > TIEMPOS.BACKOFF_MAX_MS)) {
+            setTimeout(realizarAutoBackup, TIEMPOS.SYNC_INIT_DELAY_MS);
         }
     }
 }

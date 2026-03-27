@@ -200,7 +200,7 @@ function actualizarTarjetaPedidoAdminDOM(pedidoId, nuevoEstado) {
 
     // Flash visual para destacar el cambio
     card.classList.add('ring-2', 'ring-blue-400', 'bg-blue-50');
-    setTimeout(() => card.classList.remove('ring-2', 'ring-blue-400', 'bg-blue-50'), 2000);
+    setTimeout(() => card.classList.remove('ring-2', 'ring-blue-400', 'bg-blue-50'), TIEMPOS.SYNC_DELAY_ONLINE_MS);
 
     return true;
 }
@@ -210,7 +210,7 @@ function eliminarTarjetaPedidoAdminDOM(pedidoId) {
     if (!card) return;
     card.style.opacity = '0';
     card.style.transform = 'translateX(-100%)';
-    setTimeout(() => card.remove(), 300);
+    setTimeout(() => card.remove(), TIEMPOS.DEBOUNCE_BUSQUEDA_MS);
 }
 
 function actualizarEstadisticasPedidos(pedidos) {

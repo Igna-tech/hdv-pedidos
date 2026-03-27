@@ -276,7 +276,7 @@ btnMfaVerify.addEventListener('click', async () => {
         // MFA verificado — redirigir
         await HDVStorage.setItem('hdv_user_rol', _pendingRol);
         showAlert('Verificado! Redirigiendo...', 'success', mfaAlert);
-        setTimeout(() => redirigirPorRol(_pendingRol), 500);
+        setTimeout(() => redirigirPorRol(_pendingRol), TIEMPOS.NAV_DELAY_MS);
 
     } catch (err) {
         console.error('[MFA] Error verificando TOTP:', err);
@@ -415,7 +415,7 @@ loginForm.addEventListener('submit', async (e) => {
         await HDVStorage.setItem('hdv_user_email', data.user.email);
 
         showAlert('Bienvenido! Redirigiendo...', 'success');
-        setTimeout(() => redirigirPorRol(rol), 500);
+        setTimeout(() => redirigirPorRol(rol), TIEMPOS.NAV_DELAY_MS);
 
     } catch (err) {
         console.error('[Login] Error:', err);

@@ -252,12 +252,12 @@ const SyncManager = (() => {
         window.addEventListener('online', () => {
             console.log('[SyncManager] Conexion restaurada, iniciando sync...');
             _currentAttempt = 0; // Reset backoff al volver online
-            setTimeout(() => syncPedidosPendientes(), 2000);
+            setTimeout(() => syncPedidosPendientes(), TIEMPOS.SYNC_DELAY_ONLINE_MS);
         });
 
         // Sync silencioso al arrancar si hay conexion
         if (navigator.onLine) {
-            setTimeout(() => syncPedidosPendientes(), 3000);
+            setTimeout(() => syncPedidosPendientes(), TIEMPOS.SYNC_INIT_DELAY_MS);
         }
 
         console.log('[SyncManager] Inicializado (batch=' + BATCH_SIZE + ', maxDelay=' + MAX_DELAY/1000 + 's)');

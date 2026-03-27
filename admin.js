@@ -305,7 +305,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (badge && badge.textContent.includes('Pedidos')) {
                     badge.style.transition = 'color 0.3s';
                     badge.style.color = '#059669';
-                    setTimeout(() => badge.style.color = '', 1500);
+                    setTimeout(() => badge.style.color = '', TIEMPOS.PAGE_RELOAD_MS);
                 }
             }
             console.log(`[Admin] Pedidos actualizados en tiempo real: ${pedidos.length}`);
@@ -313,7 +313,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.log('[Admin] Escuchando pedidos en tiempo real desde Supabase');
     } else {
         cargarPedidos();
-        setInterval(cargarPedidos, 30000);
+        setInterval(cargarPedidos, TIEMPOS.HEALTH_CHECK_INTERVAL_MS);
     }
 
     const filtroFecha = document.getElementById('filtroFecha');
@@ -332,7 +332,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (autoBackupToggle) autoBackupToggle.checked = (await HDVStorage.getItem('hdv_admin_auto_backup')) !== 'false';
 
     // Marcar app lista — los toasts info/success se desbloquean despues de la carga inicial
-    setTimeout(() => { window._hdvAppReady = true; }, 2000);
+    setTimeout(() => { window._hdvAppReady = true; }, TIEMPOS.SYNC_DELAY_ONLINE_MS);
 });
 
 async function cargarDatosIniciales() {
@@ -1148,7 +1148,7 @@ function forzarActualizacionAdmin() {
         navigator.serviceWorker.register('service-worker.js')
             .then(reg => {
                 console.log('[Admin SW] Registrado');
-                setInterval(() => { try { reg.update(); } catch(e) {} }, 30000);
+                setInterval(() => { try { reg.update(); } catch(e) {} }, TIEMPOS.HEALTH_CHECK_INTERVAL_MS);
                 reg.addEventListener('updatefound', () => {
                     const nw = reg.installing;
                     if (!nw) return;
@@ -1157,7 +1157,7 @@ function forzarActualizacionAdmin() {
                             if (nw.state === 'installed' && navigator.serviceWorker.controller) {
                                 nw.postMessage('skipWaiting');
                                 mostrarToast('Nueva version disponible. Recargando...', 'info');
-                                setTimeout(() => location.reload(true), 1500);
+                                setTimeout(() => location.reload(true), TIEMPOS.PAGE_RELOAD_MS);
                             }
                         } catch(e) { console.log('[Admin SW] statechange error ignorado'); }
                     });

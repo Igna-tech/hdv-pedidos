@@ -23,6 +23,7 @@ const HDVStorage = (() => {
     const CRITICAL_KEYS = ['hdv_pedidos', 'hdv_catalogo_local', 'hdv_carrito'];
 
     const _cache = new Map();
+    const _locks = new Map(); // Mutex per-key para atomicUpdate
     let _db = null;
     let _readyResolve;
     const _readyPromise = new Promise(r => { _readyResolve = r; });
@@ -351,8 +352,31 @@ const HDVStorage = (() => {
         return _storageHealthy;
     }
 
+    /**
+     * atomicUpdate(key, updaterFn) — Mutex per-key para read-modify-write seguro.
+     * Garantiza que operaciones concurrentes sobre la misma key se ejecuten secuencialmente.
+     * updaterFn recibe el valor actual y debe retornar el nuevo valor.
+     * Si updaterFn lanza error, el mutex se libera (finally) para no bloquear la key.
+     */
+    async function atomicUpdate(key, updaterFn) {
+        if (!_locks.has(key)) _locks.set(key, Promise.resolve());
+        const prev = _locks.get(key);
+        const next = prev.then(async () => {
+            const current = await getItem(key);
+            const updated = await updaterFn(current);
+            await setItem(key, updated);
+            return updated;
+        }).finally(() => {
+            // Limpiar lock solo si es el ultimo en la cadena
+            if (_locks.get(key) === next) _locks.delete(key);
+        });
+        // Encadenar: siguiente operacion espera a esta (catch evita unhandled rejection en la cadena)
+        _locks.set(key, next.catch(() => {}));
+        return next;
+    }
+
     // Auto-init al cargar el script
     _init();
 
-    return { getItem, setItem, removeItem, keys, ready, isHealthy };
+    return { getItem, setItem, removeItem, keys, ready, isHealthy, atomicUpdate };
 })();

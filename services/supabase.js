@@ -65,7 +65,7 @@ const SupabaseService = (() => {
         try {
             const row = {
                 id: pedido.id,
-                estado: pedido.estado || 'pedido_pendiente',
+                estado: pedido.estado || PEDIDO_ESTADOS.PENDIENTE,
                 fecha: pedido.fecha || null,
                 datos: pedido,
                 actualizado_en: new Date().toISOString()

@@ -828,7 +828,7 @@ async function cargarRendiciones() {
     });
 
     const totalContado = pedidosSemana
-        .filter(p => p.tipoPago === 'contado' && (p.estado === 'entregado' || p.estado === 'pendiente'))
+        .filter(p => p.tipoPago === 'contado' && (p.estado === PEDIDO_ESTADOS.ENTREGADO || p.estado === 'pendiente'))
         .reduce((sum, p) => sum + (p.total || 0), 0);
     const totalCredito = pedidosSemana
         .filter(p => p.tipoPago === 'credito')

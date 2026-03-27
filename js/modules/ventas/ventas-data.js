@@ -16,7 +16,7 @@ async function ventasDataObtenerPedidos() {
 
 function ventasDataFiltrar(pedidos, filtroFecha, filtroTipo) {
     let ventas = pedidos.filter(p =>
-        p.estado === 'cobrado_sin_factura' || p.estado === 'facturado_mock'
+        p.estado === PEDIDO_ESTADOS.COBRADO || p.estado === PEDIDO_ESTADOS.FACTURADO
     );
     if (filtroFecha) ventas = ventas.filter(p => new Date(p.fecha).toISOString().split('T')[0] === filtroFecha);
     if (filtroTipo) ventas = ventas.filter(p => p.estado === filtroTipo);
@@ -35,8 +35,8 @@ function ventasDataBuscarCliente(clienteId) {
 function ventasDataEstadisticas(ventas) {
     return {
         total: ventas.length,
-        recibos: ventas.filter(v => v.estado === 'cobrado_sin_factura').length,
-        facturados: ventas.filter(v => v.estado === 'facturado_mock').length,
+        recibos: ventas.filter(v => v.estado === PEDIDO_ESTADOS.COBRADO).length,
+        facturados: ventas.filter(v => v.estado === PEDIDO_ESTADOS.FACTURADO).length,
     };
 }
 
@@ -54,7 +54,7 @@ async function ventasDataFacturar(pedidoId) {
     const numFactura = generarNumeroFacturaAdmin();
     const cdc = generarCDCAdmin();
 
-    pedido.estado = 'facturado_mock';
+    pedido.estado = PEDIDO_ESTADOS.FACTURADO;
     pedido.numFactura = numFactura;
     pedido.cdc = cdc;
     pedido.sincronizado = false;
@@ -125,7 +125,7 @@ async function ventasDataExportCSVSemanal() {
     domingo.setHours(23, 59, 59, 999);
 
     const ventasSemana = pedidos.filter(p => {
-        if (p.estado !== 'cobrado_sin_factura' && p.estado !== 'facturado_mock') return false;
+        if (p.estado !== PEDIDO_ESTADOS.COBRADO && p.estado !== PEDIDO_ESTADOS.FACTURADO) return false;
         const fecha = new Date(p.fecha);
         return fecha >= lunes && fecha <= domingo;
     });
@@ -138,7 +138,7 @@ async function ventasDataExportCSVSemanal() {
     ventasSemana.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
 
     ventasSemana.forEach(p => {
-        const estado = p.estado === 'facturado_mock' ? 'Facturado' : 'Recibo';
+        const estado = p.estado === PEDIDO_ESTADOS.FACTURADO ? 'Facturado' : 'Recibo';
         const numFact = p.numFactura || '';
         const notas = p.notas || '';
         const clienteNombre = p.cliente?.nombre || 'Sin cliente';
@@ -167,7 +167,7 @@ async function ventasDataBuildWhatsAppURL(pedidoId) {
     if (!pedido) return null;
 
     const clienteInfo = ventasDataBuscarCliente(pedido.cliente?.id);
-    const esFactura = pedido.estado === 'facturado_mock';
+    const esFactura = pedido.estado === PEDIDO_ESTADOS.FACTURADO;
     const telefono = clienteInfo?.telefono || pedido.cliente?.telefono || '';
 
     let texto = esFactura

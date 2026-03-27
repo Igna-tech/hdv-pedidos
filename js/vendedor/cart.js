@@ -243,7 +243,7 @@ async function confirmarPedido() {
         total,
         tipoPago,
         notas,
-        estado: 'pendiente',
+        estado: PEDIDO_ESTADOS.PENDIENTE,
         vendedor_id: window.hdvUsuario?.id || null,
         sincronizado: false
     };
@@ -371,7 +371,7 @@ async function aplicarPromociones(cart) {
                     resultado.promocionesAplicadas.push({
                         nombre: promo.nombre,
                         ahorro,
-                        descripcion: `${cantidadTotal} x Gs.${promo.precioEspecial.toLocaleString()} en vez de Gs.${itemsProducto[0]?.precio.toLocaleString()}`
+                        descripcion: `${cantidadTotal} x ${formatearGuaranies(promo.precioEspecial)} en vez de ${formatearGuaranies(itemsProducto[0]?.precio)}`
                     });
                 }
             } else if (promo.tipo === 'combo' && promo.productoGratisId) {
@@ -395,7 +395,7 @@ async function mostrarPromocionesEnProducto(productoId) {
         if (p.tipo === 'combo') {
             return `<span class="inline-block bg-green-100 text-green-700 text-[10px] font-bold px-2 py-1 rounded-full mt-1">Lleva ${p.cantidadMinima}+ y lleva gratis!</span>`;
         }
-        return `<span class="inline-block bg-green-100 text-green-700 text-[10px] font-bold px-2 py-1 rounded-full mt-1">${p.cantidadMinima}+ a Gs.${(p.precioEspecial || 0).toLocaleString()}</span>`;
+        return `<span class="inline-block bg-green-100 text-green-700 text-[10px] font-bold px-2 py-1 rounded-full mt-1">${p.cantidadMinima}+ a ${formatearGuaranies(p.precioEspecial)}</span>`;
     }).join(' ');
 }
 
@@ -405,7 +405,7 @@ function mostrarResumenPromociones(resultado) {
     html += '<p class="font-bold text-green-800 text-sm mb-2">Promociones Aplicadas</p>';
     resultado.promocionesAplicadas.forEach(p => {
         html += `<div class="text-sm text-green-700 mb-1">
-            <strong>${p.nombre}</strong>: Ahorro Gs. ${p.ahorro.toLocaleString()}
+            <strong>${p.nombre}</strong>: Ahorro ${formatearGuaranies(p.ahorro)}
             <br><span class="text-xs">${p.descripcion}</span>
         </div>`;
     });
@@ -413,7 +413,7 @@ function mostrarResumenPromociones(resultado) {
         html += `<div class="text-sm text-green-700 mb-1"><strong>${g.nombre}</strong>: ${g.cantidad} unid. GRATIS</div>`;
     });
     if (resultado.descuentoTotal > 0) {
-        html += `<p class="font-bold text-green-800 text-sm mt-2 pt-2 border-t border-green-200">Total Ahorro: Gs. ${resultado.descuentoTotal.toLocaleString()}</p>`;
+        html += `<p class="font-bold text-green-800 text-sm mt-2 pt-2 border-t border-green-200">Total Ahorro: ${formatearGuaranies(resultado.descuentoTotal)}</p>`;
     }
     html += '</div>';
     return html;

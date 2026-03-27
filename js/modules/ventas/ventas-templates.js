@@ -79,7 +79,7 @@ function tplVentaCard(v, zona, telefono, esFactura) {
 
 function tplTicketThermal(pedido, clienteInfo) {
     const ruc = clienteInfo?.ruc || pedido.cliente?.ruc || '';
-    const esFactura = pedido.estado === 'facturado_mock';
+    const esFactura = pedido.estado === PEDIDO_ESTADOS.FACTURADO;
     const titulo = esFactura ? 'FACTURA ELECTRONICA' : 'RECIBO DE USO INTERNO - NO VALIDO COMO FACTURA';
 
     let html = `
@@ -142,7 +142,7 @@ function tplTicketThermal(pedido, clienteInfo) {
 
 function tplDocA4(pedido, clienteInfo) {
     const ruc = clienteInfo?.ruc || pedido.cliente?.ruc || '';
-    const esFactura = pedido.estado === 'facturado_mock';
+    const esFactura = pedido.estado === PEDIDO_ESTADOS.FACTURADO;
     const titulo = esFactura ? 'FACTURA ELECTRONICA' : 'RECIBO DE USO INTERNO';
 
     let itemsHTML = '';

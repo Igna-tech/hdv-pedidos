@@ -54,7 +54,7 @@ function aplicarFiltrosPedidos() {
     let filtrados = todosLosPedidos;
     // Filtrar por estado (default: pedido_pendiente via select)
     if (estado) {
-        filtrados = filtrados.filter(p => p.estado === estado || (estado === 'pedido_pendiente' && p.estado === 'pendiente'));
+        filtrados = filtrados.filter(p => p.estado === estado || (estado === PEDIDO_ESTADOS.PENDIENTE && p.estado === 'pendiente'));
     }
     if (fecha) filtrados = filtrados.filter(p => new Date(p.fecha).toISOString().split('T')[0] === fecha);
     if (cliente) filtrados = filtrados.filter(p => p.cliente?.id === cliente);
@@ -81,38 +81,11 @@ function mostrarPedidos(pedidos) {
 }
 
 // ============================================
-// TARJETA DE PEDIDO — ESTADO COLORS & REACTIVE DOM
+// TARJETA DE PEDIDO — ESTADO UI (usa obtenerEstadoUI de constants.js)
 // ============================================
-function obtenerColorEstadoAdmin(estado) {
-    const colores = {
-        'pedido_pendiente': 'bg-yellow-100 text-yellow-800',
-        'pendiente': 'bg-yellow-100 text-yellow-800',
-        'entregado': 'bg-green-100 text-green-800',
-        'cobrado_sin_factura': 'bg-blue-100 text-blue-800',
-        'facturado_mock': 'bg-indigo-100 text-indigo-800',
-        'nota_credito_mock': 'bg-orange-100 text-orange-800',
-        'anulado': 'bg-red-100 text-red-800'
-    };
-    return colores[estado] || 'bg-gray-100 text-gray-800';
-}
-
-function obtenerLabelEstadoAdmin(estado) {
-    const labels = {
-        'pedido_pendiente': 'PENDIENTE',
-        'pendiente': 'PENDIENTE',
-        'entregado': 'ENTREGADO',
-        'cobrado_sin_factura': 'COBRADO',
-        'facturado_mock': 'FACTURADO',
-        'nota_credito_mock': 'NOTA CREDITO',
-        'anulado': 'ANULADO'
-    };
-    return labels[estado] || estado.toUpperCase();
-}
-
 function crearTarjetaPedidoAdmin(p) {
-    const estado = p.estado || 'pendiente';
-    const colorEstado = obtenerColorEstadoAdmin(estado);
-    const labelEstado = obtenerLabelEstadoAdmin(estado);
+    const estado = p.estado || PEDIDO_ESTADOS.PENDIENTE;
+    const { clases: colorEstado, label: labelEstado } = obtenerEstadoUI(estado);
     const clienteInfo = productosData.clientes.find(c => c.id === p.cliente?.id);
     const zona = clienteInfo?.zona || clienteInfo?.direccion || '';
 
@@ -161,7 +134,7 @@ function crearTarjetaPedidoAdmin(p) {
         </div>
         <div class="pedido-acciones flex gap-2 mt-4 flex-wrap">
             <button class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-emerald-700 inline-flex items-center gap-1.5" id="btnFacturar-${p.id}" onclick="facturarPedidoAdmin('${p.id}')"><i data-lucide="file-check" class="w-3.5 h-3.5"></i> Facturar (SIFEN)</button>
-            ${estado === 'pendiente' || estado === 'pedido_pendiente' ?
+            ${estado === 'pendiente' || estado === PEDIDO_ESTADOS.PENDIENTE ?
                 `<button class="btn-estado bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-green-700 inline-flex items-center gap-1.5" onclick="marcarEntregado('${p.id}')"><i data-lucide="check" class="w-3.5 h-3.5"></i> Entregado</button>` :
                 `<button class="btn-estado bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-300 inline-flex items-center gap-1.5" onclick="marcarPendiente('${p.id}')"><i data-lucide="undo-2" class="w-3.5 h-3.5"></i> Pendiente</button>`}
             <button class="bg-blue-50 text-blue-600 px-3 py-2 rounded-lg text-sm font-bold hover:bg-blue-100 inline-flex items-center gap-1" onclick="abrirModalEditarPedido('${p.id}')"><i data-lucide="pencil" class="w-3.5 h-3.5"></i> Editar</button>
@@ -179,14 +152,15 @@ function actualizarTarjetaPedidoAdminDOM(pedidoId, nuevoEstado) {
     // Actualizar badge de estado
     const badge = card.querySelector('.pedido-estado-badge');
     if (badge) {
-        badge.className = 'pedido-estado-badge px-3 py-1 rounded-full text-xs font-bold ' + obtenerColorEstadoAdmin(nuevoEstado);
-        badge.textContent = obtenerLabelEstadoAdmin(nuevoEstado);
+        const { clases, label } = obtenerEstadoUI(nuevoEstado);
+        badge.className = 'pedido-estado-badge px-3 py-1 rounded-full text-xs font-bold ' + clases;
+        badge.textContent = label;
     }
 
     // Actualizar boton de estado (Entregado ↔ Pendiente)
     const btnEstado = card.querySelector('.btn-estado');
     if (btnEstado) {
-        if (nuevoEstado === 'entregado') {
+        if (nuevoEstado === PEDIDO_ESTADOS.ENTREGADO) {
             btnEstado.className = 'btn-estado bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-300 inline-flex items-center gap-1.5';
             btnEstado.innerHTML = `<i data-lucide="undo-2" class="w-3.5 h-3.5"></i> Pendiente`;
             btnEstado.setAttribute('onclick', `marcarPendiente('${pedidoId}')`);
@@ -216,8 +190,8 @@ function eliminarTarjetaPedidoAdminDOM(pedidoId) {
 function actualizarEstadisticasPedidos(pedidos) {
     const el = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
     el('statTotalPedidos', pedidos.length);
-    el('statPendientes', pedidos.filter(p => (p.estado || 'pendiente') === 'pendiente').length);
-    el('statEntregados', pedidos.filter(p => p.estado === 'entregado').length);
+    el('statPendientes', pedidos.filter(p => (p.estado || PEDIDO_ESTADOS.PENDIENTE) === PEDIDO_ESTADOS.PENDIENTE || p.estado === 'pendiente').length);
+    el('statEntregados', pedidos.filter(p => p.estado === PEDIDO_ESTADOS.ENTREGADO).length);
     el('statRecaudacion', formatearGuaranies(pedidos.reduce((s, p) => s + (p.total || 0), 0)));
 }
 
@@ -225,7 +199,7 @@ async function marcarEntregado(id) {
     // RPC primero: si falla, no mutar estado local
     if (typeof actualizarEstadoPedido === 'function') {
         try {
-            await actualizarEstadoPedido(id, 'entregado');
+            await actualizarEstadoPedido(id, PEDIDO_ESTADOS.ENTREGADO);
         } catch(e) {
             console.error('[Pedidos] Error actualizando estado en Supabase:', e);
             mostrarToast('Error al actualizar estado en servidor', 'error');
@@ -235,11 +209,11 @@ async function marcarEntregado(id) {
     const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
     const p = pedidos.find(x => x.id === id);
     if (p) {
-        p.estado = 'entregado';
+        p.estado = PEDIDO_ESTADOS.ENTREGADO;
         await HDVStorage.setItem('hdv_pedidos', pedidos);
     }
     // Actualizar DOM inmediatamente sin re-renderizar toda la lista
-    if (!actualizarTarjetaPedidoAdminDOM(id, 'entregado')) {
+    if (!actualizarTarjetaPedidoAdminDOM(id, PEDIDO_ESTADOS.ENTREGADO)) {
         // Fallback: si la tarjeta no existe en DOM, re-renderizar
         cargarPedidos();
     }
@@ -250,7 +224,7 @@ async function marcarPendiente(id) {
     // RPC primero: si falla, no mutar estado local
     if (typeof actualizarEstadoPedido === 'function') {
         try {
-            await actualizarEstadoPedido(id, 'pedido_pendiente');
+            await actualizarEstadoPedido(id, PEDIDO_ESTADOS.PENDIENTE);
         } catch(e) {
             console.error('[Pedidos] Error actualizando estado en Supabase:', e);
             mostrarToast('Error al actualizar estado en servidor', 'error');
@@ -260,11 +234,11 @@ async function marcarPendiente(id) {
     const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
     const p = pedidos.find(x => x.id === id);
     if (p) {
-        p.estado = 'pedido_pendiente';
+        p.estado = PEDIDO_ESTADOS.PENDIENTE;
         await HDVStorage.setItem('hdv_pedidos', pedidos);
     }
     // Actualizar DOM inmediatamente sin re-renderizar toda la lista
-    if (!actualizarTarjetaPedidoAdminDOM(id, 'pedido_pendiente')) {
+    if (!actualizarTarjetaPedidoAdminDOM(id, PEDIDO_ESTADOS.PENDIENTE)) {
         cargarPedidos();
     }
     mostrarToast('Pedido marcado como pendiente', 'success');
@@ -313,7 +287,7 @@ function exportarExcelPedidos() {
                 escaparCSV(i.nombre),
                 escaparCSV(i.presentacion),
                 i.cantidad, i.precio, i.subtotal, p.total,
-                escaparCSV(p.estado || 'pendiente'),
+                escaparCSV(p.estado || PEDIDO_ESTADOS.PENDIENTE),
                 escaparCSV(p.tipoPago || 'contado'),
                 escaparCSV(tipo),
                 escaparCSV(notas),

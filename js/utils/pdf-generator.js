@@ -108,7 +108,7 @@ function generarPDFRemisionDoc(pedido, clienteInfo) {
     doc.text('EAS - Nota de Remision', 15, 26);
     doc.text(`N°: ${pedido.id}`, 195, 14, { align: 'right' });
     doc.text(`Fecha: ${new Date(pedido.fecha).toLocaleDateString('es-PY')}`, 195, 20, { align: 'right' });
-    doc.text(`Estado: ${(pedido.estado || 'pendiente').toUpperCase()}`, 195, 26, { align: 'right' });
+    doc.text(`Estado: ${obtenerEstadoUI(pedido.estado).label}`, 195, 26, { align: 'right' });
 
     // Client info
     doc.setTextColor(0, 0, 0);

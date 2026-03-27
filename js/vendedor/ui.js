@@ -796,38 +796,11 @@ function aplicarDescuento() {
 // VISTA MIS PEDIDOS
 // ============================================
 // ============================================
-// PEDIDOS — ESTADO COLORS & REACTIVE DOM UPDATES
+// PEDIDOS — ESTADO UI (usa obtenerEstadoUI de constants.js, intensidad 700)
 // ============================================
-function obtenerColorEstado(estado) {
-    const colores = {
-        'pedido_pendiente': 'bg-yellow-100 text-yellow-700',
-        'pendiente': 'bg-yellow-100 text-yellow-700',
-        'entregado': 'bg-green-100 text-green-700',
-        'cobrado_sin_factura': 'bg-blue-100 text-blue-700',
-        'facturado_mock': 'bg-indigo-100 text-indigo-700',
-        'nota_credito_mock': 'bg-orange-100 text-orange-700',
-        'anulado': 'bg-red-100 text-red-700'
-    };
-    return colores[estado] || 'bg-gray-100 text-gray-700';
-}
-
-function obtenerLabelEstado(estado) {
-    const labels = {
-        'pedido_pendiente': 'PENDIENTE',
-        'pendiente': 'PENDIENTE',
-        'entregado': 'ENTREGADO',
-        'cobrado_sin_factura': 'COBRADO',
-        'facturado_mock': 'FACTURADO',
-        'nota_credito_mock': 'NOTA CREDITO',
-        'anulado': 'ANULADO'
-    };
-    return labels[estado] || estado.toUpperCase();
-}
-
 function crearTarjetaPedidoVendedor(p) {
-    const estado = p.estado || 'pendiente';
-    const colorEstado = obtenerColorEstado(estado);
-    const labelEstado = obtenerLabelEstado(estado);
+    const estado = p.estado || PEDIDO_ESTADOS.PENDIENTE;
+    const { clases: colorEstado, label: labelEstado } = obtenerEstadoUI(estado, '700');
 
     const div = document.createElement('div');
     div.className = 'bg-white rounded-xl p-4 shadow-sm border border-gray-100 mb-3 transition-all duration-300';
@@ -863,8 +836,9 @@ function actualizarTarjetaPedidoDOM(pedidoId, nuevoEstado) {
     const badge = card.querySelector('.pedido-estado-badge');
     if (badge) {
         // Limpiar clases de color anteriores
-        badge.className = 'pedido-estado-badge px-2 py-1 rounded-full text-[10px] font-bold ' + obtenerColorEstado(nuevoEstado);
-        badge.textContent = obtenerLabelEstado(nuevoEstado);
+        const { clases, label } = obtenerEstadoUI(nuevoEstado, '700');
+        badge.className = 'pedido-estado-badge px-2 py-1 rounded-full text-[10px] font-bold ' + clases;
+        badge.textContent = label;
 
         // Animacion de flash para destacar el cambio
         card.classList.add('ring-2', 'ring-blue-400');
@@ -1137,7 +1111,7 @@ async function mostrarConfiguracion() {
     const ultimoBackup = await HDVStorage.getItem('hdv_ultimo_backup_fecha');
 
     const totalPedidos = pedidos.length;
-    const pendientes = pedidos.filter(p => (p.estado || 'pendiente') === 'pendiente').length;
+    const pendientes = pedidos.filter(p => (p.estado || PEDIDO_ESTADOS.PENDIENTE) === PEDIDO_ESTADOS.PENDIENTE || p.estado === 'pendiente').length;
     const totalGs = pedidos.reduce((s, p) => s + (p.total || 0), 0);
 
     container.innerHTML = `
@@ -1305,7 +1279,7 @@ async function mostrarMiCaja() {
         return f >= inicio && f <= fin;
     });
     const totalContado = pedidosSemana
-        .filter(p => p.tipoPago === 'contado' && (p.estado === 'entregado' || p.estado === 'pendiente'))
+        .filter(p => p.tipoPago === 'contado' && (p.estado === PEDIDO_ESTADOS.ENTREGADO || p.estado === 'pendiente'))
         .reduce((s, p) => s + (p.total || 0), 0);
     const totalCredito = pedidosSemana
         .filter(p => p.tipoPago === 'credito')

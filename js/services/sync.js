@@ -114,7 +114,7 @@ const SyncManager = (() => {
                     // Batch: construir rows y enviar en un solo upsert
                     const rows = batch.map(pedido => ({
                         id: pedido.id,
-                        estado: pedido.estado || 'pedido_pendiente',
+                        estado: pedido.estado || PEDIDO_ESTADOS.PENDIENTE,
                         fecha: pedido.fecha || null,
                         datos: pedido,
                         actualizado_en: new Date().toISOString(),

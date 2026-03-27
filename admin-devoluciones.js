@@ -19,7 +19,7 @@ async function buscarFacturaDevolucion() {
 
     const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
     const facturas = pedidos.filter(p => {
-        if (p.estado !== 'facturado_mock') return false;
+        if (p.estado !== PEDIDO_ESTADOS.FACTURADO) return false;
         const clienteInfo = productosData.clientes.find(c => c.id === p.cliente?.id);
         const ruc = (clienteInfo?.ruc || p.cliente?.ruc || '').toLowerCase();
         const nombre = (p.cliente?.nombre || '').toLowerCase();
@@ -208,7 +208,7 @@ async function procesarNotaCredito() {
             total: -totalNC,         // NEGATIVO
             tipoPago: facturaSeleccionadaNC.tipoPago,
             notas: `NC por: ${motivosTexto[motivo] || motivo}`,
-            estado: 'nota_credito_mock',
+            estado: PEDIDO_ESTADOS.NOTA_CREDITO,
             numFactura: numNC,
             cdc: cdcNC,
             facturaOrigenId: facturaSeleccionadaNC.id,
@@ -308,7 +308,7 @@ function cerrarModalNC() {
 
 async function cargarHistorialNC() {
     const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
-    const ncs = pedidos.filter(p => p.estado === 'nota_credito_mock').sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+    const ncs = pedidos.filter(p => p.estado === PEDIDO_ESTADOS.NOTA_CREDITO).sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
 
     const container = document.getElementById('devHistorial');
     const countEl = document.getElementById('devHistorialCount');

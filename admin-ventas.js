@@ -49,7 +49,7 @@ function mostrarVentas(ventas) {
     ventas.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
 
     ventas.forEach(v => {
-        const esFactura = v.estado === 'facturado_mock';
+        const esFactura = v.estado === PEDIDO_ESTADOS.FACTURADO;
         const clienteInfo = ventasDataBuscarCliente(v.cliente?.id);
         const zona = clienteInfo?.zona || clienteInfo?.direccion || '';
 

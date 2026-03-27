@@ -220,7 +220,7 @@ function cargarResumenMensual() {
     const totalPedidos = pedidosMes.length;
     const contado = pedidosMes.filter(p => (p.tipoPago || 'contado') === 'contado').reduce((s,p) => s + (p.total||0), 0);
     const credito = pedidosMes.filter(p => p.tipoPago === 'credito').reduce((s,p) => s + (p.total||0), 0);
-    const entregados = pedidosMes.filter(p => p.estado === 'entregado').length;
+    const entregados = pedidosMes.filter(p => p.estado === PEDIDO_ESTADOS.ENTREGADO).length;
     const clientesUnicos = new Set(pedidosMes.map(p => p.cliente?.id)).size;
 
     const container = document.getElementById('resumenMensualContenido');
@@ -385,7 +385,7 @@ async function guardarResumenMensual() {
             contado: pedidosMes.filter(p => (p.tipoPago||'contado') === 'contado').reduce((s,p) => s + (p.total||0), 0),
             credito: pedidosMes.filter(p => p.tipoPago === 'credito').reduce((s,p) => s + (p.total||0), 0),
             clientesActivos: new Set(pedidosMes.map(p => p.cliente?.id)).size,
-            entregados: pedidosMes.filter(p => p.estado === 'entregado').length
+            entregados: pedidosMes.filter(p => p.estado === PEDIDO_ESTADOS.ENTREGADO).length
         };
 
         if (typeof db !== 'undefined') {

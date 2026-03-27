@@ -40,7 +40,7 @@ async function obtenerRegistrosPeriodo() {
     const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
 
     return pedidos.filter(p => {
-        if (p.estado !== 'facturado_mock' && p.estado !== 'nota_credito_mock') return false;
+        if (p.estado !== PEDIDO_ESTADOS.FACTURADO && p.estado !== PEDIDO_ESTADOS.NOTA_CREDITO) return false;
         const fecha = new Date(p.fecha);
         return fecha.getMonth() + 1 === mes && fecha.getFullYear() === anio;
     }).sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
@@ -66,8 +66,8 @@ async function previsualizarCierre() {
     const resumen = document.getElementById('cierreResumen');
     resumen.classList.remove('hidden');
 
-    const facturas = registrosCierreMensual.filter(r => r.estado === 'facturado_mock');
-    const ncs = registrosCierreMensual.filter(r => r.estado === 'nota_credito_mock');
+    const facturas = registrosCierreMensual.filter(r => r.estado === PEDIDO_ESTADOS.FACTURADO);
+    const ncs = registrosCierreMensual.filter(r => r.estado === PEDIDO_ESTADOS.NOTA_CREDITO);
     const totalBruto = facturas.reduce((s, r) => s + (r.total || 0), 0);
     const totalNCs = ncs.reduce((s, r) => s + Math.abs(r.total || 0), 0);
 
@@ -89,7 +89,7 @@ async function previsualizarCierre() {
     registrosCierreMensual.forEach(r => {
         const clienteInfo = productosData.clientes.find(c => c.id === r.cliente?.id);
         const ruc = clienteInfo?.ruc || r.cliente?.ruc || '';
-        const esNC = r.estado === 'nota_credito_mock';
+        const esNC = r.estado === PEDIDO_ESTADOS.NOTA_CREDITO;
         const tipo = esNC ? 'NC' : 'Venta';
         const total = r.total || 0;
         const desglose = calcularDesglose(total, r);
@@ -140,7 +140,7 @@ async function exportarLibroRG90() {
         registros.forEach(r => {
             const clienteInfo = productosData.clientes.find(c => c.id === r.cliente?.id);
             const ruc = clienteInfo?.ruc || r.cliente?.ruc || '';
-            const esNC = r.estado === 'nota_credito_mock';
+            const esNC = r.estado === PEDIDO_ESTADOS.NOTA_CREDITO;
             const tipo = esNC ? 'Nota de Credito' : 'Factura Electronica';
             const total = r.total || 0;
             const desglose = calcularDesglose(total, r);
@@ -201,7 +201,7 @@ async function exportarPaqueteZIP() {
             const cdc = r.cdc || r.id.replace(/[^a-zA-Z0-9]/g, '');
             const clienteInfo = productosData.clientes.find(c => c.id === r.cliente?.id);
             const ruc = clienteInfo?.ruc || r.cliente?.ruc || 'SIN_RUC';
-            const esNC = r.estado === 'nota_credito_mock';
+            const esNC = r.estado === PEDIDO_ESTADOS.NOTA_CREDITO;
             const tipoDoc = esNC ? 'NotaCredito' : 'Factura';
 
             // Mock KuDE (contenido simulado de texto)

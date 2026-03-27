@@ -452,12 +452,11 @@ async function renderizarPerfilHistorial() {
 
     container.innerHTML = '<div class="space-y-3">' + pedidosCliente.map(p => {
         const items = (p.items || []).map(i => `${escapeHTML(i.nombre)} x${i.cantidad}`).join(', ');
-        const estadoColor = p.estado === 'entregado' ? 'bg-green-100 text-green-700' :
-                            p.estado === 'pagado' ? 'bg-blue-100 text-blue-700' : 'bg-yellow-100 text-yellow-700';
+        const { clases: estadoColor, label: estadoLabel } = obtenerEstadoUI(p.estado, '700');
         return `<div class="bg-gray-50 rounded-lg p-3">
             <div class="flex justify-between items-center mb-1">
                 <span class="text-xs text-gray-400">${new Date(p.fecha).toLocaleDateString('es-PY')} | ${p.id}</span>
-                <span class="text-xs px-2 py-0.5 rounded-full font-bold ${estadoColor}">${p.estado || 'pendiente'}</span>
+                <span class="text-xs px-2 py-0.5 rounded-full font-bold ${estadoColor}">${estadoLabel}</span>
             </div>
             <p class="text-sm text-gray-600">${items || 'Sin items'}</p>
             <div class="flex justify-between items-center mt-1">

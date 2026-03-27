@@ -88,7 +88,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (vistaActual === 'pedidos' && typeof actualizarTarjetaPedidoDOM === 'function') {
                     const updated = actualizarTarjetaPedidoDOM(pedidoId, nuevoEstado);
                     if (updated) {
-                        mostrarToast(`Pedido actualizado: ${nuevoEstado === 'entregado' ? 'Entregado' : nuevoEstado === 'anulado' ? 'Anulado' : nuevoEstado}`, 'info');
+                        mostrarToast(`Pedido actualizado: ${nuevoEstado === PEDIDO_ESTADOS.ENTREGADO ? 'Entregado' : nuevoEstado === PEDIDO_ESTADOS.ANULADO ? 'Anulado' : nuevoEstado}`, 'info');
                     }
                 }
                 // Actualizar widget de caja si esta visible
@@ -436,7 +436,7 @@ async function cerrarSemanaVendedor(semana) {
         return f >= inicio && f <= fin;
     });
     const totalContado = pedidosSemana
-        .filter(p => p.tipoPago === 'contado' && (p.estado === 'entregado' || p.estado === 'pedido_pendiente' || p.estado === 'pendiente'))
+        .filter(p => p.tipoPago === 'contado' && (p.estado === PEDIDO_ESTADOS.ENTREGADO || p.estado === PEDIDO_ESTADOS.PENDIENTE || p.estado === 'pendiente'))
         .reduce((s, p) => s + (p.total || 0), 0);
     const totalGastos = gastos.filter(g => {
         const f = new Date(g.fecha);
@@ -635,7 +635,7 @@ async function exportarBackupVendedor() {
         },
         resumen: {
             totalPedidos: pedidos.length,
-            pedidosPendientes: pedidos.filter(p => p.estado === 'pedido_pendiente' || p.estado === 'pendiente').length,
+            pedidosPendientes: pedidos.filter(p => p.estado === PEDIDO_ESTADOS.PENDIENTE || p.estado === 'pendiente').length,
             totalGuaranies: pedidos.reduce((s, p) => s + (p.total || 0), 0)
         }
     };

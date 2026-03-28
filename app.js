@@ -38,7 +38,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Alerta al cerrar/recargar si hay pedidos sin sincronizar
     window.addEventListener('beforeunload', async (e) => {
         try {
-            const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
+            const pedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
             const sinSync = pedidos.filter(p => p.sincronizado === false);
             if (sinSync.length > 0) {
                 e.preventDefault();
@@ -428,8 +428,8 @@ async function eliminarGastoVendedor(gastoId) {
 
 async function cerrarSemanaVendedor(semana) {
     const { inicio, fin } = obtenerRangoSemanaVendedor(semana);
-    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
-    const gastos = (await HDVStorage.getItem('hdv_gastos')) || [];
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
+    const gastos = (await HDVStorage.getItem('hdv_gastos', { clone: false })) || [];
 
     const pedidosSemana = pedidos.filter(p => {
         const f = new Date(p.fecha);
@@ -475,13 +475,13 @@ async function cerrarSemanaVendedor(semana) {
 // ============================================
 
 async function generarWidgetMeta() {
-    const metas = (await HDVStorage.getItem('hdv_metas')) || [];
+    const metas = (await HDVStorage.getItem('hdv_metas', { clone: false })) || [];
     const mesActual = new Date().toISOString().slice(0, 7);
     const metaActiva = metas.find(m => m.mes === mesActual && m.activa) || metas.find(m => m.activa);
 
     if (!metaActiva) return '';
 
-    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
     const pedidosMes = pedidos.filter(p => p.fecha && p.fecha.startsWith(mesActual));
     const totalVendido = pedidosMes.reduce((s, p) => s + (p.total || 0), 0);
 
@@ -611,7 +611,7 @@ function sanitizarDatosBackup(pedidos) {
 }
 
 async function exportarBackupVendedor() {
-    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
     const carritos = {};
     const carritoKeys = await HDVStorage.keys('hdv_carrito_');
     for (const key of carritoKeys) {
@@ -647,7 +647,7 @@ async function exportarBackupVendedor() {
 }
 
 async function exportarSoloPedidos() {
-    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
     if (pedidos.length === 0) { mostrarToast('No hay pedidos para exportar', 'error'); return; }
 
     const backup = {
@@ -662,7 +662,7 @@ async function exportarSoloPedidos() {
 }
 
 async function compartirBackupWhatsApp() {
-    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
     const hoy = new Date().toLocaleDateString('es-PY');
     const pedidosHoy = pedidos.filter(p => new Date(p.fecha).toLocaleDateString('es-PY') === hoy);
 
@@ -766,7 +766,7 @@ async function toggleAutoBackup() {
 }
 
 async function realizarAutoBackup() {
-    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
     if (pedidos.length === 0) return;
 
     const backup = {
@@ -826,7 +826,7 @@ function descargarArchivoJSON(data, nombre) {
 // ============================================
 // TODO: Refactor Phase 1 - Usa js/utils/printer.js (generarTicketHTML + imprimirViaIframe)
 async function imprimirTicketVendedor(pedidoId) {
-    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
     const pedido = pedidos.find(p => p.id === pedidoId);
     if (!pedido) return;
     const ticketHTML = generarTicketHTML(pedido);
@@ -835,14 +835,14 @@ async function imprimirTicketVendedor(pedidoId) {
 
 // TODO: Refactor Phase 1 - Usa js/utils/pdf-generator.js (generarPDFPedido)
 async function generarPDFVendedor(pedidoId) {
-    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
     const pedido = pedidos.find(p => p.id === pedidoId);
     if (!pedido) return;
     if (generarPDFPedido(pedido)) mostrarExito('PDF generado');
 }
 
 async function enviarPedidoWhatsApp(pedidoId) {
-    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
     const pedido = pedidos.find(p => p.id === pedidoId);
     if (!pedido) return;
 

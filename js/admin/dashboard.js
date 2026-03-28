@@ -401,12 +401,12 @@ async function guardarResumenMensual() {
 // METAS Y COMISIONES
 // ============================================
 async function cargarMetas() {
-    const metas = (await HDVStorage.getItem('hdv_metas')) || [];
+    const metas = (await HDVStorage.getItem('hdv_metas', { clone: false })) || [];
     const mesActual = new Date().toISOString().slice(0, 7);
     const metaActiva = metas.find(m => m.mes === mesActual && m.activa) || metas.find(m => m.activa);
 
     // Calcular ventas del mes
-    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
     const pedidosMes = pedidos.filter(p => p.fecha && p.fecha.startsWith(mesActual));
     const totalVendido = pedidosMes.reduce((sum, p) => sum + (p.total || 0), 0);
 
@@ -475,7 +475,7 @@ async function abrirModalMeta(metaId) {
     document.getElementById('formMetaMes').value = new Date().toISOString().slice(0, 7);
     document.getElementById('formMetaActiva').value = 'true';
     if (metaId) {
-        const metas = (await HDVStorage.getItem('hdv_metas')) || [];
+        const metas = (await HDVStorage.getItem('hdv_metas', { clone: false })) || [];
         const m = metas.find(x => x.id === metaId);
         if (m) {
             document.getElementById('formMetaId').value = m.id;

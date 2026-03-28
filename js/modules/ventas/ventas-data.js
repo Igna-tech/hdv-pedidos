@@ -11,7 +11,7 @@
 // --- Lectura ---
 
 async function ventasDataObtenerPedidos() {
-    return (await HDVStorage.getItem('hdv_pedidos')) || [];
+    return (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
 }
 
 function ventasDataFiltrar(pedidos, filtroFecha, filtroTipo) {

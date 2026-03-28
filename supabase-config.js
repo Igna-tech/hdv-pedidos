@@ -119,37 +119,53 @@ async function escucharPedidosRealtime(callback) {
         callback(pedidosLocal, []);
     }
 
-    // Suscripcion realtime con debounce 500ms — preserva pedidos locales no sincronizados
-    let _pedidosRealtimeTimer = null;
-    const unsub = SupabaseService.subscribeTo('pedidos-realtime', 'pedidos', () => {
-        if (_pedidosRealtimeTimer) clearTimeout(_pedidosRealtimeTimer);
-        _pedidosRealtimeTimer = setTimeout(async () => {
-            try {
-                const { data, error } = await SupabaseService.fetchPedidos();
-                if (error || !data) {
-                    console.error('[Supabase] Error en realtime fetch pedidos:', error);
-                    return;
-                }
-                const pedidosRemoto = data.map(r => r.datos);
+    // Suscripcion realtime GRANULAR (delta sync) — sin refetch completo
+    const unsub = SupabaseService.subscribeTo('pedidos-realtime', 'pedidos', async (payload) => {
+        try {
+            const eventType = payload.eventType; // INSERT, UPDATE, DELETE
+            const newRow = payload.new;
+            const oldRow = payload.old;
 
-                // atomicUpdate garantiza que no hay race condition con otros writers
-                const merged = await HDVStorage.atomicUpdate('hdv_pedidos', (pedidosLocal) => {
-                    const locales = pedidosLocal || [];
-                    const sinSincronizar = locales.filter(p => p.sincronizado === false);
-                    const remotosIds = new Set(pedidosRemoto.map(p => p.id));
-                    const localesNoEnRemoto = sinSincronizar.filter(p => !remotosIds.has(p.id));
+            if (eventType === 'UPDATE' && newRow) {
+                const datos = newRow.datos || {};
+                const pedidoId = newRow.id;
 
-                    if (pedidosRemoto.length > 0 || locales.length === 0) {
-                        return [...pedidosRemoto, ...localesNoEnRemoto];
+                await HDVStorage.atomicUpdate('hdv_pedidos', (pedidos) => {
+                    const list = pedidos || [];
+                    const idx = list.findIndex(p => p.id === pedidoId);
+                    if (idx >= 0) {
+                        list[idx] = { ...list[idx], ...datos, sincronizado: true };
                     }
-                    return locales; // Conservar locales si remoto vacio
+                    return list;
                 });
 
-                callback(merged, [{ type: 'modified' }]);
-            } catch (err) {
-                console.error('[Supabase] Error critico en callback realtime pedidos admin:', err);
+                callback(null, [{ type: 'updated', pedidoId, datos }]);
+
+            } else if (eventType === 'DELETE' && oldRow) {
+                const pedidoId = oldRow.id;
+
+                await HDVStorage.atomicUpdate('hdv_pedidos', (pedidos) => {
+                    return (pedidos || []).filter(p => p.id !== pedidoId);
+                });
+
+                callback(null, [{ type: 'deleted', pedidoId }]);
+
+            } else if (eventType === 'INSERT' && newRow) {
+                const datos = newRow.datos || {};
+
+                await HDVStorage.atomicUpdate('hdv_pedidos', (pedidos) => {
+                    const list = pedidos || [];
+                    if (!list.find(p => p.id === newRow.id)) {
+                        list.push({ ...datos, sincronizado: true });
+                    }
+                    return list;
+                });
+
+                callback(null, [{ type: 'added', pedidoId: newRow.id, datos }]);
             }
-        }, TIEMPOS.DEBOUNCE_REALTIME_MS);
+        } catch (err) {
+            console.error('[Supabase] Error en callback realtime pedidos admin:', err);
+        }
     });
 
     return unsub;
@@ -312,7 +328,7 @@ async function obtenerCatalogo() {
     } catch (err) {
         if (err.message === 'CATALOG_TIMEOUT') {
             console.warn('[Supabase] Timeout de ' + CATALOG_TIMEOUT_MS + 'ms obteniendo catalogo, usando cache local');
-            const cached = await HDVStorage.getItem('hdv_catalogo_local');
+            const cached = await HDVStorage.getItem('hdv_catalogo_local', { clone: false });
             if (cached) {
                 if (typeof mostrarToast === 'function') {
                     mostrarToast('Conexion lenta — catalogo cargado desde cache local', 'info');
@@ -582,7 +598,7 @@ async function sincronizarDatosNegocio() {
         { key: 'hdv_metas', doc: 'metas_vendedor' }
     ];
     for (const item of mapeo) {
-        const datos = await HDVStorage.getItem(item.key);
+        const datos = await HDVStorage.getItem(item.key, { clone: false });
         if (datos && (Array.isArray(datos) ? datos.length > 0 : true)) {
             await guardarConfig(item.doc, datos);
         }

@@ -17,7 +17,7 @@ async function buscarFacturaDevolucion() {
         return;
     }
 
-    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
     const facturas = pedidos.filter(p => {
         if (p.estado !== PEDIDO_ESTADOS.FACTURADO) return false;
         const clienteInfo = productosData.clientes.find(c => c.id === p.cliente?.id);
@@ -65,7 +65,7 @@ async function buscarFacturaDevolucion() {
 // ============================================
 
 async function seleccionarFacturaNC(facturaId) {
-    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
     const factura = pedidos.find(p => p.id === facturaId);
     if (!factura) { mostrarToast('Factura no encontrada', 'error'); return; }
 
@@ -307,7 +307,7 @@ function cerrarModalNC() {
 // ============================================
 
 async function cargarHistorialNC() {
-    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
     const ncs = pedidos.filter(p => p.estado === PEDIDO_ESTADOS.NOTA_CREDITO).sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
 
     const container = document.getElementById('devHistorial');
@@ -497,7 +497,7 @@ function imprimirNC(formato) {
 
 // Re-imprimir NC desde historial
 async function reimprimirNC(ncId) {
-    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
     const nc = pedidos.find(p => p.id === ncId);
     if (!nc) { mostrarToast('NC no encontrada', 'error'); return; }
 

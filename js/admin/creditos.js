@@ -818,8 +818,8 @@ async function cargarRendiciones() {
     if (!weekInput.value) weekInput.value = obtenerSemanaActual();
     const { inicio, fin } = obtenerRangoSemana(weekInput.value);
 
-    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
-    const gastos = (await HDVStorage.getItem('hdv_gastos')) || [];
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
+    const gastos = (await HDVStorage.getItem('hdv_gastos', { clone: false })) || [];
 
     // Filtrar pedidos de la semana
     const pedidosSemana = pedidos.filter(p => {

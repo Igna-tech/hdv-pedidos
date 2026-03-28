@@ -296,11 +296,37 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (typeof escucharPedidosRealtime === 'function') {
         unsubscribePedidos = await escucharPedidosRealtime((pedidos, cambios) => {
-            todosLosPedidos = pedidos;
-            aplicarFiltrosPedidos();
+            // Carga inicial: pedidos es el array completo
+            if (pedidos !== null) {
+                todosLosPedidos = pedidos;
+                aplicarFiltrosPedidos();
+                console.log(`[Admin] Carga inicial pedidos: ${pedidos.length}`);
+                return;
+            }
 
-            const nuevos = cambios.filter(c => c.type === 'added');
-            if (nuevos.length > 0 && todosLosPedidos.length > 0) {
+            // Delta sync: pedidos es null, cambios tiene el evento granular
+            const cambio = cambios[0];
+            if (!cambio) return;
+
+            if (cambio.type === 'updated') {
+                const idx = todosLosPedidos.findIndex(p => p.id === cambio.pedidoId);
+                if (idx >= 0) {
+                    todosLosPedidos[idx] = { ...todosLosPedidos[idx], ...cambio.datos, sincronizado: true };
+                    // Intentar actualizar solo la tarjeta en DOM (preserva pagina)
+                    if (!actualizarTarjetaPedidoAdminDOM(cambio.pedidoId, cambio.datos.estado)) {
+                        aplicarFiltrosPedidos(false);
+                    }
+                }
+            } else if (cambio.type === 'deleted') {
+                todosLosPedidos = todosLosPedidos.filter(p => p.id !== cambio.pedidoId);
+                eliminarTarjetaPedidoAdminDOM(cambio.pedidoId);
+                actualizarEstadisticasPedidos(todosLosPedidos);
+            } else if (cambio.type === 'added') {
+                if (!todosLosPedidos.find(p => p.id === cambio.pedidoId)) {
+                    todosLosPedidos.push({ ...cambio.datos, sincronizado: true });
+                }
+                aplicarFiltrosPedidos(false);
+                // Flash visual en titulo
                 const badge = document.getElementById('currentSectionTitle');
                 if (badge && badge.textContent.includes('Pedidos')) {
                     badge.style.transition = 'color 0.3s';
@@ -308,9 +334,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     setTimeout(() => badge.style.color = '', TIEMPOS.PAGE_RELOAD_MS);
                 }
             }
-            console.log(`[Admin] Pedidos actualizados en tiempo real: ${pedidos.length}`);
+            console.log(`[Admin] Delta sync: ${cambio.type} pedido ${cambio.pedidoId || ''}`);
         });
-        console.log('[Admin] Escuchando pedidos en tiempo real desde Supabase');
+        console.log('[Admin] Escuchando pedidos en tiempo real (delta sync) desde Supabase');
     } else {
         cargarPedidos();
         setInterval(cargarPedidos, TIEMPOS.HEALTH_CHECK_INTERVAL_MS);
@@ -680,7 +706,7 @@ function cerrarModalForense() {
 // HERRAMIENTAS Y BACKUP
 // ============================================
 async function crearBackup() {
-    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
     const backup = {
         tipo: 'backup_admin_completo',
         fecha: new Date().toISOString(),
@@ -714,7 +740,7 @@ function crearBackupSoloProductos() {
 }
 
 async function crearBackupSoloPedidos() {
-    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
     if (pedidos.length === 0) { mostrarToast('No hay pedidos', 'error'); return; }
     const backup = {
         tipo: 'backup_pedidos',
@@ -782,10 +808,10 @@ async function toggleAdminAutoBackup() {
 }
 
 async function crearAutoBackupAdmin(motivo) {
-    const enabled = (await HDVStorage.getItem('hdv_admin_auto_backup')) !== 'false';
+    const enabled = (await HDVStorage.getItem('hdv_admin_auto_backup', { clone: false })) !== 'false';
     if (!enabled) return;
 
-    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
     const backup = {
         motivo: motivo || 'Auto-backup',
         fecha: new Date().toISOString(),
@@ -811,11 +837,11 @@ async function crearAutoBackupAdmin(motivo) {
 }
 
 async function actualizarInfoBackupAdmin() {
-    const ultimo = await HDVStorage.getItem('hdv_admin_ultimo_backup');
+    const ultimo = await HDVStorage.getItem('hdv_admin_ultimo_backup', { clone: false });
     const el = document.getElementById('adminUltimoBackup');
     if (el) el.textContent = ultimo ? `Ultimo: ${new Date(ultimo).toLocaleString('es-PY')}` : 'Sin backups';
 
-    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
     const setEl = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
     setEl('adminBackupProductos', productosData.productos?.length || 0);
     setEl('adminBackupClientes', productosData.clientes?.length || 0);

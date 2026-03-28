@@ -5,6 +5,9 @@
 // ============================================
 
 let pedidoEditandoId = null;
+let paginaPedidos = 1;
+const PEDIDOS_POR_PAGINA = 20;
+let _pedidosFiltradosActuales = []; // Referencia para paginacion
 
 // ============================================
 // EVENT DELEGATION — despacho de acciones de pedidos
@@ -68,14 +71,14 @@ const _eliminarPedidoSupabase = typeof eliminarPedido === 'function' ? eliminarP
 // CARGA Y FILTROS
 // ============================================
 async function cargarPedidos() {
-    todosLosPedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
+    todosLosPedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
     await poblarFiltroVendedor();
     aplicarFiltrosPedidos();
 }
 
 function filtrarPedidos() { aplicarFiltrosPedidos(); }
 
-function aplicarFiltrosPedidos() {
+function aplicarFiltrosPedidos(resetPagina = true) {
     const fecha = document.getElementById('filtroFecha')?.value;
     const cliente = document.getElementById('filtroCliente')?.value;
     const vendedor = document.getElementById('filtroVendedor')?.value;
@@ -89,6 +92,10 @@ function aplicarFiltrosPedidos() {
     if (fecha) filtrados = filtrados.filter(p => new Date(p.fecha).toISOString().split('T')[0] === fecha);
     if (cliente) filtrados = filtrados.filter(p => p.cliente?.id === cliente);
     if (vendedor) filtrados = filtrados.filter(p => p.vendedor_id === vendedor);
+
+    filtrados.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+    _pedidosFiltradosActuales = filtrados;
+    if (resetPagina) paginaPedidos = 1;
     mostrarPedidos(filtrados);
     actualizarEstadisticasPedidos(filtrados);
 }
@@ -97,18 +104,40 @@ function mostrarPedidos(pedidos) {
     const container = document.getElementById('listaPedidos');
     if (!container) return;
     _initPedidosDelegation(container);
-    if (pedidos.length === 0) {
+
+    const total = pedidos.length;
+    const totalPaginas = Math.max(1, Math.ceil(total / PEDIDOS_POR_PAGINA));
+    if (paginaPedidos > totalPaginas) paginaPedidos = totalPaginas;
+
+    if (total === 0) {
         container.innerHTML = generarAdminEmptyState(SVG_ADMIN_EMPTY_ORDERS, 'No hay pedidos para mostrar', 'Los pedidos nuevos apareceran aqui automaticamente');
+        _renderPaginacionPedidos(0, 1);
         return;
     }
-    container.innerHTML = '';
-    pedidos.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
 
-    pedidos.forEach(p => {
+    const inicio = (paginaPedidos - 1) * PEDIDOS_POR_PAGINA;
+    const paginados = pedidos.slice(inicio, inicio + PEDIDOS_POR_PAGINA);
+
+    container.innerHTML = '';
+    paginados.forEach(p => {
         const div = crearTarjetaPedidoAdmin(p);
         container.appendChild(div);
     });
     lucide.createIcons();
+    _renderPaginacionPedidos(total, totalPaginas);
+}
+
+function _renderPaginacionPedidos(total, totalPaginas) {
+    const pagEl = document.getElementById('paginacionPedidos');
+    if (!pagEl) return;
+    if (total === 0) { pagEl.innerHTML = ''; return; }
+    pagEl.innerHTML = `<span>${total} pedidos | Pagina ${paginaPedidos} de ${totalPaginas}</span>
+    <div class="flex gap-2">
+        <button onclick="paginaPedidos=1;aplicarFiltrosPedidos(false)" class="px-3 py-1 rounded border text-xs ${paginaPedidos <= 1 ? 'opacity-30' : 'hover:bg-gray-100'}" ${paginaPedidos <= 1 ? 'disabled' : ''}>&lt;&lt;</button>
+        <button onclick="paginaPedidos--;aplicarFiltrosPedidos(false)" class="px-3 py-1 rounded border text-xs ${paginaPedidos <= 1 ? 'opacity-30' : 'hover:bg-gray-100'}" ${paginaPedidos <= 1 ? 'disabled' : ''}>&lt;</button>
+        <button onclick="paginaPedidos++;aplicarFiltrosPedidos(false)" class="px-3 py-1 rounded border text-xs ${paginaPedidos >= totalPaginas ? 'opacity-30' : 'hover:bg-gray-100'}" ${paginaPedidos >= totalPaginas ? 'disabled' : ''}>&gt;</button>
+        <button onclick="paginaPedidos=${totalPaginas};aplicarFiltrosPedidos(false)" class="px-3 py-1 rounded border text-xs ${paginaPedidos >= totalPaginas ? 'opacity-30' : 'hover:bg-gray-100'}" ${paginaPedidos >= totalPaginas ? 'disabled' : ''}>&gt;&gt;</button>
+    </div>`;
 }
 
 // ============================================
@@ -339,7 +368,7 @@ async function generarReporte(tipo) {
     const hasta = document.getElementById('reporteFechaHasta')?.value;
     if (!desde || !hasta) { mostrarToast('Selecciona rango de fechas', 'error'); return; }
 
-    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
     const filtrados = pedidos.filter(p => {
         const fecha = new Date(p.fecha).toISOString().split('T')[0];
         return fecha >= desde && fecha <= hasta;

@@ -321,7 +321,7 @@ async function guardarNuevoClienteDesdeVendedor() {
 // PRODUCTOS FRECUENTES
 // ============================================
 async function obtenerProductosFrecuentes(clienteId, limit = 6) {
-    const allPedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
+    const allPedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
     const pedidos = allPedidos.filter(p => p.cliente?.id === clienteId);
     const conteo = {};
     pedidos.forEach(p => {
@@ -339,7 +339,7 @@ async function obtenerProductosFrecuentes(clienteId, limit = 6) {
 // PROMOCIONES
 // ============================================
 async function obtenerPromocionesActivas() {
-    const promos = (await HDVStorage.getItem('hdv_promociones')) || [];
+    const promos = (await HDVStorage.getItem('hdv_promociones', { clone: false })) || [];
     const hoy = new Date();
     return promos.filter(p => p.activa && hoy >= new Date(p.fechaInicio) && hoy <= new Date(p.fechaFin));
 }

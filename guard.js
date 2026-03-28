@@ -71,6 +71,11 @@
             nombre: perfil.nombre_completo || session.user.email
         };
 
+        // Sentry: setear contexto de usuario autenticado
+        if (typeof sentrySetUser === 'function') {
+            sentrySetUser(window.hdvUsuario);
+        }
+
         await HDVStorage.setItem('hdv_user_rol', rol);
         await HDVStorage.setItem('hdv_user_email', session.user.email);
         await HDVStorage.setItem('hdv_user_nombre', perfil.nombre_completo || '');

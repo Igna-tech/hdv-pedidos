@@ -87,7 +87,7 @@ async function mostrarInfoCliente(cliente) {
     document.getElementById('clienteInfoRuc').textContent = cliente.ruc || 'Sin RUC';
 
     // Dias desde ultimo pedido
-    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
     const pedidosCliente = pedidos.filter(p => p.cliente && p.cliente.id === cliente.id);
     const elDias = document.getElementById('clienteInfoDias');
     if (pedidosCliente.length > 0) {
@@ -101,7 +101,7 @@ async function mostrarInfoCliente(cliente) {
     }
 
     // Saldo de deuda
-    const pagos = (await HDVStorage.getItem('hdv_pagos_credito')) || {};
+    const pagos = (await HDVStorage.getItem('hdv_pagos_credito', { clone: false })) || {};
     const creditos = pedidosCliente.filter(p => p.tipoPago === 'credito');
     let deudaTotal = 0;
     creditos.forEach(p => {
@@ -317,39 +317,55 @@ async function renderizarProductosVendedor(container, busqueda) {
 
     const grid = document.createElement('div');
     grid.className = 'grid grid-cols-2 gap-2';
+    container.appendChild(grid);
 
     const noImgSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>`;
 
-    for (let i = 0; i < filtrados.length; i++) {
-        const prod = filtrados[i];
-        const card = document.createElement('div');
-        card.className = 'product-card bg-white rounded-xl p-2 shadow-sm border border-gray-100 active:scale-95 transition-transform cursor-pointer';
-        card.style.animationDelay = `${i * 0.03}s`;
-        card.onclick = () => mostrarDetalleProducto(prod);
+    // CRIT-02: Renderizado chunked con requestAnimationFrame
+    // Renderiza lotes de 40 productos por frame para no bloquear el main thread
+    const CHUNK_SIZE = 40;
+    let idx = 0;
 
-        const imgUrl = prod.imagen_url || prod.imagen;
-        let imgContent;
-        if (imgUrl) {
-            imgContent = `<div class="relative w-full h-24 rounded-lg overflow-hidden bg-gray-100">
-                <div class="absolute inset-0 bg-gray-200 animate-pulse rounded-lg img-skeleton"></div>
-                <img data-src="${imgUrl}" class="absolute inset-0 w-full h-full object-contain lazy-img opacity-0 transition-opacity duration-300">
-            </div>`;
-        } else {
-            imgContent = `<div class="w-full h-24 rounded-lg bg-gray-800 flex items-center justify-center">${noImgSvg}</div>`;
+    async function renderChunk() {
+        const end = Math.min(idx + CHUNK_SIZE, filtrados.length);
+        for (let i = idx; i < end; i++) {
+            const prod = filtrados[i];
+            const card = document.createElement('div');
+            card.className = 'product-card bg-white rounded-xl p-2 shadow-sm border border-gray-100 active:scale-95 transition-transform cursor-pointer';
+            card.onclick = () => mostrarDetalleProducto(prod);
+
+            const imgUrl = prod.imagen_url || prod.imagen;
+            let imgContent;
+            if (imgUrl) {
+                imgContent = `<div class="relative w-full h-24 rounded-lg overflow-hidden bg-gray-100">
+                    <div class="absolute inset-0 bg-gray-200 animate-pulse rounded-lg img-skeleton"></div>
+                    <img data-src="${imgUrl}" class="absolute inset-0 w-full h-full object-contain lazy-img opacity-0 transition-opacity duration-300">
+                </div>`;
+            } else {
+                imgContent = `<div class="w-full h-24 rounded-lg bg-gray-800 flex items-center justify-center">${noImgSvg}</div>`;
+            }
+
+            const promoBadge = typeof mostrarPromocionesEnProducto === 'function' ? await mostrarPromocionesEnProducto(prod.id) : '';
+            card.innerHTML = `
+                ${imgContent}
+                <p class="text-xs font-bold text-gray-800 leading-tight mt-1.5">${escapeHTML(prod.nombre)}</p>
+                ${promoBadge}
+            `;
+            grid.appendChild(card);
         }
-
-        const promoBadge = typeof mostrarPromocionesEnProducto === 'function' ? await mostrarPromocionesEnProducto(prod.id) : '';
-        card.innerHTML = `
-            ${imgContent}
-            <p class="text-xs font-bold text-gray-800 leading-tight mt-1.5">${escapeHTML(prod.nombre)}</p>
-            ${promoBadge}
-        `;
-        grid.appendChild(card);
+        idx = end;
+        if (idx < filtrados.length) {
+            requestAnimationFrame(renderChunk);
+        } else {
+            // Ultimo chunk: activar lazy load e iconos solo sobre los nodos renderizados
+            if (typeof lucide !== 'undefined') lucide.createIcons({ node: grid });
+            initLazyLoadImages(grid);
+        }
     }
 
-    container.appendChild(grid);
-    lucide.createIcons();
-    initLazyLoadImages(grid);
+    if (filtrados.length > 0) {
+        requestAnimationFrame(renderChunk);
+    }
 }
 
 // ============================================
@@ -1025,7 +1041,7 @@ async function toggleDarkMode() {
 // Cargar dark mode guardado
 (async () => {
     await HDVStorage.ready();
-    const darkMode = await HDVStorage.getItem('hdv_darkmode');
+    const darkMode = await HDVStorage.getItem('hdv_darkmode', { clone: false });
     if (darkMode === true || darkMode === 'true') {
         document.body.classList.add('dark-mode');
     }
@@ -1106,9 +1122,9 @@ function cerrarModalSinCliente() {
 // ============================================
 async function mostrarConfiguracion() {
     const container = document.getElementById('productsContainer');
-    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
-    const autoBackups = (await HDVStorage.getItem('hdv_auto_backups_meta')) || [];
-    const ultimoBackup = await HDVStorage.getItem('hdv_ultimo_backup_fecha');
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
+    const autoBackups = (await HDVStorage.getItem('hdv_auto_backups_meta', { clone: false })) || [];
+    const ultimoBackup = await HDVStorage.getItem('hdv_ultimo_backup_fecha', { clone: false });
 
     const totalPedidos = pedidos.length;
     const pendientes = pedidos.filter(p => (p.estado || PEDIDO_ESTADOS.PENDIENTE) === PEDIDO_ESTADOS.PENDIENTE || p.estado === 'pendiente').length;
@@ -1163,7 +1179,7 @@ async function calcularAlmacenamiento() {
         const allKeys = await HDVStorage.keys();
         for (const key of allKeys) {
             if (key.startsWith('hdv_')) {
-                const val = await HDVStorage.getItem(key);
+                const val = await HDVStorage.getItem(key, { clone: false });
                 totalBytes += JSON.stringify(val || '').length * 2;
             }
         }
@@ -1224,7 +1240,7 @@ async function mostrarRutaHoy() {
     if (!zonaActiva) { mostrarFiltroZonas(); return; }
     const container = document.getElementById('productsContainer');
     const clientesZona = clientes.filter(c => c.zona && c.zona.trim() === zonaActiva);
-    const pedidosHoy = (await HDVStorage.getItem('hdv_pedidos')) || [];
+    const pedidosHoy = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
     const hoy = new Date().toISOString().split('T')[0];
 
     let html = `<div class="flex justify-between items-center mb-4">
@@ -1269,10 +1285,10 @@ async function mostrarMiCaja() {
     const semana = obtenerSemanaActualVendedor();
     const { inicio, fin } = obtenerRangoSemanaVendedor(semana);
 
-    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
-    const gastos = (await HDVStorage.getItem('hdv_gastos')) || [];
-    const cuentas = (await HDVStorage.getItem('hdv_cuentas_bancarias')) || [];
-    const rendiciones = (await HDVStorage.getItem('hdv_rendiciones')) || [];
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
+    const gastos = (await HDVStorage.getItem('hdv_gastos', { clone: false })) || [];
+    const cuentas = (await HDVStorage.getItem('hdv_cuentas_bancarias', { clone: false })) || [];
+    const rendiciones = (await HDVStorage.getItem('hdv_rendiciones', { clone: false })) || [];
 
     const pedidosSemana = pedidos.filter(p => {
         const f = new Date(p.fecha);
@@ -1382,12 +1398,12 @@ function cerrarModalBackup() {
 }
 
 async function actualizarInfoBackup() {
-    const ultimaFecha = await HDVStorage.getItem('hdv_ultimo_backup_fecha');
+    const ultimaFecha = await HDVStorage.getItem('hdv_ultimo_backup_fecha', { clone: false });
     const infoText = document.getElementById('backupInfoText');
     const infoDate = document.getElementById('backupInfoDate');
     if (!infoText || !infoDate) return;
 
-    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
     infoText.textContent = `${pedidos.length} pedidos en el dispositivo`;
 
     if (ultimaFecha) {
@@ -1401,7 +1417,7 @@ async function mostrarHistorialBackups() {
     const container = document.getElementById('historialBackups');
     if (!container) return;
 
-    const meta = (await HDVStorage.getItem('hdv_auto_backups_meta')) || [];
+    const meta = (await HDVStorage.getItem('hdv_auto_backups_meta', { clone: false })) || [];
     if (meta.length === 0) {
         container.innerHTML = '<p class="text-xs text-gray-400 italic">Sin auto-backups aun</p>';
         return;

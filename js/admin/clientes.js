@@ -267,7 +267,7 @@ async function abrirPerfilCliente(clienteId) {
     const cliente = productosData.clientes.find(c => c.id === clienteId);
     if (!cliente) return;
     clientePerfilActual = cliente;
-    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
     const pedidosCliente = pedidos.filter(p => p.cliente?.id === clienteId);
     const nombre = cliente.razon_social || cliente.nombre || clienteId;
 
@@ -441,7 +441,7 @@ function eliminarPrecioEspecial(prodId, tamano) {
 async function renderizarPerfilHistorial() {
     const container = document.getElementById('perfilTab-historial');
     if (!container || !clientePerfilActual) return;
-    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
     const pedidosCliente = pedidos.filter(p => p.cliente?.id === clientePerfilActual.id)
         .sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
 
@@ -469,7 +469,7 @@ async function renderizarPerfilHistorial() {
 
 async function renderizarPerfilEstadisticas() {
     if (!clientePerfilActual) return;
-    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
     const pedidosCliente = pedidos.filter(p => p.cliente?.id === clientePerfilActual.id);
     const hoy = new Date();
 
@@ -535,7 +535,7 @@ async function renderizarPerfilEstadisticas() {
 // ============================================
 
 async function cargarClientesInactivos() {
-    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
     const clientesData = productosData.clientes || [];
     const filtro = document.getElementById('filtroInactivos')?.value || 'todos';
     const hoy = new Date();

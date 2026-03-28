@@ -9,7 +9,7 @@
 // - Monitoreo de cuota con alerta al 80%
 // - Deteccion de eviccion post-init
 // - setItem() retorna boolean (true=persistido, false=fallo)
-// - getItem() retorna copia profunda (structuredClone) para evitar race conditions
+// - getItem(key, { clone }) retorna copia profunda por defecto; clone:false devuelve referencia directa (solo-lectura)
 // - Fallback localStorage para keys criticas cuando IDB falla
 // ============================================
 
@@ -290,9 +290,11 @@ const HDVStorage = (() => {
 
     // --- Public API ---
 
-    async function getItem(key) {
+    async function getItem(key, { clone = true } = {}) {
         if (!_cache.has(key)) return null;
-        return _deepClone(_cache.get(key));
+        const val = _cache.get(key);
+        if (!clone || typeof val !== 'object' || val === null) return val;
+        return _deepClone(val);
     }
 
     async function setItem(key, value) {

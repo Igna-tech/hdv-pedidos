@@ -547,6 +547,7 @@
                     <div id="listaPedidos" class="divide-y divide-gray-100">
                         <p class="p-8 text-center text-gray-400 italic">Cargando pedidos...</p>
                     </div>
+                    <div id="paginacionPedidos" class="flex justify-between items-center px-6 py-3 bg-gray-50 border-t border-gray-100 text-sm text-gray-600"></div>
                 </div>
             </section>
 
@@ -1994,6 +1995,13 @@
             </div>
         </div>
     </div>
+
+    <!-- Sentry (Loader Script — carga lazy, captura errores desde el inicio) -->
+    <script src="sentry-init.js"></script>
+    <script
+        src="https://js.sentry-cdn.com/9fbff7170a284960c033f57024eb5941.min.js"
+        crossorigin="anonymous"
+    ></script>
 
     <script src="supabase-init.js"></script>
     <script src="js/utils/constants.js"></script>

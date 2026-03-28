@@ -142,12 +142,12 @@ async function renderizarProductosStock(container, prods, filtro) {
     else if (filtro === 'disponibles') prods = prods.filter(p => (p.estado || 'disponible') === 'disponible');
     else if (filtro === 'no-disponibles') prods = prods.filter(p => (p.estado || 'disponible') !== 'disponible');
     else if (filtro === 'mas-vendidos') {
-        const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
+        const pedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
         const conteo = {};
         pedidos.forEach(p => (p.items || []).forEach(it => { conteo[it.productoId] = (conteo[it.productoId] || 0) + (it.cantidad || 1); }));
         prods = [...prods].sort((a, b) => (conteo[b.id] || 0) - (conteo[a.id] || 0));
     } else if (filtro === 'menos-vendidos') {
-        const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
+        const pedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
         const conteo = {};
         pedidos.forEach(p => (p.items || []).forEach(it => { conteo[it.productoId] = (conteo[it.productoId] || 0) + (it.cantidad || 1); }));
         prods = [...prods].sort((a, b) => (conteo[a.id] || 0) - (conteo[b.id] || 0));
@@ -428,13 +428,13 @@ async function aplicarOrdenProductos(prods, orden) {
     if (orden === 'az') return [...prods].sort((a, b) => a.nombre.localeCompare(b.nombre));
     if (orden === 'za') return [...prods].sort((a, b) => b.nombre.localeCompare(a.nombre));
     if (orden === 'mas-vendidos') {
-        const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
+        const pedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
         const conteo = {};
         pedidos.forEach(p => (p.items || []).forEach(it => { conteo[it.productoId] = (conteo[it.productoId] || 0) + (it.cantidad || 1); }));
         return [...prods].sort((a, b) => (conteo[b.id] || 0) - (conteo[a.id] || 0));
     }
     if (orden === 'menos-vendidos') {
-        const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
+        const pedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
         const conteo = {};
         pedidos.forEach(p => (p.items || []).forEach(it => { conteo[it.productoId] = (conteo[it.productoId] || 0) + (it.cantidad || 1); }));
         return [...prods].sort((a, b) => (conteo[a.id] || 0) - (conteo[b.id] || 0));

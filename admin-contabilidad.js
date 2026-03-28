@@ -37,7 +37,7 @@ async function obtenerRegistrosPeriodo() {
     const mes = parseInt(document.getElementById('cierreMes').value);
     const anio = parseInt(document.getElementById('cierreAnio').value);
 
-    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
 
     return pedidos.filter(p => {
         if (p.estado !== PEDIDO_ESTADOS.FACTURADO && p.estado !== PEDIDO_ESTADOS.NOTA_CREDITO) return false;

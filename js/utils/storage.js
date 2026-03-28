@@ -139,6 +139,9 @@ const HDVStorage = (() => {
 
                 if (usagePercent >= QUOTA_WARN_PERCENT) {
                     console.warn(`[HDVStorage] ALERTA: Uso de storage al ${(usagePercent * 100).toFixed(0)}% — riesgo de eviccion`);
+                    if (typeof sentryCaptureMessage === 'function') {
+                        sentryCaptureMessage(`Storage quota al ${(usagePercent * 100).toFixed(0)}%`, 'warning', { usageMB, quotaMB });
+                    }
                     if (typeof mostrarToast === 'function') {
                         mostrarToast(`Almacenamiento al ${(usagePercent * 100).toFixed(0)}%. Sincronice y libere espacio.`, 'warning');
                     }
@@ -166,6 +169,9 @@ const HDVStorage = (() => {
             if (evicted.length > 0) {
                 console.error(`[HDVStorage] EVICCION DETECTADA: ${evicted.length} keys perdidas de IDB: ${evicted.join(', ')}`);
                 _storageHealthy = false;
+                if (typeof sentryCaptureMessage === 'function') {
+                    sentryCaptureMessage(`IDB eviction: ${evicted.length} keys perdidas`, 'error', { keys: evicted });
+                }
 
                 // Re-escribir desde cache a IDB
                 let recovered = 0;
@@ -273,6 +279,9 @@ const HDVStorage = (() => {
         } catch (err) {
             console.error('[HDVStorage] Error inicializando IndexedDB, fallback a memoria:', err);
             _storageHealthy = false;
+            if (typeof sentryCaptureException === 'function') {
+                sentryCaptureException(err, { module: 'HDVStorage', phase: 'init' });
+            }
             // Fallback: cargar de localStorage a cache en memoria
             for (let i = 0; i < localStorage.length; i++) {
                 const key = localStorage.key(i);
@@ -306,6 +315,9 @@ const HDVStorage = (() => {
             } catch (err) {
                 console.error('[HDVStorage] Error escribiendo a IDB:', key, err);
                 _storageHealthy = false;
+                if (typeof sentryCaptureException === 'function') {
+                    sentryCaptureException(err, { module: 'HDVStorage', op: 'setItem', key });
+                }
                 // Fallback localStorage para keys criticas
                 if (CRITICAL_KEYS.some(ck => key.startsWith(ck))) {
                     try {

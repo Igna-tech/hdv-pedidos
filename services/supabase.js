@@ -6,6 +6,16 @@
 
 const SupabaseService = (() => {
 
+    // Helper: reporta errores de red/DB a Sentry (ignora errores offline esperados)
+    function _reportError(method, error) {
+        if (!navigator.onLine) return; // Offline esperado — no reportar
+        const msg = error?.message || String(error);
+        if (msg.includes('Failed to fetch') || msg.includes('NetworkError')) return;
+        if (typeof sentryCaptureException === 'function') {
+            sentryCaptureException(error, { module: 'SupabaseService', method });
+        }
+    }
+
     // ============================================
     // PEDIDOS
     // ============================================
@@ -42,6 +52,7 @@ const SupabaseService = (() => {
             return { data: allData, error: null };
         } catch (error) {
             console.error('[SupabaseService] fetchPedidos:', error);
+            _reportError('fetchPedidos', error);
             return { data: [], error };
         }
     }
@@ -57,6 +68,7 @@ const SupabaseService = (() => {
             return { data: data?.datos || null, error: null };
         } catch (error) {
             console.error('[SupabaseService] fetchPedidoDatos:', error);
+            _reportError('fetchPedidoDatos', error);
             return { data: null, error };
         }
     }
@@ -82,6 +94,7 @@ const SupabaseService = (() => {
             return { success: true, error: null };
         } catch (error) {
             console.error('[SupabaseService] upsertPedido:', error);
+            _reportError('upsertPedido', error);
             return { success: false, error };
         }
     }
@@ -94,6 +107,7 @@ const SupabaseService = (() => {
             return { success: !!data, error: null };
         } catch (error) {
             console.error('[SupabaseService] updateEstadoPedido:', error);
+            _reportError('updateEstadoPedido', error);
             return { success: false, error };
         }
     }
@@ -108,6 +122,7 @@ const SupabaseService = (() => {
             return { success: true, error: null };
         } catch (error) {
             console.error('[SupabaseService] deletePedido:', error);
+            _reportError('deletePedido', error);
             return { success: false, error };
         }
     }
@@ -125,6 +140,7 @@ const SupabaseService = (() => {
             return { data: data || [], error: null };
         } catch (error) {
             console.error('[SupabaseService] fetchCategorias:', error);
+            _reportError('fetchCategorias', error);
             return { data: [], error };
         }
     }
@@ -145,6 +161,7 @@ const SupabaseService = (() => {
             return { data: data || [], error: null };
         } catch (error) {
             console.error('[SupabaseService] fetchClientes:', error);
+            _reportError('fetchClientes', error);
             return { data: [], error };
         }
     }
@@ -167,6 +184,7 @@ const SupabaseService = (() => {
             return { data: data || [], error: null };
         } catch (error) {
             console.error('[SupabaseService] fetchProductosConVariantes:', error);
+            _reportError('fetchProductosConVariantes', error);
             return { data: [], error };
         }
     }
@@ -192,6 +210,7 @@ const SupabaseService = (() => {
             };
         } catch (error) {
             console.error('[SupabaseService] fetchCatalogo:', error);
+            _reportError('fetchCatalogo', error);
             return { data: null, error };
         }
     }
@@ -205,6 +224,7 @@ const SupabaseService = (() => {
             return { success: true, error: null };
         } catch (error) {
             console.error('[SupabaseService] upsertCategorias:', error);
+            _reportError('upsertCategorias', error);
             return { success: false, error };
         }
     }
@@ -219,6 +239,7 @@ const SupabaseService = (() => {
             return { success: true, error: null };
         } catch (error) {
             console.error('[SupabaseService] deleteCategorias:', error);
+            _reportError('deleteCategorias', error);
             return { success: false, error };
         }
     }
@@ -232,6 +253,7 @@ const SupabaseService = (() => {
             return { data: data || [], error: null };
         } catch (error) {
             console.error('[SupabaseService] fetchCategoriasIds:', error);
+            _reportError('fetchCategoriasIds', error);
             return { data: [], error };
         }
     }
@@ -245,6 +267,7 @@ const SupabaseService = (() => {
             return { success: true, error: null };
         } catch (error) {
             console.error('[SupabaseService] upsertClientes:', error);
+            _reportError('upsertClientes', error);
             return { success: false, error };
         }
     }
@@ -259,6 +282,7 @@ const SupabaseService = (() => {
             return { success: true, error: null };
         } catch (error) {
             console.error('[SupabaseService] deleteClientes:', error);
+            _reportError('deleteClientes', error);
             return { success: false, error };
         }
     }
@@ -272,6 +296,7 @@ const SupabaseService = (() => {
             return { data: data || [], error: null };
         } catch (error) {
             console.error('[SupabaseService] fetchClientesIds:', error);
+            _reportError('fetchClientesIds', error);
             return { data: [], error };
         }
     }
@@ -285,6 +310,7 @@ const SupabaseService = (() => {
             return { success: true, error: null };
         } catch (error) {
             console.error('[SupabaseService] upsertProductos:', error);
+            _reportError('upsertProductos', error);
             return { success: false, error };
         }
     }
@@ -299,6 +325,7 @@ const SupabaseService = (() => {
             return { success: true, error: null };
         } catch (error) {
             console.error('[SupabaseService] deleteProductos:', error);
+            _reportError('deleteProductos', error);
             return { success: false, error };
         }
     }
@@ -312,6 +339,7 @@ const SupabaseService = (() => {
             return { data: data || [], error: null };
         } catch (error) {
             console.error('[SupabaseService] fetchProductosIds:', error);
+            _reportError('fetchProductosIds', error);
             return { data: [], error };
         }
     }
@@ -330,6 +358,7 @@ const SupabaseService = (() => {
             return { success: true, error: null };
         } catch (error) {
             console.error('[SupabaseService] deleteVariantesByProductoIds:', error);
+            _reportError('deleteVariantesByProductoIds', error);
             return { success: false, error };
         }
     }
@@ -343,6 +372,7 @@ const SupabaseService = (() => {
             return { success: true, error: null };
         } catch (error) {
             console.error('[SupabaseService] insertVariantes:', error);
+            _reportError('insertVariantes', error);
             return { success: false, error };
         }
     }
@@ -357,6 +387,7 @@ const SupabaseService = (() => {
             return { success: true, error: null };
         } catch (error) {
             console.error('[SupabaseService] updateVariante:', error);
+            _reportError('updateVariante', error);
             return { success: false, error };
         }
     }
@@ -370,6 +401,7 @@ const SupabaseService = (() => {
             return { success: true, error: null };
         } catch (error) {
             console.error('[SupabaseService] upsertVariante:', error);
+            _reportError('upsertVariante', error);
             return { success: false, error };
         }
     }
@@ -385,6 +417,7 @@ const SupabaseService = (() => {
             return { success: !!data, error: null };
         } catch (error) {
             console.error('[SupabaseService] reemplazarVariantes:', error);
+            _reportError('reemplazarVariantes', error);
             return { success: false, error };
         }
     }
@@ -404,6 +437,7 @@ const SupabaseService = (() => {
             return { data: data?.datos ?? null, error: null };
         } catch (error) {
             console.error('[SupabaseService] fetchConfig:', error);
+            _reportError('fetchConfig', error);
             return { data: null, error };
         }
     }
@@ -421,6 +455,7 @@ const SupabaseService = (() => {
             return { success: true, error: null };
         } catch (error) {
             console.error('[SupabaseService] upsertConfig:', error);
+            _reportError('upsertConfig', error);
             return { success: false, error };
         }
     }
@@ -440,6 +475,7 @@ const SupabaseService = (() => {
             return { data, error: null };
         } catch (error) {
             console.error('[SupabaseService] fetchConfigEmpresa:', error);
+            _reportError('fetchConfigEmpresa', error);
             return { data: null, error };
         }
     }
@@ -454,6 +490,7 @@ const SupabaseService = (() => {
             return { success: true, error: null };
         } catch (error) {
             console.error('[SupabaseService] upsertConfigEmpresa:', error);
+            _reportError('upsertConfigEmpresa', error);
             return { success: false, error };
         }
     }
@@ -475,6 +512,7 @@ const SupabaseService = (() => {
             return { success: true, error: null };
         } catch (error) {
             console.error('[SupabaseService] upsertReporteMensual:', error);
+            _reportError('upsertReporteMensual', error);
             return { success: false, error };
         }
     }
@@ -490,6 +528,7 @@ const SupabaseService = (() => {
             return { data: data?.datos || null, error: null };
         } catch (error) {
             console.error('[SupabaseService] fetchReporteMensual:', error);
+            _reportError('fetchReporteMensual', error);
             return { data: null, error };
         }
     }

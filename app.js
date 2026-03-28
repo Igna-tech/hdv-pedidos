@@ -856,7 +856,6 @@ async function enviarPedidoWhatsApp(pedidoId) {
     });
     msg += `\n*TOTAL: ${formatearGuaranies(pedido.total)}*\n`;
     msg += `Pago: ${pedido.tipoPago || 'contado'}`;
-    if (pedido.descuento > 0) msg += ` | Desc: ${pedido.descuento}%`;
     if (pedido.notas) msg += `\nNotas: ${pedido.notas}`;
 
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');

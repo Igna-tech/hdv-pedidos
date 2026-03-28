@@ -204,7 +204,6 @@ async function procesarNotaCredito() {
             cliente: { ...facturaSeleccionadaNC.cliente },
             items: itemsDevueltos,
             subtotal: -totalNC,      // NEGATIVO
-            descuento: 0,
             total: -totalNC,         // NEGATIVO
             tipoPago: facturaSeleccionadaNC.tipoPago,
             notas: `NC por: ${motivosTexto[motivo] || motivo}`,

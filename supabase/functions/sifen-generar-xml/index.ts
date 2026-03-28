@@ -34,14 +34,7 @@ function checkRateLimit(userId: string): boolean {
 }
 
 // --- Sanitizacion XML Anti-XXE (A-05) ---
-function sanitizeXML(str: string): string {
-    return (str || "").replace(/[<>&'"]/g, (c) => {
-        const map: Record<string, string> = { "<": "&lt;", ">": "&gt;", "&": "&amp;", "'": "&apos;", '"': "&quot;" };
-        return map[c] || c;
-    });
-}
-
-// Sanitizador reforzado: convierte a string, escapa XML, trunca a maxLength
+// Sanitizador: convierte a string, escapa XML, trunca a maxLength
 function sanitizarParaXML(texto: any, maxLength: number = 200): string {
     const str = String(texto ?? "").trim();
     const escaped = str
@@ -359,7 +352,8 @@ serve(async (req: Request) => {
         });
 
         const totalOpe = totalExe + totalGrav5 + totalGrav10;
-        const totalGral = validarNumero(datos.total, totalOpe);
+        // Sin descuentos: totalGral === totalOpe (decision de negocio Fase 5 P1)
+        const totalGral = totalOpe;
         const totalIVA = totalIVA5 + totalIVA10;
         const baseGrav5 = totalGrav5 > 0 ? Math.round((totalGrav5 * 100) / 105) : 0;
         const baseGrav10 = totalGrav10 > 0 ? Math.round((totalGrav10 * 100) / 110) : 0;
@@ -450,12 +444,12 @@ serve(async (req: Request) => {
                             dNomFanEmi: sanitizarParaXML(empresa.nombre_fantasia || empresa.razon_social, 200),
                             dDirEmi: sanitizarParaXML(empresa.direccion_fiscal || "Sin direccion", 300),
                             dNumCas: "0",
-                            cDepEmi: 1,
-                            dDesDepEmi: "CAPITAL",
-                            cDisEmi: 1,
-                            dDesDisEmi: "ASUNCION",
-                            cCiuEmi: 1,
-                            dDesCiuEmi: "ASUNCION",
+                            cDepEmi: 11,
+                            dDesDepEmi: "CENTRAL",
+                            cDisEmi: 117,
+                            dDesDisEmi: "LAMBARE",
+                            cCiuEmi: 3432,
+                            dDesCiuEmi: "LAMBARE",
                             dTelEmi: sanitizarParaXML(empresa.telefono_empresa || "", 50),
                             dEmailE: sanitizarParaXML(empresa.email_empresa || "", 100),
                             gActEco: {
@@ -499,9 +493,9 @@ serve(async (req: Request) => {
                         dSub10: totalGrav10.toFixed(4),
                         dTotOpe: totalOpe.toFixed(4),
                         dTotDesc: "0.0000",
-                        dTotDescGloworte: "0.0000",
                         dTotAntItem: "0.0000",
                         dTotAnt: "0.0000",
+                        dPorcDescTotal: "0.0000",
                         dDescTotal: "0.0000",
                         dAnticipo: "0.0000",
                         dRedon: "0.0000",
@@ -521,6 +515,10 @@ serve(async (req: Request) => {
         };
 
         // --- Generar XML ---
+        // TODO: Implementar firma XMLDSig con .p12 y CSC
+        // Requiere: (1) extraer clave privada del .p12, (2) firmar nodo <DE> con RSA-SHA256,
+        // (3) insertar <ds:Signature> como hijo de <rDE>, (4) calcular DigestValue y cHashQR para QR.
+        // Estado B-03: pendiente hasta adquirir certificado .p12 de produccion.
         const xmlString = create(rDEObj).end({ prettyPrint: true, indent: "  " });
         console.log("[sifen] XML generado OK, CDC:", cdc);
 

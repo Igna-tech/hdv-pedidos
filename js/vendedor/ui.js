@@ -792,22 +792,6 @@ async function renderizarCarrito() {
     `;
 }
 
-function aplicarDescuento() {
-    const desc = parseFloat(document.getElementById('descuento').value) || 0;
-    if (desc < 0 || desc > 100) { mostrarToast('Descuento invalido', 'error'); return; }
-
-    const subtotal = carrito.reduce((s, i) => s + i.subtotal, 0);
-    const totalConDesc = Math.round(subtotal * (1 - desc / 100));
-
-    const totalFinal = document.getElementById('cartTotalFinal');
-    if (totalFinal) {
-        totalFinal.innerHTML = `
-            <span class="text-gray-500 font-bold">TOTAL (${desc}% desc.)</span>
-            <span class="text-2xl font-bold text-green-600">${formatearGuaranies(totalConDesc)}</span>
-        `;
-    }
-}
-
 // ============================================
 // VISTA MIS PEDIDOS
 // ============================================
@@ -833,7 +817,7 @@ function crearTarjetaPedidoVendedor(p) {
             ${(p.items || []).map(i => `${escapeHTML(i.nombre)} (${escapeHTML(i.presentacion)} ×${i.cantidad})`).join(', ')}
         </div>
         <div class="flex justify-between items-center pt-2 border-t border-gray-100">
-            <span class="text-xs text-gray-500">${p.tipoPago || 'contado'} ${p.descuento > 0 ? `| ${p.descuento}% desc.` : ''}</span>
+            <span class="text-xs text-gray-500">${p.tipoPago || 'contado'}</span>
             <span class="font-bold text-gray-900">${formatearGuaranies(p.total)}</span>
         </div>
         <div class="flex gap-2 mt-3 pt-2 border-t border-gray-50">

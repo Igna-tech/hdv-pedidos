@@ -166,7 +166,7 @@ productos = [...], categorias = [...], clientes = [...]
 // Pedido (dentro de datos JSONB):
 pedido = {
   id, fecha, cliente: { id, nombre, ruc, ... }, items: [{ productoId, nombre, presentacion, precio, cantidad, subtotal }],
-  total, tipoPago, descuento, notas, estado, vendedor_id, sincronizado,
+  total, tipoPago, notas, estado, vendedor_id, sincronizado,
   numFactura?, cdc?, facturaFecha?, sifen_xml_generado?, sifen_cdc?, sifen_qr_url?,
   alerta_fraude?, fraude_detalle?, fraude_fecha?  // Inyectados por trigger trg_validar_precios
 }

@@ -51,7 +51,6 @@ ${(pedido.items || []).map(i => `<tr>
 </table>
 <div class="line"></div>
 <div class="row"><span>Subtotal:</span><span>${formatearGuaranies(pedido.subtotal || pedido.total)}</span></div>
-${pedido.descuento > 0 ? `<div class="row"><span>Desc. ${pedido.descuento}%:</span><span>-${formatearGuaranies(Math.round((pedido.subtotal || 0) * pedido.descuento / 100))}</span></div>` : ''}
 <div class="line"></div>
 <div class="row total-row"><span>TOTAL:</span><span>${formatearGuaranies(pedido.total)}</span></div>
 <div class="line"></div>

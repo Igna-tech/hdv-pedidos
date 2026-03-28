@@ -62,7 +62,7 @@ function tplVentaCard(v, zona, telefono, esFactura) {
             <div class="mb-3 space-y-1">${itemsHTML}</div>
             ${notasHTML}
             <div class="flex justify-between items-center pt-3 border-t border-gray-100">
-                <span class="text-sm text-gray-500">${v.tipoPago || 'contado'}${v.descuento > 0 ? ` | ${v.descuento}% desc.` : ''}</span>
+                <span class="text-sm text-gray-500">${v.tipoPago || 'contado'}</span>
                 <span class="text-xl font-bold text-gray-900">${formatearGuaranies(v.total)}</span>
             </div>
             <div class="flex gap-2 mt-4 flex-wrap">
@@ -104,10 +104,6 @@ function tplTicketThermal(pedido, clienteInfo) {
     });
 
     html += `<hr style="border:none; border-top:1px dashed #000; margin:4px 0;">`;
-    if (pedido.descuento > 0) {
-        html += `<div style="font-size:10px; text-align:right;">Subtotal: ${formatearGuaranies(pedido.subtotal)}</div>`;
-        html += `<div style="font-size:10px; text-align:right;">Desc: ${pedido.descuento}%</div>`;
-    }
     html += `<div style="font-size:12px; font-weight:bold; text-align:right;">TOTAL: ${formatearGuaranies(pedido.total)}</div>`;
 
     if (esFactura && pedido.desgloseIVA) {
@@ -193,10 +189,6 @@ function tplDocA4(pedido, clienteInfo) {
             <tbody>${itemsHTML}</tbody>
         </table>
         <div style="text-align:right; margin-bottom:16px;">
-            ${pedido.descuento > 0 ? `
-                <p style="font-size:12px; margin:2px 0;">Subtotal: ${formatearGuaranies(pedido.subtotal)}</p>
-                <p style="font-size:12px; margin:2px 0;">Descuento: ${pedido.descuento}%</p>
-            ` : ''}
             <p style="font-size:18px; font-weight:900; margin:8px 0 0; border-top:2px solid #111827; padding-top:8px;">TOTAL: ${formatearGuaranies(pedido.total)}</p>
         </div>
         ${esFactura && pedido.desgloseIVA ? `
@@ -496,7 +488,6 @@ function tplKuDEA4(pedido, clienteInfo, empresa) {
         <table style="width:100%; border-collapse:collapse; margin-top:-1px;">
             <tr>
                 <td style="width:48%; border:2px solid #000; padding:6px 10px; vertical-align:top; font-size:10px;">
-                    ${pedido.descuento > 0 ? `<div><strong>Descuento:</strong> ${pedido.descuento}%</div>` : ''}
                     <div><strong>Subtotal:</strong> ${formatearGuaranies(totalOpe)}</div>
                 </td>
                 <td style="width:52%; border:2px solid #000; border-left:none; padding:0; vertical-align:top;">

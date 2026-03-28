@@ -33,9 +33,7 @@ function generarNumeroFactura() {
 function generarNumeroFacturaAdmin() { return generarNumeroFactura(); }
 
 function generarCDC() {
-    let cdc = '';
-    for (let i = 0; i < 44; i++) cdc += Math.floor(Math.random() * 10);
-    return cdc;
+    return 'PENDIENTE-DE-SINCRONIZACION-SIFEN';
 }
 
 // Alias admin
@@ -92,6 +90,7 @@ function calcularDesglose(total, pedido) {
             total: total
         };
     }
+    console.warn('[calcularDesglose] Pedido sin desgloseIVA — fallback asume 100% IVA 10%. Verificar datos del pedido:', pedido?.id || 'sin ID');
     const base10 = Math.round(total / 1.10);
     const iva10 = total - base10;
     return { exentas: 0, gravada5: 0, iva5: 0, gravada10: base10, iva10: iva10, totalIva: iva10, total: total };

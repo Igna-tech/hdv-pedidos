@@ -226,12 +226,11 @@ async function confirmarPedido() {
     }
     if (carrito.length === 0) { mostrarToast('El carrito esta vacio', 'error'); return; }
 
-    const descuento = parseFloat(document.getElementById('descuento').value) || 0;
     const tipoPago = document.getElementById('tipoPago').value;
     const notas = document.getElementById('notasPedido').value.trim();
 
     const subtotal = carrito.reduce((s, i) => s + i.subtotal, 0);
-    const total = Math.round(subtotal * (1 - descuento / 100));
+    const total = subtotal;
 
     const pedido = {
         id: 'PED-' + Date.now(),
@@ -239,7 +238,6 @@ async function confirmarPedido() {
         cliente: { id: clienteActual.id, nombre: clienteActual.razon_social || clienteActual.nombre },
         items: carrito.map(i => ({...i})),
         subtotal,
-        descuento,
         total,
         tipoPago,
         notas,
@@ -274,7 +272,6 @@ async function confirmarPedido() {
     closeCartModal();
 
     // Reset form
-    document.getElementById('descuento').value = '0';
     document.getElementById('notasPedido').value = '';
     document.getElementById('tipoPago').value = 'contado';
 

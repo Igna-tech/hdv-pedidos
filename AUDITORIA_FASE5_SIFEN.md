@@ -236,23 +236,21 @@ dDesCiuEmi: "ASUNCION",
 
 ## Matriz de riesgo y prioridad de remediacion
 
-| ID | Hallazgo | Severidad | Esfuerzo | Prioridad |
-|----|----------|-----------|----------|-----------|
-| B-01 | Descuento rompe ecuacion fiscal | BLOQUEANTE | Alto | 1 — Requiere cambios en Edge Function + tests |
-| B-02 | Campo XML invalido | BLOQUEANTE | Bajo | 2 — Fix trivial, renombrar campo |
-| B-03 | Firma digital no implementada | BLOQUEANTE | Alto | 3 — Requiere libreria crypto + certificado real |
-| RF-01 | Divergencia IVA con descuento | MEDIO | Medio | 4 — Resolver junto con B-01 |
-| RF-02 | Fallback 100% IVA 10% | BAJO | Bajo | 5 — Agregar validacion |
-| DT-01 | CDC mock frontend | BAJO | Bajo | 6 — Marcar como provisional |
-| DT-02 | Funcion muerta | INFO | Trivial | 7 — Limpiar |
-| DT-03 | Ubicacion hardcoded | BAJO | Bajo | 8 — Parametrizar |
+| ID | Hallazgo | Severidad | Esfuerzo | Estado |
+|----|----------|-----------|----------|--------|
+| B-01 | Descuento rompe ecuacion fiscal | BLOQUEANTE | Alto | **REMEDIADO Fase 5 P1** — descuentos eliminados del vendedor, total = sum(precio*cantidad) |
+| B-02 | Campo XML invalido | BLOQUEANTE | Bajo | **REMEDIADO Fase 5 P2** — eliminado `dTotDescGloworte`, campos de descuento en cero |
+| B-03 | Firma digital no implementada | BLOQUEANTE | Alto | **PENDIENTE** — TODO en codigo, requiere certificado .p12 de produccion |
+| RF-01 | Divergencia IVA con descuento | MEDIO | Medio | **REMEDIADO Fase 5 P1** — sin descuentos, IVA se calcula sobre items reales con Math.round() |
+| RF-02 | Fallback 100% IVA 10% | BAJO | Bajo | **REMEDIADO Fase 5 P2** — console.warn de auditoria cuando cae en fallback |
+| DT-01 | CDC mock frontend | BAJO | Bajo | **REMEDIADO Fase 5 P1** — reemplazado por string estatico "PENDIENTE-DE-SINCRONIZACION-SIFEN" |
+| DT-02 | Funcion muerta | INFO | Trivial | **REMEDIADO Fase 5 P2** — eliminada sanitizeXML(), solo queda sanitizarParaXML() |
+| DT-03 | Ubicacion hardcoded | BAJO | Bajo | **REMEDIADO Fase 5 P2** — cambiado de ASUNCION a LAMBARE |
 
 ---
 
 ## Recomendacion
 
-**No activar firma digital ni enviar DTEs a produccion SET** hasta resolver B-01, B-02 y B-03. El sistema funciona correctamente para el flujo mock actual (generacion de XML + CDC sin envio a SET), pero los 3 bloqueantes impedirian la aprobacion en el ambiente de pruebas de la SET.
+**No activar firma digital ni enviar DTEs a produccion SET** hasta resolver B-03. El sistema funciona correctamente para el flujo mock actual (generacion de XML + CDC sin envio a SET). El unico bloqueante restante (B-03: firma digital) requiere adquirir el certificado .p12 de produccion de la SET.
 
-**Orden de remediacion sugerido:**
-1. B-02 (5 min) → B-01 (2-4h) → RF-01 (incluido en B-01) → B-03 (8-16h)
-2. RF-02, DT-01, DT-02, DT-03 pueden resolverse en paralelo como cleanup.
+**Proximo paso:** Implementar firma XMLDSig con .p12 y CSC cuando se adquiera el certificado.

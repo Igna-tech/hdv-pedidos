@@ -77,7 +77,7 @@ function generarPDFPedido(pedido, opciones) {
     doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(150);
-    doc.text(`Pago: ${pedido.tipoPago || 'contado'}${pedido.descuento > 0 ? ` | Desc: ${pedido.descuento}%` : ''}`, 15, y);
+    doc.text(`Pago: ${pedido.tipoPago || 'contado'}`, 15, y);
     if (pedido.notas) { y += 5; doc.text(`Notas: ${pedido.notas}`, 15, y); }
 
     const filename = opt.filename || `pedido_${pedido.id}.pdf`;
@@ -165,11 +165,6 @@ function generarPDFRemisionDoc(pedido, clienteInfo) {
     doc.setFontSize(9);
     doc.text('Subtotal:', 140, y);
     doc.text(formatearGuaranies(pedido.subtotal), 195, y, { align: 'right' });
-    if (pedido.descuento > 0) {
-        y += 7;
-        doc.text(`Descuento (${pedido.descuento}%):`, 140, y);
-        doc.text(`-${formatearGuaranies(Math.round((pedido.subtotal || 0) * pedido.descuento / 100))}`, 195, y, { align: 'right' });
-    }
     y += 7;
     doc.setFillColor(17, 24, 39);
     doc.rect(130, y - 5, 70, 10, 'F');

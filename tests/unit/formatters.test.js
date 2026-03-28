@@ -158,22 +158,15 @@ describe('generarNumeroFactura', () => {
 // --- generarCDC ---
 
 describe('generarCDC', () => {
-    it('retorna exactamente 44 digitos', () => {
+    it('retorna string estatico provisional (no simula CDC real)', () => {
         const cdc = generarCDC();
-        expect(cdc).toHaveLength(44);
+        expect(cdc).toBe('PENDIENTE-DE-SINCRONIZACION-SIFEN');
     });
 
-    it('contiene solo digitos', () => {
-        const cdc = generarCDC();
-        expect(cdc).toMatch(/^\d{44}$/);
-    });
-
-    it('genera CDCs diferentes', () => {
-        const cdcs = new Set();
-        for (let i = 0; i < 10; i++) {
-            cdcs.add(generarCDC());
-        }
-        expect(cdcs.size).toBeGreaterThan(5);
+    it('es determinista (siempre el mismo valor)', () => {
+        const cdc1 = generarCDC();
+        const cdc2 = generarCDC();
+        expect(cdc1).toBe(cdc2);
     });
 });
 

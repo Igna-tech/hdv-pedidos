@@ -189,7 +189,7 @@ function crearTarjetaPedidoAdmin(p) {
         </div>
         ${p.notas ? `<div class="text-sm text-gray-500 italic mb-3 flex items-start gap-1.5"><i data-lucide="message-square" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i> ${escapeHTML(p.notas)}</div>` : ''}
         <div class="flex justify-between items-center pt-3 border-t border-gray-100">
-            <span class="text-sm text-gray-500">${p.tipoPago || 'contado'}${p.descuento > 0 ? ` | ${p.descuento}% desc.` : ''}${p.desgloseIVA ? ` | IVA 10%: ${formatearGuaranies(p.desgloseIVA.iva10)} · 5%: ${formatearGuaranies(p.desgloseIVA.iva5)} · Ex: ${formatearGuaranies(p.desgloseIVA.exenta)}` : ''}</span>
+            <span class="text-sm text-gray-500">${p.tipoPago || 'contado'}${p.desgloseIVA ? ` | IVA 10%: ${formatearGuaranies(p.desgloseIVA.iva10)} · 5%: ${formatearGuaranies(p.desgloseIVA.iva5)} · Ex: ${formatearGuaranies(p.desgloseIVA.exenta)}` : ''}</span>
             <span class="text-xl font-bold text-gray-900">${formatearGuaranies(p.total)}</span>
         </div>
         <div class="pedido-acciones flex gap-2 mt-4 flex-wrap">
@@ -428,7 +428,6 @@ function abrirModalEditarPedido(pedidoId) {
     document.getElementById('editPedidoId').textContent = pedidoId;
     document.getElementById('editPedidoCliente').textContent = pedido.cliente?.nombre || 'N/A';
     document.getElementById('editPedidoTipoPago').value = pedido.tipoPago || 'contado';
-    document.getElementById('editPedidoDescuento').value = pedido.descuento || 0;
     document.getElementById('editPedidoNotas').value = pedido.notas || '';
 
     renderizarItemsEdicion(pedido.items || []);
@@ -544,9 +543,8 @@ async function guardarEdicionPedido() {
     if (items.length === 0) { mostrarToast('Agrega al menos un producto', 'error'); return; }
 
     await withButtonLock('btnGuardarEdicionPedido', async () => {
-        const descuento = parseFloat(document.getElementById('editPedidoDescuento')?.value) || 0;
         const subtotal = items.reduce((s, i) => s + i.subtotal, 0);
-        const total = Math.round(subtotal * (1 - descuento / 100));
+        const total = subtotal;
 
         // Update in HDVStorage
         const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
@@ -554,7 +552,6 @@ async function guardarEdicionPedido() {
         if (idx >= 0) {
             pedidos[idx].items = items;
             pedidos[idx].subtotal = subtotal;
-            pedidos[idx].descuento = descuento;
             pedidos[idx].total = total;
             pedidos[idx].tipoPago = document.getElementById('editPedidoTipoPago')?.value || 'contado';
             pedidos[idx].notas = document.getElementById('editPedidoNotas')?.value.trim() || '';

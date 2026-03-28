@@ -40,7 +40,6 @@ function crearPedidoBase(overrides) {
         cliente: { id: 'CLI-1', nombre: 'Test Cliente', ruc: '12345-6' },
         items: [{ productoId: 'P1', nombre: 'Coca Cola', presentacion: '2L', precio: 10000, cantidad: 2, subtotal: 20000 }],
         subtotal: 20000,
-        descuento: 0,
         total: 20000,
         tipoPago: 'contado',
         notas: '',
@@ -124,19 +123,17 @@ describe('Checkout Flujo 2: Cobro Interno (Recibo)', () => {
         expect(stored[0].id).toMatch(/^REC-/);
     });
 
-    it('maneja descuento correctamente en persistencia', async () => {
+    it('total es igual a subtotal (sin descuentos)', async () => {
         const pedido = crearPedidoBase({
-            id: 'REC-desc',
+            id: 'REC-nodesc',
             estado: PEDIDO_ESTADOS.COBRADO,
             subtotal: 100000,
-            descuento: 10,
-            total: 90000,
+            total: 100000,
         });
 
         await persistirPedido(pedido);
         const stored = await HDVStorage.getItem('hdv_pedidos');
-        expect(stored[0].descuento).toBe(10);
-        expect(stored[0].total).toBe(90000);
+        expect(stored[0].total).toBe(stored[0].subtotal);
     });
 });
 

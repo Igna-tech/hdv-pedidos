@@ -6,22 +6,17 @@
 // --- Helpers ---
 
 function obtenerDatosVenta() {
-    const descuento = parseFloat(document.getElementById('descuento').value) || 0;
     const tipoPago = document.getElementById('tipoPago').value;
     const notas = document.getElementById('notasPedido').value.trim();
     const items = carrito.map(i => ({ ...i }));
     const subtotal = items.reduce((s, i) => s + i.subtotal, 0);
-    const total = Math.round(subtotal * (1 - descuento / 100));
+    const total = subtotal;
 
-    // Calcular desglose IVA sobre items con descuento aplicado proporcionalmente
-    const factor = descuento > 0 ? (1 - descuento / 100) : 1;
-    const itemsAjustados = items.map(i => ({ ...i, subtotal: Math.round(i.subtotal * factor) }));
-    const desgloseIVA = typeof calcularDesgloseIVA === 'function' ? calcularDesgloseIVA(itemsAjustados) : null;
+    const desgloseIVA = typeof calcularDesgloseIVA === 'function' ? calcularDesgloseIVA(items) : null;
 
     return {
         items,
         subtotal,
-        descuento,
         total,
         tipoPago,
         notas,
@@ -54,7 +49,6 @@ function limpiarDespuesDeVenta() {
     actualizarContadorCarrito();
     guardarCarrito();
     closeCartModal();
-    document.getElementById('descuento').value = '0';
     document.getElementById('notasPedido').value = '';
     document.getElementById('tipoPago').value = 'contado';
 }
@@ -87,7 +81,6 @@ async function procesarPedido() {
             cliente: datos.cliente,
             items: datos.items,
             subtotal: datos.subtotal,
-            descuento: datos.descuento,
             total: datos.total,
             tipoPago: datos.tipoPago,
             notas: datos.notas,
@@ -138,7 +131,6 @@ async function procesarCobroInterno() {
             cliente: datos.cliente,
             items: datos.items,
             subtotal: datos.subtotal,
-            descuento: datos.descuento,
             total: datos.total,
             tipoPago: datos.tipoPago,
             notas: datos.notas,
@@ -179,12 +171,7 @@ async function procesarCobroInterno() {
 
         document.getElementById('printReciboItems').innerHTML = generarHTMLItems(datos.items);
 
-        let totalHTML = `<p>TOTAL: ${formatearGuaranies(datos.total)}</p>`;
-        if (datos.descuento > 0) {
-            totalHTML = `<p style="font-size:10px;">Subtotal: ${formatearGuaranies(datos.subtotal)}</p>
-                         <p style="font-size:10px;">Desc: ${datos.descuento}%</p>` + totalHTML;
-        }
-        document.getElementById('printReciboTotal').innerHTML = totalHTML;
+        document.getElementById('printReciboTotal').innerHTML = `<p>TOTAL: ${formatearGuaranies(datos.total)}</p>`;
 
         // Activar para impresion
         const printEl = document.getElementById('printReciboInterno');
@@ -233,7 +220,6 @@ async function procesarFacturaMock() {
             cliente: datos.cliente,
             items: datos.items,
             subtotal: datos.subtotal,
-            descuento: datos.descuento,
             total: datos.total,
             tipoPago: datos.tipoPago,
             notas: datos.notas,
@@ -276,12 +262,7 @@ async function procesarFacturaMock() {
              <p>Pago: ${datos.tipoPago === 'credito' ? 'Credito' : 'Contado'}</p>`;
         document.getElementById('printKuDEItems').innerHTML = generarHTMLItems(datos.items);
 
-        let totalHTML = `<p>TOTAL: ${formatearGuaranies(datos.total)}</p>`;
-        if (datos.descuento > 0) {
-            totalHTML = `<p style="font-size:10px;">Subtotal: ${formatearGuaranies(datos.subtotal)}</p>
-                         <p style="font-size:10px;">Desc: ${datos.descuento}%</p>` + totalHTML;
-        }
-        document.getElementById('printKuDETotal').innerHTML = totalHTML;
+        document.getElementById('printKuDETotal').innerHTML = `<p>TOTAL: ${formatearGuaranies(datos.total)}</p>`;
 
         // Desglose IVA para Factura Electronica (formato SET)
         const iva = datos.desgloseIVA;

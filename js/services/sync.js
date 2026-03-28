@@ -74,7 +74,21 @@ const SyncManager = (() => {
 
         try {
             const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
-            const pendientes = pedidos.filter(p => p.sincronizado === false);
+            // Excluir pedidos en estados terminales — el trigger trg_bloquear_mutacion_terminal
+            // rechaza upserts sobre pedidos ya facturados/cobrados/entregados/anulados/NC.
+            // Enviarlos revienta el batch completo y genera errores P0001 en Sentry.
+            const TERMINALES = typeof ESTADOS_TERMINALES !== 'undefined' ? ESTADOS_TERMINALES : [
+                'facturado_mock', 'nota_credito_mock', 'cobrado_sin_factura', 'entregado', 'anulado'
+            ];
+            const pendientes = pedidos.filter(p => p.sincronizado === false && !TERMINALES.includes(p.estado));
+
+            // Marcar pedidos terminales no sincronizados como sincronizados (ya existen en Supabase)
+            const terminalesNoSync = pedidos.filter(p => p.sincronizado === false && TERMINALES.includes(p.estado));
+            if (terminalesNoSync.length > 0) {
+                terminalesNoSync.forEach(p => { p.sincronizado = true; });
+                await HDVStorage.setItem('hdv_pedidos', pedidos);
+                console.log(`[SyncManager] ${terminalesNoSync.length} pedido(s) terminal(es) marcados como sincronizados (skip upsert)`);
+            }
 
             if (pendientes.length === 0) {
                 console.log('[SyncManager] No hay pedidos pendientes de sync');

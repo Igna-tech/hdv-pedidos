@@ -48,7 +48,11 @@ function actualizarIndicadorConexion(conectado) {
     }
     const banner = document.getElementById('offline-banner');
     if (banner) {
-        banner.classList.toggle('hidden', conectado && enLinea);
+        const isOffline = !(conectado && enLinea);
+        banner.classList.toggle('hidden', !isOffline);
+        if (banner.tagName && banner.tagName.toLowerCase() === 'sl-alert') {
+            banner.open = isOffline;
+        }
     }
 }
 

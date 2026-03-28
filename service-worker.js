@@ -1,4 +1,4 @@
-const VERSION = '56.0';
+const VERSION = '57.0';
 const CACHE_NAME = `hdv-pedidos-v${VERSION}`;
 
 const urlsToCache = [
@@ -36,7 +36,11 @@ const urlsToCache = [
     './supabase-config.js',
     './productos.json',
     './manifest.json',
-    './dist/tailwind.css'
+    './dist/tailwind.css',
+    // Shoelace Web Components (core — chunks se cachean on-demand via cache-first)
+    './assets/lib/shoelace/themes/light.css',
+    './assets/lib/shoelace/shoelace.js',
+    './assets/lib/shoelace/utilities/base-path.js'
 ];
 
 // Archivos que SIEMPRE deben buscar la version mas reciente de la red
@@ -108,6 +112,11 @@ function esImagenProducto(url) {
     return url.includes('supabase.co/storage/v1/object/public/productos_img');
 }
 
+// Shoelace Web Components: chunks con hash en nombre — cache-first (estaticos, nunca cambian)
+function esShoelaceAsset(url) {
+    return url.includes('/assets/lib/shoelace/');
+}
+
 // Supabase API/REST/Auth/Realtime — Network-First (red primero, cache como fallback offline)
 function esSupabaseAPI(url) {
     return url.includes('supabase.co/rest/') ||
@@ -148,6 +157,23 @@ self.addEventListener('fetch', event => {
                         headers: { 'Content-Type': 'application/json' }
                     });
                 });
+            })
+        );
+        return;
+    }
+
+    // SHOELACE ASSETS: cache-first (chunks con hash, estaticos)
+    if (esShoelaceAsset(requestUrl)) {
+        event.respondWith(
+            caches.match(event.request).then(cached => {
+                if (cached) return cached;
+                return fetch(event.request).then(response => {
+                    if (response && response.status === 200) {
+                        const clone = response.clone();
+                        caches.open(CACHE_NAME).then(c => c.put(event.request, clone));
+                    }
+                    return response;
+                }).catch(() => new Response('', { status: 404 }));
             })
         );
         return;

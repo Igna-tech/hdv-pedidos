@@ -42,20 +42,32 @@ function throttle(func, limit) {
 function withButtonLock(btnId, fn, loadingText) {
     return async function (...args) {
         const btn = document.getElementById(btnId);
-        if (!btn || btn.disabled) return;
+        if (!btn || btn.disabled || btn.loading) return;
 
-        const textoOriginal = btn.innerHTML;
+        const isShoelace = btn.tagName && btn.tagName.toLowerCase() === 'sl-button';
+        const textoOriginal = isShoelace ? null : btn.innerHTML;
         const texto = loadingText || 'Guardando...';
-        btn.disabled = true;
-        btn.classList.add('opacity-50', 'cursor-not-allowed');
-        btn.innerHTML = SPINNER_SVG + ' ' + texto;
+
+        if (isShoelace) {
+            btn.loading = true;
+            btn.disabled = true;
+        } else {
+            btn.disabled = true;
+            btn.classList.add('opacity-50', 'cursor-not-allowed');
+            btn.innerHTML = SPINNER_SVG + ' ' + texto;
+        }
 
         try {
             return await fn.apply(this, args);
         } finally {
-            btn.disabled = false;
-            btn.classList.remove('opacity-50', 'cursor-not-allowed');
-            btn.innerHTML = textoOriginal;
+            if (isShoelace) {
+                btn.loading = false;
+                btn.disabled = false;
+            } else {
+                btn.disabled = false;
+                btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                btn.innerHTML = textoOriginal;
+            }
         }
     };
 }

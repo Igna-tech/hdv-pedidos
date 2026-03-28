@@ -736,10 +736,10 @@ async function renderizarCarrito() {
                         <p class="font-semibold text-gray-800 text-sm truncate">${escapeHTML(item.nombre)}${item.precioEspecial ? ' <span class="inline-block bg-amber-100 text-amber-700 text-[10px] font-bold px-1.5 py-0.5 rounded-full ml-1 align-middle">P.Esp</span>' : ''}</p>
                         <p class="text-xs text-gray-500">${escapeHTML(item.presentacion)} · ${formatearGuaranies(item.precio)} c/u</p>
                     </div>
-                    <div class="flex items-center gap-1.5 shrink-0">
-                        <button onclick="cambiarCantidadCarrito(${idx},-1)" class="w-7 h-7 bg-white border border-gray-200 rounded-lg font-bold text-sm flex items-center justify-center hover:bg-gray-50">-</button>
-                        <span class="font-bold text-sm w-6 text-center">${item.cantidad}</span>
-                        <button onclick="cambiarCantidadCarrito(${idx},1)" class="w-7 h-7 bg-white border border-gray-200 rounded-lg font-bold text-sm flex items-center justify-center hover:bg-gray-50">+</button>
+                    <div class="flex items-center gap-2 shrink-0">
+                        <sl-icon-button name="dash-lg" label="Menos" onclick="cambiarCantidadCarrito(${idx},-1)" style="font-size:1.2rem;--sl-input-border-radius-medium:10px;" class="cart-qty-btn"></sl-icon-button>
+                        <span class="font-bold text-base w-8 text-center">${item.cantidad}</span>
+                        <sl-icon-button name="plus-lg" label="Mas" onclick="cambiarCantidadCarrito(${idx},1)" style="font-size:1.2rem;--sl-input-border-radius-medium:10px;" class="cart-qty-btn"></sl-icon-button>
                         <p class="font-bold text-gray-900 ml-1 text-sm text-right whitespace-nowrap">${formatearGuaranies(item.subtotal)}</p>
                     </div>
                 </div>
@@ -914,16 +914,17 @@ function mostrarToast(mensaje, tipo = 'info', duracion = 3500) {
 }
 
 function _renderToast(container, mensaje, tipo, duracion) {
-    const iconos = { success: '\u2713', error: '\u2715', info: '\u2139', warning: '\u26A0' };
-    const toast = document.createElement('div');
-    toast.className = `toast toast-${tipo}`;
-    toast.innerHTML = `<span style="font-size:18px">${iconos[tipo] || ''}</span><span>${escapeHTML(mensaje)}</span>`;
-    container.appendChild(toast);
-    requestAnimationFrame(() => toast.classList.add('show'));
-    setTimeout(() => {
-        toast.classList.remove('show');
-        setTimeout(() => toast.remove(), 400);
-    }, duracion);
+    const variantMap = { success: 'success', error: 'danger', info: 'neutral', warning: 'warning' };
+    const iconMap = { success: 'check2-circle', error: 'exclamation-octagon', info: 'info-circle', warning: 'exclamation-triangle' };
+    const alert = document.createElement('sl-alert');
+    alert.variant = variantMap[tipo] || 'neutral';
+    alert.closable = true;
+    alert.duration = duracion;
+    alert.open = true;
+    alert.style.marginBottom = '8px';
+    alert.innerHTML = `<sl-icon name="${iconMap[tipo] || 'info-circle'}" slot="icon"></sl-icon>${escapeHTML(mensaje)}`;
+    container.appendChild(alert);
+    alert.addEventListener('sl-after-hide', () => alert.remove(), { once: true });
 }
 
 function mostrarExito(msg) {
@@ -1054,33 +1055,15 @@ function mostrarModalSinCliente() {
                     </button>
                 </div>
                 <div id="formNuevoClienteVendedor" style="display:none;" class="space-y-3 mt-2">
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">NOMBRE *</label>
-                        <input type="text" id="ncvNombre" class="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none text-sm" placeholder="Nombre del cliente">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">TELEFONO *</label>
-                        <input type="tel" id="ncvTelefono" class="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none text-sm" placeholder="Ej: 0981234567">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">ZONA *</label>
-                        <input type="text" id="ncvZona" class="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none text-sm" placeholder="Ej: Loma Plata">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">DIRECCION (opcional)</label>
-                        <input type="text" id="ncvDireccion" class="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none text-sm" placeholder="Ej: Calle San Martin 123">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">RUC (opcional)</label>
-                        <input type="text" id="ncvRuc" class="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none text-sm" placeholder="Ej: 80012345-6">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">ENCARGADO (opcional)</label>
-                        <input type="text" id="ncvEncargado" class="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none text-sm" placeholder="Ej: Juan Perez">
-                    </div>
+                    <sl-input id="ncvNombre" label="NOMBRE *" placeholder="Nombre del cliente" required size="medium"></sl-input>
+                    <sl-input id="ncvTelefono" label="TELEFONO *" placeholder="Ej: 0981234567" type="tel" required size="medium"></sl-input>
+                    <sl-input id="ncvZona" label="ZONA *" placeholder="Ej: Loma Plata" required size="medium"></sl-input>
+                    <sl-input id="ncvDireccion" label="DIRECCION (opcional)" placeholder="Ej: Calle San Martin 123" size="medium"></sl-input>
+                    <sl-input id="ncvRuc" label="RUC (opcional)" placeholder="Ej: 80012345-6" size="medium"></sl-input>
+                    <sl-input id="ncvEncargado" label="ENCARGADO (opcional)" placeholder="Ej: Juan Perez" size="medium"></sl-input>
                     <div class="flex gap-3 pt-2">
-                        <button onclick="cerrarModalSinCliente()" class="flex-1 bg-gray-100 text-gray-700 py-4 rounded-xl font-bold">Cancelar</button>
-                        <button onclick="guardarNuevoClienteDesdeVendedor()" class="flex-1 bg-gray-900 text-white py-4 rounded-xl font-bold">Enviar para aprobacion</button>
+                        <sl-button onclick="cerrarModalSinCliente()" variant="default" size="large" class="flex-1" style="--sl-input-border-radius-large:12px;">Cancelar</sl-button>
+                        <sl-button onclick="guardarNuevoClienteDesdeVendedor()" variant="primary" size="large" class="flex-1" style="--sl-input-border-radius-large:12px;">Enviar para aprobacion</sl-button>
                     </div>
                 </div>
             </div>`;

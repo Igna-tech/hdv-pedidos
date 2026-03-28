@@ -10,6 +10,13 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="dist/tailwind.css">
+    <!-- Shoelace Web Components (local, offline-first) -->
+    <link rel="stylesheet" href="assets/lib/shoelace/themes/light.css">
+    <script type="module">
+        import { setBasePath } from './assets/lib/shoelace/utilities/base-path.js';
+        setBasePath('./assets/lib/shoelace');
+    </script>
+    <script type="module" src="assets/lib/shoelace/shoelace.js"></script>
     <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js" integrity="sha384-uTYyvsSSUZeaPhb5RbKlQa0zY/WpX/QHfvg2mczXyBQOpkWPEDy9lczyp+w7SKXu" crossorigin="anonymous"></script>
     <!-- Supabase (version fijada para SRI) -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.99.2" integrity="sha384-zETTH+6IXxKQ6zbGcT6H6EDdnGaae9uhI8uO7doTJoNEmPGeTKVOe5S6/XybS9JH" crossorigin="anonymous"></script>
@@ -125,25 +132,23 @@
 
         .no-scrollbar::-webkit-scrollbar { display: none; }
 
-        /* Toast notifications */
+        /* Shoelace: cart quantity buttons 44px touch target */
+        .cart-qty-btn { --sl-spacing-x-small: 0.4rem; }
+        .cart-qty-btn::part(base) { min-width: 44px; min-height: 44px; }
+        /* Shoelace: full-width buttons inside flex containers */
+        sl-button.w-full { display: block; }
+        sl-button.w-full::part(base) { width: 100%; }
+        sl-button.flex-1 { flex: 1; }
+        sl-button.flex-1::part(base) { width: 100%; }
+
+        /* Toast notifications (sl-alert based) */
         #toastContainer {
             position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
-            z-index: 9999; display: flex; flex-direction: column-reverse; gap: 10px;
+            z-index: 9999; display: flex; flex-direction: column-reverse; gap: 8px;
             pointer-events: none; width: 90%; max-width: 400px;
         }
-        .toast {
-            pointer-events: auto; padding: 14px 20px; border-radius: 14px;
-            font-size: 13px; font-weight: 600; color: white;
-            box-shadow: 0 8px 25px rgba(0,0,0,0.18);
-            transform: translateY(30px); opacity: 0;
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            display: flex; align-items: center; gap: 10px;
-        }
-        .toast.show { transform: translateY(0); opacity: 1; }
-        .toast-success { background: #059669; }
-        .toast-error { background: #dc2626; }
-        .toast-info { background: #374151; }
-        .toast-warning { background: #d97706; }
+        #toastContainer sl-alert { pointer-events: auto; }
+        #toastContainer sl-alert::part(base) { font-weight: 600; font-size: 13px; }
 
         /* Confirm modal */
         .confirm-backdrop {
@@ -259,9 +264,10 @@
     </header>
 
     <!-- Banner Offline -->
-    <div id="offline-banner" class="hidden bg-amber-500 text-white text-center text-xs font-bold py-1.5 px-4 flex items-center justify-center gap-2">
-        <i data-lucide="wifi-off" class="w-3.5 h-3.5"></i> Modo Offline — Los pedidos se sincronizaran al reconectar
-    </div>
+    <sl-alert id="offline-banner" variant="warning" class="hidden" style="--sl-panel-border-radius:0;">
+        <sl-icon name="wifi-off" slot="icon"></sl-icon>
+        <strong>Modo Offline</strong> — Los pedidos se sincronizaran al reconectar
+    </sl-alert>
 
     <!-- Mini-perfil del cliente seleccionado -->
     <div id="clienteInfo" class="hidden mx-3 mt-2 bg-white border border-gray-200 rounded-xl p-3 shadow-sm">
@@ -421,16 +427,16 @@
         <div class="border-t border-gray-100 px-5 py-4 space-y-3 shrink-0 bg-white">
             <div id="totalSection" class="space-y-2 hidden"></div>
             <div class="space-y-2">
-                <button id="btnPedido" onclick="procesarPedido()" class="w-full border-2 border-gray-300 text-gray-700 py-3 rounded-xl font-bold text-sm hover:bg-gray-50 transition-colors">
-                    <span class="flex items-center justify-center gap-2"><i data-lucide="send" class="w-4 h-4"></i> Generar Pedido</span>
-                </button>
-                <button id="btnCobro" onclick="procesarCobroInterno()" class="w-full bg-amber-500 text-white py-3 rounded-xl font-bold text-sm hover:bg-amber-600 transition-colors shadow-sm">
-                    <span class="flex items-center justify-center gap-2"><i data-lucide="receipt" class="w-4 h-4"></i> Cobrar (Recibo Interno)</span>
-                </button>
-                <button onclick="procesarFacturaMock()" id="btnFactura" class="w-full bg-emerald-600 text-white py-3 rounded-xl font-bold text-sm hover:bg-emerald-700 transition-colors shadow-lg">
-                    <span class="flex items-center justify-center gap-2"><i data-lucide="file-check" class="w-4 h-4"></i> Emitir Factura (SIFEN)</span>
-                </button>
-                <button onclick="closeCartModal()" class="w-full bg-gray-100 text-gray-500 py-2.5 rounded-xl font-medium text-xs hover:bg-gray-200 transition-colors">Volver al catalogo</button>
+                <sl-button id="btnPedido" onclick="procesarPedido()" variant="default" outline size="large" class="w-full" style="--sl-input-border-radius-large:12px;">
+                    <sl-icon name="send" slot="prefix"></sl-icon> Generar Pedido
+                </sl-button>
+                <sl-button id="btnCobro" onclick="procesarCobroInterno()" variant="warning" size="large" class="w-full" style="--sl-input-border-radius-large:12px;">
+                    <sl-icon name="receipt" slot="prefix"></sl-icon> Cobrar (Recibo Interno)
+                </sl-button>
+                <sl-button id="btnFactura" onclick="procesarFacturaMock()" variant="success" size="large" class="w-full" style="--sl-input-border-radius-large:12px;">
+                    <sl-icon name="file-earmark-check" slot="prefix"></sl-icon> Emitir Factura (SIFEN)
+                </sl-button>
+                <sl-button onclick="closeCartModal()" variant="default" size="small" class="w-full" style="--sl-input-border-radius-large:12px;">Volver al catalogo</sl-button>
             </div>
         </div>
     </div>

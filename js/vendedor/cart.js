@@ -282,12 +282,17 @@ async function confirmarPedido() {
 // CLIENTE NUEVO DESDE VENDEDOR (logica)
 // ============================================
 async function guardarNuevoClienteDesdeVendedor() {
-    const nombre = document.getElementById('ncvNombre')?.value.trim();
-    const telefono = document.getElementById('ncvTelefono')?.value.trim();
-    const zona = document.getElementById('ncvZona')?.value.trim();
-    const direccion = document.getElementById('ncvDireccion')?.value.trim();
-    const ruc = document.getElementById('ncvRuc')?.value.trim();
-    const encargado = document.getElementById('ncvEncargado')?.value.trim();
+    const campos = ['ncvNombre', 'ncvTelefono', 'ncvZona'];
+    for (const id of campos) {
+        const el = document.getElementById(id);
+        if (el && typeof el.reportValidity === 'function' && !el.reportValidity()) return;
+    }
+    const nombre = document.getElementById('ncvNombre')?.value?.trim();
+    const telefono = document.getElementById('ncvTelefono')?.value?.trim();
+    const zona = document.getElementById('ncvZona')?.value?.trim();
+    const direccion = document.getElementById('ncvDireccion')?.value?.trim();
+    const ruc = document.getElementById('ncvRuc')?.value?.trim();
+    const encargado = document.getElementById('ncvEncargado')?.value?.trim();
 
     if (!nombre) { mostrarToast('El nombre es obligatorio', 'error'); return; }
     if (!telefono) { mostrarToast('El telefono es obligatorio', 'error'); return; }

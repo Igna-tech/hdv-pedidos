@@ -132,6 +132,13 @@
 
         .no-scrollbar::-webkit-scrollbar { display: none; }
 
+        /* Shoelace: zone pills */
+        .zone-pill { --sl-color-neutral-100: #374151; --sl-color-neutral-700: #d1d5db; }
+        .zone-pill-active { --sl-color-neutral-100: #2563eb; --sl-color-neutral-700: #ffffff; }
+        .zone-pill::part(base) { min-height: 36px; font-weight: 600; font-size: 12px; }
+        /* Shoelace: sl-select dark header styling */
+        #clienteSelect::part(combobox) { min-height: 44px; }
+        #clienteSelect sl-option::part(base) { font-size: 14px; padding: 10px 12px; }
         /* Shoelace: cart quantity buttons 44px touch target */
         .cart-qty-btn { --sl-spacing-x-small: 0.4rem; }
         .cart-qty-btn::part(base) { min-width: 44px; min-height: 44px; }
@@ -248,19 +255,13 @@
             </div>
         </div>
         
-        <div class="bg-gray-800 rounded-xl p-3 border border-gray-700 transition-colors" id="btnSeleccionarCliente">
-            <div class="flex items-center w-full">
-                <i data-lucide="user" class="w-4 h-4 mr-3 text-gray-400 shrink-0"></i>
-                <div class="w-full relative" id="clienteSelectContainer">
-                    <select id="clienteSelect" aria-label="Seleccionar cliente" class="w-full bg-transparent text-sm font-medium outline-none text-white appearance-none">
-                        <option value="" class="text-black">-- Seleccione Cliente --</option>
-                    </select>
-                </div>
-                <i data-lucide="chevron-down" class="w-4 h-4 text-gray-500 ml-2 shrink-0"></i>
-            </div>
-            <input type="text" id="clienteSearchInput" placeholder="Buscar por nombre o RUC..."
-                   class="w-full bg-gray-700 text-white text-xs rounded-lg mt-2 px-3 py-1.5 outline-none placeholder-gray-400 border border-gray-600 focus:border-blue-500">
+        <div id="btnSeleccionarCliente">
+            <sl-select id="clienteSelect" placeholder="Buscar cliente..." clearable size="medium"
+                style="--sl-input-background-color:#1f2937;--sl-input-color:white;--sl-input-border-color:#374151;--sl-input-placeholder-color:#9ca3af;--sl-input-border-radius-medium:12px;">
+            </sl-select>
         </div>
+        <!-- Zone pills (scroll horizontal) -->
+        <div id="zonePills" class="flex gap-2 overflow-x-auto no-scrollbar pt-1 pb-0.5" style="scroll-snap-type:x mandatory;"></div>
     </header>
 
     <!-- Banner Offline -->
@@ -314,11 +315,6 @@
         <button onclick="cambiarVistaVendedor('lista')" id="btn-tab-lista" class="flex flex-col items-center gap-1 text-gray-900 transition-colors">
             <i data-lucide="home" class="w-5 h-5"></i>
             <span class="text-[10px] font-bold">Inicio</span>
-        </button>
-
-        <button onclick="cambiarVistaVendedor('zonas')" id="btn-tab-zonas" class="flex flex-col items-center gap-1 text-gray-400 transition-colors">
-            <i data-lucide="map-pin" class="w-5 h-5"></i>
-            <span class="text-[10px] font-bold">Zonas</span>
         </button>
 
         <button onclick="mostrarModalCarrito()" id="viewCartBtn" aria-label="Ver carrito de compras" class="relative -mt-12 bg-[#111827] text-white p-4 rounded-full shadow-xl border-4 border-gray-100 disabled:opacity-50 disabled:bg-gray-400">

@@ -212,14 +212,9 @@ function configurarEventos() {
     const mostrarProductosDebounced = debounce(() => mostrarProductos(), 300);
     searchInput.addEventListener('input', mostrarProductosDebounced);
 
-    // Busqueda de clientes por nombre o RUC
-    const clienteSearch = document.getElementById('clienteSearchInput');
-    if (clienteSearch) {
-        const poblarClientesDebounced = debounce(() => poblarClientes(clienteSearch.value), 300);
-        clienteSearch.addEventListener('input', poblarClientesDebounced);
-    }
-
-    document.getElementById('clienteSelect').addEventListener('change', async (e) => {
+    // sl-select: evento sl-change para seleccion de cliente
+    const clienteSelect = document.getElementById('clienteSelect');
+    clienteSelect.addEventListener('sl-change', async (e) => {
         const id = e.target.value;
         if (id) {
             const nuevoCliente = clientes.find(c => c.id === id);
@@ -241,6 +236,14 @@ function configurarEventos() {
             mostrarInfoCliente(null);
         }
     });
+    // sl-clear: cuando el usuario presiona X en el select
+    clienteSelect.addEventListener('sl-clear', () => {
+        clienteActual = null;
+        mostrarInfoCliente(null);
+    });
+
+    // Zone pills
+    poblarZonePills();
 }
 
 // ============================================
@@ -262,10 +265,8 @@ function cambiarVistaVendedor(vista) {
     const catFilters = document.getElementById('categoryFilters');
     const searchBox = document.getElementById('searchContainer');
 
-    const btnZonas = document.getElementById('btn-tab-zonas');
-
     // Reset all tabs
-    [btnLista, btnPedidos, btnCaja, btnZonas].forEach(btn => {
+    [btnLista, btnPedidos, btnCaja].forEach(btn => {
         if (btn) btn.className = 'flex flex-col items-center gap-1 text-gray-400 transition-colors';
     });
 
@@ -289,12 +290,6 @@ function cambiarVistaVendedor(vista) {
         catFilters.style.display = 'none';
         searchBox.style.display = 'none';
         mostrarMiCaja();
-    } else if (vista === 'zonas') {
-        if (btnZonas) btnZonas.className = 'flex flex-col items-center gap-1 text-gray-900 transition-colors';
-        catFilters.style.display = 'none';
-        searchBox.style.display = 'none';
-        if (zonaActiva) mostrarRutaHoy();
-        else mostrarFiltroZonas();
     }
 }
 
@@ -317,43 +312,28 @@ function obtenerZonasUnicas() {
 
 function seleccionarZona(zona) {
     zonaActiva = zona;
-    filtrarClientesPorZona(zona);
-    mostrarRutaHoy();
-}
-
-function filtrarClientesPorZona(zona) {
-    const select = document.getElementById('clienteSelect');
-    if (!select) return;
-
-    zonaActiva = zona;
-    const options = select.querySelectorAll('option');
-    options.forEach(opt => {
-        if (opt.value === '') {
-            opt.style.display = '';
-        } else {
-            const cliente = clientes.find(c => c.id == opt.value);
-            opt.style.display = (cliente && cliente.zona && cliente.zona.trim() === zona) ? '' : 'none';
-        }
-    });
-
+    poblarClientes();
+    poblarZonePills();
     actualizarIndicadorZona(zona);
 }
 
 function resetearFiltroZona() {
     zonaActiva = null;
-    const select = document.getElementById('clienteSelect');
-    if (select) {
-        select.querySelectorAll('option').forEach(opt => opt.style.display = '');
-    }
+    poblarClientes();
+    poblarZonePills();
     actualizarIndicadorZona(null);
-    cambiarVistaVendedor('lista');
 }
 
 function seleccionarClienteDesdeRuta(clienteId) {
     const select = document.getElementById('clienteSelect');
     if (select) {
         select.value = clienteId;
-        select.dispatchEvent(new Event('change'));
+        // Trigger the client selection logic directly
+        const nuevoCliente = clientes.find(c => c.id === clienteId);
+        if (nuevoCliente) {
+            clienteActual = nuevoCliente;
+            mostrarInfoCliente(clienteActual);
+        }
     }
     cambiarVistaVendedor('lista');
 }

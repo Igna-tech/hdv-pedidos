@@ -59,22 +59,63 @@ function generarSkeletonProductos(count = 6) {
 function poblarClientes(filtro) {
     const select = document.getElementById('clienteSelect');
     const valorActual = select.value;
-    select.innerHTML = '<option value="" class="text-black">-- Seleccione Cliente --</option>';
+    select.innerHTML = '';
     const q = (filtro || '').toLowerCase().trim();
-    const lista = q ? clientes.filter(c =>
+    let lista = q ? clientes.filter(c =>
         (c.razon_social || c.nombre || '').toLowerCase().includes(q) ||
         (c.ruc || '').toLowerCase().includes(q) ||
         (c.id || '').toLowerCase().includes(q)
     ) : clientes;
+    // Filtrar por zona activa si hay una seleccionada
+    if (typeof zonaActiva !== 'undefined' && zonaActiva) {
+        lista = lista.filter(c => c.zona && c.zona.trim() === zonaActiva);
+    }
     lista.forEach(c => {
-        const opt = document.createElement('option');
+        const nombre = escapeHTML(c.razon_social || c.nombre || c.id);
+        const ruc = c.ruc ? escapeHTML(c.ruc) : '';
+        const zona = c.zona ? escapeHTML(c.zona) : '';
+        const opt = document.createElement('sl-option');
         opt.value = c.id;
-        const rucTag = c.ruc ? ` [${c.ruc}]` : '';
-        opt.textContent = (c.razon_social || c.nombre || c.id) + rucTag;
-        opt.className = 'text-black';
+        opt.textContent = nombre;
+        // Keywords para busqueda: nombre + ruc + zona
+        const keywords = [c.razon_social, c.nombre, c.ruc, c.zona, c.id].filter(Boolean).join(' ');
+        opt.setAttribute('data-keywords', keywords);
+        // Contenido rico
+        let suffix = '';
+        if (ruc) suffix += `<small style="color:#9ca3af;margin-left:8px;">${ruc}</small>`;
+        if (zona) suffix += `<sl-badge variant="neutral" pill style="margin-left:6px;font-size:10px;">${zona}</sl-badge>`;
+        if (suffix) opt.innerHTML = `${nombre}${suffix}`;
         select.appendChild(opt);
     });
     if (valorActual && !filtro) select.value = valorActual;
+}
+
+function poblarZonePills() {
+    const container = document.getElementById('zonePills');
+    if (!container) return;
+    const zonas = typeof obtenerZonasUnicas === 'function' ? obtenerZonasUnicas() : [];
+    if (zonas.length === 0) { container.innerHTML = ''; return; }
+
+    let html = `<sl-tag size="medium" pill class="zone-pill shrink-0 cursor-pointer${!zonaActiva ? ' zone-pill-active' : ''}" data-zona="" style="scroll-snap-align:start;">Todas</sl-tag>`;
+    zonas.forEach(z => {
+        const active = zonaActiva === z.zona;
+        html += `<sl-tag size="medium" pill class="zone-pill shrink-0 cursor-pointer${active ? ' zone-pill-active' : ''}" data-zona="${escapeHTML(z.zona)}" style="scroll-snap-align:start;">${escapeHTML(z.zona)} <sl-badge pill variant="neutral" style="margin-left:4px;font-size:10px;">${z.cantidad}</sl-badge></sl-tag>`;
+    });
+    container.innerHTML = html;
+
+    container.querySelectorAll('.zone-pill').forEach(pill => {
+        pill.addEventListener('click', () => {
+            const zona = pill.dataset.zona;
+            if (zona) {
+                zonaActiva = zona;
+            } else {
+                zonaActiva = null;
+            }
+            poblarClientes();
+            poblarZonePills();
+            if (typeof actualizarIndicadorZona === 'function') actualizarIndicadorZona(zonaActiva);
+        });
+    });
 }
 
 async function mostrarInfoCliente(cliente) {
@@ -1185,22 +1226,8 @@ function mostrarFiltroZonas() {
 }
 
 function actualizarIndicadorZona(zona) {
-    let badge = document.getElementById('zonaActivaBadge');
-    if (!badge) {
-        badge = document.createElement('div');
-        badge.id = 'zonaActivaBadge';
-        badge.style.cssText = 'cursor:pointer;';
-        badge.onclick = () => mostrarFiltroZonas();
-        const header = document.querySelector('header .bg-gray-800');
-        if (header) header.parentElement.insertBefore(badge, header);
-    }
-    if (zona) {
-        badge.className = 'bg-blue-600 text-white text-xs font-bold px-3 py-1 rounded-full mt-2 inline-block';
-        badge.textContent = zona;
-        badge.style.display = '';
-    } else {
-        badge.style.display = 'none';
-    }
+    // Zone pills already show the active state — this is now a no-op placeholder
+    // for any code that still calls it (e.g. realtime updates)
 }
 
 async function mostrarRutaHoy() {

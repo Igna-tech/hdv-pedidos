@@ -13,7 +13,6 @@ const btnLogin = document.getElementById('btn-login');
 const alertBox = document.getElementById('login-alert');
 const loadingScreen = document.getElementById('loading-screen');
 const loginContainer = document.getElementById('login-container');
-const togglePassword = document.getElementById('toggle-password');
 
 // MFA: Verificacion TOTP
 const mfaContainer = document.getElementById('mfa-container');
@@ -35,15 +34,6 @@ let _mfaFactorId = null;
 let _mfaEnrollFactorId = null;
 let _pendingRol = null;
 let _pendingUserId = null;
-
-// --- Toggle mostrar/ocultar contrasena ---
-togglePassword.addEventListener('click', () => {
-    const isPassword = passwordInput.type === 'password';
-    passwordInput.type = isPassword ? 'text' : 'password';
-    togglePassword.querySelector('svg').innerHTML = isPassword
-        ? '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L6.59 6.59m7.532 7.532l3.29 3.29M3 3l18 18"/>'
-        : '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>';
-});
 
 // Delay de navegacion post-login (ms) — valor local, login.html no carga constants.js
 const LOGIN_NAV_DELAY = 500;
@@ -176,8 +166,7 @@ btnMfaEnrollVerify.addEventListener('click', async () => {
         return;
     }
 
-    btnMfaEnrollVerify.disabled = true;
-    btnMfaEnrollVerify.textContent = 'Verificando...';
+    btnMfaEnrollVerify.loading = true;
 
     try {
         // Challenge + Verify para activar el factor
@@ -187,8 +176,7 @@ btnMfaEnrollVerify.addEventListener('click', async () => {
 
         if (challengeError) {
             showAlert('Error al verificar. Intenta de nuevo.', 'error', mfaEnrollAlert);
-            btnMfaEnrollVerify.disabled = false;
-            btnMfaEnrollVerify.textContent = 'Activar MFA';
+            btnMfaEnrollVerify.loading = false;
             return;
         }
 
@@ -202,8 +190,7 @@ btnMfaEnrollVerify.addEventListener('click', async () => {
             showAlert('Codigo incorrecto. Verifica tu app de autenticacion.', 'error', mfaEnrollAlert);
             mfaEnrollCodeInput.value = '';
             mfaEnrollCodeInput.focus();
-            btnMfaEnrollVerify.disabled = false;
-            btnMfaEnrollVerify.textContent = 'Activar MFA';
+            btnMfaEnrollVerify.loading = false;
             return;
         }
 
@@ -218,8 +205,7 @@ btnMfaEnrollVerify.addEventListener('click', async () => {
             ? 'Sin conexion a internet. Verifica tu red.'
             : `Error inesperado: ${err?.message || 'desconocido'}. Intenta de nuevo.`;
         showAlert(msg, 'error', mfaEnrollAlert);
-        btnMfaEnrollVerify.disabled = false;
-        btnMfaEnrollVerify.textContent = 'Activar MFA';
+        btnMfaEnrollVerify.loading = false;
     }
 });
 
@@ -248,8 +234,7 @@ btnMfaVerify.addEventListener('click', async () => {
         return;
     }
 
-    btnMfaVerify.disabled = true;
-    btnMfaVerify.textContent = 'Verificando...';
+    btnMfaVerify.loading = true;
 
     try {
         const { data: challengeData, error: challengeError } = await sb.auth.mfa.challenge({
@@ -258,8 +243,7 @@ btnMfaVerify.addEventListener('click', async () => {
 
         if (challengeError) {
             showAlert('Error al verificar. Intenta de nuevo.', 'error', mfaAlert);
-            btnMfaVerify.disabled = false;
-            btnMfaVerify.textContent = 'Verificar';
+            btnMfaVerify.loading = false;
             return;
         }
 
@@ -273,8 +257,7 @@ btnMfaVerify.addEventListener('click', async () => {
             showAlert('Codigo incorrecto. Intenta de nuevo.', 'error', mfaAlert);
             mfaCodeInput.value = '';
             mfaCodeInput.focus();
-            btnMfaVerify.disabled = false;
-            btnMfaVerify.textContent = 'Verificar';
+            btnMfaVerify.loading = false;
             return;
         }
 
@@ -289,8 +272,7 @@ btnMfaVerify.addEventListener('click', async () => {
             ? 'Sin conexion a internet. Verifica tu red.'
             : `Error inesperado: ${err?.message || 'desconocido'}. Intenta de nuevo.`;
         showAlert(msg, 'error', mfaAlert);
-        btnMfaVerify.disabled = false;
-        btnMfaVerify.textContent = 'Verificar';
+        btnMfaVerify.loading = false;
     }
 });
 
@@ -371,8 +353,7 @@ loginForm.addEventListener('submit', async (e) => {
         return;
     }
 
-    btnLogin.disabled = true;
-    btnLogin.innerHTML = '<span class="flex items-center justify-center gap-2"><svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Ingresando...</span>';
+    btnLogin.loading = true;
 
     try {
         // 1. Autenticar con Supabase Auth
@@ -385,8 +366,7 @@ loginForm.addEventListener('submit', async (e) => {
                 'Too many requests': 'Demasiados intentos. Espera un momento e intenta de nuevo.',
             };
             showAlert(mensajes[error.message] || 'Error al iniciar sesion. Intenta de nuevo.');
-            btnLogin.disabled = false;
-            btnLogin.textContent = 'Iniciar Sesion';
+            btnLogin.loading = false;
             return;
         }
 
@@ -396,8 +376,7 @@ loginForm.addEventListener('submit', async (e) => {
         if (!rol) {
             showAlert('Tu cuenta no tiene un perfil asignado. Contacta al administrador.');
             await sb.auth.signOut();
-            btnLogin.disabled = false;
-            btnLogin.textContent = 'Iniciar Sesion';
+            btnLogin.loading = false;
             return;
         }
 
@@ -431,8 +410,7 @@ loginForm.addEventListener('submit', async (e) => {
             ? 'Sin conexion a internet. Verifica tu red.'
             : `Error inesperado: ${err?.message || 'desconocido'}. Intenta de nuevo.`;
         showAlert(msg);
-        btnLogin.disabled = false;
-        btnLogin.textContent = 'Iniciar Sesion';
+        btnLogin.loading = false;
     }
 });
 

@@ -32,33 +32,11 @@
             from { opacity: 0; transform: translateY(24px); }
             to { opacity: 1; transform: translateY(0); }
         }
-        .input-field:focus {
-            border-color: #6366f1;
-            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
-        }
-        .btn-login {
-            background: linear-gradient(135deg, #4f46e5, #6366f1);
-            transition: all 0.2s ease;
-        }
-        .btn-login:hover:not(:disabled) {
-            background: linear-gradient(135deg, #4338ca, #4f46e5);
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
-        }
-        .btn-login:active:not(:disabled) {
-            transform: scale(0.98);
-        }
-        .btn-login:disabled {
-            opacity: 0.7;
-            cursor: not-allowed;
-        }
-        .alert {
-            animation: fadeIn 0.3s ease;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-8px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+        /* Shoelace full-width buttons */
+        sl-button.w-full { display: block; }
+        sl-button.w-full::part(base) { width: 100%; }
+        /* MFA code inputs: centered mono font */
+        .mfa-code-input::part(input) { text-align: center; font-size: 1.5rem; letter-spacing: 0.5em; font-family: monospace; }
         /* Pantalla de carga inicial */
         #loading-screen {
             position: fixed;
@@ -103,44 +81,35 @@
 
         <!-- Formulario -->
         <form id="login-form" class="space-y-4">
-            <div>
-                <label for="email" class="block text-sm font-medium text-gray-300 mb-1.5">Correo electronico</label>
-                <input
-                    type="email"
-                    id="email"
-                    required
-                    autocomplete="email"
-                    placeholder="tu@correo.com"
-                    class="input-field w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-500 outline-none transition-all"
-                >
-            </div>
-            <div>
-                <label for="password" class="block text-sm font-medium text-gray-300 mb-1.5">Contrasena</label>
-                <div class="relative">
-                    <input
-                        type="password"
-                        id="password"
-                        required
-                        autocomplete="current-password"
-                        placeholder="Tu contrasena"
-                        class="input-field w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-500 outline-none transition-all pr-12"
-                    >
-                    <button type="button" id="toggle-password" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200 transition-colors">
-                        <svg id="eye-icon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-                        </svg>
-                    </button>
-                </div>
-            </div>
+            <sl-input
+                type="email"
+                id="email"
+                required
+                autocomplete="email"
+                placeholder="tu@correo.com"
+                label="Correo electronico"
+                size="large"
+            ></sl-input>
+            <sl-input
+                type="password"
+                id="password"
+                required
+                autocomplete="current-password"
+                placeholder="Tu contrasena"
+                label="Contrasena"
+                size="large"
+                password-toggle
+            ></sl-input>
 
-            <button
+            <sl-button
                 type="submit"
                 id="btn-login"
-                class="btn-login w-full py-3.5 rounded-xl text-white font-bold text-sm shadow-lg"
+                variant="primary"
+                size="large"
+                class="w-full"
             >
                 Iniciar Sesion
-            </button>
+            </sl-button>
         </form>
 
         <p class="text-center text-gray-500 text-xs mt-6">&copy; HDV Distribuciones</p>
@@ -164,25 +133,24 @@
         </sl-alert>
 
         <div class="space-y-4">
-            <div>
-                <label for="mfa-code" class="block text-sm font-medium text-gray-300 mb-1.5">Codigo TOTP (6 digitos)</label>
-                <input
-                    type="text"
-                    id="mfa-code"
-                    maxlength="6"
-                    inputmode="numeric"
-                    pattern="[0-9]*"
-                    autocomplete="one-time-code"
-                    placeholder="000000"
-                    class="input-field w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-500 outline-none transition-all text-center text-2xl tracking-[0.5em] font-mono"
-                >
-            </div>
-            <button id="btn-mfa-verify" class="btn-login w-full py-3.5 rounded-xl text-white font-bold text-sm shadow-lg">
+            <sl-input
+                type="text"
+                id="mfa-code"
+                maxlength="6"
+                inputmode="numeric"
+                pattern="[0-9]*"
+                autocomplete="one-time-code"
+                placeholder="000000"
+                label="Codigo TOTP (6 digitos)"
+                size="large"
+                class="mfa-code-input"
+            ></sl-input>
+            <sl-button id="btn-mfa-verify" variant="primary" size="large" class="w-full">
                 Verificar
-            </button>
-            <button id="btn-mfa-cancel" type="button" class="w-full py-2.5 rounded-xl text-gray-400 hover:text-white text-sm transition-colors">
+            </sl-button>
+            <sl-button id="btn-mfa-cancel" variant="text" size="medium" class="w-full">
                 Cancelar e iniciar con otra cuenta
-            </button>
+            </sl-button>
         </div>
     </div>
 
@@ -218,23 +186,22 @@
             </div>
 
             <!-- Input de verificacion -->
-            <div>
-                <label for="mfa-enroll-code" class="block text-sm font-medium text-gray-300 mb-1.5">Codigo de verificacion</label>
-                <input
-                    type="text"
-                    id="mfa-enroll-code"
-                    maxlength="6"
-                    inputmode="numeric"
-                    pattern="[0-9]*"
-                    autocomplete="one-time-code"
-                    placeholder="000000"
-                    class="input-field w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-500 outline-none transition-all text-center text-2xl tracking-[0.5em] font-mono"
-                >
-            </div>
+            <sl-input
+                type="text"
+                id="mfa-enroll-code"
+                maxlength="6"
+                inputmode="numeric"
+                pattern="[0-9]*"
+                autocomplete="one-time-code"
+                placeholder="000000"
+                label="Codigo de verificacion"
+                size="large"
+                class="mfa-code-input"
+            ></sl-input>
 
-            <button id="btn-mfa-enroll-verify" class="btn-login w-full py-3.5 rounded-xl text-white font-bold text-sm shadow-lg">
+            <sl-button id="btn-mfa-enroll-verify" variant="primary" size="large" class="w-full">
                 Activar MFA
-            </button>
+            </sl-button>
         </div>
     </div>
 

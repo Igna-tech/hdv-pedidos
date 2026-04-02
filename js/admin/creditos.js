@@ -112,12 +112,12 @@ async function cargarCreditos() {
                     <div class="bg-green-500 h-2 rounded-full" style="width:${Math.min(100, (totalPagado / p.total * 100)).toFixed(0)}%"></div>
                 </div>` : ''}
             <div class="flex gap-2 flex-wrap">
-                <button onclick="registrarPagoCredito('${p.id}')" class="bg-green-600 text-white px-3 py-2 rounded-lg text-xs font-bold">Registrar Pago</button>
-                <button onclick="enviarRecordatorioWhatsApp('${p.id}')" class="bg-[#25D366] text-white px-3 py-2 rounded-lg text-xs font-bold">WhatsApp</button>
-                <button onclick="verHistorialPagos('${p.id}')" class="bg-gray-200 text-gray-700 px-3 py-2 rounded-lg text-xs font-bold">Historial</button>
-                ${saldo <= 0 ? `<button onclick="marcarPagado('${p.id}')" class="bg-blue-600 text-white px-3 py-2 rounded-lg text-xs font-bold">Marcar Pagado</button>` : ''}
-                <button onclick="editarPagosCreditoPedido('${p.id}')" class="bg-yellow-500 text-white px-3 py-2 rounded-lg text-xs font-bold">Editar Pagos</button>
-                <button onclick="eliminarCreditoPedido('${p.id}')" class="bg-red-100 text-red-700 px-3 py-2 rounded-lg text-xs font-bold">Eliminar</button>
+                <sl-button onclick="registrarPagoCredito('${p.id}')" variant="success" size="small">Registrar Pago</sl-button>
+                <sl-button onclick="enviarRecordatorioWhatsApp('${p.id}')" variant="success" size="small">WhatsApp</sl-button>
+                <sl-button onclick="verHistorialPagos('${p.id}')" variant="default" size="small">Historial</sl-button>
+                ${saldo <= 0 ? `<sl-button onclick="marcarPagado('${p.id}')" variant="primary" size="small">Marcar Pagado</sl-button>` : ''}
+                <sl-button onclick="editarPagosCreditoPedido('${p.id}')" variant="warning" size="small">Editar Pagos</sl-button>
+                <sl-button onclick="eliminarCreditoPedido('${p.id}')" variant="danger" size="small">Eliminar</sl-button>
             </div>`;
         container.appendChild(div);
     });
@@ -152,10 +152,10 @@ async function cargarCreditos() {
                 <div><span class="text-gray-500">Saldo:</span> <strong class="text-red-600">${formatearGuaranies(saldo)}</strong></div>
             </div>
             <div class="flex gap-2 flex-wrap">
-                <button onclick="registrarPagoManual('${c.id}')" class="bg-green-600 text-white px-3 py-2 rounded-lg text-xs font-bold">Registrar Pago</button>
-                <button onclick="enviarRecordatorioManualWhatsApp('${c.id}')" class="bg-[#25D366] text-white px-3 py-2 rounded-lg text-xs font-bold">WhatsApp</button>
-                <button onclick="editarCreditoManualItem('${c.id}')" class="bg-yellow-500 text-white px-3 py-2 rounded-lg text-xs font-bold">Editar</button>
-                <button onclick="eliminarCreditoManualItem('${c.id}')" class="bg-red-100 text-red-700 px-3 py-2 rounded-lg text-xs font-bold">Eliminar</button>
+                <sl-button onclick="registrarPagoManual('${c.id}')" variant="success" size="small">Registrar Pago</sl-button>
+                <sl-button onclick="enviarRecordatorioManualWhatsApp('${c.id}')" variant="success" size="small">WhatsApp</sl-button>
+                <sl-button onclick="editarCreditoManualItem('${c.id}')" variant="warning" size="small">Editar</sl-button>
+                <sl-button onclick="eliminarCreditoManualItem('${c.id}')" variant="danger" size="small">Eliminar</sl-button>
             </div>`;
         container.appendChild(div);
     });
@@ -651,9 +651,9 @@ async function cargarPromociones() {
             </div>
             <div class="text-xs text-gray-400 mb-3">${new Date(p.fechaInicio).toLocaleDateString('es-PY')} al ${new Date(p.fechaFin).toLocaleDateString('es-PY')}</div>
             <div class="flex gap-2">
-                <button onclick="abrirModalPromocion('${p.id}')" class="bg-blue-50 text-blue-600 px-3 py-1 rounded-lg text-xs font-bold">Editar</button>
-                <button onclick="togglePromocion('${p.id}')" class="bg-gray-100 text-gray-600 px-3 py-1 rounded-lg text-xs font-bold">${p.activa ? 'Desactivar' : 'Activar'}</button>
-                <button onclick="eliminarPromocion('${p.id}')" class="bg-red-50 text-red-600 px-3 py-1 rounded-lg text-xs font-bold">Eliminar</button>
+                <sl-button onclick="abrirModalPromocion('${p.id}')" variant="primary" size="small">Editar</sl-button>
+                <sl-button onclick="togglePromocion('${p.id}')" variant="default" size="small">${p.activa ? 'Desactivar' : 'Activar'}</sl-button>
+                <sl-button onclick="eliminarPromocion('${p.id}')" variant="danger" size="small">Eliminar</sl-button>
             </div>`;
         container.appendChild(div);
     });
@@ -664,12 +664,12 @@ async function abrirModalPromocion(promoId) {
     const selectProd = document.getElementById('formPromoProducto');
     const selectGratis = document.getElementById('formPromoProductoGratis');
     if (selectProd) {
-        selectProd.innerHTML = '<option value="">-- Seleccionar --</option>' +
-            productosData.productos.map(p => `<option value="${escapeHTML(p.id)}">${escapeHTML(p.nombre)}</option>`).join('');
+        selectProd.innerHTML = '<sl-option value="">-- Seleccionar --</sl-option>' +
+            productosData.productos.map(p => `<sl-option value="${escapeHTML(p.id)}">${escapeHTML(p.nombre)}</sl-option>`).join('');
     }
     if (selectGratis) {
-        selectGratis.innerHTML = '<option value="">-- Ninguno --</option>' +
-            productosData.productos.map(p => `<option value="${escapeHTML(p.id)}">${escapeHTML(p.nombre)}</option>`).join('');
+        selectGratis.innerHTML = '<sl-option value="">-- Ninguno --</sl-option>' +
+            productosData.productos.map(p => `<sl-option value="${escapeHTML(p.id)}">${escapeHTML(p.nombre)}</sl-option>`).join('');
     }
 
     if (promoId) {
@@ -716,12 +716,12 @@ function actualizarPresentacionesPromo() {
     const prodId = document.getElementById('formPromoProducto')?.value;
     const select = document.getElementById('formPromoPresentacion');
     if (!select) return;
-    select.innerHTML = '<option value="todas">Todas</option>';
+    select.innerHTML = '<sl-option value="todas">Todas</sl-option>';
     if (prodId) {
         const prod = productosData.productos.find(p => p.id === prodId);
         if (prod) {
             prod.presentaciones.forEach(pres => {
-                select.innerHTML += `<option value="${escapeHTML(pres.tamano)}">${escapeHTML(pres.tamano)} - ${formatearGuaranies(pres.precio_base)}</option>`;
+                select.innerHTML += `<sl-option value="${escapeHTML(pres.tamano)}">${escapeHTML(pres.tamano)} - ${formatearGuaranies(pres.precio_base)}</sl-option>`;
             });
         }
     }
@@ -860,7 +860,7 @@ async function cargarRendiciones() {
                 </div>
                 <div class="text-right">
                     <p class="font-bold text-red-600">- ${formatearGuaranies(g.monto)}</p>
-                    <button onclick="eliminarGastoAdmin('${g.id}')" class="text-xs text-red-400 hover:underline">Eliminar</button>
+                    <sl-button onclick="eliminarGastoAdmin('${g.id}')" variant="text" size="small">Eliminar</sl-button>
                 </div>
             </div>
         `).join('');
@@ -918,8 +918,8 @@ async function cargarCuentasBancariasAdmin() {
                 <p class="text-xs text-gray-400">Titular: ${c.titular} | RUC: ${c.ruc || '-'}</p>
             </div>
             <div class="flex gap-2">
-                <button onclick="editarCuentaBancaria('${c.id}')" class="text-blue-600 text-sm font-bold hover:underline">Editar</button>
-                <button onclick="eliminarCuentaBancaria('${c.id}')" class="text-red-600 text-sm font-bold hover:underline">Eliminar</button>
+                <sl-button onclick="editarCuentaBancaria('${c.id}')" variant="text" size="small">Editar</sl-button>
+                <sl-button onclick="eliminarCuentaBancaria('${c.id}')" variant="text" size="small">Eliminar</sl-button>
             </div>
         </div>
     `).join('');
@@ -994,3 +994,12 @@ async function eliminarCuentaBancaria(id) {
     }
     cargarCuentasBancariasAdmin();
 }
+
+// ============================================
+// SHOELACE EVENT LISTENERS (sl-change replaces native onchange)
+// ============================================
+(function _initCreditosShoelaceListeners() {
+    document.getElementById('formPromoTipo')?.addEventListener('sl-change', () => toggleCamposPromo());
+    document.getElementById('formPromoProducto')?.addEventListener('sl-change', () => actualizarPresentacionesPromo());
+    document.getElementById('rendSemana')?.addEventListener('sl-change', () => cargarRendiciones());
+})();

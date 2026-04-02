@@ -170,9 +170,9 @@ async function renderizarProductosStock(container, prods, filtro) {
                         class="w-14 text-xs text-right border border-gray-200 rounded px-1 py-0.5 focus:border-blue-400 outline-none text-gray-400" title="Costo">
                     <span class="font-bold text-sm w-8 text-center ${(p.stock || 0) <= 0 ? 'text-red-600' : (p.stock || 0) < 10 ? 'text-yellow-600' : 'text-green-600'}">${p.stock || 0}</span>
                     <div class="flex gap-1 ml-auto shrink-0">
-                        <button onclick="ajustarStock('${prod.id}','${p.tamano}',-1)" class="w-6 h-6 bg-red-50 text-red-600 rounded font-bold text-sm">−</button>
-                        <button onclick="ajustarStock('${prod.id}','${p.tamano}',1)" class="w-6 h-6 bg-green-50 text-green-600 rounded font-bold text-sm">+</button>
-                        <button onclick="ajustarStock('${prod.id}','${p.tamano}',10)" class="w-6 h-6 bg-blue-50 text-blue-600 rounded text-[10px] font-bold">+10</button>
+                        <sl-button onclick="ajustarStock('${prod.id}','${p.tamano}',-1)" variant="danger" size="small">−</sl-button>
+                        <sl-button onclick="ajustarStock('${prod.id}','${p.tamano}',1)" variant="success" size="small">+</sl-button>
+                        <sl-button onclick="ajustarStock('${prod.id}','${p.tamano}',10)" variant="primary" size="small">+10</sl-button>
                     </div>
                 </div>`).join('');
             return `<div class="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-sm transition-all">
@@ -267,9 +267,9 @@ function filtrarProductos() {
 function poblarFiltroCategorias() {
     const sel = document.getElementById('filtroCategoria');
     if (!sel) return;
-    sel.innerHTML = '<option value="">Todas las categorias</option>';
+    sel.innerHTML = '<sl-option value="">Todas las categorias</sl-option>';
     (productosData.categorias || []).forEach(c => {
-        sel.innerHTML += `<option value="${escapeHTML(c.id)}">${escapeHTML(c.nombre)}</option>`;
+        sel.innerHTML += `<sl-option value="${escapeHTML(c.id)}">${escapeHTML(c.nombre)}</sl-option>`;
     });
 }
 
@@ -525,10 +525,10 @@ function actualizarPaginacionProductos(total) {
     const totalPaginas = Math.ceil(total / productosPorPagina);
     pagEl.innerHTML = `<span class="text-sm">${total} productos | Pag. ${paginaProductos} de ${totalPaginas}</span>
     <div class="flex gap-2">
-        <button data-action="pag-primera" class="px-3 py-1 rounded border text-xs ${paginaProductos <= 1 ? 'opacity-30' : 'hover:bg-gray-100'}" ${paginaProductos <= 1 ? 'disabled' : ''}>|&lt;</button>
-        <button data-action="pag-anterior" class="px-3 py-1 rounded border text-xs ${paginaProductos <= 1 ? 'opacity-30' : 'hover:bg-gray-100'}" ${paginaProductos <= 1 ? 'disabled' : ''}>&lt;</button>
-        <button data-action="pag-siguiente" class="px-3 py-1 rounded border text-xs ${paginaProductos >= totalPaginas ? 'opacity-30' : 'hover:bg-gray-100'}" ${paginaProductos >= totalPaginas ? 'disabled' : ''}>&gt;</button>
-        <button data-action="pag-ultima" data-id="${totalPaginas}" class="px-3 py-1 rounded border text-xs ${paginaProductos >= totalPaginas ? 'opacity-30' : 'hover:bg-gray-100'}" ${paginaProductos >= totalPaginas ? 'disabled' : ''}>&gt;|</button>
+        <sl-button data-action="pag-primera" variant="default" size="small" ${paginaProductos <= 1 ? 'disabled' : ''}>|&lt;</sl-button>
+        <sl-button data-action="pag-anterior" variant="default" size="small" ${paginaProductos <= 1 ? 'disabled' : ''}>&lt;</sl-button>
+        <sl-button data-action="pag-siguiente" variant="default" size="small" ${paginaProductos >= totalPaginas ? 'disabled' : ''}>&gt;</sl-button>
+        <sl-button data-action="pag-ultima" data-id="${totalPaginas}" variant="default" size="small" ${paginaProductos >= totalPaginas ? 'disabled' : ''}>&gt;|</sl-button>
     </div>`;
     _initPaginacionDelegation(pagEl);
 }
@@ -580,9 +580,9 @@ function abrirPerfilProducto(prodId) {
             <span class="text-sm text-gray-600 w-20">${escapeHTML(p.tamano)}</span>
             <span class="font-bold ${(p.stock || 0) <= 0 ? 'text-red-600' : 'text-green-600'}">${p.stock || 0}</span>
             <div class="flex gap-1 ml-auto">
-                <button onclick="ajustarStock('${prodId}','${p.tamano}',-1);abrirPerfilProducto('${prodId}')" class="w-7 h-7 bg-red-50 text-red-600 rounded font-bold">−</button>
-                <button onclick="ajustarStock('${prodId}','${p.tamano}',1);abrirPerfilProducto('${prodId}')" class="w-7 h-7 bg-green-50 text-green-600 rounded font-bold">+</button>
-                <button onclick="ajustarStock('${prodId}','${p.tamano}',10);abrirPerfilProducto('${prodId}')" class="w-7 h-7 bg-blue-50 text-blue-600 rounded text-xs font-bold">+10</button>
+                <sl-button onclick="ajustarStock('${prodId}','${p.tamano}',-1);abrirPerfilProducto('${prodId}')" variant="danger" size="small">−</sl-button>
+                <sl-button onclick="ajustarStock('${prodId}','${p.tamano}',1);abrirPerfilProducto('${prodId}')" variant="success" size="small">+</sl-button>
+                <sl-button onclick="ajustarStock('${prodId}','${p.tamano}',10);abrirPerfilProducto('${prodId}')" variant="primary" size="small">+10</sl-button>
             </div>
         </div>`).join('');
 
@@ -665,9 +665,9 @@ function agregarFilaVariante(datos) {
                     <input type="checkbox" class="sr-only peer var-activo" ${d.activo ? 'checked' : ''}>
                     <div class="w-8 h-4.5 bg-gray-300 rounded-full peer peer-checked:bg-green-500 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:after:translate-x-3.5" style="height:18px"></div>
                 </label>
-                <button type="button" onclick="this.closest('.variante-fila').remove()" class="text-red-400 hover:text-red-600 p-1" title="Eliminar">
+                <sl-button type="button" onclick="this.closest('.variante-fila').remove()" variant="text" size="small" title="Eliminar">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
-                </button>
+                </sl-button>
             </div>
         </div>
         <div class="grid grid-cols-3 gap-2">
@@ -809,7 +809,7 @@ function abrirModalProducto(productoId) {
     if (select) {
         select.innerHTML = '';
         productosData.categorias.forEach(c => {
-            select.innerHTML += `<option value="${escapeHTML(c.id)}">${escapeHTML(c.nombre)}</option>`;
+            select.innerHTML += `<sl-option value="${escapeHTML(c.id)}">${escapeHTML(c.nombre)}</sl-option>`;
         });
     }
 
@@ -911,7 +911,7 @@ function agregarPresModal() {
         <input type="number" value="0" data-pres-idx="${idx}" data-pres-field="precio" class="w-24 px-2 py-1 text-sm border rounded">
         <label class="text-xs text-gray-400">Costo:</label>
         <input type="number" value="0" data-pres-idx="${idx}" data-pres-field="costo" class="w-24 px-2 py-1 text-sm border rounded">
-        <button onclick="this.parentElement.remove()" class="text-red-400 font-bold">x</button>`;
+        <sl-button onclick="this.parentElement.remove()" variant="text" size="small">x</sl-button>`;
     container.querySelector('button:last-child').before(div);
 }
 
@@ -920,13 +920,13 @@ function actualizarSubcategoriasModal() {
     const subSel = document.getElementById('nuevoProductoSubcategoria');
     if (!subSel) return;
     const cat = productosData.categorias.find(c => c.id === catId);
-    subSel.innerHTML = '<option value="">Seleccionar...</option>';
+    subSel.innerHTML = '<sl-option value="">Seleccionar...</sl-option>';
     if (cat && cat.subcategorias) {
         cat.subcategorias.forEach(s => {
-            subSel.innerHTML += `<option value="${escapeHTML(s)}">${escapeHTML(s)}</option>`;
+            subSel.innerHTML += `<sl-option value="${escapeHTML(s)}">${escapeHTML(s)}</sl-option>`;
         });
     }
-    subSel.innerHTML += '<option value="__otra__">+ Otra...</option>';
+    subSel.innerHTML += '<sl-option value="__otra__">+ Otra...</sl-option>';
 }
 
 function cerrarModalProducto() {
@@ -1056,17 +1056,17 @@ function renderizarListaCategorias() {
                     <span class="font-bold text-gray-800">${escapeHTML(cat.nombre)}</span>
                     <span class="text-xs text-gray-400 ml-2">(${escapeHTML(cat.id)})</span>
                 </div>
-                <button onclick="eliminarCategoria('${cat.id}')" class="text-red-500 text-xs font-bold hover:underline">Eliminar</button>
+                <sl-button onclick="eliminarCategoria('${cat.id}')" variant="text" size="small">Eliminar</sl-button>
             </div>
             <div class="flex flex-wrap gap-2 mb-2">
                 ${(cat.subcategorias || []).map(s => `
                     <span class="bg-white px-2 py-1 rounded-lg text-xs border border-gray-200 flex items-center gap-1">
-                        ${escapeHTML(s)} <button onclick="eliminarSubcategoria('${escapeHTML(cat.id)}','${escapeHTML(s)}')" class="text-red-400 hover:text-red-600 font-bold">x</button>
+                        ${escapeHTML(s)} <sl-button onclick="eliminarSubcategoria('${escapeHTML(cat.id)}','${escapeHTML(s)}')" variant="text" size="small">x</sl-button>
                     </span>`).join('')}
             </div>
             <div class="flex gap-2">
                 <input type="text" id="nuevaSub_${cat.id}" class="flex-1 border border-gray-200 rounded-lg px-2 py-1 text-xs" placeholder="Nueva subcategoria...">
-                <button onclick="agregarSubcategoria('${cat.id}')" class="bg-gray-800 text-white px-3 py-1 rounded-lg text-xs font-bold">+</button>
+                <sl-button onclick="agregarSubcategoria('${cat.id}')" variant="neutral" size="small">+</sl-button>
             </div>`;
         container.appendChild(div);
     });
@@ -1495,3 +1495,16 @@ function descargarPlantillaClientes() {
 // ============================================
 const filtrarStockDebounced = debounce(filtrarStock, 300);
 const filtrarProductosDebounced = debounce(filtrarProductos, 300);
+
+// ============================================
+// SHOELACE EVENT LISTENERS (sl-change replaces native onchange)
+// ============================================
+(function _initProductosShoelaceListeners() {
+    document.getElementById('filtroStock')?.addEventListener('sl-change', () => aplicarFiltroStock());
+    document.getElementById('filtroCategoria')?.addEventListener('sl-change', () => filtrarProductos());
+    document.getElementById('filtroEstadoProducto')?.addEventListener('sl-change', () => filtrarProductos());
+    document.getElementById('filtroOrdenProductos')?.addEventListener('sl-change', () => filtrarProductos());
+    document.getElementById('mostrarOcultosProductos')?.addEventListener('sl-change', () => filtrarProductos());
+    document.getElementById('toggleVariantes')?.addEventListener('sl-change', () => toggleModoVariantes());
+    document.getElementById('nuevoProductoCategoria')?.addEventListener('sl-change', () => actualizarSubcategoriasModal());
+})();

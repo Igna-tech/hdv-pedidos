@@ -34,8 +34,8 @@ function poblarFiltroZonas() {
     const sel = document.getElementById('filtroZonaCliente');
     if (!sel) return;
     const zonas = [...new Set(productosData.clientes.map(c => c.zona).filter(Boolean))].sort();
-    sel.innerHTML = '<option value="">Todas las zonas</option>';
-    zonas.forEach(z => { sel.innerHTML += `<option value="${escapeHTML(z)}">${escapeHTML(z)}</option>`; });
+    sel.innerHTML = '<sl-option value="">Todas las zonas</sl-option>';
+    zonas.forEach(z => { sel.innerHTML += `<sl-option value="${escapeHTML(z)}">${escapeHTML(z)}</sl-option>`; });
 }
 
 function ordenarClientes(campo) {
@@ -90,10 +90,10 @@ function mostrarClientesGestion() {
     if (pagEl) {
         pagEl.innerHTML = `<span>${total} clientes | Pagina ${paginaClientes} de ${totalPaginas}</span>
         <div class="flex gap-2">
-            <button onclick="paginaClientes=1;mostrarClientesGestion()" class="px-3 py-1 rounded border text-xs ${paginaClientes <= 1 ? 'opacity-30' : 'hover:bg-gray-100'}" ${paginaClientes <= 1 ? 'disabled' : ''}>&lt;&lt;</button>
-            <button onclick="paginaClientes--;mostrarClientesGestion()" class="px-3 py-1 rounded border text-xs ${paginaClientes <= 1 ? 'opacity-30' : 'hover:bg-gray-100'}" ${paginaClientes <= 1 ? 'disabled' : ''}>&lt;</button>
-            <button onclick="paginaClientes++;mostrarClientesGestion()" class="px-3 py-1 rounded border text-xs ${paginaClientes >= totalPaginas ? 'opacity-30' : 'hover:bg-gray-100'}" ${paginaClientes >= totalPaginas ? 'disabled' : ''}>&gt;</button>
-            <button onclick="paginaClientes=${totalPaginas};mostrarClientesGestion()" class="px-3 py-1 rounded border text-xs ${paginaClientes >= totalPaginas ? 'opacity-30' : 'hover:bg-gray-100'}" ${paginaClientes >= totalPaginas ? 'disabled' : ''}>&gt;&gt;</button>
+            <sl-button onclick="paginaClientes=1;mostrarClientesGestion()" variant="default" size="small" ${paginaClientes <= 1 ? 'disabled' : ''}>&lt;&lt;</sl-button>
+            <sl-button onclick="paginaClientes--;mostrarClientesGestion()" variant="default" size="small" ${paginaClientes <= 1 ? 'disabled' : ''}>&lt;</sl-button>
+            <sl-button onclick="paginaClientes++;mostrarClientesGestion()" variant="default" size="small" ${paginaClientes >= totalPaginas ? 'disabled' : ''}>&gt;</sl-button>
+            <sl-button onclick="paginaClientes=${totalPaginas};mostrarClientesGestion()" variant="default" size="small" ${paginaClientes >= totalPaginas ? 'disabled' : ''}>&gt;&gt;</sl-button>
         </div>`;
     }
 }
@@ -127,8 +127,8 @@ async function mostrarClientesPendientes() {
                             <p class="text-xs text-gray-400">${new Date(c.fechaSolicitud).toLocaleDateString('es-PY')}</p>
                         </div>
                         <div class="flex gap-2">
-                            <button onclick="aprobarClientePendiente('${c.id}')" class="bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold">Aprobar</button>
-                            <button onclick="rechazarClientePendiente('${c.id}')" class="bg-red-100 text-red-700 px-3 py-1.5 rounded-lg text-xs font-bold">Rechazar</button>
+                            <sl-button onclick="aprobarClientePendiente('${c.id}')" variant="success" size="small">Aprobar</sl-button>
+                            <sl-button onclick="rechazarClientePendiente('${c.id}')" variant="danger" size="small">Rechazar</sl-button>
                         </div>
                     </div>`).join('')}
             </div>
@@ -343,7 +343,7 @@ function renderizarPerfilPrecios() {
     if (!container || !cliente) return;
 
     let html = '<div class="flex justify-between items-center mb-4"><h4 class="font-bold text-gray-700">Precios Especiales</h4>' +
-        `<button onclick="agregarPrecioEspecial()" class="bg-gray-800 text-white px-3 py-1.5 rounded-lg text-xs font-bold">+ Agregar precio especial</button></div>`;
+        `<sl-button onclick="agregarPrecioEspecial()" variant="neutral" size="small">+ Agregar precio especial</sl-button></div>`;
 
     const precios = cliente.precios_personalizados || {};
     const keys = Object.keys(precios);
@@ -361,7 +361,7 @@ function renderizarPerfilPrecios() {
                     <td class="px-4 py-2 text-gray-500">${escapeHTML(pe.tamano)}</td>
                     <td class="px-4 py-2 text-gray-400">${formatearGuaranies(precioBase)}</td>
                     <td class="px-4 py-2 font-bold text-blue-700">${formatearGuaranies(pe.precio)}</td>
-                    <td class="px-4 py-2 text-center"><button onclick="eliminarPrecioEspecial('${escapeHTML(prodId)}','${escapeHTML(pe.tamano)}')" class="text-red-500 text-xs font-bold">x</button></td>
+                    <td class="px-4 py-2 text-center"><sl-button onclick="eliminarPrecioEspecial('${escapeHTML(prodId)}','${escapeHTML(pe.tamano)}')" variant="text" size="small">x</sl-button></td>
                 </tr>`;
             });
         });
@@ -637,7 +637,7 @@ async function cargarClientesInactivos() {
                     <p class="text-xs text-blue-600 mt-1">Promedio mensual estimado: ${formatearGuaranies(a.promedioMensual)}</p>
                 </div>
                 <div class="flex gap-2 ml-4">
-                    ${tel ? `<button onclick="enviarWhatsAppReactivacion('${escapeHTML(tel)}', '${escapeHTML(nombre.replace(/'/g, ''))}')" class="bg-green-50 text-green-700 px-3 py-2 rounded-lg text-xs font-bold hover:bg-green-100 inline-flex items-center gap-1"><i data-lucide="send" class="w-3 h-3"></i> WhatsApp</button>` : ''}
+                    ${tel ? `<sl-button onclick="enviarWhatsAppReactivacion('${escapeHTML(tel)}', '${escapeHTML(nombre.replace(/'/g, ''))}')" variant="success" size="small"><i data-lucide="send" class="w-3 h-3"></i> WhatsApp</sl-button>` : ''}
                 </div>
             </div>
         </div>`;
@@ -655,3 +655,12 @@ function enviarWhatsAppReactivacion(telefono, nombre) {
 // DEBOUNCED SEARCH WRAPPER (300ms)
 // ============================================
 const filtrarClientesDebounced = debounce(filtrarClientes, 300);
+
+// ============================================
+// SHOELACE EVENT LISTENERS (sl-change replaces native onchange)
+// ============================================
+(function _initClientesShoelaceListeners() {
+    document.getElementById('filtroZonaCliente')?.addEventListener('sl-change', () => filtrarClientes());
+    document.getElementById('mostrarOcultosClientes')?.addEventListener('sl-change', () => filtrarClientes());
+    document.getElementById('filtroInactivos')?.addEventListener('sl-change', () => cargarClientesInactivos());
+})();

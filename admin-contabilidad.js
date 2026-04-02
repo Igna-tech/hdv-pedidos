@@ -21,12 +21,13 @@ function inicializarCierreMensual() {
     anioSelect.innerHTML = '';
     const anioActual = ahora.getFullYear();
     for (let a = anioActual + 1; a >= 2024; a--) {
-        const opt = document.createElement('option');
+        const opt = document.createElement('sl-option');
         opt.value = a;
         opt.textContent = a;
-        if (a === anioActual) opt.selected = true;
         anioSelect.appendChild(opt);
     }
+    // Set default value on sl-select after options are appended
+    anioSelect.value = anioActual;
 }
 
 // ============================================

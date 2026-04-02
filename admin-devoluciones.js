@@ -93,9 +93,9 @@ async function seleccionarFacturaNC(facturaId) {
             <td class="px-4 py-3 text-center font-bold">${item.cantidad}</td>
             <td class="px-4 py-3 text-center text-gray-500">${formatearGuaranies(item.precio)}</td>
             <td class="px-4 py-3 text-center">
-                <input type="number" id="devCant-${idx}" value="0" min="0" max="${item.cantidad}"
-                    class="w-20 border border-gray-300 rounded-lg px-2 py-1.5 text-sm text-center outline-none font-bold"
-                    oninput="recalcularTotalNC()">
+                <sl-input type="number" id="devCant-${idx}" value="0" min="0" max="${item.cantidad}" size="small"
+                    style="width:5rem; --sl-input-font-weight:700; text-align:center;"
+                    oninput="recalcularTotalNC()"></sl-input>
             </td>
             <td class="px-4 py-3 text-right font-bold text-red-600" id="devMonto-${idx}">Gs. 0</td>`;
         tbody.appendChild(tr);
@@ -338,9 +338,9 @@ async function cargarHistorialNC() {
                 </div>
             </div>
             <div class="flex gap-2 mt-3">
-                <button class="bg-gray-800 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-gray-700 inline-flex items-center gap-1" onclick="reimprimirNC('${nc.id}')">
+                <sl-button variant="neutral" size="small" onclick="reimprimirNC('${nc.id}')">
                     <i data-lucide="printer" class="w-3 h-3"></i> Re-imprimir
-                </button>
+                </sl-button>
             </div>`;
         container.appendChild(div);
     });

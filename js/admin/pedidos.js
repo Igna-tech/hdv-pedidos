@@ -57,7 +57,7 @@ async function poblarFiltroVendedor() {
     if (!select) return;
     const perfiles = await obtenerPerfilesPedidosMap();
     Object.entries(perfiles).forEach(([id, nombre]) => {
-        const opt = document.createElement('option');
+        const opt = document.createElement('sl-option');
         opt.value = id;
         opt.textContent = nombre;
         select.appendChild(opt);
@@ -133,10 +133,10 @@ function _renderPaginacionPedidos(total, totalPaginas) {
     if (total === 0) { pagEl.innerHTML = ''; return; }
     pagEl.innerHTML = `<span>${total} pedidos | Pagina ${paginaPedidos} de ${totalPaginas}</span>
     <div class="flex gap-2">
-        <button onclick="paginaPedidos=1;aplicarFiltrosPedidos(false)" class="px-3 py-1 rounded border text-xs ${paginaPedidos <= 1 ? 'opacity-30' : 'hover:bg-gray-100'}" ${paginaPedidos <= 1 ? 'disabled' : ''}>&lt;&lt;</button>
-        <button onclick="paginaPedidos--;aplicarFiltrosPedidos(false)" class="px-3 py-1 rounded border text-xs ${paginaPedidos <= 1 ? 'opacity-30' : 'hover:bg-gray-100'}" ${paginaPedidos <= 1 ? 'disabled' : ''}>&lt;</button>
-        <button onclick="paginaPedidos++;aplicarFiltrosPedidos(false)" class="px-3 py-1 rounded border text-xs ${paginaPedidos >= totalPaginas ? 'opacity-30' : 'hover:bg-gray-100'}" ${paginaPedidos >= totalPaginas ? 'disabled' : ''}>&gt;</button>
-        <button onclick="paginaPedidos=${totalPaginas};aplicarFiltrosPedidos(false)" class="px-3 py-1 rounded border text-xs ${paginaPedidos >= totalPaginas ? 'opacity-30' : 'hover:bg-gray-100'}" ${paginaPedidos >= totalPaginas ? 'disabled' : ''}>&gt;&gt;</button>
+        <sl-button variant="default" size="small" onclick="paginaPedidos=1;aplicarFiltrosPedidos(false)" ${paginaPedidos <= 1 ? 'disabled' : ''}>&lt;&lt;</sl-button>
+        <sl-button variant="default" size="small" onclick="paginaPedidos--;aplicarFiltrosPedidos(false)" ${paginaPedidos <= 1 ? 'disabled' : ''}>&lt;</sl-button>
+        <sl-button variant="default" size="small" onclick="paginaPedidos++;aplicarFiltrosPedidos(false)" ${paginaPedidos >= totalPaginas ? 'disabled' : ''}>&gt;</sl-button>
+        <sl-button variant="default" size="small" onclick="paginaPedidos=${totalPaginas};aplicarFiltrosPedidos(false)" ${paginaPedidos >= totalPaginas ? 'disabled' : ''}>&gt;&gt;</sl-button>
     </div>`;
 }
 
@@ -193,14 +193,14 @@ function crearTarjetaPedidoAdmin(p) {
             <span class="text-xl font-bold text-gray-900">${formatearGuaranies(p.total)}</span>
         </div>
         <div class="pedido-acciones flex gap-2 mt-4 flex-wrap">
-            <button class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-emerald-700 inline-flex items-center gap-1.5" data-action="facturar" data-id="${p.id}"><i data-lucide="file-check" class="w-3.5 h-3.5"></i> Facturar (SIFEN)</button>
+            <sl-button variant="success" size="small" data-action="facturar" data-id="${p.id}"><i data-lucide="file-check" class="w-3.5 h-3.5"></i> Facturar (SIFEN)</sl-button>
             ${estado === 'pendiente' || estado === PEDIDO_ESTADOS.PENDIENTE ?
-                `<button class="btn-estado bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-green-700 inline-flex items-center gap-1.5" data-action="marcar-entregado" data-id="${p.id}"><i data-lucide="check" class="w-3.5 h-3.5"></i> Entregado</button>` :
-                `<button class="btn-estado bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-300 inline-flex items-center gap-1.5" data-action="marcar-pendiente" data-id="${p.id}"><i data-lucide="undo-2" class="w-3.5 h-3.5"></i> Pendiente</button>`}
-            <button class="bg-blue-50 text-blue-600 px-3 py-2 rounded-lg text-sm font-bold hover:bg-blue-100 inline-flex items-center gap-1" data-action="editar" data-id="${p.id}"><i data-lucide="pencil" class="w-3.5 h-3.5"></i> Editar</button>
-            <button class="bg-gray-50 text-gray-700 px-3 py-2 rounded-lg text-sm font-bold hover:bg-gray-100 inline-flex items-center gap-1" data-action="pdf" data-id="${p.id}"><i data-lucide="file-text" class="w-3.5 h-3.5"></i> PDF</button>
-            <button class="bg-gray-50 text-gray-700 px-3 py-2 rounded-lg text-sm font-bold hover:bg-gray-100 inline-flex items-center gap-1" data-action="ticket" data-id="${p.id}"><i data-lucide="printer" class="w-3.5 h-3.5"></i> Ticket</button>
-            <button class="bg-red-50 text-red-500 px-3 py-2 rounded-lg text-sm font-bold hover:bg-red-100 inline-flex items-center gap-1" data-action="eliminar" data-id="${p.id}"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+                `<sl-button class="btn-estado" variant="success" size="small" data-action="marcar-entregado" data-id="${p.id}"><i data-lucide="check" class="w-3.5 h-3.5"></i> Entregado</sl-button>` :
+                `<sl-button class="btn-estado" variant="default" size="small" data-action="marcar-pendiente" data-id="${p.id}"><i data-lucide="undo-2" class="w-3.5 h-3.5"></i> Pendiente</sl-button>`}
+            <sl-button variant="primary" size="small" data-action="editar" data-id="${p.id}"><i data-lucide="pencil" class="w-3.5 h-3.5"></i> Editar</sl-button>
+            <sl-button variant="default" size="small" data-action="pdf" data-id="${p.id}"><i data-lucide="file-text" class="w-3.5 h-3.5"></i> PDF</sl-button>
+            <sl-button variant="default" size="small" data-action="ticket" data-id="${p.id}"><i data-lucide="printer" class="w-3.5 h-3.5"></i> Ticket</sl-button>
+            <sl-button variant="danger" size="small" data-action="eliminar" data-id="${p.id}"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></sl-button>
         </div>`;
     return div;
 }
@@ -221,12 +221,12 @@ function actualizarTarjetaPedidoAdminDOM(pedidoId, nuevoEstado) {
     const btnEstado = card.querySelector('.btn-estado');
     if (btnEstado) {
         if (nuevoEstado === PEDIDO_ESTADOS.ENTREGADO) {
-            btnEstado.className = 'btn-estado bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-300 inline-flex items-center gap-1.5';
+            btnEstado.setAttribute('variant', 'default');
             btnEstado.innerHTML = `<i data-lucide="undo-2" class="w-3.5 h-3.5"></i> Pendiente`;
             btnEstado.dataset.action = 'marcar-pendiente';
             btnEstado.dataset.id = pedidoId;
         } else {
-            btnEstado.className = 'btn-estado bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-green-700 inline-flex items-center gap-1.5';
+            btnEstado.setAttribute('variant', 'success');
             btnEstado.innerHTML = `<i data-lucide="check" class="w-3.5 h-3.5"></i> Entregado`;
             btnEstado.dataset.action = 'marcar-entregado';
             btnEstado.dataset.id = pedidoId;
@@ -447,19 +447,33 @@ function renderizarItemsEdicion(items) {
         const div = document.createElement('div');
         div.className = 'flex items-center gap-2 bg-gray-50 p-3 rounded-lg';
         div.innerHTML = `
-            <select onchange="actualizarItemEdicion(${idx},'producto',this.value);recalcularTotalEdicion()" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm edit-item-producto">
-                <option value="">-- Producto --</option>
+            <sl-select hoist size="small" class="flex-1 edit-item-producto" data-idx="${idx}" value="${escapeHTML(item.nombre && item.presentacion ? productosData.productos.reduce((acc, p) => { const pres = p.presentaciones.find(pr => p.nombre === item.nombre && pr.tamano === item.presentacion); return pres ? `${p.id}|${pres.tamano}|${pres.precio_base}` : acc; }, '') : '')}">
+                <sl-option value="">-- Producto --</sl-option>
                 ${productosData.productos.map(p =>
                     p.presentaciones.map(pres =>
-                        `<option value="${escapeHTML(p.id)}|${escapeHTML(pres.tamano)}|${pres.precio_base}" ${p.nombre === item.nombre && pres.tamano === item.presentacion ? 'selected' : ''}>${escapeHTML(p.nombre)} - ${escapeHTML(pres.tamano)} (${formatearGuaranies(pres.precio_base)})</option>`
+                        `<sl-option value="${escapeHTML(p.id)}|${escapeHTML(pres.tamano)}|${pres.precio_base}">${escapeHTML(p.nombre)} - ${escapeHTML(pres.tamano)} (${formatearGuaranies(pres.precio_base)})</sl-option>`
                     ).join('')
                 ).join('')}
-            </select>
-            <input type="number" value="${item.cantidad}" min="1" onchange="actualizarItemEdicion(${idx},'cantidad',this.value);recalcularTotalEdicion()" class="w-16 border border-gray-300 rounded px-2 py-1 text-sm text-center font-bold edit-item-cantidad">
+            </sl-select>
+            <sl-input type="number" value="${item.cantidad}" min="1" size="small" class="edit-item-cantidad" data-idx="${idx}" style="width:4rem;--sl-input-font-weight:700;" no-spin-buttons></sl-input>
             <span class="text-sm font-bold text-gray-700 w-32 text-right edit-item-subtotal">${formatearGuaranies(item.subtotal)}</span>
-            <button onclick="eliminarItemEdicion(${idx})" class="text-red-500 font-bold text-lg">×</button>
+            <sl-button variant="text" size="small" onclick="eliminarItemEdicion(${idx})">×</sl-button>
         `;
         container.appendChild(div);
+    });
+    // Event delegation: sl-change para selects y inputs dinamicos
+    container.addEventListener('sl-change', (e) => {
+        const sel = e.target.closest('.edit-item-producto');
+        const inp = e.target.closest('.edit-item-cantidad');
+        if (sel) {
+            const idx = parseInt(sel.dataset.idx);
+            actualizarItemEdicion(idx, 'producto', sel.value);
+            recalcularTotalEdicion();
+        } else if (inp) {
+            const idx = parseInt(inp.dataset.idx);
+            actualizarItemEdicion(idx, 'cantidad', inp.value);
+            recalcularTotalEdicion();
+        }
     });
 }
 
@@ -473,19 +487,22 @@ function agregarItemEditPedido() {
     const div = document.createElement('div');
     div.className = 'flex items-center gap-2 bg-green-50 p-3 rounded-lg';
     div.innerHTML = `
-        <select onchange="recalcularTotalEdicion()" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm edit-item-producto">
-            <option value="">-- Seleccionar Producto --</option>
+        <sl-select hoist size="small" class="flex-1 edit-item-producto">
+            <sl-option value="">-- Seleccionar Producto --</sl-option>
             ${productosData.productos.map(p =>
                 p.presentaciones.map(pres =>
-                    `<option value="${escapeHTML(p.id)}|${escapeHTML(pres.tamano)}|${pres.precio_base}">${escapeHTML(p.nombre)} - ${escapeHTML(pres.tamano)} (${formatearGuaranies(pres.precio_base)})</option>`
+                    `<sl-option value="${escapeHTML(p.id)}|${escapeHTML(pres.tamano)}|${pres.precio_base}">${escapeHTML(p.nombre)} - ${escapeHTML(pres.tamano)} (${formatearGuaranies(pres.precio_base)})</sl-option>`
                 ).join('')
             ).join('')}
-        </select>
-        <input type="number" value="1" min="1" onchange="recalcularTotalEdicion()" class="w-16 border border-gray-300 rounded px-2 py-1 text-sm text-center font-bold edit-item-cantidad">
+        </sl-select>
+        <sl-input type="number" value="1" min="1" size="small" class="edit-item-cantidad" style="width:4rem;--sl-input-font-weight:700;" no-spin-buttons></sl-input>
         <span class="text-sm font-bold text-gray-700 w-32 text-right edit-item-subtotal">Gs. 0</span>
-        <button onclick="this.parentElement.remove();recalcularTotalEdicion()" class="text-red-500 font-bold text-lg">×</button>
+        <sl-button variant="text" size="small" onclick="this.parentElement.remove();recalcularTotalEdicion()">×</sl-button>
     `;
     container.appendChild(div);
+    // sl-change listeners for new item
+    div.querySelector('.edit-item-producto').addEventListener('sl-change', () => recalcularTotalEdicion());
+    div.querySelector('.edit-item-cantidad').addEventListener('sl-change', () => recalcularTotalEdicion());
 }
 
 function eliminarItemEdicion(idx) {

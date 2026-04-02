@@ -196,11 +196,15 @@ function cargarSelectorMeses() {
     const hoy = new Date();
     for (let i = 0; i < 12; i++) {
         const d = new Date(hoy.getFullYear(), hoy.getMonth() - i, 1);
-        const opt = document.createElement('option');
+        const opt = document.createElement('sl-option');
         opt.value = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
         opt.textContent = d.toLocaleDateString('es-PY', { month: 'long', year: 'numeric' });
         select.appendChild(opt);
     }
+    // Shoelace sl-select: set value after options are appended
+    select.value = `${hoy.getFullYear()}-${String(hoy.getMonth()+1).padStart(2,'0')}`;
+    // Listen for sl-change (replaces onchange attribute removed from HTML)
+    select.addEventListener('sl-change', () => cargarResumenMensual());
     cargarResumenMensual();
 }
 

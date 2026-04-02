@@ -249,9 +249,9 @@
                 </div>
             </div>
             <div class="flex gap-2">
-                <button onclick="forzarActualizacion()" class="p-2 bg-gray-800 rounded-full text-gray-300 hover:text-white transition-colors" aria-label="Forzar actualizacion"><i data-lucide="refresh-cw" class="w-4 h-4"></i></button>
-                <button onclick="toggleDarkMode()" class="p-2 bg-gray-800 rounded-full text-gray-300 hover:text-white transition-colors dark-mode-toggle" aria-label="Cambiar modo oscuro"><i data-lucide="moon" class="w-4 h-4"></i></button>
-                <button onclick="cerrarSesion()" class="p-2 bg-red-600/20 rounded-full text-red-400 hover:bg-red-600/40 hover:text-red-300 transition-colors" aria-label="Cerrar sesion"><i data-lucide="log-out" class="w-4 h-4"></i></button>
+                <sl-icon-button name="arrow-clockwise" label="Forzar actualizacion" onclick="forzarActualizacion()" style="font-size:1rem;color:#d1d5db;"></sl-icon-button>
+                <sl-icon-button name="moon" label="Cambiar modo oscuro" onclick="toggleDarkMode()" class="dark-mode-toggle" style="font-size:1rem;color:#d1d5db;"></sl-icon-button>
+                <sl-icon-button name="box-arrow-right" label="Cerrar sesion" onclick="cerrarSesion()" style="font-size:1rem;color:#f87171;"></sl-icon-button>
             </div>
         </div>
         
@@ -295,8 +295,8 @@
     <div class="px-3 pt-3 pb-1" id="searchContainer">
         <div class="relative">
             <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"></i>
-            <input type="text" id="searchInput" placeholder="Buscar producto..." disabled aria-label="Buscar producto"
-                   class="w-full bg-white border border-gray-300 rounded-xl py-2.5 pl-10 pr-4 text-sm outline-none transition-all shadow-sm">
+            <sl-input type="text" id="searchInput" placeholder="Buscar producto..." disabled aria-label="Buscar producto"
+                   class="w-full" size="medium" style="--sl-input-border-radius-medium:12px;"></sl-input>
         </div>
     </div>
 
@@ -339,7 +339,7 @@
             <div class="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-6"></div>
             <div class="flex justify-between items-center mb-6">
                 <h3 class="text-xl font-bold text-gray-900">Copia de Seguridad</h3>
-                <button onclick="cerrarModalBackup()" class="text-gray-400 p-2" aria-label="Cerrar"><i data-lucide="x"></i></button>
+                <sl-icon-button name="x-lg" label="Cerrar" onclick="cerrarModalBackup()" style="font-size:1.25rem;"></sl-icon-button>
             </div>
 
             <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
@@ -352,25 +352,22 @@
                     <p class="font-bold text-gray-800 text-sm">Auto-backup</p>
                     <p class="text-xs text-gray-500">Guarda cada 5 min en el dispositivo</p>
                 </div>
-                <label class="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" id="autoBackupToggle" class="sr-only peer" onchange="toggleAutoBackup()" checked>
-                    <div class="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
-                </label>
+                <sl-switch id="autoBackupToggle" checked></sl-switch>
             </div>
 
             <div class="space-y-3">
-                <button onclick="exportarBackupVendedor()" class="w-full bg-green-600 text-white py-4 rounded-xl font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-transform">
+                <sl-button onclick="exportarBackupVendedor()" variant="success" class="w-full">
                     <i data-lucide="download" class="w-4 h-4"></i> Descargar Backup Completo
-                </button>
-                <button onclick="exportarSoloPedidos()" class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-transform">
+                </sl-button>
+                <sl-button onclick="exportarSoloPedidos()" variant="primary" class="w-full">
                     <i data-lucide="file-text" class="w-4 h-4"></i> Descargar Solo Pedidos
-                </button>
-                <button onclick="compartirBackupWhatsApp()" class="w-full bg-[#25D366] text-white py-4 rounded-xl font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-transform">
+                </sl-button>
+                <sl-button onclick="compartirBackupWhatsApp()" variant="success" class="w-full" style="--sl-color-success-600:#25D366;--sl-color-success-700:#1da851;">
                     <i data-lucide="send" class="w-4 h-4"></i> Enviar Resumen por WhatsApp
-                </button>
-                <button onclick="document.getElementById('restaurarFileVendedor').click()" class="w-full bg-yellow-500 text-white py-4 rounded-xl font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-transform">
+                </sl-button>
+                <sl-button onclick="document.getElementById('restaurarFileVendedor').click()" variant="warning" class="w-full">
                     <i data-lucide="upload" class="w-4 h-4"></i> Restaurar desde Backup
-                </button>
+                </sl-button>
                 <input type="file" id="restaurarFileVendedor" accept=".json" style="display:none;" onchange="restaurarBackupVendedor(event)">
 
                 <div class="mt-4">
@@ -380,7 +377,7 @@
                     </div>
                 </div>
             </div>
-            <button onclick="cerrarModalBackup()" class="w-full mt-6 bg-gray-100 text-gray-700 py-3 rounded-xl font-bold">Cerrar</button>
+            <sl-button onclick="cerrarModalBackup()" variant="default" class="w-full mt-6">Cerrar</sl-button>
         </div>
     </div>
 
@@ -394,9 +391,7 @@
                 <h3 class="text-lg font-bold text-gray-900">Tu Pedido</h3>
                 <span id="drawerCartCount" class="bg-gray-100 text-gray-700 text-xs font-bold px-2 py-0.5 rounded-full">0</span>
             </div>
-            <button onclick="closeCartModal()" class="p-2 hover:bg-gray-100 rounded-full transition-colors" aria-label="Cerrar">
-                <i data-lucide="x" class="w-5 h-5 text-gray-500"></i>
-            </button>
+            <sl-icon-button name="x-lg" label="Cerrar" onclick="closeCartModal()" style="font-size:1.25rem;color:var(--sl-color-neutral-500);"></sl-icon-button>
         </div>
 
         <!-- Scrollable content -->
@@ -406,15 +401,15 @@
             <div class="space-y-3 pt-3">
                 <div class="bg-gray-50 p-3 rounded-xl">
                     <label class="block text-[11px] font-bold text-gray-500 mb-1.5 uppercase tracking-wider">Tipo de Pago</label>
-                    <select id="tipoPago" class="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none font-medium">
-                        <option value="contado">Al Contado</option>
-                        <option value="credito">A Credito</option>
-                    </select>
+                    <sl-select id="tipoPago" class="w-full" size="small" value="contado">
+                        <sl-option value="contado">Al Contado</sl-option>
+                        <sl-option value="credito">A Credito</sl-option>
+                    </sl-select>
                 </div>
 
                 <div class="bg-gray-50 p-3 rounded-xl">
                     <label class="block text-[11px] font-bold text-gray-500 mb-1.5 uppercase tracking-wider">Notas</label>
-                    <textarea id="notasPedido" rows="2" class="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none" placeholder="Ej. Entregar de tarde..."></textarea>
+                    <sl-textarea id="notasPedido" rows="2" class="w-full" size="small" placeholder="Ej. Entregar de tarde..."></sl-textarea>
                 </div>
             </div>
         </div>
@@ -447,13 +442,13 @@
             <p class="text-sm text-gray-500 mb-1">Documento electronico procesado</p>
             <p class="text-xs font-mono bg-gray-100 rounded-lg p-2 mb-4 text-gray-700" id="facturaNumeroDisplay"></p>
             <div class="space-y-2">
-                <button onclick="imprimirFactura()" class="w-full bg-gray-900 text-white py-3 rounded-xl font-bold text-sm">
-                    <span class="flex items-center justify-center gap-2"><i data-lucide="printer" class="w-4 h-4"></i> Imprimir Ticket</span>
-                </button>
+                <sl-button onclick="imprimirFactura()" variant="neutral" class="w-full">
+                    <i data-lucide="printer" class="w-4 h-4"></i> Imprimir Ticket
+                </sl-button>
                 <a id="facturaWhatsAppLink" href="#" target="_blank" class="block w-full bg-[#25D366] text-white py-3 rounded-xl font-bold text-sm text-center">
                     <span class="flex items-center justify-center gap-2"><i data-lucide="message-circle" class="w-4 h-4"></i> Enviar por WhatsApp</span>
                 </a>
-                <button onclick="cerrarModalFactura()" class="w-full bg-gray-100 text-gray-700 py-3 rounded-xl font-bold text-sm">Nueva Venta</button>
+                <sl-button onclick="cerrarModalFactura()" variant="default" class="w-full">Nueva Venta</sl-button>
             </div>
         </div>
     </div>

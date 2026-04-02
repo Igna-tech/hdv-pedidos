@@ -36,7 +36,7 @@ function generarEmptyState(svgIcon, titulo, subtitulo, botonTexto, botonOnclick)
         ${svgIcon}
         <p>${titulo}</p>
         ${subtitulo ? `<p class="empty-sub">${subtitulo}</p>` : ''}
-        ${botonTexto ? `<button onclick="${botonOnclick}" class="mt-4 px-5 py-3 bg-[#111827] text-white rounded-xl font-bold text-sm active:scale-95 transition-transform">${botonTexto}</button>` : ''}
+        ${botonTexto ? `<sl-button onclick="${botonOnclick}" variant="neutral" size="medium">${botonTexto}</sl-button>` : ''}
     </div>`;
 }
 
@@ -258,8 +258,11 @@ async function renderizarCategoriasVendedor(container) {
             frecuentes.forEach(f => {
                 const prod = productos.find(p => p.id === f.productoId);
                 if (!prod) return;
-                const chip = document.createElement('button');
-                chip.className = 'shrink-0 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2 text-xs font-bold text-blue-800 active:scale-95 transition-transform';
+                const chip = document.createElement('sl-button');
+                chip.variant = 'default';
+                chip.size = 'small';
+                chip.style.cssText = '--sl-color-neutral-0: #eff6ff; --sl-color-neutral-700: #1e40af; border-color: #bfdbfe;';
+                chip.className = 'shrink-0';
                 chip.textContent = prod.nombre;
                 chip.onclick = () => mostrarDetalleProducto(prod);
                 frecGrid.appendChild(chip);
@@ -335,7 +338,7 @@ async function renderizarProductosVendedor(container, busqueda) {
         container.innerHTML = generarEmptyState(SVG_EMPTY_SEARCH, 'No se encontraron productos',
             busqueda ? 'Intenta con otro termino de busqueda' : `No hay productos disponibles en ${escapeHTML(catNombre)}`);
         if (categoriaSeleccionada) {
-            container.innerHTML += `<div class="text-center mt-2"><button onclick="volverACategorias()" class="px-5 py-3 bg-[#111827] text-white rounded-xl font-bold text-sm active:scale-95 transition-transform">Volver a Categorias</button></div>`;
+            container.innerHTML += `<div class="text-center mt-2"><sl-button onclick="volverACategorias()" variant="neutral">Volver a Categorias</sl-button></div>`;
         }
         return;
     }
@@ -347,10 +350,10 @@ async function renderizarProductosVendedor(container, busqueda) {
         const backBar = document.createElement('div');
         backBar.className = 'flex items-center gap-3 mb-3';
         backBar.innerHTML = `
-            <button onclick="volverACategorias()" class="flex items-center gap-2 text-sm font-bold text-gray-600 hover:text-gray-900 active:scale-95 transition-all bg-white border border-gray-200 rounded-xl px-3 py-2 shadow-sm">
+            <sl-button onclick="volverACategorias()" variant="default" size="small">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
                 Categorias
-            </button>
+            </sl-button>
             <span class="text-sm font-bold text-gray-800">${catNombre}</span>
             <span class="text-xs text-gray-400">${filtrados.length} producto${filtrados.length !== 1 ? 's' : ''}</span>`;
         container.appendChild(backBar);
@@ -509,11 +512,12 @@ function mostrarMatrizProducto(producto) {
         return `
             <div class="matriz-celda bg-white rounded-xl border-2 border-gray-200 p-3 text-center transition-all ${esAgotado ? 'opacity-50' : ''}" id="celda-${producto.id}-${idx}">
                 <p class="text-xs font-bold text-gray-500 mb-1">${escapeHTML(pres.tamano)}</p>
-                <input type="number" id="mtz-${producto.id}-${idx}" value="0" min="0"
+                <sl-input type="number" id="mtz-${producto.id}-${idx}" value="0" min="0"
                     ${esAgotado ? 'disabled' : ''}
-                    class="w-full text-center text-2xl font-bold border-0 border-b-2 border-gray-200 focus:border-blue-500 outline-none bg-transparent py-1 mtz-input"
-                    data-idx="${idx}" data-precio="${precio}"
-                    oninput="actualizarCeldaMatriz('${producto.id}',${idx})">
+                    class="mtz-input"
+                    style="--sl-input-font-size-medium:1.5rem;--sl-input-font-weight:700;text-align:center;"
+                    data-idx="${idx}" data-precio="${precio}" no-spin-buttons
+                    oninput="actualizarCeldaMatriz('${producto.id}',${idx})"></sl-input>
                 <p class="text-[10px] text-blue-600 font-bold mt-1">${formatearGuaranies(precio)}</p>
             </div>`;
     }).join('');
@@ -542,7 +546,7 @@ function mostrarMatrizProducto(producto) {
                         <p class="text-lg font-bold text-green-400" id="mtzTotalGs-${producto.id}">Gs. 0</p>
                         <p class="text-[10px] text-gray-400 font-bold">TOTAL</p>
                     </div>
-                    <button onclick="limpiarMatriz('${producto.id}')" class="bg-gray-700 text-gray-300 px-3 py-2 rounded-lg text-xs font-bold">Limpiar</button>
+                    <sl-button onclick="limpiarMatriz('${producto.id}')" variant="neutral" size="small">Limpiar</sl-button>
                 </div>
             </div>
 
@@ -554,10 +558,10 @@ function mostrarMatrizProducto(producto) {
             </div>
 
             <div class="sticky bottom-0 bg-white border-t border-gray-200 p-4 flex gap-3">
-                <button onclick="document.getElementById('productDetailModal').remove()" class="flex-1 bg-gray-100 text-gray-700 py-4 rounded-xl font-bold">Cancelar</button>
-                <button onclick="agregarMatrizAlCarrito('${producto.id}')" class="flex-1 bg-[#111827] text-white py-4 rounded-xl font-bold shadow-lg">
+                <sl-button onclick="document.getElementById('productDetailModal').remove()" variant="default" class="flex-1">Cancelar</sl-button>
+                <sl-button onclick="agregarMatrizAlCarrito('${producto.id}')" variant="neutral" class="flex-1">
                     Agregar <span id="mtzBtnCount-${producto.id}">0</span> pares
-                </button>
+                </sl-button>
             </div>
         </div>`;
     document.body.appendChild(modal);
@@ -650,11 +654,12 @@ function mostrarDetalleMasivo(producto) {
                     <p class="text-blue-600 font-bold text-sm">${formatearGuaranies(precio)}</p>
                 </div>
                 <div class="flex items-center gap-2">
-                    <button onclick="ajustarQty('${producto.id}',${idx},-1)" class="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center font-bold text-lg text-gray-700 active:scale-90 transition-transform">-</button>
-                    <input type="number" id="qty-${producto.id}-${idx}" value="0" min="0" data-precio="${precio}"
-                        class="w-14 text-center border border-gray-200 rounded-xl py-1.5 font-bold text-lg masivo-input"
-                        oninput="recalcularTotalMasivo('${producto.id}')">
-                    <button onclick="ajustarQty('${producto.id}',${idx},1)" class="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center font-bold text-lg text-gray-700 active:scale-90 transition-transform">+</button>
+                    <sl-button onclick="ajustarQty('${producto.id}',${idx},-1)" variant="default" size="small" circle>-</sl-button>
+                    <sl-input type="number" id="qty-${producto.id}-${idx}" value="0" min="0" data-precio="${precio}"
+                        class="masivo-input" style="width:3.5rem;--sl-input-font-size-medium:1.125rem;--sl-input-font-weight:700;text-align:center;"
+                        size="small" no-spin-buttons
+                        oninput="recalcularTotalMasivo('${producto.id}')"></sl-input>
+                    <sl-button onclick="ajustarQty('${producto.id}',${idx},1)" variant="default" size="small" circle>+</sl-button>
                 </div>
             </div>`;
     }).join('');
@@ -689,8 +694,8 @@ function mostrarDetalleMasivo(producto) {
             </div>
 
             <div class="sticky bottom-0 bg-white border-t border-gray-200 p-4 flex gap-3">
-                <button onclick="document.getElementById('productDetailModal').remove()" class="flex-1 bg-gray-100 text-gray-700 py-4 rounded-xl font-bold">Cancelar</button>
-                <button onclick="agregarMasivoAlCarrito('${producto.id}')" class="flex-1 bg-[#111827] text-white py-4 rounded-xl font-bold shadow-lg">Agregar al carrito</button>
+                <sl-button onclick="document.getElementById('productDetailModal').remove()" variant="default" class="flex-1">Cancelar</sl-button>
+                <sl-button onclick="agregarMasivoAlCarrito('${producto.id}')" variant="neutral" class="flex-1">Agregar al carrito</sl-button>
             </div>
         </div>`;
     document.body.appendChild(modal);
@@ -862,9 +867,9 @@ function crearTarjetaPedidoVendedor(p) {
             <span class="font-bold text-gray-900">${formatearGuaranies(p.total)}</span>
         </div>
         <div class="flex gap-2 mt-3 pt-2 border-t border-gray-50">
-            <button onclick="imprimirTicketVendedor('${p.id}')" class="flex-1 bg-purple-50 text-purple-700 py-2 rounded-lg text-xs font-bold active:scale-95 transition-transform flex items-center justify-center gap-1"><i data-lucide="printer" class="w-3 h-3"></i> Ticket</button>
-            <button onclick="generarPDFVendedor('${p.id}')" class="flex-1 bg-red-50 text-red-700 py-2 rounded-lg text-xs font-bold active:scale-95 transition-transform flex items-center justify-center gap-1"><i data-lucide="file-text" class="w-3 h-3"></i> PDF</button>
-            <button onclick="enviarPedidoWhatsApp('${p.id}')" class="flex-1 bg-green-50 text-green-700 py-2 rounded-lg text-xs font-bold active:scale-95 transition-transform flex items-center justify-center gap-1"><i data-lucide="send" class="w-3 h-3"></i> WhatsApp</button>
+            <sl-button onclick="imprimirTicketVendedor('${p.id}')" variant="default" size="small" class="flex-1"><i data-lucide="printer" class="w-3 h-3"></i> Ticket</sl-button>
+            <sl-button onclick="generarPDFVendedor('${p.id}')" variant="default" size="small" class="flex-1"><i data-lucide="file-text" class="w-3 h-3"></i> PDF</sl-button>
+            <sl-button onclick="enviarPedidoWhatsApp('${p.id}')" variant="success" size="small" class="flex-1"><i data-lucide="send" class="w-3 h-3"></i> WhatsApp</sl-button>
         </div>
     `;
     return div;
@@ -985,8 +990,8 @@ function mostrarConfirmModal(mensaje, opciones = {}) {
                     <p class="text-gray-800 font-semibold text-sm whitespace-pre-line leading-relaxed">${escapeHTML(mensaje)}</p>
                 </div>
                 <div class="flex gap-3">
-                    <button class="confirm-cancel-btn flex-1 bg-gray-100 text-gray-700 py-3 rounded-xl font-bold text-sm active:scale-95 transition-transform">Cancelar</button>
-                    <button class="confirm-ok-btn flex-1 ${opciones.destructivo ? 'bg-red-600' : 'bg-[#111827]'} text-white py-3 rounded-xl font-bold text-sm active:scale-95 transition-transform">${opciones.textoConfirmar || 'Confirmar'}</button>
+                    <sl-button class="confirm-cancel-btn flex-1" variant="neutral" size="medium">Cancelar</sl-button>
+                    <sl-button class="confirm-ok-btn flex-1" variant="${opciones.destructivo ? 'danger' : 'primary'}" size="medium">${opciones.textoConfirmar || 'Confirmar'}</sl-button>
                 </div>
             </div>`;
         document.body.appendChild(backdrop);
@@ -1009,12 +1014,12 @@ function mostrarInputModal(opciones = {}) {
             const req = campo.requerido ? 'required' : '';
             const labelHTML = `<label class="block text-sm font-semibold text-gray-300 mb-1.5">${campo.label}${campo.requerido ? ' <span class="text-red-400">*</span>' : ''}</label>`;
             if (campo.tipo === 'select') {
-                const optsHTML = (campo.opciones || []).map(o => `<option value="${o.value}">${o.label}</option>`).join('');
-                camposHTML += `<div class="mb-3">${labelHTML}<select id="modal_field_${campo.key}" class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-3 py-2.5 text-sm" ${req}><option value="">-- Seleccionar --</option>${optsHTML}</select></div>`;
+                const optsHTML = (campo.opciones || []).map(o => `<sl-option value="${o.value}">${o.label}</sl-option>`).join('');
+                camposHTML += `<div class="mb-3">${labelHTML}<sl-select id="modal_field_${campo.key}" size="small" hoist placeholder="-- Seleccionar --" ${req}>${optsHTML}</sl-select></div>`;
             } else if (campo.tipo === 'textarea') {
-                camposHTML += `<div class="mb-3">${labelHTML}<textarea id="modal_field_${campo.key}" rows="3" class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-3 py-2.5 text-sm" placeholder="${campo.placeholder || ''}" ${req}>${campo.valor || ''}</textarea></div>`;
+                camposHTML += `<div class="mb-3">${labelHTML}<sl-textarea id="modal_field_${campo.key}" rows="3" placeholder="${campo.placeholder || ''}" ${req} value="${campo.valor || ''}"></sl-textarea></div>`;
             } else {
-                camposHTML += `<div class="mb-3">${labelHTML}<input type="${campo.tipo || 'text'}" id="modal_field_${campo.key}" value="${campo.valor ?? ''}" placeholder="${campo.placeholder || ''}" class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-3 py-2.5 text-sm" ${req} ${campo.tipo === 'number' ? 'min="0" inputmode="numeric"' : ''}></div>`;
+                camposHTML += `<div class="mb-3">${labelHTML}<sl-input type="${campo.tipo || 'text'}" id="modal_field_${campo.key}" value="${campo.valor ?? ''}" placeholder="${campo.placeholder || ''}" size="small" ${req} ${campo.tipo === 'number' ? 'min="0" inputmode="numeric"' : ''}></sl-input></div>`;
             }
         }
 
@@ -1025,14 +1030,14 @@ function mostrarInputModal(opciones = {}) {
                     <div>${camposHTML}</div>
                 </div>
                 <div class="flex gap-3 p-4 bg-gray-800/50 border-t border-gray-700">
-                    <button class="modal-cancel-btn flex-1 bg-gray-700 text-gray-300 py-2.5 rounded-xl font-bold text-sm active:scale-95 transition-transform">Cancelar</button>
-                    <button class="modal-ok-btn flex-1 bg-blue-600 text-white py-2.5 rounded-xl font-bold text-sm active:scale-95 transition-transform">${opciones.textoConfirmar || 'Confirmar'}</button>
+                    <sl-button class="modal-cancel-btn flex-1" variant="neutral" size="medium">Cancelar</sl-button>
+                    <sl-button class="modal-ok-btn flex-1" variant="primary" size="medium">${opciones.textoConfirmar || 'Confirmar'}</sl-button>
                 </div>
             </div>`;
 
         document.body.appendChild(backdrop);
 
-        const primerInput = backdrop.querySelector('input, textarea');
+        const primerInput = backdrop.querySelector('sl-input, sl-textarea');
         if (primerInput) primerInput.focus();
 
         const cerrar = (result) => { backdrop.remove(); resolve(result); };
@@ -1042,7 +1047,7 @@ function mostrarInputModal(opciones = {}) {
                 const el = backdrop.querySelector(`#modal_field_${campo.key}`);
                 if (!el) continue;
                 const val = el.value;
-                if (campo.requerido && !val.trim()) { el.classList.add('ring-2', 'ring-red-500'); el.focus(); return; }
+                if (campo.requerido && !(val || '').trim()) { el.setAttribute('data-invalid', ''); el.focus(); return; }
                 datos[campo.key] = campo.tipo === 'number' ? (parseFloat(val) || 0) : val;
             }
             cerrar(datos);
@@ -1050,7 +1055,7 @@ function mostrarInputModal(opciones = {}) {
         backdrop.querySelector('.modal-cancel-btn').onclick = () => cerrar(null);
         backdrop.querySelector('.modal-ok-btn').onclick = confirmar;
         backdrop.onclick = (e) => { if (e.target === backdrop) cerrar(null); };
-        backdrop.querySelectorAll('input').forEach(inp => {
+        backdrop.querySelectorAll('sl-input').forEach(inp => {
             inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') confirmar(); });
         });
     });
@@ -1088,12 +1093,12 @@ function mostrarModalSinCliente() {
                 <h3 class="text-lg font-bold text-gray-900 mb-2">Sin cliente seleccionado</h3>
                 <p class="text-sm text-gray-500 mb-6">¿Deseas agregar un nuevo cliente para continuar con el pedido?</p>
                 <div id="modalSinClienteOpciones" class="space-y-3">
-                    <button onclick="mostrarFormNuevoCliente()" class="w-full bg-gray-900 text-white py-4 rounded-xl font-bold">
+                    <sl-button onclick="mostrarFormNuevoCliente()" variant="neutral" class="w-full">
                         Agregar nuevo cliente
-                    </button>
-                    <button onclick="cerrarModalSinCliente()" class="w-full bg-gray-100 text-gray-700 py-4 rounded-xl font-bold">
+                    </sl-button>
+                    <sl-button onclick="cerrarModalSinCliente()" variant="default" class="w-full">
                         Volver y seleccionar cliente
-                    </button>
+                    </sl-button>
                 </div>
                 <div id="formNuevoClienteVendedor" style="display:none;" class="space-y-3 mt-2">
                     <sl-input id="ncvNombre" label="NOMBRE *" placeholder="Nombre del cliente" required size="medium"></sl-input>
@@ -1172,7 +1177,7 @@ async function mostrarConfiguracion() {
 
         <div class="bg-white rounded-xl p-4 shadow-sm border border-red-200 mb-3">
             <p class="text-xs font-bold text-red-500 uppercase tracking-wider mb-3">Zona de Peligro</p>
-            <button onclick="limpiarTodosDatos()" class="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-bold w-full">Borrar Todos Mis Pedidos</button>
+            <sl-button onclick="limpiarTodosDatos()" variant="danger" class="w-full">Borrar Todos Mis Pedidos</sl-button>
         </div>
 
         <p class="text-center text-xs text-gray-400 mt-4">HDV Pedidos v3.0 - 2026</p>
@@ -1206,19 +1211,21 @@ function mostrarFiltroZonas() {
 
     let html = '<h3 class="text-lg font-bold text-gray-800 mb-4">Seleccionar Zona</h3>';
 
-    html += `<button onclick="resetearFiltroZona()" class="w-full bg-gray-800 text-white py-4 rounded-xl font-bold text-sm mb-3 active:scale-95 transition-transform">
+    html += `<sl-button onclick="resetearFiltroZona()" variant="neutral" class="w-full" style="margin-bottom:0.75rem;">
         Todas las Zonas (${clientes.length} clientes)
-    </button>`;
+    </sl-button>`;
 
     html += '<div class="grid grid-cols-2 gap-3">';
     const colores = ['bg-blue-50 border-blue-200 text-blue-800', 'bg-green-50 border-green-200 text-green-800', 'bg-purple-50 border-purple-200 text-purple-800', 'bg-yellow-50 border-yellow-200 text-yellow-800', 'bg-red-50 border-red-200 text-red-800', 'bg-indigo-50 border-indigo-200 text-indigo-800'];
     zonas.forEach((z, i) => {
         const color = colores[i % colores.length];
-        html += `<button onclick="seleccionarZona('${z.zona}')" class="${color} border-2 rounded-xl p-4 text-center active:scale-95 transition-transform">
-            <p class="mb-1"><i data-lucide="map-pin" class="w-8 h-8 text-gray-400 mx-auto"></i></p>
-            <p class="font-bold text-sm">${escapeHTML(z.zona)}</p>
-            <p class="text-xs opacity-70">${z.cantidad} clientes</p>
-        </button>`;
+        html += `<sl-button onclick="seleccionarZona('${z.zona}')" variant="default" class="${color} border-2 rounded-xl" style="width:100%;--sl-button-font-size-medium:0.875rem;">
+            <div class="text-center py-1">
+                <p class="mb-1"><i data-lucide="map-pin" class="w-8 h-8 text-gray-400 mx-auto"></i></p>
+                <p class="font-bold">${escapeHTML(z.zona)}</p>
+                <p class="text-xs opacity-70">${z.cantidad} clientes</p>
+            </div>
+        </sl-button>`;
     });
     html += '</div>';
 
@@ -1239,7 +1246,7 @@ async function mostrarRutaHoy() {
 
     let html = `<div class="flex justify-between items-center mb-4">
         <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2"><i data-lucide="map-pin" class="w-5 h-5 text-gray-500"></i> ${escapeHTML(zonaActiva)}</h3>
-        <button onclick="mostrarFiltroZonas()" class="text-sm text-blue-600 font-bold">Cambiar Zona</button>
+        <sl-button onclick="mostrarFiltroZonas()" variant="text" size="small">Cambiar Zona</sl-button>
     </div>`;
     html += `<p class="text-sm text-gray-500 mb-4">${clientesZona.length} clientes en esta zona</p>`;
 
@@ -1261,7 +1268,7 @@ async function mostrarRutaHoy() {
                     </div>
                     <div class="flex flex-col items-end gap-1">
                         ${tienePedidoHoy ? '<span class="text-[10px] font-bold text-green-600 bg-green-100 px-2 py-1 rounded-full">PEDIDO HOY</span>' : ''}
-                        <button onclick="seleccionarClienteDesdeRuta('${c.id}')" class="bg-gray-800 text-white px-3 py-2 rounded-lg text-xs font-bold active:scale-95 transition-transform">Seleccionar</button>
+                        <sl-button onclick="seleccionarClienteDesdeRuta('${c.id}')" variant="neutral" size="small">Seleccionar</sl-button>
                     </div>
                 </div>
             </div>`;
@@ -1338,8 +1345,8 @@ async function mostrarMiCaja() {
         </div>
 
         <div class="flex gap-2 mb-3">
-            <button onclick="agregarGastoVendedor()" class="flex-1 bg-red-50 text-red-700 py-3 rounded-xl text-sm font-bold active:scale-95 transition-transform">+ Agregar Gasto</button>
-            ${!rendSemana ? `<button onclick="cerrarSemanaVendedor('${semana}')" class="flex-1 bg-blue-600 text-white py-3 rounded-xl text-sm font-bold active:scale-95 transition-transform">Cerrar Semana</button>` : ''}
+            <sl-button onclick="agregarGastoVendedor()" variant="danger" size="small" class="flex-1">+ Agregar Gasto</sl-button>
+            ${!rendSemana ? `<sl-button onclick="cerrarSemanaVendedor('${semana}')" variant="primary" size="small" class="flex-1">Cerrar Semana</sl-button>` : ''}
         </div>
 
         ${gastosSemana.length > 0 ? `
@@ -1353,7 +1360,7 @@ async function mostrarMiCaja() {
                     </div>
                     <div class="text-right">
                         <p class="text-sm font-bold text-red-600">- ${formatearGuaranies(g.monto)}</p>
-                        <button onclick="eliminarGastoVendedor('${g.id}')" class="text-[10px] text-red-400">Eliminar</button>
+                        <sl-button onclick="eliminarGastoVendedor('${g.id}')" variant="text" size="small">Eliminar</sl-button>
                     </div>
                 </div>
             `).join('')}
@@ -1372,7 +1379,7 @@ async function mostrarMiCaja() {
             `).join('')}
         </div>` : ''}
 
-        <button onclick="mostrarConfiguracion()" class="w-full bg-gray-100 text-gray-600 py-3 rounded-xl text-sm font-bold mt-2">Configuracion y Backups</button>
+        <sl-button onclick="mostrarConfiguracion()" variant="default" class="w-full" style="margin-top:0.5rem;">Configuracion y Backups</sl-button>
     `;
 }
 
@@ -1426,7 +1433,7 @@ async function mostrarHistorialBackups() {
                 <p class="text-xs font-medium text-gray-700">${new Date(b.fecha).toLocaleString('es-PY')}</p>
                 <p class="text-[10px] text-gray-500">${b.totalPedidos} pedidos</p>
             </div>
-            <button onclick="restaurarAutoBackup(${idx})" class="text-xs text-blue-600 font-bold px-2 py-1 bg-blue-50 rounded">Restaurar</button>
+            <sl-button onclick="restaurarAutoBackup(${idx})" variant="primary" size="small">Restaurar</sl-button>
         `;
         container.appendChild(div);
     });

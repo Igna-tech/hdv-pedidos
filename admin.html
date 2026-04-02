@@ -137,14 +137,16 @@
         .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 2000; display: none; align-items: center; justify-content: center; padding: 1rem; }
         .modal-overlay.show { display: flex; }
 
-        /* Toast notifications */
+        /* Toast notifications (sl-alert based) */
         #toastContainer { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
-        .toast { pointer-events: auto; padding: 14px 20px; border-radius: 12px; font-size: 14px; font-weight: 600; color: white; box-shadow: 0 8px 20px rgba(0,0,0,0.15); transform: translateX(120%); transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); max-width: 380px; display: flex; align-items: center; gap: 10px; }
-        .toast.show { transform: translateX(0); }
-        .toast-success { background: #059669; }
-        .toast-error { background: #dc2626; }
-        .toast-info { background: #2563eb; }
-        .toast-warning { background: #d97706; }
+        #toastContainer sl-alert { pointer-events: auto; }
+        #toastContainer sl-alert::part(base) { font-weight: 600; font-size: 13px; }
+
+        /* Shoelace sl-button full-width support */
+        sl-button.w-full { display: block; }
+        sl-button.w-full::part(base) { width: 100%; }
+        sl-button.flex-1 { flex: 1; }
+        sl-button.flex-1::part(base) { width: 100%; }
 
         /* Confirm modal */
         .confirm-backdrop {
@@ -174,7 +176,7 @@
                 box-shadow: 4px 0 24px rgba(0,0,0,0.1);
             }
             #sidebarOverlay.open { display: block; }
-            #hamburgerBtn { display: flex !important; }
+            #hamburgerBtn { display: inline-flex !important; }
         }
 
         /* Catalog grid cards */
@@ -294,7 +296,7 @@
         <div id="globalSearchBox">
             <div class="p-4 border-b border-gray-200 flex items-center gap-3">
                 <i data-lucide="search" class="w-5 h-5 text-gray-400"></i>
-                <input type="text" id="globalSearchInput" placeholder="Buscar productos, clientes, pedidos..." class="flex-1 text-lg outline-none" oninput="ejecutarBusquedaGlobalDebounced()" autofocus>
+                <sl-input type="text" id="globalSearchInput" placeholder="Buscar productos, clientes, pedidos..." class="flex-1" size="large" oninput="ejecutarBusquedaGlobalDebounced()" autofocus no-spin-buttons></sl-input>
                 <kbd class="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded">ESC</kbd>
             </div>
             <div id="globalSearchResults" class="max-h-[60vh] overflow-y-auto p-2"></div>
@@ -387,9 +389,9 @@
                 </div>
                 <span class="text-xs text-gray-600 font-medium truncate" id="sidebar-user-name"></span>
             </div>
-            <button onclick="cerrarSesion()" class="w-full flex items-center justify-center gap-2 text-sm text-red-600 hover:bg-red-50 py-2 rounded-lg transition-colors font-medium">
+            <sl-button onclick="cerrarSesion()" variant="danger" outline size="small" class="w-full">
                 <i data-lucide="log-out" class="w-4 h-4"></i> Cerrar Sesion
-            </button>
+            </sl-button>
             <span class="block text-[10px] text-gray-400 font-medium text-center">Version 7.5 - 2026</span>
         </div>
     </aside>
@@ -398,21 +400,15 @@
     <main class="flex-1 flex flex-col overflow-hidden bg-[#f1f5f9]">
         <header class="bg-white border-b border-gray-200/80 h-14 flex items-center justify-between px-4 md:px-8 shrink-0">
             <div class="flex items-center gap-3">
-                <button id="hamburgerBtn" onclick="toggleSidebar()" class="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-500 hidden" title="Menu">
-                    <i data-lucide="menu" class="w-5 h-5"></i>
-                </button>
+                <sl-icon-button id="hamburgerBtn" name="list" onclick="toggleSidebar()" label="Menu" class="hidden" style="font-size:1.25rem; color:#6b7280;"></sl-icon-button>
                 <h2 class="text-base font-semibold text-gray-900" id="currentSectionTitle">Gestion de Pedidos</h2>
             </div>
             <div class="flex items-center gap-1.5 md:gap-3">
-                <button onclick="abrirBusquedaGlobal()" class="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-400" title="Buscar (Ctrl+K)">
-                    <i data-lucide="search" class="w-4 h-4"></i>
-                </button>
+                <sl-icon-button name="search" label="Buscar (Ctrl+K)" onclick="abrirBusquedaGlobal()" style="font-size:1rem;"></sl-icon-button>
                 <div id="status-badge" class="text-[10px] uppercase tracking-wider font-semibold flex items-center text-gray-400 mr-1">
                     <span class="w-2 h-2 bg-green-500 rounded-full mr-1.5"></span> <span class="hidden md:inline">En linea</span>
                 </div>
-                <button onclick="forzarActualizacionAdmin()" class="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-400" title="Forzar actualizacion">
-                    <i data-lucide="refresh-cw" class="w-4 h-4"></i>
-                </button>
+                <sl-icon-button name="arrow-clockwise" label="Forzar actualizacion" onclick="forzarActualizacionAdmin()" style="font-size:1rem;"></sl-icon-button>
                 <div class="h-6 w-px bg-gray-200 mx-1"></div>
                 <div class="flex items-center gap-2">
                     <svg width="24" height="24" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
@@ -426,9 +422,10 @@
         </header>
 
         <!-- Banner Offline Admin -->
-        <div id="offline-banner" class="hidden bg-amber-500 text-white text-center text-xs font-bold py-1.5 px-4 flex items-center justify-center gap-2">
-            <i data-lucide="wifi-off" class="w-3.5 h-3.5"></i> Sin conexion — Los cambios se sincronizaran al reconectar
-        </div>
+        <sl-alert id="offline-banner" variant="warning" class="hidden" style="--sl-panel-border-radius:0;">
+            <sl-icon name="exclamation-triangle" slot="icon"></sl-icon>
+            Sin conexion — Los cambios se sincronizaran al reconectar
+        </sl-alert>
 
         <div class="flex-1 overflow-y-auto p-6 md:p-8">
 
@@ -487,9 +484,9 @@
                     <div class="saas-card p-6">
                         <h3 class="font-bold text-gray-800 mb-4">Resumen Mensual</h3>
                         <div class="flex flex-wrap gap-3 mb-4">
-                            <select id="dashMesSelect" onchange="cargarResumenMensual()" class="border border-gray-300 rounded-lg px-3 py-2 text-sm"></select>
-                            <button onclick="exportarResumenMensualPDF()" class="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-bold inline-flex items-center gap-1.5"><i data-lucide="file-text" class="w-4 h-4"></i> Exportar PDF</button>
-                            <button id="btnGuardarResumen" onclick="guardarResumenMensual()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold inline-flex items-center gap-1.5"><i data-lucide="cloud-upload" class="w-4 h-4"></i> Guardar en Nube</button>
+                            <sl-select id="dashMesSelect" size="small" hoist></sl-select>
+                            <sl-button onclick="exportarResumenMensualPDF()" variant="danger" size="small"><i data-lucide="file-text" class="w-4 h-4"></i> Exportar PDF</sl-button>
+                            <sl-button id="btnGuardarResumen" onclick="guardarResumenMensual()" variant="primary" size="small"><i data-lucide="cloud-upload" class="w-4 h-4"></i> Guardar en Nube</sl-button>
                         </div>
                         <div id="resumenMensualContenido" class="text-sm text-gray-600">Selecciona un mes</div>
                         <div id="resumenGananciaContenido" class="mt-3"></div>
@@ -520,34 +517,34 @@
                 <div class="saas-card p-4 flex flex-wrap gap-4 items-end">
                     <div class="flex-1 min-w-[150px]">
                         <label class="block text-xs font-bold text-gray-500 mb-1">FECHA</label>
-                        <input type="date" id="filtroFecha" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none">
+                        <sl-input type="date" id="filtroFecha" class="w-full" size="small"></sl-input>
                     </div>
                     <div class="flex-1 min-w-[150px]">
                         <label class="block text-xs font-bold text-gray-500 mb-1">CLIENTE</label>
-                        <select id="filtroCliente" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none">
-                            <option value="">Todos</option>
-                        </select>
+                        <sl-select id="filtroCliente" class="w-full" size="small" hoist>
+                            <sl-option value="">Todos</sl-option>
+                        </sl-select>
                     </div>
                     <div class="flex-1 min-w-[150px]">
                         <label class="block text-xs font-bold text-gray-500 mb-1">VENDEDOR</label>
-                        <select id="filtroVendedor" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none">
-                            <option value="">Todos</option>
-                        </select>
+                        <sl-select id="filtroVendedor" class="w-full" size="small" hoist>
+                            <sl-option value="">Todos</sl-option>
+                        </sl-select>
                     </div>
                     <div class="flex-1 min-w-[130px]">
                         <label class="block text-xs font-bold text-gray-500 mb-1">ESTADO</label>
-                        <select id="filtroEstado" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none">
-                            <option value="">Todos</option>
-                            <option value="pedido_pendiente" selected>Pendiente</option>
-                            <option value="entregado">Entregado</option>
-                            <option value="cobrado_sin_factura">Cobrado</option>
-                            <option value="facturado_mock">Facturado</option>
-                            <option value="nota_credito_mock">Nota Credito</option>
-                            <option value="anulado">Anulado</option>
-                        </select>
+                        <sl-select id="filtroEstado" class="w-full" size="small" hoist value="pedido_pendiente">
+                            <sl-option value="">Todos</sl-option>
+                            <sl-option value="pedido_pendiente">Pendiente</sl-option>
+                            <sl-option value="entregado">Entregado</sl-option>
+                            <sl-option value="cobrado_sin_factura">Cobrado</sl-option>
+                            <sl-option value="facturado_mock">Facturado</sl-option>
+                            <sl-option value="nota_credito_mock">Nota Credito</sl-option>
+                            <sl-option value="anulado">Anulado</sl-option>
+                        </sl-select>
                     </div>
-                    <button onclick="filtrarPedidos()" class="bg-gray-800 text-white px-6 py-2 rounded-lg text-sm font-semibold hover:bg-gray-700">Aplicar</button>
-                    <button onclick="exportarExcelPedidos()" class="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-50">Excel</button>
+                    <sl-button onclick="filtrarPedidos()" variant="neutral" size="small">Aplicar</sl-button>
+                    <sl-button onclick="exportarExcelPedidos()" variant="default" size="small">Excel</sl-button>
                 </div>
 
                 <div class="saas-card overflow-hidden">
@@ -578,18 +575,18 @@
                 <div class="saas-card p-4 flex flex-wrap gap-4 items-end">
                     <div class="flex-1 min-w-[150px]">
                         <label class="block text-xs font-bold text-gray-500 mb-1">FECHA</label>
-                        <input type="date" id="filtroFechaVentas" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none">
+                        <sl-input type="date" id="filtroFechaVentas" class="w-full" size="small"></sl-input>
                     </div>
                     <div class="flex-1 min-w-[150px]">
                         <label class="block text-xs font-bold text-gray-500 mb-1">TIPO</label>
-                        <select id="filtroTipoVenta" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none">
-                            <option value="">Todos</option>
-                            <option value="cobrado_sin_factura">Recibos Internos</option>
-                            <option value="facturado_mock">Facturados SIFEN</option>
-                        </select>
+                        <sl-select id="filtroTipoVenta" class="w-full" size="small" hoist>
+                            <sl-option value="">Todos</sl-option>
+                            <sl-option value="cobrado_sin_factura">Recibos Internos</sl-option>
+                            <sl-option value="facturado_mock">Facturados SIFEN</sl-option>
+                        </sl-select>
                     </div>
-                    <button onclick="filtrarVentas()" class="bg-gray-800 text-white px-6 py-2 rounded-lg text-sm font-semibold hover:bg-gray-700">Aplicar</button>
-                    <button onclick="exportarVentasSemanalesCSV()" class="bg-emerald-600 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-emerald-700 inline-flex items-center gap-1.5"><i data-lucide="download" class="w-4 h-4"></i> Exportar Semana</button>
+                    <sl-button onclick="filtrarVentas()" variant="neutral" size="small">Aplicar</sl-button>
+                    <sl-button onclick="exportarVentasSemanalesCSV()" variant="success" size="small"><i data-lucide="download" class="w-4 h-4"></i> Exportar Semana</sl-button>
                 </div>
 
                 <div class="saas-card overflow-hidden">
@@ -607,11 +604,11 @@
                     <div class="flex flex-wrap gap-3 items-end">
                         <div class="flex-1 min-w-[250px]">
                             <label class="block text-xs font-bold text-gray-500 mb-1">N° COMPROBANTE, RUC O NOMBRE</label>
-                            <input type="text" id="devBuscarInput" placeholder="Ej: 001-001-0000123 o 80012345-6 o Juan..." class="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm outline-none">
+                            <sl-input type="text" id="devBuscarInput" placeholder="Ej: 001-001-0000123 o 80012345-6 o Juan..." class="w-full" size="small"></sl-input>
                         </div>
-                        <button onclick="buscarFacturaDevolucion()" class="bg-gray-800 text-white px-6 py-2.5 rounded-lg text-sm font-bold hover:bg-gray-700 inline-flex items-center gap-2">
+                        <sl-button onclick="buscarFacturaDevolucion()" variant="neutral" size="small">
                             <i data-lucide="search" class="w-4 h-4"></i> Buscar
-                        </button>
+                        </sl-button>
                     </div>
                     <!-- Resultados de busqueda -->
                     <div id="devResultados" class="mt-4 hidden">
@@ -664,12 +661,11 @@
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-xs font-bold text-gray-500 mb-1">MOTIVO SIFEN (obligatorio)</label>
-                                <select id="devMotivo" class="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm outline-none">
-                                    <option value="">-- Seleccione motivo --</option>
-                                    <option value="devolucion_ajuste">Devolucion y Ajuste de precios</option>
-                                    <option value="descuento">Descuento</option>
-                                    <option value="mercaderia_danada">Mercaderia Danada</option>
-                                </select>
+                                <sl-select id="devMotivo" class="w-full" size="small" hoist placeholder="-- Seleccione motivo --">
+                                    <sl-option value="devolucion_ajuste">Devolucion y Ajuste de precios</sl-option>
+                                    <sl-option value="descuento">Descuento</sl-option>
+                                    <sl-option value="mercaderia_danada">Mercaderia Danada</sl-option>
+                                </sl-select>
                             </div>
                             <div class="flex items-end justify-end">
                                 <div class="text-right">
@@ -680,13 +676,13 @@
                         </div>
 
                         <div class="flex gap-3 pt-2 flex-wrap">
-                            <button onclick="cancelarFactura48hs()" class="border-2 border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg text-sm font-bold hover:bg-gray-50 inline-flex items-center gap-2">
+                            <sl-button onclick="cancelarFactura48hs()" variant="default" size="small">
                                 <i data-lucide="x-circle" class="w-4 h-4"></i> Cancelar Factura (&lt;48hs)
-                            </button>
-                            <button onclick="procesarNotaCredito()" id="btnEmitirNC" class="bg-red-600 text-white px-6 py-2.5 rounded-lg text-sm font-bold hover:bg-red-700 shadow-lg inline-flex items-center gap-2">
+                            </sl-button>
+                            <sl-button onclick="procesarNotaCredito()" id="btnEmitirNC" variant="danger" size="small">
                                 <i data-lucide="file-minus" class="w-4 h-4"></i> Emitir Nota de Credito (NC)
-                            </button>
-                            <button onclick="limpiarDevolucion()" class="text-gray-400 px-4 py-2.5 rounded-lg text-sm font-medium hover:text-gray-600 hover:bg-gray-50">Cancelar</button>
+                            </sl-button>
+                            <sl-button onclick="limpiarDevolucion()" variant="text" size="small">Cancelar</sl-button>
                         </div>
                     </div>
                 </div>
@@ -725,11 +721,11 @@
                 </div>
 
                 <div class="saas-card p-4 flex flex-wrap gap-3">
-                    <button onclick="agregarCreditoManual()" class="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-bold">+ Credito Manual</button>
-                    <button onclick="editarMensajeRecordatorio()" class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold">Editar Mensaje WhatsApp</button>
-                    <button onclick="toggleVistaCreditos('resumen')" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold">Resumen por Cliente</button>
-                    <button onclick="toggleVistaCreditos('graficos')" class="bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-bold">Graficos</button>
-                    <button onclick="toggleVistaCreditos('lista')" class="bg-gray-500 text-white px-4 py-2 rounded-lg text-sm font-bold">Ver Lista</button>
+                    <sl-button onclick="agregarCreditoManual()" variant="neutral" size="small">+ Credito Manual</sl-button>
+                    <sl-button onclick="editarMensajeRecordatorio()" variant="success" size="small">Editar Mensaje WhatsApp</sl-button>
+                    <sl-button onclick="toggleVistaCreditos('resumen')" variant="primary" size="small">Resumen por Cliente</sl-button>
+                    <sl-button onclick="toggleVistaCreditos('graficos')" variant="neutral" size="small" style="--sl-color-neutral-600:#9333ea;--sl-color-neutral-700:#7e22ce;">Graficos</sl-button>
+                    <sl-button onclick="toggleVistaCreditos('lista')" variant="neutral" size="small">Ver Lista</sl-button>
                 </div>
 
                 <!-- Lista de creditos -->
@@ -767,14 +763,14 @@
                     <div class="flex flex-wrap gap-4 items-end">
                         <div class="flex-1 min-w-[150px]">
                             <label class="block text-xs font-bold text-gray-500 mb-1">DESDE</label>
-                            <input type="date" id="reporteFechaDesde" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none">
+                            <sl-input type="date" id="reporteFechaDesde" class="w-full" size="small"></sl-input>
                         </div>
                         <div class="flex-1 min-w-[150px]">
                             <label class="block text-xs font-bold text-gray-500 mb-1">HASTA</label>
-                            <input type="date" id="reporteFechaHasta" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none">
+                            <sl-input type="date" id="reporteFechaHasta" class="w-full" size="small"></sl-input>
                         </div>
-                        <button onclick="generarReporte('cliente')" class="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-bold">Por Cliente</button>
-                        <button onclick="generarReporte('producto')" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold">Por Producto</button>
+                        <sl-button onclick="generarReporte('cliente')" variant="neutral" size="small">Por Cliente</sl-button>
+                        <sl-button onclick="generarReporte('producto')" variant="primary" size="small">Por Producto</sl-button>
                     </div>
                 </div>
                 <div class="saas-card overflow-hidden">
@@ -789,23 +785,23 @@
                 <!-- Toolbar -->
                 <div class="saas-card p-4 flex flex-wrap gap-3 items-center justify-between">
                     <div class="flex items-center gap-2 text-sm text-gray-500">
-                        <button onclick="stockNavegar('inicio')" id="stock-breadcrumb-inicio" class="hover:text-gray-800 font-bold">Stock</button>
+                        <sl-button onclick="stockNavegar('inicio')" id="stock-breadcrumb-inicio" variant="text" size="small" style="font-weight:700; --sl-color-primary-600:#1f2937; --sl-color-primary-700:#111827;">Stock</sl-button>
                         <span id="stock-breadcrumb-sep1" class="hidden">/</span>
-                        <button onclick="stockNavegar('categoria')" id="stock-breadcrumb-cat" class="hidden hover:text-gray-800 font-bold text-gray-700"></button>
+                        <sl-button onclick="stockNavegar('categoria')" id="stock-breadcrumb-cat" variant="text" size="small" class="hidden" style="font-weight:700; color:#374151; --sl-color-primary-600:#1f2937; --sl-color-primary-700:#111827;"></sl-button>
                         <span id="stock-breadcrumb-sep2" class="hidden">/</span>
                         <span id="stock-breadcrumb-sub" class="hidden font-bold text-gray-900"></span>
                     </div>
                     <div class="flex gap-2 flex-wrap items-center">
-                        <input type="text" id="buscarStock" placeholder="Buscar producto..." oninput="filtrarStockDebounced()" class="border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none w-48">
-                        <select id="filtroStock" onchange="aplicarFiltroStock()" class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                            <option value="">Sin filtro</option>
-                            <option value="mas-vendidos">Más vendidos</option>
-                            <option value="menos-vendidos">Menos vendidos</option>
-                            <option value="az">A-Z</option>
-                            <option value="disponibles">Disponibles</option>
-                            <option value="no-disponibles">No disponibles</option>
-                        </select>
-                        <button onclick="guardarStock()" class="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-bold inline-flex items-center gap-1.5"><i data-lucide="save" class="w-4 h-4"></i> Guardar Stock</button>
+                        <sl-input type="text" id="buscarStock" placeholder="Buscar producto..." oninput="filtrarStockDebounced()" size="small" style="width:12rem"></sl-input>
+                        <sl-select id="filtroStock" size="small" hoist placeholder="Sin filtro">
+                            <sl-option value="">Sin filtro</sl-option>
+                            <sl-option value="mas-vendidos">Más vendidos</sl-option>
+                            <sl-option value="menos-vendidos">Menos vendidos</sl-option>
+                            <sl-option value="az">A-Z</sl-option>
+                            <sl-option value="disponibles">Disponibles</sl-option>
+                            <sl-option value="no-disponibles">No disponibles</sl-option>
+                        </sl-select>
+                        <sl-button onclick="guardarStock()" variant="neutral" size="small"><i data-lucide="save" class="w-4 h-4"></i> Guardar Stock</sl-button>
                     </div>
                 </div>
                 <!-- Grid content -->
@@ -816,35 +812,33 @@
             <section id="seccion-productos" class="tab-content space-y-4">
                 <div class="saas-card p-4 flex flex-wrap gap-3 items-center justify-between">
                     <div class="flex items-center gap-2 text-sm text-gray-500">
-                        <button onclick="productosNavegar('inicio')" id="prod-breadcrumb-inicio" class="hover:text-gray-800 font-bold">Catalogo</button>
+                        <sl-button onclick="productosNavegar('inicio')" id="prod-breadcrumb-inicio" variant="text" size="small" style="font-weight:700; --sl-color-primary-600:#1f2937; --sl-color-primary-700:#111827;">Catalogo</sl-button>
                         <span id="prod-breadcrumb-sep1" class="hidden">/</span>
-                        <button onclick="productosNavegar('categoria')" id="prod-breadcrumb-cat" class="hidden hover:text-gray-800 font-bold text-gray-700"></button>
+                        <sl-button onclick="productosNavegar('categoria')" id="prod-breadcrumb-cat" variant="text" size="small" class="hidden" style="font-weight:700; color:#374151; --sl-color-primary-600:#1f2937; --sl-color-primary-700:#111827;"></sl-button>
                         <span id="prod-breadcrumb-sep2" class="hidden">/</span>
                         <span id="prod-breadcrumb-sub" class="hidden font-bold text-gray-900"></span>
                     </div>
                     <div class="flex gap-2 flex-wrap items-center">
-                        <input type="text" id="buscarProducto" oninput="filtrarProductosDebounced()" placeholder="Buscar producto..." class="border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none w-48">
-                        <select id="filtroCategoria" onchange="filtrarProductos()" class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                            <option value="">Todas las categorias</option>
-                        </select>
-                        <select id="filtroEstadoProducto" onchange="filtrarProductos()" class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                            <option value="">Todos los estados</option>
-                            <option value="disponible">Disponible</option>
-                            <option value="agotado">Agotado</option>
-                            <option value="discontinuado">Discontinuado</option>
-                        </select>
-                        <select id="filtroOrdenProductos" onchange="filtrarProductos()" class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                            <option value="">Sin orden</option>
-                            <option value="az">A-Z</option>
-                            <option value="za">Z-A</option>
-                            <option value="mas-vendidos">Más vendidos</option>
-                            <option value="menos-vendidos">Menos vendidos</option>
-                        </select>
-                        <label class="flex items-center gap-2 text-sm text-gray-600">
-                            <input type="checkbox" id="mostrarOcultosProductos" onchange="filtrarProductos()"> Ocultos
-                        </label>
-                        <button onclick="abrirModalCategorias()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold">Categorias</button>
-                        <button onclick="abrirModalProducto()" class="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-bold">+ Nuevo</button>
+                        <sl-input type="text" id="buscarProducto" oninput="filtrarProductosDebounced()" placeholder="Buscar producto..." size="small" style="width:12rem"></sl-input>
+                        <sl-select id="filtroCategoria" size="small" hoist placeholder="Todas las categorias">
+                            <sl-option value="">Todas las categorias</sl-option>
+                        </sl-select>
+                        <sl-select id="filtroEstadoProducto" size="small" hoist placeholder="Todos los estados">
+                            <sl-option value="">Todos los estados</sl-option>
+                            <sl-option value="disponible">Disponible</sl-option>
+                            <sl-option value="agotado">Agotado</sl-option>
+                            <sl-option value="discontinuado">Discontinuado</sl-option>
+                        </sl-select>
+                        <sl-select id="filtroOrdenProductos" size="small" hoist placeholder="Sin orden">
+                            <sl-option value="">Sin orden</sl-option>
+                            <sl-option value="az">A-Z</sl-option>
+                            <sl-option value="za">Z-A</sl-option>
+                            <sl-option value="mas-vendidos">Más vendidos</sl-option>
+                            <sl-option value="menos-vendidos">Menos vendidos</sl-option>
+                        </sl-select>
+                        <sl-switch id="mostrarOcultosProductos">Ocultos</sl-switch>
+                        <sl-button onclick="abrirModalCategorias()" variant="primary" size="small">Categorias</sl-button>
+                        <sl-button onclick="abrirModalProducto()" variant="neutral" size="small">+ Nuevo</sl-button>
                     </div>
                 </div>
                 <div id="productosGridContainer"></div>
@@ -856,14 +850,12 @@
                 <div class="flex justify-between items-center flex-wrap gap-4">
                     <h3 class="text-xl font-bold text-gray-800">Directorio de Clientes</h3>
                     <div class="flex gap-2 flex-wrap">
-                        <input type="text" id="buscarCliente" oninput="filtrarClientesDebounced()" placeholder="Buscar cliente..." class="border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none w-48">
-                        <select id="filtroZonaCliente" onchange="filtrarClientes()" class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                            <option value="">Todas las zonas</option>
-                        </select>
-                        <label class="flex items-center gap-2 text-sm text-gray-600">
-                            <input type="checkbox" id="mostrarOcultosClientes" onchange="filtrarClientes()"> Ocultos
-                        </label>
-                        <button onclick="abrirModalCliente()" class="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-bold">+ Nuevo Cliente</button>
+                        <sl-input type="text" id="buscarCliente" oninput="filtrarClientesDebounced()" placeholder="Buscar cliente..." size="small" style="width:12rem"></sl-input>
+                        <sl-select id="filtroZonaCliente" size="small" hoist placeholder="Todas las zonas">
+                            <sl-option value="">Todas las zonas</sl-option>
+                        </sl-select>
+                        <sl-switch id="mostrarOcultosClientes">Ocultos</sl-switch>
+                        <sl-button onclick="abrirModalCliente()" variant="neutral" size="small">+ Nuevo Cliente</sl-button>
                     </div>
                 </div>
                 <div class="saas-card overflow-x-auto">
@@ -886,7 +878,7 @@
             <section id="seccion-promociones" class="tab-content space-y-6">
                 <div class="flex justify-between items-center flex-wrap gap-4">
                     <h3 class="text-xl font-bold text-gray-800">Motor de Promociones</h3>
-                    <button onclick="abrirModalPromocion()" class="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-bold">+ Nueva Promocion</button>
+                    <sl-button onclick="abrirModalPromocion()" variant="neutral" size="small">+ Nueva Promocion</sl-button>
                 </div>
                 <div class="saas-card overflow-hidden">
                     <div id="promocionesContainer" class="divide-y divide-gray-100">
@@ -905,75 +897,69 @@
                         <input type="hidden" id="formPromoId">
                         <div>
                             <label class="block text-xs font-bold text-gray-500 mb-1">NOMBRE</label>
-                            <input type="text" id="formPromoNombre" class="w-full border border-gray-300 rounded-lg px-4 py-2" placeholder="Ej: Jabon x12 precio especial">
+                            <sl-input type="text" id="formPromoNombre" class="w-full" size="small" placeholder="Ej: Jabon x12 precio especial"></sl-input>
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-gray-500 mb-1">TIPO</label>
-                            <select id="formPromoTipo" class="w-full border border-gray-300 rounded-lg px-4 py-2" onchange="toggleCamposPromo()">
-                                <option value="descuento_cantidad">Descuento por Cantidad</option>
-                                <option value="precio_mayorista">Precio Mayorista</option>
-                                <option value="combo">Combo (producto gratis)</option>
-                            </select>
+                            <sl-select id="formPromoTipo" class="w-full" size="small" hoist value="descuento_cantidad">
+                                <sl-option value="descuento_cantidad">Descuento por Cantidad</sl-option>
+                                <sl-option value="precio_mayorista">Precio Mayorista</sl-option>
+                                <sl-option value="combo">Combo (producto gratis)</sl-option>
+                            </sl-select>
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-gray-500 mb-1">DESCRIPCION</label>
-                            <input type="text" id="formPromoDescripcion" class="w-full border border-gray-300 rounded-lg px-4 py-2" placeholder="Ej: Lleva 12 y el precio baja">
+                            <sl-input type="text" id="formPromoDescripcion" class="w-full" size="small" placeholder="Ej: Lleva 12 y el precio baja"></sl-input>
                         </div>
                         <div class="grid grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-xs font-bold text-gray-500 mb-1">PRODUCTO</label>
-                                <select id="formPromoProducto" class="w-full border border-gray-300 rounded-lg px-4 py-2" onchange="actualizarPresentacionesPromo()"></select>
+                                <sl-select id="formPromoProducto" class="w-full" size="small" hoist></sl-select>
                             </div>
                             <div>
                                 <label class="block text-xs font-bold text-gray-500 mb-1">PRESENTACION</label>
-                                <select id="formPromoPresentacion" class="w-full border border-gray-300 rounded-lg px-4 py-2">
-                                    <option value="todas">Todas</option>
-                                </select>
+                                <sl-select id="formPromoPresentacion" class="w-full" size="small" hoist value="todas">
+                                    <sl-option value="todas">Todas</sl-option>
+                                </sl-select>
                             </div>
                         </div>
                         <div class="grid grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-xs font-bold text-gray-500 mb-1">CANTIDAD MINIMA</label>
-                                <input type="number" id="formPromoCantidad" class="w-full border border-gray-300 rounded-lg px-4 py-2" min="1" value="12">
+                                <sl-input type="number" id="formPromoCantidad" class="w-full" size="small" min="1" value="12"></sl-input>
                             </div>
                             <div id="campoPrecioEspecial">
                                 <label class="block text-xs font-bold text-gray-500 mb-1">PRECIO ESPECIAL (Gs.)</label>
-                                <input type="number" id="formPromoPrecio" class="w-full border border-gray-300 rounded-lg px-4 py-2" placeholder="8500">
+                                <sl-input type="number" id="formPromoPrecio" class="w-full" size="small" placeholder="8500"></sl-input>
                             </div>
                         </div>
                         <div id="camposCombo" style="display:none;">
                             <div class="grid grid-cols-2 gap-4">
                                 <div>
                                     <label class="block text-xs font-bold text-gray-500 mb-1">PRODUCTO GRATIS</label>
-                                    <select id="formPromoProductoGratis" class="w-full border border-gray-300 rounded-lg px-4 py-2"></select>
+                                    <sl-select id="formPromoProductoGratis" class="w-full" size="small" hoist></sl-select>
                                 </div>
                                 <div>
                                     <label class="block text-xs font-bold text-gray-500 mb-1">CANT. GRATIS</label>
-                                    <input type="number" id="formPromoCantidadGratis" class="w-full border border-gray-300 rounded-lg px-4 py-2" min="1" value="1">
+                                    <sl-input type="number" id="formPromoCantidadGratis" class="w-full" size="small" min="1" value="1"></sl-input>
                                 </div>
                             </div>
                         </div>
                         <div class="grid grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-xs font-bold text-gray-500 mb-1">FECHA INICIO</label>
-                                <input type="date" id="formPromoFechaInicio" class="w-full border border-gray-300 rounded-lg px-4 py-2">
+                                <sl-input type="date" id="formPromoFechaInicio" class="w-full" size="small"></sl-input>
                             </div>
                             <div>
                                 <label class="block text-xs font-bold text-gray-500 mb-1">FECHA FIN</label>
-                                <input type="date" id="formPromoFechaFin" class="w-full border border-gray-300 rounded-lg px-4 py-2">
+                                <sl-input type="date" id="formPromoFechaFin" class="w-full" size="small"></sl-input>
                             </div>
                         </div>
-                        <div class="flex items-center gap-3">
-                            <label class="relative inline-flex items-center cursor-pointer">
-                                <input type="checkbox" id="formPromoActiva" class="sr-only peer" checked>
-                                <div class="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
-                            </label>
-                            <span class="text-sm font-bold text-gray-700">Promocion Activa</span>
-                        </div>
+                        <sl-switch id="formPromoActiva" checked>Promocion Activa</sl-switch>
                     </div>
                     <div class="p-6 bg-gray-50 flex justify-end gap-3">
-                        <button onclick="cerrarModalPromocion()" class="px-4 py-2 text-gray-500 font-bold">Cancelar</button>
-                        <button id="btnGuardarPromo" onclick="guardarPromocion()" class="bg-gray-800 text-white px-6 py-2 rounded-lg font-bold">Guardar</button>
+                        <sl-button onclick="cerrarModalPromocion()" variant="text" size="small">Cancelar</sl-button>
+                        <sl-button id="btnGuardarPromo" onclick="guardarPromocion()" variant="neutral" size="small">Guardar</sl-button>
                     </div>
                 </div>
             </div>
@@ -984,7 +970,7 @@
                 <div class="flex justify-between items-center flex-wrap gap-4">
                     <h3 class="text-xl font-bold text-gray-800">Rendiciones de Caja</h3>
                     <div class="flex gap-2">
-                        <button onclick="abrirModalCuentaBancaria()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold inline-flex items-center gap-1.5"><i data-lucide="landmark" class="w-4 h-4"></i> Cuentas Bancarias</button>
+                        <sl-button onclick="abrirModalCuentaBancaria()" variant="primary" size="small"><i data-lucide="landmark" class="w-4 h-4"></i> Cuentas Bancarias</sl-button>
                     </div>
                 </div>
                 <!-- Resumen de caja actual -->
@@ -1009,8 +995,8 @@
                 <!-- Filtro de semana -->
                 <div class="saas-card p-4 flex items-center gap-4 flex-wrap">
                     <label class="text-sm font-bold text-gray-600">Semana:</label>
-                    <input type="week" id="rendSemana" class="border border-gray-300 rounded-lg px-3 py-2 text-sm" onchange="cargarRendiciones()">
-                    <button onclick="cargarRendiciones()" class="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-bold">Calcular</button>
+                    <sl-input type="week" id="rendSemana" size="small"></sl-input>
+                    <sl-button onclick="cargarRendiciones()" variant="neutral" size="small">Calcular</sl-button>
                 </div>
                 <!-- Detalle gastos -->
                 <div class="saas-card overflow-hidden">
@@ -1030,7 +1016,7 @@
                 <div class="saas-card overflow-hidden">
                     <div class="p-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
                         <span class="font-bold text-sm text-gray-600">Cuentas Bancarias de la Empresa</span>
-                        <button onclick="abrirModalCuentaBancaria()" class="text-blue-600 text-sm font-bold">+ Agregar</button>
+                        <sl-button onclick="abrirModalCuentaBancaria()" variant="text" size="small">+ Agregar</sl-button>
                     </div>
                     <div id="cuentasBancariasAdmin" class="divide-y divide-gray-100">
                         <p class="p-6 text-center text-gray-400 italic">Sin cuentas configuradas</p>
@@ -1048,44 +1034,44 @@
                         <input type="hidden" id="formCuentaId">
                         <div>
                             <label class="block text-xs font-bold text-gray-500 mb-1">BANCO</label>
-                            <input type="text" id="formCuentaBanco" class="w-full border border-gray-300 rounded-lg px-4 py-2" placeholder="Ej: Banco Continental">
+                            <sl-input type="text" id="formCuentaBanco" class="w-full" size="small" placeholder="Ej: Banco Continental"></sl-input>
                         </div>
                         <div class="grid grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-xs font-bold text-gray-500 mb-1">TIPO DE CUENTA</label>
-                                <select id="formCuentaTipo" class="w-full border border-gray-300 rounded-lg px-4 py-2">
-                                    <option value="ahorro">Caja de Ahorro</option>
-                                    <option value="corriente">Cuenta Corriente</option>
-                                </select>
+                                <sl-select id="formCuentaTipo" class="w-full" size="small" hoist value="ahorro">
+                                    <sl-option value="ahorro">Caja de Ahorro</sl-option>
+                                    <sl-option value="corriente">Cuenta Corriente</sl-option>
+                                </sl-select>
                             </div>
                             <div>
                                 <label class="block text-xs font-bold text-gray-500 mb-1">MONEDA</label>
-                                <select id="formCuentaMoneda" class="w-full border border-gray-300 rounded-lg px-4 py-2">
-                                    <option value="PYG">Guaranies (Gs.)</option>
-                                    <option value="USD">Dolares (USD)</option>
-                                </select>
+                                <sl-select id="formCuentaMoneda" class="w-full" size="small" hoist value="PYG">
+                                    <sl-option value="PYG">Guaranies (Gs.)</sl-option>
+                                    <sl-option value="USD">Dolares (USD)</sl-option>
+                                </sl-select>
                             </div>
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-gray-500 mb-1">NUMERO DE CUENTA</label>
-                            <input type="text" id="formCuentaNumero" class="w-full border border-gray-300 rounded-lg px-4 py-2" placeholder="Ej: 1234567890">
+                            <sl-input type="text" id="formCuentaNumero" class="w-full" size="small" placeholder="Ej: 1234567890"></sl-input>
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-gray-500 mb-1">ALIAS (opcional)</label>
-                            <input type="text" id="formCuentaAlias" class="w-full border border-gray-300 rounded-lg px-4 py-2" placeholder="Ej: Cuenta principal HDV">
+                            <sl-input type="text" id="formCuentaAlias" class="w-full" size="small" placeholder="Ej: Cuenta principal HDV"></sl-input>
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-gray-500 mb-1">TITULAR</label>
-                            <input type="text" id="formCuentaTitular" class="w-full border border-gray-300 rounded-lg px-4 py-2" placeholder="Ej: HDV Distribuciones EAS">
+                            <sl-input type="text" id="formCuentaTitular" class="w-full" size="small" placeholder="Ej: HDV Distribuciones EAS"></sl-input>
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-gray-500 mb-1">RUC</label>
-                            <input type="text" id="formCuentaRUC" class="w-full border border-gray-300 rounded-lg px-4 py-2" placeholder="Ej: 80012345-6">
+                            <sl-input type="text" id="formCuentaRUC" class="w-full" size="small" placeholder="Ej: 80012345-6"></sl-input>
                         </div>
                     </div>
                     <div class="p-6 bg-gray-50 flex justify-end gap-3">
-                        <button onclick="cerrarModalCuentaBancaria()" class="px-4 py-2 text-gray-500 font-bold">Cancelar</button>
-                        <button onclick="guardarCuentaBancaria()" class="bg-gray-800 text-white px-6 py-2 rounded-lg font-bold">Guardar</button>
+                        <sl-button onclick="cerrarModalCuentaBancaria()" variant="text" size="small">Cancelar</sl-button>
+                        <sl-button onclick="guardarCuentaBancaria()" variant="neutral" size="small">Guardar</sl-button>
                     </div>
                 </div>
             </div>
@@ -1094,7 +1080,7 @@
             <section id="seccion-metas" class="tab-content space-y-6">
                 <div class="flex justify-between items-center flex-wrap gap-4">
                     <h3 class="text-xl font-bold text-gray-800">Metas y Comisiones</h3>
-                    <button onclick="abrirModalMeta()" class="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-bold">+ Nueva Meta</button>
+                    <sl-button onclick="abrirModalMeta()" variant="neutral" size="small">+ Nueva Meta</sl-button>
                 </div>
                 <!-- Resumen metas activas -->
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1141,33 +1127,33 @@
                         <input type="hidden" id="formMetaId">
                         <div>
                             <label class="block text-xs font-bold text-gray-500 mb-1">VENDEDOR</label>
-                            <input type="text" id="formMetaVendedor" class="w-full border border-gray-300 rounded-lg px-4 py-2" placeholder="Ej: Juan Perez" value="Vendedor Principal">
+                            <sl-input type="text" id="formMetaVendedor" class="w-full" size="small" placeholder="Ej: Juan Perez" value="Vendedor Principal"></sl-input>
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-gray-500 mb-1">META MENSUAL (Gs.)</label>
-                            <input type="number" id="formMetaMonto" class="w-full border border-gray-300 rounded-lg px-4 py-2" placeholder="20000000">
+                            <sl-input type="number" id="formMetaMonto" class="w-full" size="small" placeholder="20000000"></sl-input>
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-gray-500 mb-1">COMISION (%)</label>
-                            <input type="number" id="formMetaComision" class="w-full border border-gray-300 rounded-lg px-4 py-2" placeholder="5" min="0" max="100" step="0.5">
+                            <sl-input type="number" id="formMetaComision" class="w-full" size="small" placeholder="5" min="0" max="100" step="0.5"></sl-input>
                         </div>
                         <div class="grid grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-xs font-bold text-gray-500 mb-1">MES</label>
-                                <input type="month" id="formMetaMes" class="w-full border border-gray-300 rounded-lg px-4 py-2">
+                                <sl-input type="month" id="formMetaMes" class="w-full" size="small"></sl-input>
                             </div>
                             <div>
                                 <label class="block text-xs font-bold text-gray-500 mb-1">ESTADO</label>
-                                <select id="formMetaActiva" class="w-full border border-gray-300 rounded-lg px-4 py-2">
-                                    <option value="true">Activa</option>
-                                    <option value="false">Inactiva</option>
-                                </select>
+                                <sl-select id="formMetaActiva" class="w-full" size="small" hoist value="true">
+                                    <sl-option value="true">Activa</sl-option>
+                                    <sl-option value="false">Inactiva</sl-option>
+                                </sl-select>
                             </div>
                         </div>
                     </div>
                     <div class="p-6 bg-gray-50 flex justify-end gap-3">
-                        <button onclick="cerrarModalMeta()" class="px-4 py-2 text-gray-500 font-bold">Cancelar</button>
-                        <button id="btnGuardarMeta" onclick="guardarMeta()" class="bg-gray-800 text-white px-6 py-2 rounded-lg font-bold">Guardar</button>
+                        <sl-button onclick="cerrarModalMeta()" variant="text" size="small">Cancelar</sl-button>
+                        <sl-button id="btnGuardarMeta" onclick="guardarMeta()" variant="neutral" size="small">Guardar</sl-button>
                     </div>
                 </div>
             </div>
@@ -1177,12 +1163,12 @@
                 <div class="flex justify-between items-center flex-wrap gap-4">
                     <h3 class="text-xl font-bold text-gray-800">Clientes en Riesgo</h3>
                     <div class="flex gap-2">
-                        <select id="filtroInactivos" class="border border-gray-300 rounded-lg px-3 py-2 text-sm" onchange="cargarClientesInactivos()">
-                            <option value="todos">Todos</option>
-                            <option value="atencion">Atencion (15-30 dias)</option>
-                            <option value="riesgo">En Riesgo (30-60 dias)</option>
-                            <option value="perdido">Perdidos (60+ dias)</option>
-                        </select>
+                        <sl-select id="filtroInactivos" size="small" hoist value="todos">
+                            <sl-option value="todos">Todos</sl-option>
+                            <sl-option value="atencion">Atencion (15-30 dias)</sl-option>
+                            <sl-option value="riesgo">En Riesgo (30-60 dias)</sl-option>
+                            <sl-option value="perdido">Perdidos (60+ dias)</sl-option>
+                        </sl-select>
                     </div>
                 </div>
                 <!-- Stats -->
@@ -1225,22 +1211,22 @@
                         <div class="flex flex-wrap gap-4 items-end">
                             <div>
                                 <label class="block text-xs font-bold text-gray-500 mb-1">MES</label>
-                                <select id="cierreMes" class="border border-gray-300 rounded-lg px-4 py-2.5 text-sm outline-none font-medium">
-                                    <option value="1">Enero</option><option value="2">Febrero</option>
-                                    <option value="3">Marzo</option><option value="4">Abril</option>
-                                    <option value="5">Mayo</option><option value="6">Junio</option>
-                                    <option value="7">Julio</option><option value="8">Agosto</option>
-                                    <option value="9">Septiembre</option><option value="10">Octubre</option>
-                                    <option value="11">Noviembre</option><option value="12">Diciembre</option>
-                                </select>
+                                <sl-select id="cierreMes" size="small" hoist>
+                                    <sl-option value="1">Enero</sl-option><sl-option value="2">Febrero</sl-option>
+                                    <sl-option value="3">Marzo</sl-option><sl-option value="4">Abril</sl-option>
+                                    <sl-option value="5">Mayo</sl-option><sl-option value="6">Junio</sl-option>
+                                    <sl-option value="7">Julio</sl-option><sl-option value="8">Agosto</sl-option>
+                                    <sl-option value="9">Septiembre</sl-option><sl-option value="10">Octubre</sl-option>
+                                    <sl-option value="11">Noviembre</sl-option><sl-option value="12">Diciembre</sl-option>
+                                </sl-select>
                             </div>
                             <div>
                                 <label class="block text-xs font-bold text-gray-500 mb-1">AÑO</label>
-                                <select id="cierreAnio" class="border border-gray-300 rounded-lg px-4 py-2.5 text-sm outline-none font-medium"></select>
+                                <sl-select id="cierreAnio" size="small" hoist></sl-select>
                             </div>
-                            <button onclick="previsualizarCierre()" class="bg-gray-800 text-white px-6 py-2.5 rounded-lg text-sm font-bold hover:bg-gray-700 inline-flex items-center gap-2">
+                            <sl-button onclick="previsualizarCierre()" variant="neutral" size="small">
                                 <i data-lucide="eye" class="w-4 h-4"></i> Previsualizar
-                            </button>
+                            </sl-button>
                         </div>
                     </div>
 
@@ -1279,9 +1265,9 @@
                                     </div>
                                 </div>
                                 <p class="text-sm text-gray-500 mb-4">Exporta todas las facturas y notas de credito del periodo en formato CSV compatible con el sistema contable. Incluye desglose IVA 5%, 10% y exentas.</p>
-                                <button onclick="exportarLibroRG90()" id="btnRG90" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold text-sm hover:bg-blue-700 transition-colors shadow-sm inline-flex items-center justify-center gap-2">
+                                <sl-button onclick="exportarLibroRG90()" id="btnRG90" variant="primary" class="w-full">
                                     <i data-lucide="download" class="w-4 h-4"></i> Exportar Libro RG90 (CSV)
-                                </button>
+                                </sl-button>
                             </div>
 
                             <!-- Paquete ZIP -->
@@ -1296,9 +1282,9 @@
                                     </div>
                                 </div>
                                 <p class="text-sm text-gray-500 mb-4">Descarga un archivo ZIP con el KuDE (PDF) y el XML de cada factura y nota de credito emitida en el periodo. Listo para enviar a la contadora.</p>
-                                <button onclick="exportarPaqueteZIP()" id="btnZIP" class="w-full bg-purple-600 text-white py-3 rounded-xl font-bold text-sm hover:bg-purple-700 transition-colors shadow-sm inline-flex items-center justify-center gap-2">
+                                <sl-button onclick="exportarPaqueteZIP()" id="btnZIP" variant="neutral" class="w-full" style="--sl-color-neutral-600:#9333ea;--sl-color-neutral-700:#7e22ce;">
                                     <i data-lucide="file-archive" class="w-4 h-4"></i> Descargar Paquete Tributario (ZIP)
-                                </button>
+                                </sl-button>
                             </div>
                         </div>
 
@@ -1379,52 +1365,52 @@
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                             <div>
                                 <label class="block text-xs font-bold text-gray-500 mb-1">RUC EMPRESA</label>
-                                <input type="text" id="cfgEmpresaRuc" class="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm" placeholder="80000000-1">
+                                <sl-input type="text" id="cfgEmpresaRuc" class="w-full" size="small" placeholder="80000000-1"></sl-input>
                             </div>
                             <div>
                                 <label class="block text-xs font-bold text-gray-500 mb-1">RAZON SOCIAL</label>
-                                <input type="text" id="cfgEmpresaRazon" class="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm" placeholder="HDV Distribuciones S.A.">
+                                <sl-input type="text" id="cfgEmpresaRazon" class="w-full" size="small" placeholder="HDV Distribuciones S.A."></sl-input>
                             </div>
                             <div>
                                 <label class="block text-xs font-bold text-gray-500 mb-1">NOMBRE FANTASIA</label>
-                                <input type="text" id="cfgEmpresaNombreFantasia" class="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm" placeholder="HDV Distribuciones">
+                                <sl-input type="text" id="cfgEmpresaNombreFantasia" class="w-full" size="small" placeholder="HDV Distribuciones"></sl-input>
                             </div>
                             <div>
                                 <label class="block text-xs font-bold text-gray-500 mb-1">ACTIVIDAD ECONOMICA</label>
-                                <input type="text" id="cfgEmpresaActividad" class="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm" placeholder="Venta al por mayor">
+                                <sl-input type="text" id="cfgEmpresaActividad" class="w-full" size="small" placeholder="Venta al por mayor"></sl-input>
                             </div>
                             <div>
                                 <label class="block text-xs font-bold text-gray-500 mb-1">N° TIMBRADO</label>
-                                <input type="text" id="cfgEmpresaTimbrado" class="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm" placeholder="12345678">
+                                <sl-input type="text" id="cfgEmpresaTimbrado" class="w-full" size="small" placeholder="12345678"></sl-input>
                             </div>
                             <div>
                                 <label class="block text-xs font-bold text-gray-500 mb-1">VENCIMIENTO TIMBRADO</label>
-                                <input type="date" id="cfgEmpresaTimbradoVenc" class="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm">
+                                <sl-input type="date" id="cfgEmpresaTimbradoVenc" class="w-full" size="small"></sl-input>
                             </div>
                             <div>
                                 <label class="block text-xs font-bold text-gray-500 mb-1">ESTABLECIMIENTO</label>
-                                <input type="text" id="cfgEmpresaEstablecimiento" class="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm" placeholder="001" maxlength="3">
+                                <sl-input type="text" id="cfgEmpresaEstablecimiento" class="w-full" size="small" placeholder="001" maxlength="3"></sl-input>
                             </div>
                             <div>
                                 <label class="block text-xs font-bold text-gray-500 mb-1">PUNTO DE EXPEDICION</label>
-                                <input type="text" id="cfgEmpresaPuntoExp" class="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm" placeholder="001" maxlength="3">
+                                <sl-input type="text" id="cfgEmpresaPuntoExp" class="w-full" size="small" placeholder="001" maxlength="3"></sl-input>
                             </div>
                             <div>
                                 <label class="block text-xs font-bold text-gray-500 mb-1">DIRECCION FISCAL</label>
-                                <input type="text" id="cfgEmpresaDireccion" class="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm" placeholder="Av. Principal 123">
+                                <sl-input type="text" id="cfgEmpresaDireccion" class="w-full" size="small" placeholder="Av. Principal 123"></sl-input>
                             </div>
                             <div>
                                 <label class="block text-xs font-bold text-gray-500 mb-1">TELEFONO</label>
-                                <input type="text" id="cfgEmpresaTelefono" class="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm" placeholder="(021) 000-000">
+                                <sl-input type="text" id="cfgEmpresaTelefono" class="w-full" size="small" placeholder="(021) 000-000"></sl-input>
                             </div>
                             <div class="md:col-span-2">
                                 <label class="block text-xs font-bold text-gray-500 mb-1">EMAIL</label>
-                                <input type="email" id="cfgEmpresaEmail" class="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm" placeholder="facturacion@empresa.com.py">
+                                <sl-input type="email" id="cfgEmpresaEmail" class="w-full" size="small" placeholder="facturacion@empresa.com.py"></sl-input>
                             </div>
                         </div>
-                        <button id="btnGuardarConfigEmpresa" onclick="guardarConfigEmpresa()" class="bg-gray-800 text-white px-6 py-2.5 rounded-lg text-sm font-bold hover:bg-gray-900 inline-flex items-center gap-1.5">
+                        <sl-button id="btnGuardarConfigEmpresa" onclick="guardarConfigEmpresa()" variant="neutral" size="small">
                             <i data-lucide="save" class="w-4 h-4"></i> Guardar Datos Fiscales
-                        </button>
+                        </sl-button>
                     </div>
 
                     <!-- Estado de Backups -->
@@ -1450,10 +1436,10 @@
                         </div>
 
                         <div class="flex gap-3 flex-wrap mb-4">
-                            <button onclick="crearBackup()" class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-green-700 inline-flex items-center gap-1.5"><i data-lucide="download" class="w-4 h-4"></i> Descargar Backup Completo</button>
-                            <button onclick="crearBackupSoloProductos()" class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-emerald-700 inline-flex items-center gap-1.5"><i data-lucide="package" class="w-4 h-4"></i> Solo Catalogo</button>
-                            <button onclick="crearBackupSoloPedidos()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700 inline-flex items-center gap-1.5"><i data-lucide="file-text" class="w-4 h-4"></i> Solo Pedidos</button>
-                            <button onclick="document.getElementById('restaurarFile').click()" class="bg-yellow-500 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-yellow-600 inline-flex items-center gap-1.5"><i data-lucide="upload" class="w-4 h-4"></i> Restaurar Backup</button>
+                            <sl-button onclick="crearBackup()" variant="success" size="small"><i data-lucide="download" class="w-4 h-4"></i> Descargar Backup Completo</sl-button>
+                            <sl-button onclick="crearBackupSoloProductos()" variant="success" size="small"><i data-lucide="package" class="w-4 h-4"></i> Solo Catalogo</sl-button>
+                            <sl-button onclick="crearBackupSoloPedidos()" variant="primary" size="small"><i data-lucide="file-text" class="w-4 h-4"></i> Solo Pedidos</sl-button>
+                            <sl-button onclick="document.getElementById('restaurarFile').click()" variant="warning" size="small"><i data-lucide="upload" class="w-4 h-4"></i> Restaurar Backup</sl-button>
                             <input type="file" id="restaurarFile" accept=".json" style="display:none;" onchange="restaurarBackup(event)">
                         </div>
 
@@ -1463,10 +1449,7 @@
                                 <p class="font-bold text-gray-800 text-sm">Auto-backup al editar</p>
                                 <p class="text-xs text-gray-500">Crea backup antes de cambios importantes</p>
                             </div>
-                            <label class="relative inline-flex items-center cursor-pointer">
-                                <input type="checkbox" id="adminAutoBackupToggle" class="sr-only peer" onchange="toggleAdminAutoBackup()" checked>
-                                <div class="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
-                            </label>
+                            <sl-switch id="adminAutoBackupToggle" checked></sl-switch>
                         </div>
 
                         <!-- Historial de backups automaticos -->
@@ -1481,18 +1464,18 @@
                     <div class="saas-card p-6">
                         <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2"><i data-lucide="upload" class="w-5 h-5 text-gray-500"></i> Importar desde Excel/CSV</h3>
                         <div class="flex gap-3 flex-wrap">
-                            <button onclick="document.getElementById('importarFile').click()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold inline-flex items-center gap-1.5"><i data-lucide="upload" class="w-4 h-4"></i> Importar Productos</button>
+                            <sl-button onclick="document.getElementById('importarFile').click()" variant="primary" size="small"><i data-lucide="upload" class="w-4 h-4"></i> Importar Productos</sl-button>
                             <input type="file" id="importarFile" accept=".xlsx,.xls,.csv" style="display:none;" onchange="importarProductosExcel(event)">
-                            <button onclick="document.getElementById('importarClientesFile').click()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold inline-flex items-center gap-1.5"><i data-lucide="users" class="w-4 h-4"></i> Importar Clientes</button>
+                            <sl-button onclick="document.getElementById('importarClientesFile').click()" variant="primary" size="small"><i data-lucide="users" class="w-4 h-4"></i> Importar Clientes</sl-button>
                             <input type="file" id="importarClientesFile" accept=".xlsx,.xls,.csv" style="display:none;" onchange="importarClientesExcel(event)">
                         </div>
                         <div class="mt-4 pt-4 border-t border-gray-100">
                             <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Plantillas de Importacion</p>
                             <div class="flex gap-3 flex-wrap">
-                                <button onclick="descargarPlantillaProductosCSV()" class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-emerald-700 inline-flex items-center gap-1.5"><i data-lucide="download" class="w-4 h-4"></i> Plantilla Productos (CSV)</button>
-                                <button onclick="descargarPlantillaClientesCSV()" class="bg-teal-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-teal-700 inline-flex items-center gap-1.5"><i data-lucide="download" class="w-4 h-4"></i> Plantilla Clientes (CSV)</button>
-                                <button onclick="descargarPlantillaProductos()" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-300 inline-flex items-center gap-1.5"><i data-lucide="download" class="w-4 h-4"></i> JSON Productos</button>
-                                <button onclick="descargarPlantillaClientes()" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-300 inline-flex items-center gap-1.5"><i data-lucide="download" class="w-4 h-4"></i> JSON Clientes</button>
+                                <sl-button onclick="descargarPlantillaProductosCSV()" variant="success" size="small"><i data-lucide="download" class="w-4 h-4"></i> Plantilla Productos (CSV)</sl-button>
+                                <sl-button onclick="descargarPlantillaClientesCSV()" variant="success" size="small"><i data-lucide="download" class="w-4 h-4"></i> Plantilla Clientes (CSV)</sl-button>
+                                <sl-button onclick="descargarPlantillaProductos()" variant="default" size="small"><i data-lucide="download" class="w-4 h-4"></i> JSON Productos</sl-button>
+                                <sl-button onclick="descargarPlantillaClientes()" variant="default" size="small"><i data-lucide="download" class="w-4 h-4"></i> JSON Clientes</sl-button>
                             </div>
                             <p class="text-xs text-gray-400 mt-2">Descarga CSV para Excel/Google Sheets, o JSON para importacion avanzada. Soporta .xlsx, .xls y .csv.</p>
                         </div>
@@ -1513,7 +1496,7 @@
                     <div class="saas-card p-6 !border-red-200">
                         <h3 class="font-bold text-red-600 mb-4 flex items-center gap-2"><i data-lucide="trash-2" class="w-5 h-5"></i> Limpieza de Datos</h3>
                         <p class="text-sm text-gray-500 mb-4 flex items-center gap-1.5"><i data-lucide="alert-triangle" class="w-4 h-4 text-yellow-500"></i> Estas acciones son irreversibles. Se creara un auto-backup antes.</p>
-                        <button onclick="limpiarPedidos()" class="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-bold">Borrar Todos los Pedidos</button>
+                        <sl-button onclick="limpiarPedidos()" variant="danger" size="small">Borrar Todos los Pedidos</sl-button>
                     </div>
                 </div>
             </section>
@@ -1528,8 +1511,8 @@
             <span class="font-medium">Cambios pendientes</span>
         </div>
         <div class="flex gap-2">
-            <button class="px-4 py-2 text-sm font-bold text-gray-400 hover:text-white" onclick="descartarCambios()">Descartar</button>
-            <button id="btnGuardarSync" class="bg-white text-gray-900 px-6 py-2 rounded-lg text-sm font-bold hover:bg-gray-100 inline-flex items-center gap-1.5" onclick="guardarTodosCambios()"><i data-lucide="save" class="w-4 h-4"></i> Guardar y Sincronizar</button>
+            <sl-button variant="text" size="small" onclick="descartarCambios()" style="--sl-color-neutral-700:#9ca3af;">Descartar</sl-button>
+            <sl-button id="btnGuardarSync" variant="default" size="small" onclick="guardarTodosCambios()"><i data-lucide="save" class="w-4 h-4"></i> Guardar y Sincronizar</sl-button>
         </div>
     </div>
 
@@ -1543,7 +1526,7 @@
                 <input type="hidden" id="formProductoId">
                 <div>
                     <label class="block text-xs font-bold text-gray-500 mb-1">NOMBRE</label>
-                    <input type="text" id="nuevoProductoNombre" class="w-full border border-gray-300 rounded-lg px-4 py-2" placeholder="Ej: Jabon Dove">
+                    <sl-input type="text" id="nuevoProductoNombre" class="w-full" size="small" placeholder="Ej: Jabon Dove"></sl-input>
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-gray-500 mb-1">IMAGEN</label>
@@ -1557,7 +1540,9 @@
                                 <span class="flex items-center justify-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg> Subir imagen</span>
                                 <input type="file" accept="image/jpeg,image/png,image/webp" id="productImageInput" class="hidden" onchange="previsualizarImagenProducto(event)">
                             </label>
-                            <button type="button" onclick="quitarImagenProducto()" class="w-full text-xs text-red-500 font-bold hover:text-red-700 py-1 hidden" id="btnQuitarImagen">Quitar imagen</button>
+                            <sl-button type="button" onclick="quitarImagenProducto()" id="btnQuitarImagen" variant="text" size="small" class="w-full hidden" style="--sl-color-primary-600:#ef4444; --sl-color-primary-700:#b91c1c; font-weight:700;">
+                                <sl-icon name="trash" slot="prefix" style="font-size:0.75rem;"></sl-icon>Quitar imagen
+                            </sl-button>
                             <p class="text-[10px] text-gray-400">JPG, PNG o WebP. Se comprime automaticamente.</p>
                         </div>
                     </div>
@@ -1565,45 +1550,45 @@
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-bold text-gray-500 mb-1">CATEGORIA</label>
-                        <select id="nuevoProductoCategoria" class="w-full border border-gray-300 rounded-lg px-4 py-2" onchange="actualizarSubcategoriasModal()"></select>
+                        <sl-select id="nuevoProductoCategoria" class="w-full" size="small" hoist></sl-select>
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-gray-500 mb-1">SUBCATEGORIA</label>
-                        <select id="nuevoProductoSubcategoria" class="w-full border border-gray-300 rounded-lg px-4 py-2"></select>
+                        <sl-select id="nuevoProductoSubcategoria" class="w-full" size="small" hoist></sl-select>
                     </div>
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="block text-xs font-bold text-gray-500 mb-1">ESTADO</label>
-                        <select id="nuevoProductoEstado" class="w-full border border-gray-300 rounded-lg px-4 py-2">
-                            <option value="disponible">Disponible</option>
-                            <option value="agotado">Agotado</option>
-                            <option value="discontinuado">Discontinuado</option>
-                        </select>
+                        <sl-select id="nuevoProductoEstado" class="w-full" size="small" hoist value="disponible">
+                            <sl-option value="disponible">Disponible</sl-option>
+                            <sl-option value="agotado">Agotado</sl-option>
+                            <sl-option value="discontinuado">Discontinuado</sl-option>
+                        </sl-select>
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-gray-500 mb-1">TIPO IVA</label>
-                        <select id="nuevoProductoTipoImpuesto" class="w-full border border-gray-300 rounded-lg px-4 py-2">
-                            <option value="10">IVA 10%</option>
-                            <option value="5">IVA 5%</option>
-                            <option value="exenta">Exenta</option>
-                        </select>
+                        <sl-select id="nuevoProductoTipoImpuesto" class="w-full" size="small" hoist value="10">
+                            <sl-option value="10">IVA 10%</sl-option>
+                            <sl-option value="5">IVA 5%</sl-option>
+                            <sl-option value="exenta">Exenta</sl-option>
+                        </sl-select>
                     </div>
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-gray-500 mb-1">UNIDAD DE MEDIDA (SET)</label>
-                    <select id="nuevoProductoUnidadMedida" class="w-full border border-gray-300 rounded-lg px-4 py-2">
-                        <option value="77">UNI — Unidad</option>
-                        <option value="83">KG — Kilogramo</option>
-                        <option value="87">LTR — Litro</option>
-                        <option value="76">CAJ — Caja</option>
-                        <option value="11">PAR — Par</option>
-                        <option value="06">BLS — Bolsa</option>
-                        <option value="14">DOC — Docena</option>
-                        <option value="26">GR — Gramo</option>
-                        <option value="48">ML — Mililitro</option>
-                        <option value="56">PCK — Pack</option>
-                    </select>
+                    <sl-select id="nuevoProductoUnidadMedida" class="w-full" size="small" hoist value="77">
+                        <sl-option value="77">UNI — Unidad</sl-option>
+                        <sl-option value="83">KG — Kilogramo</sl-option>
+                        <sl-option value="87">LTR — Litro</sl-option>
+                        <sl-option value="76">CAJ — Caja</sl-option>
+                        <sl-option value="11">PAR — Par</sl-option>
+                        <sl-option value="06">BLS — Bolsa</sl-option>
+                        <sl-option value="14">DOC — Docena</sl-option>
+                        <sl-option value="26">GR — Gramo</sl-option>
+                        <sl-option value="48">ML — Mililitro</sl-option>
+                        <sl-option value="56">PCK — Pack</sl-option>
+                    </sl-select>
                 </div>
 
                 <!-- Toggle: Producto simple vs variantes -->
@@ -1613,10 +1598,7 @@
                             <p class="text-sm font-bold text-gray-700">Multiples variantes</p>
                             <p class="text-[11px] text-gray-400">Medidas, litros, talles, etc.</p>
                         </div>
-                        <label class="relative inline-flex items-center cursor-pointer">
-                            <input type="checkbox" id="toggleVariantes" class="sr-only peer" onchange="toggleModoVariantes()">
-                            <div class="w-11 h-6 bg-gray-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                        </label>
+                        <sl-switch id="toggleVariantes"></sl-switch>
                     </div>
                 </div>
 
@@ -1625,20 +1607,20 @@
                     <div class="grid grid-cols-3 gap-3 mb-3">
                         <div>
                             <label class="block text-xs font-bold text-gray-500 mb-1">PRECIO</label>
-                            <input type="number" id="nuevoProductoPrecio" class="w-full border border-gray-300 rounded-lg px-4 py-2" placeholder="1000">
+                            <sl-input type="number" id="nuevoProductoPrecio" class="w-full" size="small" placeholder="1000"></sl-input>
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-gray-500 mb-1">COSTO</label>
-                            <input type="number" id="nuevoProductoCosto" class="w-full border border-gray-300 rounded-lg px-4 py-2" placeholder="800">
+                            <sl-input type="number" id="nuevoProductoCosto" class="w-full" size="small" placeholder="800"></sl-input>
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-gray-500 mb-1">STOCK</label>
-                            <input type="number" id="nuevoProductoStock" class="w-full border border-gray-300 rounded-lg px-4 py-2" placeholder="0" min="0">
+                            <sl-input type="number" id="nuevoProductoStock" class="w-full" size="small" placeholder="0" min="0"></sl-input>
                         </div>
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-gray-500 mb-1">PRESENTACION</label>
-                        <input type="text" id="nuevoProductoPresentaciones" class="w-full border border-gray-300 rounded-lg px-4 py-2" placeholder="Ej: Unidad, 125g">
+                        <sl-input type="text" id="nuevoProductoPresentaciones" class="w-full" size="small" placeholder="Ej: Unidad, 125g"></sl-input>
                         <p class="text-xs text-gray-400 mt-1" id="modalProductoPresInfo">Separar por coma para varias (mismo precio)</p>
                     </div>
                 </div>
@@ -1647,10 +1629,10 @@
                 <div id="camposVariantes" class="hidden">
                     <div class="flex items-center justify-between mb-2">
                         <p class="text-xs font-bold text-gray-500 uppercase">VARIANTES</p>
-                        <button type="button" onclick="agregarFilaVariante()" class="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
+                        <sl-button type="button" onclick="agregarFilaVariante()" variant="text" size="small" style="--sl-color-primary-600:#2563eb; --sl-color-primary-700:#1d4ed8; font-weight:700;">
+                            <sl-icon name="plus-circle" slot="prefix" style="font-size:0.875rem;"></sl-icon>
                             Agregar variante
-                        </button>
+                        </sl-button>
                     </div>
                     <div id="listaVariantes" class="space-y-2 max-h-60 overflow-y-auto"></div>
                 </div>
@@ -1659,8 +1641,8 @@
                 <div id="presentacionesDetalladas" style="display:none;"></div>
             </div>
             <div class="p-6 bg-gray-50 flex justify-end gap-3">
-                <button onclick="cerrarModalProducto()" class="px-4 py-2 text-gray-500 font-bold">Cancelar</button>
-                <button id="btnGuardarProducto" onclick="guardarProductoModal()" class="bg-gray-800 text-white px-6 py-2 rounded-lg font-bold">Guardar</button>
+                <sl-button onclick="cerrarModalProducto()" variant="text" size="small">Cancelar</sl-button>
+                <sl-button id="btnGuardarProducto" onclick="guardarProductoModal()" variant="neutral" size="small">Guardar</sl-button>
             </div>
         </div>
     </div>
@@ -1670,13 +1652,13 @@
         <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden max-h-[90vh] overflow-y-auto">
             <div class="p-6 border-b border-gray-100 flex justify-between items-center">
                 <h3 class="text-xl font-bold text-gray-800">Gestionar Categorias</h3>
-                <button onclick="cerrarModalCategorias()" class="text-gray-400 hover:text-gray-600 text-xl font-bold">x</button>
+                <sl-icon-button onclick="cerrarModalCategorias()" name="x-lg" label="Cerrar" style="font-size:1.25rem; color:#9ca3af;"></sl-icon-button>
             </div>
             <div class="p-6">
                 <div class="flex gap-2 mb-4">
-                    <input type="text" id="nuevaCategoriaId" class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm" placeholder="ID (ej: limpieza)">
-                    <input type="text" id="nuevaCategoriaNombre" class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm" placeholder="Nombre (ej: Limpieza)">
-                    <button onclick="agregarCategoriaModal()" class="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-bold">+</button>
+                    <sl-input type="text" id="nuevaCategoriaId" class="flex-1" size="small" placeholder="ID (ej: limpieza)"></sl-input>
+                    <sl-input type="text" id="nuevaCategoriaNombre" class="flex-1" size="small" placeholder="Nombre (ej: Limpieza)"></sl-input>
+                    <sl-button onclick="agregarCategoriaModal()" variant="neutral" size="small">+</sl-button>
                 </div>
                 <div id="listaCategoriasCuerpo" class="space-y-3"></div>
             </div>
@@ -1693,44 +1675,44 @@
                 <input type="hidden" id="formClienteId">
                 <div>
                     <label class="block text-xs font-bold text-gray-500 mb-1">RAZON SOCIAL / NOMBRE</label>
-                    <input type="text" id="nuevoClienteRazon" class="w-full border border-gray-300 rounded-lg px-4 py-2" placeholder="Ej: Supermercado Central S.A.">
+                    <sl-input type="text" id="nuevoClienteRazon" class="w-full" size="small" placeholder="Ej: Supermercado Central S.A."></sl-input>
                 </div>
                 <div class="grid grid-cols-3 gap-4">
                     <div>
                         <label class="block text-xs font-bold text-gray-500 mb-1">TIPO DOC.</label>
-                        <select id="nuevoClienteTipoDoc" class="w-full border border-gray-300 rounded-lg px-4 py-2">
-                            <option value="RUC">RUC</option>
-                            <option value="CEDULA">Cedula</option>
-                            <option value="PASAPORTE">Pasaporte</option>
-                        </select>
+                        <sl-select id="nuevoClienteTipoDoc" class="w-full" size="small" hoist value="RUC">
+                            <sl-option value="RUC">RUC</sl-option>
+                            <sl-option value="CEDULA">Cedula</sl-option>
+                            <sl-option value="PASAPORTE">Pasaporte</sl-option>
+                        </sl-select>
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-gray-500 mb-1">N° DOCUMENTO</label>
-                        <input type="text" id="nuevoClienteRUC" class="w-full border border-gray-300 rounded-lg px-4 py-2" placeholder="80012345-6">
+                        <sl-input type="text" id="nuevoClienteRUC" class="w-full" size="small" placeholder="80012345-6"></sl-input>
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-gray-500 mb-1">TELEFONO</label>
-                        <input type="tel" id="nuevoClienteTelefono" class="w-full border border-gray-300 rounded-lg px-4 py-2" placeholder="0981234567">
+                        <sl-input type="tel" id="nuevoClienteTelefono" class="w-full" size="small" placeholder="0981234567"></sl-input>
                     </div>
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-bold text-gray-500 mb-1">DIRECCION</label>
-                        <input type="text" id="nuevoClienteDireccion" class="w-full border border-gray-300 rounded-lg px-4 py-2" placeholder="Av. Central 1234">
+                        <sl-input type="text" id="nuevoClienteDireccion" class="w-full" size="small" placeholder="Av. Central 1234"></sl-input>
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-gray-500 mb-1">ZONA</label>
-                        <input type="text" id="nuevoClienteZona" class="w-full border border-gray-300 rounded-lg px-4 py-2" placeholder="Ej: Loma Plata">
+                        <sl-input type="text" id="nuevoClienteZona" class="w-full" size="small" placeholder="Ej: Loma Plata"></sl-input>
                     </div>
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-gray-500 mb-1">ENCARGADO (opcional)</label>
-                    <input type="text" id="nuevoClienteEncargado" class="w-full border border-gray-300 rounded-lg px-4 py-2" placeholder="Juan Perez">
+                    <sl-input type="text" id="nuevoClienteEncargado" class="w-full" size="small" placeholder="Juan Perez"></sl-input>
                 </div>
             </div>
             <div class="p-6 bg-gray-50 flex justify-end gap-3">
-                <button onclick="cerrarModalCliente()" class="px-4 py-2 text-gray-500 font-bold">Cancelar</button>
-                <button id="btnGuardarCliente" onclick="guardarClienteModal()" class="bg-gray-800 text-white px-6 py-2 rounded-lg font-bold">Guardar</button>
+                <sl-button onclick="cerrarModalCliente()" variant="text" size="small">Cancelar</sl-button>
+                <sl-button id="btnGuardarCliente" onclick="guardarClienteModal()" variant="neutral" size="small">Guardar</sl-button>
             </div>
         </div>
     </div>
@@ -1745,11 +1727,11 @@
                         <p class="text-sm text-gray-500" id="perfilClienteInfo"></p>
                     </div>
                     <div class="flex gap-2 flex-wrap justify-end">
-                        <button id="perfilWhatsAppBtn" class="bg-green-500 text-white px-4 py-2 rounded-lg text-sm font-bold">WhatsApp</button>
-                        <button id="perfilClienteEditarBtn" class="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-bold">Editar</button>
-                        <button id="perfilClienteOcultarBtn" class="bg-yellow-500 text-white px-4 py-2 rounded-lg text-sm font-bold">Ocultar</button>
-                        <button id="perfilClienteEliminarBtn" class="bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-bold">Eliminar</button>
-                        <button onclick="cerrarPerfilCliente()" class="text-gray-400 hover:text-gray-600 px-3 py-2 text-xl font-bold">✕</button>
+                        <sl-button id="perfilWhatsAppBtn" variant="success" size="small">WhatsApp</sl-button>
+                        <sl-button id="perfilClienteEditarBtn" variant="neutral" size="small">Editar</sl-button>
+                        <sl-button id="perfilClienteOcultarBtn" variant="warning" size="small">Ocultar</sl-button>
+                        <sl-button id="perfilClienteEliminarBtn" variant="danger" size="small">Eliminar</sl-button>
+                        <sl-button onclick="cerrarPerfilCliente()" variant="text" size="small">✕</sl-button>
                     </div>
                 </div>
                 <!-- Stats cards -->
@@ -1817,20 +1799,22 @@
                 <div>
                     <p class="text-xs font-bold text-gray-500 mb-2">PRODUCTOS</p>
                     <div id="editPedidoItems" class="space-y-2"></div>
-                    <button onclick="agregarItemEditPedido()" class="mt-3 text-blue-600 font-bold text-sm hover:underline">+ Agregar producto</button>
+                    <sl-button onclick="agregarItemEditPedido()" variant="text" size="small" class="mt-3" style="--sl-color-primary-600:#2563eb; --sl-color-primary-700:#1d4ed8; font-weight:700;">
+                        <sl-icon name="plus-circle" slot="prefix" style="font-size:0.875rem;"></sl-icon>Agregar producto
+                    </sl-button>
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-bold text-gray-500 mb-1">TIPO DE PAGO</label>
-                        <select id="editPedidoTipoPago" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                            <option value="contado">Al Contado</option>
-                            <option value="credito">A Credito</option>
-                        </select>
+                        <sl-select id="editPedidoTipoPago" class="w-full" size="small" hoist value="contado">
+                            <sl-option value="contado">Al Contado</sl-option>
+                            <sl-option value="credito">A Credito</sl-option>
+                        </sl-select>
                     </div>
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-gray-500 mb-1">NOTAS</label>
-                    <textarea id="editPedidoNotas" rows="2" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"></textarea>
+                    <sl-textarea id="editPedidoNotas" rows="2" class="w-full" size="small"></sl-textarea>
                 </div>
                 <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 flex justify-between items-center">
                     <span class="font-bold text-blue-800">TOTAL ESTIMADO:</span>
@@ -1839,12 +1823,12 @@
             </div>
             <div class="p-6 bg-gray-50 flex justify-between">
                 <div class="flex gap-2">
-                    <button onclick="generarPDFRemision(pedidoEditandoId)" class="bg-gray-700 text-white px-4 py-2 rounded-lg text-sm font-bold inline-flex items-center gap-1.5"><i data-lucide="file-text" class="w-4 h-4"></i> PDF A4</button>
-                    <button onclick="generarTicketTermico(pedidoEditandoId)" class="bg-gray-700 text-white px-4 py-2 rounded-lg text-sm font-bold inline-flex items-center gap-1.5"><i data-lucide="printer" class="w-4 h-4"></i> Ticket</button>
+                    <sl-button onclick="generarPDFRemision(pedidoEditandoId)" variant="neutral" size="small"><i data-lucide="file-text" class="w-4 h-4"></i> PDF A4</sl-button>
+                    <sl-button onclick="generarTicketTermico(pedidoEditandoId)" variant="neutral" size="small"><i data-lucide="printer" class="w-4 h-4"></i> Ticket</sl-button>
                 </div>
                 <div class="flex gap-3">
-                    <button onclick="cerrarModalEditarPedido()" class="px-4 py-2 text-gray-500 font-bold">Cancelar</button>
-                    <button id="btnGuardarEdicionPedido" onclick="guardarEdicionPedido()" class="bg-gray-800 text-white px-6 py-2 rounded-lg font-bold">Guardar Cambios</button>
+                    <sl-button onclick="cerrarModalEditarPedido()" variant="text" size="small">Cancelar</sl-button>
+                    <sl-button id="btnGuardarEdicionPedido" onclick="guardarEdicionPedido()" variant="neutral" size="small">Guardar Cambios</sl-button>
                 </div>
             </div>
         </div>
@@ -1864,10 +1848,10 @@
                         </div>
                     </div>
                     <div class="flex gap-2">
-                        <button id="perfilProductoEditarBtn" class="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-bold">Editar</button>
-                        <button id="perfilProductoOcultarBtn" class="bg-yellow-500 text-white px-4 py-2 rounded-lg text-sm font-bold"></button>
-                        <button id="perfilProductoEliminarBtn" class="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-bold">Eliminar</button>
-                        <button onclick="cerrarPerfilProducto()" class="text-gray-400 hover:text-gray-600 px-2 py-2 text-xl font-bold">x</button>
+                        <sl-button id="perfilProductoEditarBtn" variant="neutral" size="small">Editar</sl-button>
+                        <sl-button id="perfilProductoOcultarBtn" variant="warning" size="small"></sl-button>
+                        <sl-button id="perfilProductoEliminarBtn" variant="danger" size="small">Eliminar</sl-button>
+                        <sl-button onclick="cerrarPerfilProducto()" variant="text" size="small">x</sl-button>
                     </div>
                 </div>
             </div>
@@ -1879,7 +1863,7 @@
                 <div id="perfilProductoStockSection">
                     <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Stock por Presentacion</p>
                     <div id="perfilProductoStock" class="space-y-2"></div>
-                    <button onclick="guardarStockDesdePerfilProducto()" class="mt-3 bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-bold inline-flex items-center gap-1.5"><i data-lucide="save" class="w-4 h-4"></i> Guardar Stock</button>
+                    <sl-button onclick="guardarStockDesdePerfilProducto()" variant="neutral" size="small" class="mt-3"><i data-lucide="save" class="w-4 h-4"></i> Guardar Stock</sl-button>
                 </div>
             </div>
         </div>
@@ -1896,17 +1880,17 @@
             <p class="text-xs font-mono bg-gray-100 rounded-lg p-2 mb-4 text-gray-700" id="adminFacturaNumero"></p>
             <div class="space-y-2">
                 <div class="grid grid-cols-2 gap-2">
-                    <button onclick="adminImprimirVenta('thermal')" class="bg-gray-900 text-white py-3 rounded-xl font-bold text-sm inline-flex items-center justify-center gap-1.5">
+                    <sl-button onclick="adminImprimirVenta('thermal')" variant="neutral" class="w-full">
                         <i data-lucide="printer" class="w-4 h-4"></i> Ticket 58mm
-                    </button>
-                    <button onclick="adminImprimirVenta('a4')" class="bg-gray-700 text-white py-3 rounded-xl font-bold text-sm inline-flex items-center justify-center gap-1.5">
+                    </sl-button>
+                    <sl-button onclick="adminImprimirVenta('a4')" variant="neutral" class="w-full">
                         <i data-lucide="file-text" class="w-4 h-4"></i> Imprimir A4
-                    </button>
+                    </sl-button>
                 </div>
                 <a id="adminFacturaWhatsApp" href="#" target="_blank" class="block w-full bg-[#25D366] text-white py-3 rounded-xl font-bold text-sm text-center">
                     <span class="flex items-center justify-center gap-2"><i data-lucide="message-circle" class="w-4 h-4"></i> Enviar por WhatsApp</span>
                 </a>
-                <button onclick="cerrarModalFacturaAdmin()" class="w-full bg-gray-100 text-gray-700 py-3 rounded-xl font-bold text-sm">Cerrar</button>
+                <sl-button onclick="cerrarModalFacturaAdmin()" variant="default" class="w-full">Cerrar</sl-button>
             </div>
         </div>
     </div>
@@ -1916,13 +1900,13 @@
         <div class="bg-white rounded-2xl shadow-2xl max-w-xs w-full p-6 text-center" style="animation: confirmSlideUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
             <h3 class="text-lg font-bold text-gray-900 mb-4">Formato de Impresion</h3>
             <div class="space-y-2">
-                <button onclick="ejecutarReimpresion('thermal')" class="w-full bg-gray-900 text-white py-3 rounded-xl font-bold text-sm inline-flex items-center justify-center gap-2">
+                <sl-button onclick="ejecutarReimpresion('thermal')" variant="neutral" class="w-full">
                     <i data-lucide="printer" class="w-4 h-4"></i> Ticket Termico (58mm)
-                </button>
-                <button onclick="ejecutarReimpresion('a4')" class="w-full bg-gray-700 text-white py-3 rounded-xl font-bold text-sm inline-flex items-center justify-center gap-2">
+                </sl-button>
+                <sl-button onclick="ejecutarReimpresion('a4')" variant="neutral" class="w-full">
                     <i data-lucide="file-text" class="w-4 h-4"></i> Hoja A4
-                </button>
-                <button onclick="cerrarModalElegirImpresion()" class="w-full bg-gray-100 text-gray-700 py-2.5 rounded-xl font-bold text-sm">Cancelar</button>
+                </sl-button>
+                <sl-button onclick="cerrarModalElegirImpresion()" variant="default" class="w-full">Cancelar</sl-button>
             </div>
         </div>
     </div>
@@ -1938,14 +1922,14 @@
             <p class="text-xs font-mono bg-gray-100 rounded-lg p-2 mb-4 text-gray-700" id="ncNumeroDisplay"></p>
             <div class="space-y-2">
                 <div class="grid grid-cols-2 gap-2">
-                    <button onclick="imprimirNC('thermal')" class="bg-gray-900 text-white py-3 rounded-xl font-bold text-sm inline-flex items-center justify-center gap-1.5">
+                    <sl-button onclick="imprimirNC('thermal')" variant="neutral" class="w-full">
                         <i data-lucide="printer" class="w-4 h-4"></i> Ticket 58mm
-                    </button>
-                    <button onclick="imprimirNC('a4')" class="bg-gray-700 text-white py-3 rounded-xl font-bold text-sm inline-flex items-center justify-center gap-1.5">
+                    </sl-button>
+                    <sl-button onclick="imprimirNC('a4')" variant="neutral" class="w-full">
                         <i data-lucide="file-text" class="w-4 h-4"></i> Imprimir A4
-                    </button>
+                    </sl-button>
                 </div>
-                <button onclick="cerrarModalNC()" class="w-full bg-gray-100 text-gray-700 py-3 rounded-xl font-bold text-sm">Cerrar</button>
+                <sl-button onclick="cerrarModalNC()" variant="default" class="w-full">Cerrar</sl-button>
             </div>
         </div>
     </div>
@@ -1958,12 +1942,12 @@
                     <i data-lucide="code-2" class="w-5 h-5 text-orange-400"></i>
                     <span id="modalForenseTitulo">Detalle Forense</span>
                 </h3>
-                <button onclick="cerrarModalForense()" class="text-gray-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+                <sl-icon-button onclick="cerrarModalForense()" name="x-lg" label="Cerrar" style="font-size:1rem; color:#9ca3af;"></sl-icon-button>
             </div>
             <div class="p-5 overflow-y-auto flex-1 bg-gray-50" id="modalForenseBody">
             </div>
             <div class="p-4 border-t border-gray-100 flex justify-end">
-                <button onclick="cerrarModalForense()" class="bg-gray-200 text-gray-700 px-5 py-2 rounded-lg text-sm font-bold hover:bg-gray-300">Cerrar</button>
+                <sl-button onclick="cerrarModalForense()" variant="default" size="small">Cerrar</sl-button>
             </div>
         </div>
     </div>
@@ -1992,8 +1976,8 @@
             <div class="p-6 border-t border-gray-100 flex justify-between items-center">
                 <span id="mapeoPreview" class="text-sm text-gray-500"></span>
                 <div class="flex gap-3">
-                    <button onclick="cerrarModalMapeo()" class="px-4 py-2 rounded-lg text-sm font-bold text-gray-600 bg-gray-100 hover:bg-gray-200">Cancelar</button>
-                    <button onclick="confirmarImportacion()" class="px-4 py-2 rounded-lg text-sm font-bold text-white bg-blue-600 hover:bg-blue-700">Importar</button>
+                    <sl-button onclick="cerrarModalMapeo()" variant="default" size="small">Cancelar</sl-button>
+                    <sl-button onclick="confirmarImportacion()" variant="primary" size="small">Importar</sl-button>
                 </div>
             </div>
         </div>

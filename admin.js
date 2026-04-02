@@ -70,7 +70,7 @@ function generarAdminEmptyState(svgIcon, titulo, subtitulo, botonTexto, botonOnc
         ${svgIcon}
         <p>${titulo}</p>
         ${subtitulo ? `<p class="empty-sub">${subtitulo}</p>` : ''}
-        ${botonTexto ? `<button data-action="${escapeHTML(botonOnclick)}" class="empty-action">${botonTexto}</button>` : ''}
+        ${botonTexto ? `<sl-button data-action="${escapeHTML(botonOnclick)}" class="empty-action" variant="primary" size="small">${botonTexto}</sl-button>` : ''}
     </div>`;
 }
 
@@ -355,7 +355,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     cambiarSeccion('pedidos');
 
     const autoBackupToggle = document.getElementById('adminAutoBackupToggle');
-    if (autoBackupToggle) autoBackupToggle.checked = (await HDVStorage.getItem('hdv_admin_auto_backup')) !== 'false';
+    if (autoBackupToggle) {
+        autoBackupToggle.checked = (await HDVStorage.getItem('hdv_admin_auto_backup')) !== 'false';
+        autoBackupToggle.addEventListener('sl-change', () => toggleAdminAutoBackup());
+    }
 
     // Marcar app lista — los toasts info/success se desbloquean despues de la carga inicial
     setTimeout(() => { window._hdvAppReady = true; }, TIEMPOS.SYNC_DELAY_ONLINE_MS);
@@ -403,7 +406,7 @@ async function cargarDatosIniciales() {
         const filterCliente = document.getElementById('filtroCliente');
         if (filterCliente) {
             productosData.clientes.forEach(c => {
-                const opt = document.createElement('option');
+                const opt = document.createElement('sl-option');
                 opt.value = c.id;
                 opt.textContent = c.razon_social || c.nombre || c.id;
                 filterCliente.appendChild(opt);
@@ -433,12 +436,10 @@ async function cargarListaVendedores() {
                     <span class="text-sm font-medium text-gray-700">${escapeHTML(v.nombre_completo || 'Sin nombre')}</span>
                     <span class="text-[10px] text-gray-400">${v.activo ? 'Activo' : 'Bloqueado'}</span>
                 </div>
-                <button onclick="toggleAccesoVendedor('${escapeHTML(v.id)}', ${v.activo})"
-                    class="text-[11px] px-2 py-1 rounded font-bold ${v.activo
-                        ? 'bg-red-100 text-red-700 hover:bg-red-200'
-                        : 'bg-green-100 text-green-700 hover:bg-green-200'}">
+                <sl-button onclick="toggleAccesoVendedor('${escapeHTML(v.id)}', ${v.activo})"
+                    variant="${v.activo ? 'danger' : 'success'}" size="small">
                     ${v.activo ? 'Bloquear' : 'Reactivar'}
-                </button>
+                </sl-button>
             </div>
         `).join('');
     } catch (err) {
@@ -530,7 +531,7 @@ async function renderForenseFraudes() {
                 <td class="px-3 py-2 text-xs text-gray-600">${escapeHTML(clienteNombre)}</td>
                 <td class="px-3 py-2 text-xs text-red-700 font-bold text-right">${escapeHTML(formatearGuaranies(total))}</td>
                 <td class="px-3 py-2 text-center">
-                    <button data-forense-fraude-id="${escapeHTML(p.id)}" class="text-[11px] px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200 font-bold">Ver</button>
+                    <sl-button data-forense-fraude-id="${escapeHTML(p.id)}" variant="danger" size="small">Ver</sl-button>
                 </td>
             </tr>`;
         });
@@ -607,7 +608,7 @@ async function renderForenseLogs() {
                 <td class="px-3 py-2 text-xs font-medium text-gray-800">${escapeHTML(log.tabla)}</td>
                 <td class="px-3 py-2 text-xs text-gray-600">${escapeHTML(usuario)}</td>
                 <td class="px-3 py-2 text-center">
-                    <button data-forense-log-idx="${idx}" class="text-[11px] px-2 py-1 rounded bg-orange-100 text-orange-700 hover:bg-orange-200 font-bold">Ver Cambios</button>
+                    <sl-button data-forense-log-idx="${idx}" variant="warning" size="small">Ver Cambios</sl-button>
                 </td>
             </tr>`;
         });
@@ -870,8 +871,8 @@ async function mostrarHistorialBackupsAdmin() {
                 <p class="text-xs text-gray-500">${new Date(b.fecha).toLocaleString('es-PY')} - ${b.resumen?.totalProductos || '?'} prod, ${b.resumen?.totalPedidos || '?'} ped</p>
             </div>
             <div class="flex gap-2">
-                <button onclick="restaurarAutoBackupAdmin(${idx})" class="text-xs text-blue-600 font-bold px-3 py-1 bg-blue-50 rounded hover:bg-blue-100">Restaurar</button>
-                <button onclick="descargarAutoBackupAdmin(${idx})" class="text-xs text-green-600 font-bold px-3 py-1 bg-green-50 rounded hover:bg-green-100">Descargar</button>
+                <sl-button onclick="restaurarAutoBackupAdmin(${idx})" variant="primary" size="small">Restaurar</sl-button>
+                <sl-button onclick="descargarAutoBackupAdmin(${idx})" variant="success" size="small">Descargar</sl-button>
             </div>
         `;
         container.appendChild(div);
@@ -945,16 +946,17 @@ function mostrarToast(mensaje, tipo = 'info', duracion = 3500) {
 }
 
 function _renderToast(container, mensaje, tipo, duracion) {
-    const iconos = { success: '\u2713', error: '\u2715', info: '\u2139', warning: '\u26A0' };
-    const toast = document.createElement('div');
-    toast.className = `toast toast-${tipo}`;
-    toast.innerHTML = `<span style="font-size:18px">${iconos[tipo] || ''}</span><span>${escapeHTML(mensaje)}</span>`;
-    container.appendChild(toast);
-    requestAnimationFrame(() => toast.classList.add('show'));
-    setTimeout(() => {
-        toast.classList.remove('show');
-        setTimeout(() => toast.remove(), 400);
-    }, duracion);
+    const variantMap = { success: 'success', error: 'danger', info: 'neutral', warning: 'warning' };
+    const iconMap = { success: 'check2-circle', error: 'exclamation-octagon', info: 'info-circle', warning: 'exclamation-triangle' };
+    const alert = document.createElement('sl-alert');
+    alert.variant = variantMap[tipo] || 'neutral';
+    alert.closable = true;
+    alert.duration = duracion;
+    alert.open = true;
+    alert.style.marginBottom = '8px';
+    alert.innerHTML = `<sl-icon name="${iconMap[tipo] || 'info-circle'}" slot="icon"></sl-icon>${escapeHTML(mensaje)}`;
+    container.appendChild(alert);
+    alert.addEventListener('sl-after-hide', () => alert.remove(), { once: true });
 }
 
 // ============================================
@@ -973,8 +975,8 @@ function mostrarConfirmModal(mensaje, opciones = {}) {
                     <p class="text-gray-800 font-semibold text-sm whitespace-pre-line leading-relaxed">${escapeHTML(mensaje)}</p>
                 </div>
                 <div class="flex gap-3">
-                    <button class="confirm-cancel-btn flex-1 bg-gray-100 text-gray-700 py-3 rounded-xl font-bold text-sm hover:bg-gray-200 transition-colors">Cancelar</button>
-                    <button class="confirm-ok-btn flex-1 ${opciones.destructivo ? 'bg-red-600 hover:bg-red-700' : 'bg-gray-900 hover:bg-gray-800'} text-white py-3 rounded-xl font-bold text-sm transition-colors">${opciones.textoConfirmar || 'Confirmar'}</button>
+                    <sl-button class="confirm-cancel-btn flex-1" variant="default" size="medium">Cancelar</sl-button>
+                    <sl-button class="confirm-ok-btn flex-1" variant="${opciones.destructivo ? 'danger' : 'neutral'}" size="medium">${opciones.textoConfirmar || 'Confirmar'}</sl-button>
                 </div>
             </div>`;
         document.body.appendChild(backdrop);
@@ -1037,8 +1039,8 @@ function mostrarInputModal(opciones = {}) {
                     <div>${camposHTML}</div>
                 </div>
                 <div class="flex gap-3 p-4 bg-gray-800/50 border-t border-gray-700">
-                    <button class="modal-cancel-btn flex-1 bg-gray-700 hover:bg-gray-600 text-gray-300 py-2.5 rounded-xl font-bold text-sm transition-colors">Cancelar</button>
-                    <button class="modal-ok-btn flex-1 ${btnClass} text-white py-2.5 rounded-xl font-bold text-sm transition-colors">${opciones.textoConfirmar || 'Confirmar'}</button>
+                    <sl-button class="modal-cancel-btn flex-1" variant="default" size="medium">Cancelar</sl-button>
+                    <sl-button class="modal-ok-btn flex-1" variant="${opciones.destructivo ? 'danger' : 'primary'}" size="medium">${opciones.textoConfirmar || 'Confirmar'}</sl-button>
                 </div>
             </div>`;
 
@@ -1251,10 +1253,10 @@ function ejecutarBusquedaGlobal() {
     if (prods.length > 0) {
         html += '<p class="px-4 py-2 text-xs font-bold text-gray-500 uppercase">Productos</p>';
         prods.forEach(p => {
-            html += `<button data-search-type="producto" data-search-nombre="${escapeHTML(p.nombre)}" class="w-full text-left px-4 py-3 hover:bg-gray-100 rounded-lg flex items-center gap-3">
+            html += `<sl-button data-search-type="producto" data-search-nombre="${escapeHTML(p.nombre)}" variant="text" size="small" class="w-full text-left px-4 py-3 hover:bg-gray-100 rounded-lg flex items-center gap-3">
                 <i data-lucide="package" class="w-5 h-5 text-gray-400"></i>
                 <div><p class="font-medium text-gray-800 text-sm">${escapeHTML(p.nombre)}</p><p class="text-xs text-gray-400">${escapeHTML(p.id)} - ${escapeHTML(p.categoria)}</p></div>
-            </button>`;
+            </sl-button>`;
         });
     }
 
@@ -1263,10 +1265,10 @@ function ejecutarBusquedaGlobal() {
     if (clis.length > 0) {
         html += '<p class="px-4 py-2 text-xs font-bold text-gray-500 uppercase">Clientes</p>';
         clis.forEach(c => {
-            html += `<button data-search-type="cliente" data-search-id="${escapeHTML(c.id)}" class="w-full text-left px-4 py-3 hover:bg-gray-100 rounded-lg flex items-center gap-3">
+            html += `<sl-button data-search-type="cliente" data-search-id="${escapeHTML(c.id)}" variant="text" size="small" class="w-full text-left px-4 py-3 hover:bg-gray-100 rounded-lg flex items-center gap-3">
                 <i data-lucide="user" class="w-5 h-5 text-gray-400"></i>
                 <div><p class="font-medium text-gray-800 text-sm">${escapeHTML(c.razon_social || c.nombre)}</p><p class="text-xs text-gray-400">${escapeHTML(c.zona || '')} - ${escapeHTML(c.telefono || '')}</p></div>
-            </button>`;
+            </sl-button>`;
         });
     }
 
@@ -1275,10 +1277,10 @@ function ejecutarBusquedaGlobal() {
     if (peds.length > 0) {
         html += '<p class="px-4 py-2 text-xs font-bold text-gray-500 uppercase">Pedidos</p>';
         peds.forEach(p => {
-            html += `<button data-search-type="pedido" class="w-full text-left px-4 py-3 hover:bg-gray-100 rounded-lg flex items-center gap-3">
+            html += `<sl-button data-search-type="pedido" variant="text" size="small" class="w-full text-left px-4 py-3 hover:bg-gray-100 rounded-lg flex items-center gap-3">
                 <i data-lucide="clipboard-list" class="w-5 h-5 text-gray-400"></i>
                 <div><p class="font-medium text-gray-800 text-sm">${escapeHTML(p.cliente?.nombre || 'N/A')}</p><p class="text-xs text-gray-400">${escapeHTML(p.id)} - ${formatearGuaranies(p.total)}</p></div>
-            </button>`;
+            </sl-button>`;
         });
     }
 

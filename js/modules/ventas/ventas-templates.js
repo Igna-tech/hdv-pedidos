@@ -39,10 +39,10 @@ function tplVentaCard(v, zona, telefono, esFactura) {
     let botonesExtra = '';
     if (esFactura && v.sifen_cdc) {
         botonesExtra = `
-            <button class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-emerald-500 inline-flex items-center gap-1.5" onclick="ventasCtrl.imprimirKuDE('${v.id}')"><i data-lucide="file-text" class="w-3.5 h-3.5"></i> Imprimir KuDE</button>
-            <button class="bg-gray-500 text-white px-3 py-2 rounded-lg text-sm hover:bg-gray-400 inline-flex items-center gap-1" onclick="ventasCtrl.verXMLSifen('${v.id}')" title="Ver XML"><i data-lucide="file-code" class="w-3.5 h-3.5"></i></button>`;
+            <sl-button variant="success" size="small" onclick="ventasCtrl.imprimirKuDE('${v.id}')" class="inline-flex items-center gap-1.5"><i data-lucide="file-text" class="w-3.5 h-3.5"></i> Imprimir KuDE</sl-button>
+            <sl-button variant="neutral" size="small" onclick="ventasCtrl.verXMLSifen('${v.id}')" title="Ver XML" class="inline-flex items-center gap-1"><i data-lucide="file-code" class="w-3.5 h-3.5"></i></sl-button>`;
     } else if (esFactura) {
-        botonesExtra = `<button class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-500 inline-flex items-center gap-1.5" onclick="ventasCtrl.verXMLSifen('${v.id}')"><i data-lucide="file-code" class="w-3.5 h-3.5"></i> XML SIFEN</button>`;
+        botonesExtra = `<sl-button variant="primary" size="small" onclick="ventasCtrl.verXMLSifen('${v.id}')" class="inline-flex items-center gap-1.5"><i data-lucide="file-code" class="w-3.5 h-3.5"></i> XML SIFEN</sl-button>`;
     }
 
     return `
@@ -66,8 +66,8 @@ function tplVentaCard(v, zona, telefono, esFactura) {
                 <span class="text-xl font-bold text-gray-900">${formatearGuaranies(v.total)}</span>
             </div>
             <div class="flex gap-2 mt-4 flex-wrap">
-                <button class="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-700 inline-flex items-center gap-1.5" onclick="ventasCtrl.abrirReimpresion('${v.id}')"><i data-lucide="printer" class="w-3.5 h-3.5"></i> Re-imprimir</button>
-                <button class="bg-[#25D366] text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-[#1fad55] inline-flex items-center gap-1.5" onclick="ventasCtrl.enviarWhatsAppVenta('${v.id}')"><i data-lucide="message-circle" class="w-3.5 h-3.5"></i> WhatsApp</button>
+                <sl-button variant="neutral" size="small" onclick="ventasCtrl.abrirReimpresion('${v.id}')" class="inline-flex items-center gap-1.5"><i data-lucide="printer" class="w-3.5 h-3.5"></i> Re-imprimir</sl-button>
+                <sl-button variant="success" size="small" onclick="ventasCtrl.enviarWhatsAppVenta('${v.id}')" class="inline-flex items-center gap-1.5"><i data-lucide="message-circle" class="w-3.5 h-3.5"></i> WhatsApp</sl-button>
                 ${botonesExtra}
             </div>
         </div>`;
@@ -236,9 +236,7 @@ function tplXMLSifenModal(result) {
                         </h3>
                         <p class="text-blue-100 text-xs mt-1">Modo prueba — sin certificado digital</p>
                     </div>
-                    <button onclick="document.getElementById('modalXMLSifen').remove()" class="text-white/70 hover:text-white p-1">
-                        <i data-lucide="x" class="w-5 h-5"></i>
-                    </button>
+                    <sl-icon-button name="x-lg" label="Cerrar" onclick="document.getElementById('modalXMLSifen').remove()" style="font-size:1.25rem;color:rgba(255,255,255,0.7);"></sl-icon-button>
                 </div>
             </div>
 
@@ -246,9 +244,7 @@ function tplXMLSifenModal(result) {
             <div class="px-6 py-4 bg-gray-50 border-b border-gray-200">
                 <div class="flex items-center gap-2 mb-2">
                     <span class="text-xs font-bold text-gray-500 uppercase tracking-wider">CDC (44 digitos)</span>
-                    <button onclick="navigator.clipboard.writeText('${result.cdc || ''}').then(()=>mostrarToast('CDC copiado','success'))" class="text-blue-500 hover:text-blue-700" title="Copiar CDC">
-                        <i data-lucide="copy" class="w-3.5 h-3.5"></i>
-                    </button>
+                    <sl-icon-button name="clipboard" label="Copiar CDC" onclick="navigator.clipboard.writeText('${result.cdc || ''}').then(()=>mostrarToast('CDC copiado','success'))" style="font-size:1rem;color:var(--sl-color-primary-600);"></sl-icon-button>
                 </div>
                 <p class="font-mono text-lg font-bold text-gray-900 tracking-wider break-all leading-relaxed">${result.cdc || 'N/A'}</p>
                 <div class="flex flex-wrap gap-x-6 gap-y-1 mt-3 text-sm text-gray-600">
@@ -275,8 +271,8 @@ function tplXMLSifenModal(result) {
 
             <!-- Tabs -->
             <div class="flex border-b border-gray-200 px-6 pt-2 gap-1" id="sifenTabs">
-                <button onclick="ventasCtrl.sifenCambiarTab('xml')" id="sifenTabXml" class="px-4 py-2 text-sm font-bold rounded-t-lg border-b-2 border-blue-600 text-blue-600 bg-blue-50">XML DTE</button>
-                <button onclick="ventasCtrl.sifenCambiarTab('soap')" id="sifenTabSoap" class="px-4 py-2 text-sm font-bold rounded-t-lg border-b-2 border-transparent text-gray-500 hover:text-gray-700">Sobre SOAP</button>
+                <sl-button variant="default" size="small" onclick="ventasCtrl.sifenCambiarTab('xml')" id="sifenTabXml" class="px-4 py-2 text-sm font-bold rounded-t-lg border-b-2 border-blue-600 text-blue-600 bg-blue-50">XML DTE</sl-button>
+                <sl-button variant="default" size="small" onclick="ventasCtrl.sifenCambiarTab('soap')" id="sifenTabSoap" class="px-4 py-2 text-sm font-bold rounded-t-lg border-b-2 border-transparent text-gray-500 hover:text-gray-700">Sobre SOAP</sl-button>
             </div>
 
             <!-- Content -->
@@ -287,16 +283,16 @@ function tplXMLSifenModal(result) {
 
             <!-- Footer -->
             <div class="flex gap-3 px-6 py-4 border-t border-gray-100">
-                <button onclick="ventasCtrl.copiarXMLSifen()" class="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-700 inline-flex items-center gap-1.5">
+                <sl-button variant="neutral" size="small" onclick="ventasCtrl.copiarXMLSifen()" class="inline-flex items-center gap-1.5">
                     <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copiar XML
-                </button>
-                <button onclick="ventasCtrl.descargarXMLSifen()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-500 inline-flex items-center gap-1.5">
+                </sl-button>
+                <sl-button variant="primary" size="small" onclick="ventasCtrl.descargarXMLSifen()" class="inline-flex items-center gap-1.5">
                     <i data-lucide="download" class="w-3.5 h-3.5"></i> Descargar .xml
-                </button>
-                <button onclick="ventasCtrl.descargarSOAPSifen()" class="bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-amber-500 inline-flex items-center gap-1.5">
+                </sl-button>
+                <sl-button variant="warning" size="small" onclick="ventasCtrl.descargarSOAPSifen()" class="inline-flex items-center gap-1.5">
                     <i data-lucide="download" class="w-3.5 h-3.5"></i> Descargar SOAP
-                </button>
-                <button onclick="document.getElementById('modalXMLSifen').remove()" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-300 ml-auto">Cerrar</button>
+                </sl-button>
+                <sl-button variant="default" size="small" onclick="document.getElementById('modalXMLSifen').remove()" class="ml-auto">Cerrar</sl-button>
             </div>
         </div>
     `;
@@ -317,9 +313,7 @@ function tplKuDEModal(pedidoId, numFactura, cdc, clienteNombre, total, qrUrl) {
                         </h3>
                         <p class="text-emerald-100 text-xs mt-1">Factura Electronica SIFEN</p>
                     </div>
-                    <button onclick="document.getElementById('modalKuDE').remove()" class="text-white/70 hover:text-white p-1">
-                        <i data-lucide="x" class="w-5 h-5"></i>
-                    </button>
+                    <sl-icon-button name="x-lg" label="Cerrar" onclick="document.getElementById('modalKuDE').remove()" style="font-size:1.25rem;color:rgba(255,255,255,0.7);"></sl-icon-button>
                 </div>
             </div>
 
@@ -344,12 +338,12 @@ function tplKuDEModal(pedidoId, numFactura, cdc, clienteNombre, total, qrUrl) {
             </div>
 
             <div class="flex gap-3 px-6 py-4 border-t border-gray-100">
-                <button onclick="ventasCtrl.ejecutarImpresionKuDE('${pedidoId}', 'thermal')" class="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-700 inline-flex items-center gap-1.5 flex-1 justify-center">
+                <sl-button variant="neutral" size="small" onclick="ventasCtrl.ejecutarImpresionKuDE('${pedidoId}', 'thermal')" class="flex-1 justify-center inline-flex items-center gap-1.5">
                     <i data-lucide="receipt" class="w-3.5 h-3.5"></i> Ticket 58mm
-                </button>
-                <button onclick="ventasCtrl.ejecutarImpresionKuDE('${pedidoId}', 'a4')" class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-emerald-500 inline-flex items-center gap-1.5 flex-1 justify-center">
+                </sl-button>
+                <sl-button variant="success" size="small" onclick="ventasCtrl.ejecutarImpresionKuDE('${pedidoId}', 'a4')" class="flex-1 justify-center inline-flex items-center gap-1.5">
                     <i data-lucide="file-text" class="w-3.5 h-3.5"></i> KuDE A4
-                </button>
+                </sl-button>
             </div>
         </div>
     `;

@@ -244,6 +244,12 @@ function configurarEventos() {
 
     // Zone pills
     poblarZonePills();
+
+    // sl-switch: auto-backup toggle
+    const autoBackupToggle = document.getElementById('autoBackupToggle');
+    if (autoBackupToggle) {
+        autoBackupToggle.addEventListener('sl-change', () => toggleAutoBackup());
+    }
 }
 
 // ============================================

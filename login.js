@@ -45,18 +45,20 @@ togglePassword.addEventListener('click', () => {
         : '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>';
 });
 
-// --- Mostrar alerta (en cualquier contenedor) ---
+// Delay de navegacion post-login (ms) — valor local, login.html no carga constants.js
+const LOGIN_NAV_DELAY = 500;
+
+// --- Mostrar alerta (sl-alert Shoelace) ---
 function showAlert(message, type = 'error', target = alertBox) {
-    target.className = 'mb-4 p-3 rounded-xl text-sm font-medium alert';
-    if (type === 'error') {
-        target.classList.add('bg-red-500/20', 'text-red-300', 'border', 'border-red-500/30');
-    } else if (type === 'success') {
-        target.classList.add('bg-green-500/20', 'text-green-300', 'border', 'border-green-500/30');
-    } else if (type === 'warning') {
-        target.classList.add('bg-amber-500/20', 'text-amber-300', 'border', 'border-amber-500/30');
-    }
-    target.textContent = message;
-    target.classList.remove('hidden');
+    const variantMap = { error: 'danger', success: 'success', warning: 'warning' };
+    const iconMap = { error: 'exclamation-octagon', success: 'check2-circle', warning: 'exclamation-triangle' };
+    target.variant = variantMap[type] || 'danger';
+    const icon = target.querySelector('sl-icon[slot="icon"]');
+    if (icon) icon.name = iconMap[type] || 'exclamation-octagon';
+    const msg = target.querySelector('span');
+    if (msg) msg.textContent = message;
+    target.style.display = '';
+    target.open = true;
 }
 
 // --- Cambiar pantalla visible ---
@@ -162,7 +164,7 @@ async function iniciarEnrolamiento() {
 
     } catch (err) {
         console.error('[MFA] Error en enrolamiento:', err);
-        showAlert('Error de conexion al configurar MFA.', 'error', mfaEnrollAlert);
+        showAlert(`Error al configurar MFA: ${err?.message || 'conexion fallida'}.`, 'error', mfaEnrollAlert);
     }
 }
 
@@ -212,7 +214,10 @@ btnMfaEnrollVerify.addEventListener('click', async () => {
 
     } catch (err) {
         console.error('[MFA] Error verificando enrolamiento:', err);
-        showAlert('Error de conexion. Intenta de nuevo.', 'error', mfaEnrollAlert);
+        const msg = err?.message?.includes('network')
+            ? 'Sin conexion a internet. Verifica tu red.'
+            : `Error inesperado: ${err?.message || 'desconocido'}. Intenta de nuevo.`;
+        showAlert(msg, 'error', mfaEnrollAlert);
         btnMfaEnrollVerify.disabled = false;
         btnMfaEnrollVerify.textContent = 'Activar MFA';
     }
@@ -231,7 +236,7 @@ function mostrarVerificacionMFA(factorId) {
     _mfaFactorId = factorId;
     mostrarPantalla(mfaContainer);
     mfaCodeInput.value = '';
-    mfaAlert.classList.add('hidden');
+    mfaAlert.open = false;
     mfaCodeInput.focus();
 }
 
@@ -276,11 +281,14 @@ btnMfaVerify.addEventListener('click', async () => {
         // MFA verificado — redirigir
         await HDVStorage.setItem('hdv_user_rol', _pendingRol);
         showAlert('Verificado! Redirigiendo...', 'success', mfaAlert);
-        setTimeout(() => redirigirPorRol(_pendingRol), TIEMPOS.NAV_DELAY_MS);
+        setTimeout(() => redirigirPorRol(_pendingRol), LOGIN_NAV_DELAY);
 
     } catch (err) {
         console.error('[MFA] Error verificando TOTP:', err);
-        showAlert('Error de conexion. Intenta de nuevo.', 'error', mfaAlert);
+        const msg = err?.message?.includes('network')
+            ? 'Sin conexion a internet. Verifica tu red.'
+            : `Error inesperado: ${err?.message || 'desconocido'}. Intenta de nuevo.`;
+        showAlert(msg, 'error', mfaAlert);
         btnMfaVerify.disabled = false;
         btnMfaVerify.textContent = 'Verificar';
     }
@@ -301,7 +309,7 @@ btnMfaCancel.addEventListener('click', async () => {
     _pendingRol = null;
     _pendingUserId = null;
     mostrarPantalla(loginContainer);
-    alertBox.classList.add('hidden');
+    alertBox.open = false;
 });
 
 // ============================================
@@ -353,7 +361,7 @@ async function verificarSesionExistente() {
 
 loginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    alertBox.classList.add('hidden');
+    alertBox.open = false;
 
     const email = emailInput.value.trim().toLowerCase();
     const password = passwordInput.value;
@@ -415,11 +423,14 @@ loginForm.addEventListener('submit', async (e) => {
         await HDVStorage.setItem('hdv_user_email', data.user.email);
 
         showAlert('Bienvenido! Redirigiendo...', 'success');
-        setTimeout(() => redirigirPorRol(rol), TIEMPOS.NAV_DELAY_MS);
+        setTimeout(() => redirigirPorRol(rol), LOGIN_NAV_DELAY);
 
     } catch (err) {
         console.error('[Login] Error:', err);
-        showAlert('Error de conexion. Verifica tu internet.');
+        const msg = err?.message?.includes('network') || err?.message?.includes('fetch')
+            ? 'Sin conexion a internet. Verifica tu red.'
+            : `Error inesperado: ${err?.message || 'desconocido'}. Intenta de nuevo.`;
+        showAlert(msg);
         btnLogin.disabled = false;
         btnLogin.textContent = 'Iniciar Sesion';
     }

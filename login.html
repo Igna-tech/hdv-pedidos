@@ -9,6 +9,13 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="dist/tailwind.css">
+    <!-- Shoelace Web Components (local, offline-first) -->
+    <link rel="stylesheet" href="assets/lib/shoelace/themes/dark.css">
+    <script type="module">
+        import { setBasePath } from './assets/lib/shoelace/utilities/base-path.js';
+        setBasePath('./assets/lib/shoelace');
+    </script>
+    <script type="module" src="assets/lib/shoelace/shoelace.js"></script>
     <!-- Supabase (version fijada para SRI) -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.99.2" integrity="sha384-zETTH+6IXxKQ6zbGcT6H6EDdnGaae9uhI8uO7doTJoNEmPGeTKVOe5S6/XybS9JH" crossorigin="anonymous"></script>
 
@@ -89,7 +96,10 @@
         </div>
 
         <!-- Alerta de errores -->
-        <div id="login-alert" class="hidden mb-4 p-3 rounded-xl text-sm font-medium alert"></div>
+        <sl-alert id="login-alert" class="mb-4" closable style="display:none;">
+            <sl-icon slot="icon" name="exclamation-octagon"></sl-icon>
+            <span id="login-alert-msg"></span>
+        </sl-alert>
 
         <!-- Formulario -->
         <form id="login-form" class="space-y-4">
@@ -148,7 +158,10 @@
             <p class="text-gray-400 text-sm mt-1">Ingresa el codigo de tu app de autenticacion</p>
         </div>
 
-        <div id="mfa-alert" class="hidden mb-4 p-3 rounded-xl text-sm font-medium alert"></div>
+        <sl-alert id="mfa-alert" class="mb-4" closable style="display:none;">
+            <sl-icon slot="icon" name="exclamation-octagon"></sl-icon>
+            <span id="mfa-alert-msg"></span>
+        </sl-alert>
 
         <div class="space-y-4">
             <div>
@@ -185,7 +198,10 @@
             <p class="text-gray-400 text-sm mt-2">Tu cuenta de administrador requiere autenticacion de dos factores. Escanea el codigo QR con tu app (Google Authenticator, Authy, etc.)</p>
         </div>
 
-        <div id="mfa-enroll-alert" class="hidden mb-4 p-3 rounded-xl text-sm font-medium alert"></div>
+        <sl-alert id="mfa-enroll-alert" class="mb-4" closable style="display:none;">
+            <sl-icon slot="icon" name="exclamation-octagon"></sl-icon>
+            <span id="mfa-enroll-alert-msg"></span>
+        </sl-alert>
 
         <div class="space-y-4">
             <!-- QR Code -->

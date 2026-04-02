@@ -1,4 +1,4 @@
-const VERSION = '60.0';
+const VERSION = '60.1';
 const CACHE_NAME = `hdv-pedidos-v${VERSION}`;
 
 const urlsToCache = [
@@ -39,6 +39,7 @@ const urlsToCache = [
     './dist/tailwind.css',
     // Shoelace Web Components (core — chunks se cachean on-demand via cache-first)
     './assets/lib/shoelace/themes/light.css',
+    './assets/lib/shoelace/themes/dark.css',
     './assets/lib/shoelace/shoelace.js',
     './assets/lib/shoelace/utilities/base-path.js'
 ];

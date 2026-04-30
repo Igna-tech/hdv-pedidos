@@ -268,12 +268,12 @@ async function marcarEntregado(id) {
             return;
         }
     }
-    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
-    const p = pedidos.find(x => x.id === id);
-    if (p) {
-        p.estado = PEDIDO_ESTADOS.ENTREGADO;
-        await HDVStorage.setItem('hdv_pedidos', pedidos);
-    }
+    await HDVStorage.atomicUpdate('hdv_pedidos', (pedidos) => {
+        const list = pedidos || [];
+        const p = list.find(x => x.id === id);
+        if (p) p.estado = PEDIDO_ESTADOS.ENTREGADO;
+        return list;
+    });
     // Actualizar DOM inmediatamente sin re-renderizar toda la lista
     if (!actualizarTarjetaPedidoAdminDOM(id, PEDIDO_ESTADOS.ENTREGADO)) {
         // Fallback: si la tarjeta no existe en DOM, re-renderizar
@@ -293,12 +293,12 @@ async function marcarPendiente(id) {
             return;
         }
     }
-    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
-    const p = pedidos.find(x => x.id === id);
-    if (p) {
-        p.estado = PEDIDO_ESTADOS.PENDIENTE;
-        await HDVStorage.setItem('hdv_pedidos', pedidos);
-    }
+    await HDVStorage.atomicUpdate('hdv_pedidos', (pedidos) => {
+        const list = pedidos || [];
+        const p = list.find(x => x.id === id);
+        if (p) p.estado = PEDIDO_ESTADOS.PENDIENTE;
+        return list;
+    });
     // Actualizar DOM inmediatamente sin re-renderizar toda la lista
     if (!actualizarTarjetaPedidoAdminDOM(id, PEDIDO_ESTADOS.PENDIENTE)) {
         cargarPedidos();
@@ -322,9 +322,9 @@ async function eliminarPedidoAdmin(id) {
             return;
         }
     }
-    let pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
-    pedidos = pedidos.filter(p => p.id !== id);
-    await HDVStorage.setItem('hdv_pedidos', pedidos);
+    await HDVStorage.atomicUpdate('hdv_pedidos', (pedidos) => {
+        return (pedidos || []).filter(p => p.id !== id);
+    });
     // Animacion de eliminacion en DOM
     eliminarTarjetaPedidoAdminDOM(id);
     mostrarToast('Pedido eliminado', 'success');
@@ -563,23 +563,29 @@ async function guardarEdicionPedido() {
         const subtotal = items.reduce((s, i) => s + i.subtotal, 0);
         const total = subtotal;
 
-        // Update in HDVStorage
-        const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
-        const idx = pedidos.findIndex(p => p.id === pedidoEditandoId);
-        if (idx >= 0) {
-            pedidos[idx].items = items;
-            pedidos[idx].subtotal = subtotal;
-            pedidos[idx].total = total;
-            pedidos[idx].tipoPago = document.getElementById('editPedidoTipoPago')?.value || 'contado';
-            pedidos[idx].notas = document.getElementById('editPedidoNotas')?.value.trim() || '';
-            pedidos[idx].editado = true;
-            pedidos[idx].fechaEdicion = new Date().toISOString();
-            await HDVStorage.setItem('hdv_pedidos', pedidos);
-
-            // Sync con Supabase
-            if (typeof guardarPedido === 'function') {
-                guardarPedido(pedidos[idx]);
+        // Update in HDVStorage (atomicUpdate previene race conditions con realtime)
+        const tipoPago = document.getElementById('editPedidoTipoPago')?.value || 'contado';
+        const notas = document.getElementById('editPedidoNotas')?.value.trim() || '';
+        let pedidoActualizado = null;
+        await HDVStorage.atomicUpdate('hdv_pedidos', (pedidos) => {
+            const list = pedidos || [];
+            const idx = list.findIndex(p => p.id === pedidoEditandoId);
+            if (idx >= 0) {
+                list[idx].items = items;
+                list[idx].subtotal = subtotal;
+                list[idx].total = total;
+                list[idx].tipoPago = tipoPago;
+                list[idx].notas = notas;
+                list[idx].editado = true;
+                list[idx].fechaEdicion = new Date().toISOString();
+                pedidoActualizado = list[idx];
             }
+            return list;
+        });
+
+        // Sync con Supabase
+        if (pedidoActualizado && typeof guardarPedido === 'function') {
+            guardarPedido(pedidoActualizado);
         }
 
         cerrarModalEditarPedido();

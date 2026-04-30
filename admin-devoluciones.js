@@ -217,19 +217,23 @@ async function procesarNotaCredito() {
             sincronizado: false
         };
 
-        // Guardar en HDVStorage
-        const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
-        pedidos.push(notaCredito);
-        await HDVStorage.setItem('hdv_pedidos', pedidos);
+        // Guardar en HDVStorage (atomicUpdate previene race conditions con realtime)
+        await HDVStorage.atomicUpdate('hdv_pedidos', (pedidos) => {
+            const list = pedidos || [];
+            list.push(notaCredito);
+            return list;
+        });
 
         // Sincronizar con Supabase
         if (typeof guardarPedido === 'function') {
             guardarPedido(notaCredito).then(async (ok) => {
                 if (ok) {
-                    notaCredito.sincronizado = true;
-                    const p = (await HDVStorage.getItem('hdv_pedidos')) || [];
-                    const idx = p.findIndex(x => x.id === notaCredito.id);
-                    if (idx >= 0) { p[idx].sincronizado = true; await HDVStorage.setItem('hdv_pedidos', p); }
+                    await HDVStorage.atomicUpdate('hdv_pedidos', (pedidos) => {
+                        const list = pedidos || [];
+                        const p = list.find(x => x.id === notaCredito.id);
+                        if (p) p.sincronizado = true;
+                        return list;
+                    });
                 }
             });
         }

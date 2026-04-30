@@ -103,19 +103,19 @@ async function escucharPedidosRealtime(callback) {
             callback(pedidosLocal, []);
         } else {
             const pedidos = data.map(r => r.datos);
-            const pedidosLocal = (await HDVStorage.getItem('hdv_pedidos')) || [];
-            // Preservar pedidos locales no sincronizados en carga inicial
-            const sinSync = pedidosLocal.filter(p => p.sincronizado === false);
-            const remIds = new Set(pedidos.map(p => p.id));
-            const localesExtra = sinSync.filter(p => !remIds.has(p.id));
-            if (pedidos.length > 0 || pedidosLocal.length === 0) {
-                const merged = [...pedidos, ...localesExtra];
-                await HDVStorage.setItem('hdv_pedidos', merged);
-                callback(merged, []);
-            } else {
+            // Merge atómico: preservar pedidos locales no sincronizados
+            const merged = await HDVStorage.atomicUpdate('hdv_pedidos', (pedidosLocal) => {
+                const list = pedidosLocal || [];
+                const sinSync = list.filter(p => p.sincronizado === false);
+                const remIds = new Set(pedidos.map(p => p.id));
+                const localesExtra = sinSync.filter(p => !remIds.has(p.id));
+                if (pedidos.length > 0 || list.length === 0) {
+                    return [...pedidos, ...localesExtra];
+                }
                 console.warn('[Supabase] Carga inicial vacia pero hay datos locales, conservando');
-                callback(pedidosLocal, []);
-            }
+                return list;
+            });
+            callback(merged, []);
         }
     } catch(e) {
         console.error('[Supabase] Error critico carga inicial pedidos:', e);
@@ -591,13 +591,14 @@ const db = {
 // ============================================
 
 async function sincronizarDatosNegocio() {
+    const vendedorId = window.hdvUsuario?.id;
     const mapeo = [
         { key: 'hdv_pagos_credito', doc: 'pagos_credito' },
         { key: 'hdv_creditos_manuales', doc: 'creditos_manuales' },
         { key: 'hdv_promociones', doc: 'promociones' },
         { key: 'hdv_whatsapp_mensaje_credito', doc: 'whatsapp_plantilla' },
-        { key: 'hdv_gastos', doc: 'gastos_vendedor' },
-        { key: 'hdv_rendiciones', doc: 'rendiciones' },
+        { key: 'hdv_gastos', doc: vendedorId ? `gastos_vendedor_${vendedorId}` : 'gastos_vendedor' },
+        { key: 'hdv_rendiciones', doc: vendedorId ? `rendiciones_${vendedorId}` : 'rendiciones' },
         { key: 'hdv_cuentas_bancarias', doc: 'cuentas_bancarias' },
         { key: 'hdv_metas', doc: 'metas_vendedor' }
     ];
@@ -611,13 +612,14 @@ async function sincronizarDatosNegocio() {
 }
 
 async function cargarDatosNegocio() {
+    const vendedorId = window.hdvUsuario?.id;
     const mapeo = [
         { key: 'hdv_pagos_credito', doc: 'pagos_credito' },
         { key: 'hdv_creditos_manuales', doc: 'creditos_manuales' },
         { key: 'hdv_promociones', doc: 'promociones' },
         { key: 'hdv_whatsapp_mensaje_credito', doc: 'whatsapp_plantilla' },
-        { key: 'hdv_gastos', doc: 'gastos_vendedor' },
-        { key: 'hdv_rendiciones', doc: 'rendiciones' },
+        { key: 'hdv_gastos', doc: vendedorId ? `gastos_vendedor_${vendedorId}` : 'gastos_vendedor' },
+        { key: 'hdv_rendiciones', doc: vendedorId ? `rendiciones_${vendedorId}` : 'rendiciones' },
         { key: 'hdv_cuentas_bancarias', doc: 'cuentas_bancarias' },
         { key: 'hdv_metas', doc: 'metas_vendedor' }
     ];
@@ -635,12 +637,13 @@ async function cargarDatosNegocio() {
 }
 
 function iniciarListenersDatosNegocio() {
+    const vendedorId = window.hdvUsuario?.id;
     escucharConfigRealtime('pagos_credito', 'hdv_pagos_credito');
     escucharConfigRealtime('creditos_manuales', 'hdv_creditos_manuales');
     escucharConfigRealtime('promociones', 'hdv_promociones');
     escucharConfigRealtime('whatsapp_plantilla', 'hdv_whatsapp_mensaje_credito');
-    escucharConfigRealtime('gastos_vendedor', 'hdv_gastos');
-    escucharConfigRealtime('rendiciones', 'hdv_rendiciones');
+    escucharConfigRealtime(vendedorId ? `gastos_vendedor_${vendedorId}` : 'gastos_vendedor', 'hdv_gastos');
+    escucharConfigRealtime(vendedorId ? `rendiciones_${vendedorId}` : 'rendiciones', 'hdv_rendiciones');
     escucharConfigRealtime('cuentas_bancarias', 'hdv_cuentas_bancarias');
     escucharConfigRealtime('metas_vendedor', 'hdv_metas');
 }

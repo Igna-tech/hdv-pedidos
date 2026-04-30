@@ -40,50 +40,65 @@ function ventasDataEstadisticas(ventas) {
     };
 }
 
-// --- Escritura ---
+// --- Escritura (atomicUpdate previene race conditions con realtime) ---
 
 async function ventasDataFacturar(pedidoId) {
-    const pedidos = await ventasDataObtenerPedidos();
-    const pedido = pedidos.find(p => p.id === pedidoId);
-    if (!pedido) return null;
+    // Leer con clone:true para validacion previa (no mutar cache)
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
+    const pedidoOrig = pedidos.find(p => p.id === pedidoId);
+    if (!pedidoOrig) return null;
 
-    const clienteInfo = ventasDataBuscarCliente(pedido.cliente?.id);
-    const ruc = clienteInfo?.ruc || pedido.cliente?.ruc || '';
+    const clienteInfo = ventasDataBuscarCliente(pedidoOrig.cliente?.id);
+    const ruc = clienteInfo?.ruc || pedidoOrig.cliente?.ruc || '';
     if (!ruc) return { error: 'El cliente no tiene RUC asignado. No se puede facturar.' };
 
     const numFactura = generarNumeroFacturaAdmin();
     const cdc = generarCDCAdmin();
 
-    pedido.estado = PEDIDO_ESTADOS.FACTURADO;
-    pedido.numFactura = numFactura;
-    pedido.cdc = cdc;
-    pedido.sincronizado = false;
-    await HDVStorage.setItem('hdv_pedidos', pedidos);
+    let pedidoActualizado = null;
+    await HDVStorage.atomicUpdate('hdv_pedidos', (pedidos) => {
+        const list = pedidos || [];
+        const p = list.find(x => x.id === pedidoId);
+        if (p) {
+            p.estado = PEDIDO_ESTADOS.FACTURADO;
+            p.numFactura = numFactura;
+            p.cdc = cdc;
+            p.sincronizado = false;
+            pedidoActualizado = { ...p };
+        }
+        return list;
+    });
 
     // Sync con Supabase (fire-and-forget)
-    if (typeof guardarPedido === 'function') {
-        guardarPedido(pedido).then(async ok => {
+    if (pedidoActualizado && typeof guardarPedido === 'function') {
+        guardarPedido(pedidoActualizado).then(async ok => {
             if (ok) {
-                pedido.sincronizado = true;
-                await HDVStorage.setItem('hdv_pedidos', pedidos);
+                await HDVStorage.atomicUpdate('hdv_pedidos', (pedidos) => {
+                    const list = pedidos || [];
+                    const p = list.find(x => x.id === pedidoId);
+                    if (p) p.sincronizado = true;
+                    return list;
+                });
             }
         });
     }
 
-    return { pedido, clienteInfo, numFactura, cdc, ruc };
+    return { pedido: pedidoActualizado || pedidoOrig, clienteInfo, numFactura, cdc, ruc };
 }
 
 async function ventasDataGuardarSifen(pedidoId, result) {
-    const pedidos = await ventasDataObtenerPedidos();
-    const idx = pedidos.findIndex(p => p.id === pedidoId);
-    if (idx === -1) return false;
-
-    pedidos[idx].sifen_cdc = result.cdc;
-    pedidos[idx].sifen_qr_url = result.qr_url;
-    pedidos[idx].sifen_numFactura = result.numFactura;
-    pedidos[idx].sifen_xml_generado = true;
-    pedidos[idx].sifen_fecha_generacion = new Date().toISOString();
-    await HDVStorage.setItem('hdv_pedidos', pedidos);
+    await HDVStorage.atomicUpdate('hdv_pedidos', (pedidos) => {
+        const list = pedidos || [];
+        const p = list.find(x => x.id === pedidoId);
+        if (p) {
+            p.sifen_cdc = result.cdc;
+            p.sifen_qr_url = result.qr_url;
+            p.sifen_numFactura = result.numFactura;
+            p.sifen_xml_generado = true;
+            p.sifen_fecha_generacion = new Date().toISOString();
+        }
+        return list;
+    });
     return true;
 }
 

@@ -238,13 +238,13 @@ async function registrarPagoManual(creditoId) {
 }
 
 async function marcarPagado(id) {
-    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
-    const p = pedidos.find(x => x.id === id);
-    if (p) {
-        p.estado = 'pagado';
-        await HDVStorage.setItem('hdv_pedidos', pedidos);
-        if (typeof actualizarEstadoPedido === 'function') actualizarEstadoPedido(id, 'pagado');
-    }
+    await HDVStorage.atomicUpdate('hdv_pedidos', (pedidos) => {
+        const list = pedidos || [];
+        const p = list.find(x => x.id === id);
+        if (p) p.estado = 'pagado';
+        return list;
+    });
+    if (typeof actualizarEstadoPedido === 'function') actualizarEstadoPedido(id, 'pagado');
     cargarCreditos();
 }
 

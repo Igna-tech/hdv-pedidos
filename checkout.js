@@ -91,11 +91,14 @@ async function procesarPedido() {
             sincronizado: false
         };
 
-        // Guardar local
-        const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
-        pedidos.push(pedido);
-        const persisted = await HDVStorage.setItem('hdv_pedidos', pedidos);
-        if (!persisted) {
+        // Guardar local (atomicUpdate previene race conditions con realtime)
+        try {
+            await HDVStorage.atomicUpdate('hdv_pedidos', (pedidos) => {
+                const list = pedidos || [];
+                list.push(pedido);
+                return list;
+            });
+        } catch (_e) {
             mostrarToast('Pedido creado pero no se pudo guardar localmente. Sincronice cuanto antes.', 'warning');
         }
 
@@ -103,11 +106,12 @@ async function procesarPedido() {
         if (typeof guardarPedido === 'function') {
             guardarPedido(pedido).then(async (ok) => {
                 if (ok) {
-                    // Re-leer pedidos para evitar race condition
-                    const pedidosActuales = (await HDVStorage.getItem('hdv_pedidos')) || [];
-                    const idx = pedidosActuales.findIndex(p => p.id === pedido.id);
-                    if (idx >= 0) { pedidosActuales[idx].sincronizado = true; }
-                    await HDVStorage.setItem('hdv_pedidos', pedidosActuales);
+                    await HDVStorage.atomicUpdate('hdv_pedidos', (pedidos) => {
+                        const list = pedidos || [];
+                        const p = list.find(x => x.id === pedido.id);
+                        if (p) p.sincronizado = true;
+                        return list;
+                    });
                 }
             }).catch(err => console.error('[Checkout] Error sync pedido:', err));
         }
@@ -141,11 +145,14 @@ async function procesarCobroInterno() {
             sincronizado: false
         };
 
-        // Guardar local
-        const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
-        pedidos.push(pedido);
-        const persisted = await HDVStorage.setItem('hdv_pedidos', pedidos);
-        if (!persisted) {
+        // Guardar local (atomicUpdate previene race conditions con realtime)
+        try {
+            await HDVStorage.atomicUpdate('hdv_pedidos', (pedidos) => {
+                const list = pedidos || [];
+                list.push(pedido);
+                return list;
+            });
+        } catch (_e) {
             mostrarToast('Cobro creado pero no se pudo guardar localmente. Sincronice cuanto antes.', 'warning');
         }
 
@@ -153,10 +160,12 @@ async function procesarCobroInterno() {
         if (typeof guardarPedido === 'function') {
             guardarPedido(pedido).then(async (ok) => {
                 if (ok) {
-                    const pedidosActuales = (await HDVStorage.getItem('hdv_pedidos')) || [];
-                    const idx = pedidosActuales.findIndex(p => p.id === pedido.id);
-                    if (idx >= 0) { pedidosActuales[idx].sincronizado = true; }
-                    await HDVStorage.setItem('hdv_pedidos', pedidosActuales);
+                    await HDVStorage.atomicUpdate('hdv_pedidos', (pedidos) => {
+                        const list = pedidos || [];
+                        const p = list.find(x => x.id === pedido.id);
+                        if (p) p.sincronizado = true;
+                        return list;
+                    });
                 }
             }).catch(err => console.error('[Checkout] Error sync cobro:', err));
         }
@@ -232,11 +241,14 @@ async function procesarFacturaMock() {
             sincronizado: false
         };
 
-        // Guardar local
-        const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
-        pedidos.push(pedido);
-        const persisted = await HDVStorage.setItem('hdv_pedidos', pedidos);
-        if (!persisted) {
+        // Guardar local (atomicUpdate previene race conditions con realtime)
+        try {
+            await HDVStorage.atomicUpdate('hdv_pedidos', (pedidos) => {
+                const list = pedidos || [];
+                list.push(pedido);
+                return list;
+            });
+        } catch (_e) {
             mostrarToast('Factura creada pero no se pudo guardar localmente. Sincronice cuanto antes.', 'warning');
         }
 
@@ -244,10 +256,12 @@ async function procesarFacturaMock() {
         if (typeof guardarPedido === 'function') {
             guardarPedido(pedido).then(async (ok) => {
                 if (ok) {
-                    const pedidosActuales = (await HDVStorage.getItem('hdv_pedidos')) || [];
-                    const idx = pedidosActuales.findIndex(p => p.id === pedido.id);
-                    if (idx >= 0) { pedidosActuales[idx].sincronizado = true; }
-                    await HDVStorage.setItem('hdv_pedidos', pedidosActuales);
+                    await HDVStorage.atomicUpdate('hdv_pedidos', (pedidos) => {
+                        const list = pedidos || [];
+                        const p = list.find(x => x.id === pedido.id);
+                        if (p) p.sincronizado = true;
+                        return list;
+                    });
                 }
             }).catch(err => console.error('[Checkout] Error sync factura:', err));
         }

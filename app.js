@@ -122,16 +122,17 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const { data, error } = await SupabaseService.fetchPedidos();
                 if (!error && data) {
                     const pedidosRemoto = data.map(r => r.datos);
-                    const pedidosLocal = (await HDVStorage.getItem('hdv_pedidos')) || [];
-                    const sinSync = pedidosLocal.filter(p => p.sincronizado === false);
-                    const remIds = new Set(pedidosRemoto.map(p => p.id));
-                    const localesExtra = sinSync.filter(p => !remIds.has(p.id));
-                    const merged = [...pedidosRemoto, ...localesExtra];
-                    await HDVStorage.setItem('hdv_pedidos', merged);
+                    await HDVStorage.atomicUpdate('hdv_pedidos', (pedidosLocal) => {
+                        const list = pedidosLocal || [];
+                        const sinSync = list.filter(p => p.sincronizado === false);
+                        const remIds = new Set(pedidosRemoto.map(p => p.id));
+                        const localesExtra = sinSync.filter(p => !remIds.has(p.id));
+                        return [...pedidosRemoto, ...localesExtra];
+                    });
                     if (vistaActual === 'pedidos' && typeof mostrarMisPedidos === 'function') {
                         mostrarMisPedidos();
                     }
-                    console.log('[Vendedor RT] Pedidos re-sincronizados:', merged.length);
+                    console.log('[Vendedor RT] Pedidos re-sincronizados');
                 }
             }
         } catch(e) {

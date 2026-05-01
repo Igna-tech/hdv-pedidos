@@ -135,16 +135,10 @@
         }
         .unsaved-bar.visible { bottom: 20px; }
 
-        /* Toast notifications (sl-alert based) */
-        #toastContainer { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
-        #toastContainer sl-alert { pointer-events: auto; }
-        #toastContainer sl-alert::part(base) { font-weight: 600; font-size: 13px; }
+        /* sl-button layout, toast base — in src/input.css (shared) */
 
-        /* Shoelace sl-button full-width support */
-        sl-button.w-full { display: block; }
-        sl-button.w-full::part(base) { width: 100%; }
-        sl-button.flex-1 { flex: 1; }
-        sl-button.flex-1::part(base) { width: 100%; }
+        /* Toast container positioning (admin: top-right) */
+        #toastContainer { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
 
         /* Animation used by global search box */
         @keyframes confirmSlideUp { from { opacity: 0; transform: scale(0.9) translateY(20px); } to { opacity: 1; transform: scale(1) translateY(0); } }

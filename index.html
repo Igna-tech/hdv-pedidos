@@ -54,55 +54,7 @@
         }
 
 
-        .dark-mode { background-color: var(--grafito-oscuro) !important; color: white; }
-        .dark-mode .bg-white { background-color: var(--grafito) !important; color: white; border-color: #374151; }
-        .dark-mode .text-gray-800 { color: #f3f4f6 !important; }
-        .dark-mode .text-gray-500 { color: #9ca3af !important; }
-        .dark-mode .skeleton { background: #374151 !important; }
-        .dark-mode .skeleton::after { background: linear-gradient(90deg, transparent, rgba(255,255,255,0.04), transparent) !important; }
-
-        /* ==========================================
-           A11Y - Focus visible & Microinteractions
-           ========================================== */
-        *:focus-visible {
-            outline: 2px solid #6366f1;
-            outline-offset: 2px;
-            border-radius: 4px;
-        }
-        button, [role="button"], a, select, label[for], .cursor-pointer { cursor: pointer; }
-        button:active:not(:disabled) { transform: scale(0.97); }
-
-        /* Form inputs focus */
-        input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
-        textarea, select {
-            transition: border-color 0.2s ease, box-shadow 0.2s ease;
-        }
-        input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):focus,
-        textarea:focus, select:focus {
-            border-color: #6366f1 !important;
-            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
-        }
-
-        /* ==========================================
-           Skeleton Loaders
-           ========================================== */
-        .skeleton {
-            background: #e5e7eb;
-            border-radius: 12px;
-            position: relative;
-            overflow: hidden;
-        }
-        .skeleton::after {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent);
-            animation: shimmer 1.5s infinite;
-        }
-        @keyframes shimmer {
-            0% { transform: translateX(-100%); }
-            100% { transform: translateX(100%); }
-        }
+        /* Dark mode, A11Y focus, skeleton loaders — in src/input.css (shared) */
 
         /* ==========================================
            Animations & Transitions
@@ -112,8 +64,6 @@
             0%, 100% { transform: scale(1); }
             50% { transform: scale(1.2); }
         }
-
-        .no-scrollbar::-webkit-scrollbar { display: none; }
 
         /* Shoelace: zone pills */
         .zone-pill { --sl-color-neutral-100: #374151; --sl-color-neutral-700: #d1d5db; }
@@ -125,27 +75,14 @@
         /* Shoelace: cart quantity buttons 44px touch target */
         .cart-qty-btn { --sl-spacing-x-small: 0.4rem; }
         .cart-qty-btn::part(base) { min-width: 44px; min-height: 44px; }
-        /* Shoelace: full-width buttons inside flex containers */
-        sl-button.w-full { display: block; }
-        sl-button.w-full::part(base) { width: 100%; }
-        sl-button.flex-1 { flex: 1; }
-        sl-button.flex-1::part(base) { width: 100%; }
+        /* sl-button layout, toast base, empty-state — in src/input.css (shared) */
 
-        /* Toast notifications (sl-alert based) */
+        /* Toast container positioning (vendedor: bottom-center) */
         #toastContainer {
             position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
             z-index: 9999; display: flex; flex-direction: column-reverse; gap: 8px;
             pointer-events: none; width: 90%; max-width: 400px;
         }
-        #toastContainer sl-alert { pointer-events: auto; }
-        #toastContainer sl-alert::part(base) { font-weight: 600; font-size: 13px; }
-
-
-        /* Empty state */
-        .empty-state { display: flex; flex-direction: column; align-items: center; padding: 3rem 1rem; }
-        .empty-state svg { width: 120px; height: 120px; margin-bottom: 1rem; opacity: 0.6; }
-        .empty-state p { color: #6b7280; font-weight: 600; font-size: 0.875rem; text-align: center; }
-        .empty-state .empty-sub { color: #9ca3af; font-weight: 400; font-size: 0.75rem; margin-top: 0.25rem; }
 
         /* Catalog category grid (vendor) */
         .vendor-catalog-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }

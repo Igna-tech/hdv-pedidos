@@ -12,7 +12,7 @@ PWA mobile-first para vendedores de calle + panel admin de escritorio.
 
 ## Stack
 
-- **Frontend**: Vanilla JS, Tailwind CSS (compilado estatico, v3.4.17), Lucide Icons (v0.468.0), Chart.js (admin), jsPDF, JSZip
+- **Frontend**: Vanilla JS, Tailwind CSS (compilado estatico, v3.4.17), Shoelace Web Components (local, no CDN), Lucide Icons (v0.468.0), Chart.js (admin), jsPDF, JSZip
 - **Backend**: Supabase (Auth, PostgreSQL, Storage, Realtime, Edge Functions)
 - **Deploy**: Vercel (archivos estaticos)
 - **PWA**: Service Worker con estrategia por capas: Network-First para Supabase API (cache como fallback offline), Network-First para JS/HTML, Cache-First para assets estaticos
@@ -41,6 +41,7 @@ PWA mobile-first para vendedores de calle + panel admin de escritorio.
 ├── js/services/sync.js     → SyncManager: sync automatica con batch upsert, pre-flight check, backoff exponencial + jitter
 ├── js/utils/storage.js     → HDVStorage: wrapper IndexedDB blindado (persistent storage, quota monitoring, eviction detection)
 ├── js/utils/sanitizer.js   → escapeHTML() para prevencion XSS
+├── js/utils/dialogs.js     → Toast (sl-alert), confirm modal (sl-dialog), input modal (sl-dialog) — compartido entre vendedor y admin
 ├── js/utils/helpers.js     → Utilidades compartidas (debounce, etc.)
 ├── js/utils/formatters.js  → Formateo de moneda, fechas, etc.
 ├── js/utils/printer.js     → Impresion de tickets termicos y A4
@@ -55,7 +56,7 @@ PWA mobile-first para vendedores de calle + panel admin de escritorio.
 ├── js/modules/ventas/ventas-data.js      → Datos y logica de ventas/facturacion
 ├── js/modules/ventas/ventas-templates.js → Templates HTML para documentos de venta
 │
-├── src/input.css           → Entrada Tailwind (directivas @tailwind)
+├── src/input.css           → Entrada Tailwind + design tokens Shoelace (:root --sl-*, --hdv-*) + clases utilitarias compartidas
 ├── dist/tailwind.css       → CSS compilado y minificado (generado por npm run build:css)
 ├── tailwind.config.js      → Config Tailwind: content paths para purge
 ├── service-worker.js       → Cache PWA (version actual en const VERSION)
@@ -84,10 +85,10 @@ PWA mobile-first para vendedores de calle + panel admin de escritorio.
 ## Orden de carga de scripts
 
 **index.html (vendedor):**
-supabase CDN → supabase-init.js → **js/utils/constants.js** → services/supabase.js → js/utils/storage.js → guard.js → supabase-config.js → js/services/sync.js → [core/state, sanitizer, helpers, formatters, printer, pdf-generator, vendedor modules] → app.js → checkout.js
+supabase CDN → supabase-init.js → **js/utils/constants.js** → services/supabase.js → js/utils/storage.js → guard.js → supabase-config.js → js/services/sync.js → [core/state, sanitizer, **dialogs**, helpers, formatters, printer, pdf-generator, vendedor modules] → app.js → checkout.js
 
 **admin.html:**
-supabase CDN → Chart.js → supabase-init.js → **js/utils/constants.js** → services/supabase.js → js/utils/storage.js → guard.js → supabase-config.js → [core/state, sanitizer, helpers, formatters, printer, pdf-generator] → admin.js → [admin modules] → admin-ventas.js → admin-devoluciones.js → admin-contabilidad.js
+supabase CDN → Chart.js → supabase-init.js → **js/utils/constants.js** → services/supabase.js → js/utils/storage.js → guard.js → supabase-config.js → [core/state, sanitizer, **dialogs**, helpers, formatters, printer, pdf-generator] → admin.js → [admin modules] → admin-ventas.js → admin-devoluciones.js → admin-contabilidad.js
 
 **login.html:**
 supabase CDN → supabase-init.js → js/utils/storage.js → login.js
@@ -355,3 +356,32 @@ Bucket `productos_img` (Supabase Storage). Compresion Canvas → WebP 800px max.
 - Pedidos: IndexedDB es fuente primaria para lectura, Supabase para sync entre dispositivos.
 - IDs de pedidos generados con `crypto.randomUUID()` (PED-, REC-, FAC-). No usar Date.now() ni Math.random().
 - **PROHIBIDO modificar** el codigo de generacion XML, CDC, integracion SIFEN/SET o Edge Functions sin autorizacion explicita.
+
+## Sistema de UI — Shoelace + Tailwind CSS
+
+**Estado:** Migracion completada (2026-05-01). Todos los modales, drawer, inputs, selects, switches, buttons y alerts usan Shoelace Web Components. Tailwind CSS para layout y estilos visuales.
+
+**Design tokens:** `src/input.css` contiene `:root` con variables `--hdv-*` y overrides de Shoelace (`--sl-*`). Clases utilitarias: `.sl-dark-input`, `.mtz-input`, `.masivo-input`, `.sl-btn-whatsapp`, `.header-icon-btn`. `tailwind.config.js` extiende colores (`grafito`), border-radius (`hdv`), sombras (`hdv-card`, `hdv-elevated`).
+
+**Componentes Shoelace en uso:**
+- `sl-dialog` — todos los modales (16 convertidos de div.modal-overlay)
+- `sl-drawer` — carrito del vendedor (placement="end")
+- `sl-button` — botones de accion, category pills (pill variant)
+- `sl-input`, `sl-textarea`, `sl-select` — formularios
+- `sl-switch` — toggles
+- `sl-alert` — toast notifications (via `mostrarToast()` en `js/utils/dialogs.js`)
+- `sl-icon-button`, `sl-icon` — botones iconicos
+- `sl-tag`, `sl-badge` — zone pills, badges informativos
+
+**Funciones compartidas (`js/utils/dialogs.js`):**
+- `mostrarToast(mensaje, tipo, duracion)` — sl-alert con agrupacion y debounce
+- `mostrarExito(msg)` — shortcut para toast success
+- `mostrarConfirmModal(mensaje, opciones)` — sl-dialog dinamico, retorna Promise<boolean>
+- `mostrarInputModal(opciones)` — sl-dialog dinamico con campos (text, number, select, select-search, textarea), retorna Promise<datos|null>
+
+**Componentes intencionalmente nativos (NO migrar a Shoelace):**
+- **Bottom nav tabs** (index.html, 4 botones): tab bar mobile con FAB cart elevado. sl-button lucha contra el layout custom de navegacion fija.
+- **Sidebar nav items** (admin.html, 16 botones): nav items con CSS hover/active custom. sl-menu es para dropdowns, no para navegacion persistente.
+- **Product cards** (ui.js): 100+ cards con lazy-load, IntersectionObserver, chunked rendering. sl-card agrega Shadow DOM que complica queries y pesa mas.
+- **Status badges en pedidos** (pedidos.js): 6+ estados con colores Tailwind custom. sl-badge solo tiene 5 variantes predefinidas — insuficiente granularidad.
+- **Admin tables/lists**: datasets grandes sin beneficio de Shoelace en rows de tabla.

@@ -134,8 +134,6 @@
             z-index: 1000; width: 90%; max-width: 600px;
         }
         .unsaved-bar.visible { bottom: 20px; }
-        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 2000; display: none; align-items: center; justify-content: center; padding: 1rem; }
-        .modal-overlay.show { display: flex; }
 
         /* Toast notifications (sl-alert based) */
         #toastContainer { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
@@ -888,12 +886,8 @@
             </section>
 
             <!-- MODAL NUEVA PROMOCION -->
-            <div id="modalPromocion" class="modal-overlay">
-                <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden max-h-[90vh] overflow-y-auto">
-                    <div class="p-6 border-b border-gray-100">
-                        <h3 class="text-xl font-bold text-gray-800">Configurar Promocion</h3>
-                    </div>
-                    <div class="p-6 space-y-4">
+            <sl-dialog id="modalPromocion" label="Configurar Promocion" style="--width: 32rem;">
+                    <div class="space-y-4">
                         <input type="hidden" id="formPromoId">
                         <div>
                             <label class="block text-xs font-bold text-gray-500 mb-1">NOMBRE</label>
@@ -957,12 +951,11 @@
                         </div>
                         <sl-switch id="formPromoActiva" checked>Promocion Activa</sl-switch>
                     </div>
-                    <div class="p-6 bg-gray-50 flex justify-end gap-3">
+                    <div slot="footer" class="flex justify-end gap-3">
                         <sl-button onclick="cerrarModalPromocion()" variant="text" size="small">Cancelar</sl-button>
                         <sl-button id="btnGuardarPromo" onclick="guardarPromocion()" variant="neutral" size="small">Guardar</sl-button>
                     </div>
-                </div>
-            </div>
+            </sl-dialog>
 
             <!-- HERRAMIENTAS -->
             <!-- ========== RENDICIONES ========== -->
@@ -1025,12 +1018,8 @@
             </section>
 
             <!-- MODAL CUENTA BANCARIA -->
-            <div id="modalCuentaBancaria" class="modal-overlay">
-                <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden">
-                    <div class="p-6 border-b border-gray-100">
-                        <h3 class="text-xl font-bold text-gray-800">Cuenta Bancaria</h3>
-                    </div>
-                    <div class="p-6 space-y-4">
+            <sl-dialog id="modalCuentaBancaria" label="Cuenta Bancaria" style="--width: 32rem;">
+                    <div class="space-y-4">
                         <input type="hidden" id="formCuentaId">
                         <div>
                             <label class="block text-xs font-bold text-gray-500 mb-1">BANCO</label>
@@ -1069,12 +1058,11 @@
                             <sl-input type="text" id="formCuentaRUC" class="w-full" size="small" placeholder="Ej: 80012345-6"></sl-input>
                         </div>
                     </div>
-                    <div class="p-6 bg-gray-50 flex justify-end gap-3">
+                    <div slot="footer" class="flex justify-end gap-3">
                         <sl-button onclick="cerrarModalCuentaBancaria()" variant="text" size="small">Cancelar</sl-button>
                         <sl-button onclick="guardarCuentaBancaria()" variant="neutral" size="small">Guardar</sl-button>
                     </div>
-                </div>
-            </div>
+            </sl-dialog>
 
             <!-- ========== METAS Y COMISIONES ========== -->
             <section id="seccion-metas" class="tab-content space-y-6">
@@ -1118,12 +1106,8 @@
             </section>
 
             <!-- MODAL NUEVA META -->
-            <div id="modalMeta" class="modal-overlay">
-                <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden">
-                    <div class="p-6 border-b border-gray-100">
-                        <h3 class="text-xl font-bold text-gray-800">Configurar Meta</h3>
-                    </div>
-                    <div class="p-6 space-y-4">
+            <sl-dialog id="modalMeta" label="Configurar Meta" style="--width: 32rem;">
+                    <div class="space-y-4">
                         <input type="hidden" id="formMetaId">
                         <div>
                             <label class="block text-xs font-bold text-gray-500 mb-1">VENDEDOR</label>
@@ -1151,12 +1135,11 @@
                             </div>
                         </div>
                     </div>
-                    <div class="p-6 bg-gray-50 flex justify-end gap-3">
+                    <div slot="footer" class="flex justify-end gap-3">
                         <sl-button onclick="cerrarModalMeta()" variant="text" size="small">Cancelar</sl-button>
                         <sl-button id="btnGuardarMeta" onclick="guardarMeta()" variant="neutral" size="small">Guardar</sl-button>
                     </div>
-                </div>
-            </div>
+            </sl-dialog>
 
             <!-- ========== CLIENTES EN RIESGO ========== -->
             <section id="seccion-inactivos" class="tab-content space-y-6">
@@ -1517,12 +1500,9 @@
     </div>
 
     <!-- MODAL PRODUCTO (Crear/Editar) -->
-    <div id="modalProducto" class="modal-overlay">
-        <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden max-h-[90vh] overflow-y-auto">
-            <div class="p-6 border-b border-gray-100">
-                <h3 class="text-xl font-bold text-gray-800" id="modalProductoTitulo">Nuevo Producto</h3>
-            </div>
-            <div class="p-6 space-y-4">
+    <sl-dialog id="modalProducto" style="--width: 32rem;">
+            <span slot="label" id="modalProductoTitulo">Nuevo Producto</span>
+            <div class="space-y-4">
                 <input type="hidden" id="formProductoId">
                 <div>
                     <label class="block text-xs font-bold text-gray-500 mb-1">NOMBRE</label>
@@ -1640,21 +1620,15 @@
                 <!-- Presentaciones detalladas (modo edicion legacy) -->
                 <div id="presentacionesDetalladas" style="display:none;"></div>
             </div>
-            <div class="p-6 bg-gray-50 flex justify-end gap-3">
+            <div slot="footer" class="flex justify-end gap-3">
                 <sl-button onclick="cerrarModalProducto()" variant="text" size="small">Cancelar</sl-button>
                 <sl-button id="btnGuardarProducto" onclick="guardarProductoModal()" variant="neutral" size="small">Guardar</sl-button>
             </div>
-        </div>
-    </div>
+    </sl-dialog>
 
     <!-- MODAL CATEGORIAS -->
-    <div id="modalCategorias" class="modal-overlay">
-        <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden max-h-[90vh] overflow-y-auto">
-            <div class="p-6 border-b border-gray-100 flex justify-between items-center">
-                <h3 class="text-xl font-bold text-gray-800">Gestionar Categorias</h3>
-                <sl-icon-button onclick="cerrarModalCategorias()" name="x-lg" label="Cerrar" style="font-size:1.25rem; color:#9ca3af;"></sl-icon-button>
-            </div>
-            <div class="p-6">
+    <sl-dialog id="modalCategorias" label="Gestionar Categorias" style="--width: 32rem;">
+            <div>
                 <div class="flex gap-2 mb-4">
                     <sl-input type="text" id="nuevaCategoriaId" class="flex-1" size="small" placeholder="ID (ej: limpieza)"></sl-input>
                     <sl-input type="text" id="nuevaCategoriaNombre" class="flex-1" size="small" placeholder="Nombre (ej: Limpieza)"></sl-input>
@@ -1662,16 +1636,12 @@
                 </div>
                 <div id="listaCategoriasCuerpo" class="space-y-3"></div>
             </div>
-        </div>
-    </div>
+    </sl-dialog>
 
     <!-- MODAL CLIENTE (Crear/Editar) -->
-    <div id="modalCliente" class="modal-overlay">
-        <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden">
-            <div class="p-6 border-b border-gray-100">
-                <h3 class="text-xl font-bold text-gray-800" id="modalClienteTitulo">Nuevo Cliente</h3>
-            </div>
-            <div class="p-6 space-y-4">
+    <sl-dialog id="modalCliente" style="--width: 32rem;">
+            <span slot="label" id="modalClienteTitulo">Nuevo Cliente</span>
+            <div class="space-y-4">
                 <input type="hidden" id="formClienteId">
                 <div>
                     <label class="block text-xs font-bold text-gray-500 mb-1">RAZON SOCIAL / NOMBRE</label>
@@ -1710,16 +1680,14 @@
                     <sl-input type="text" id="nuevoClienteEncargado" class="w-full" size="small" placeholder="Juan Perez"></sl-input>
                 </div>
             </div>
-            <div class="p-6 bg-gray-50 flex justify-end gap-3">
+            <div slot="footer" class="flex justify-end gap-3">
                 <sl-button onclick="cerrarModalCliente()" variant="text" size="small">Cancelar</sl-button>
                 <sl-button id="btnGuardarCliente" onclick="guardarClienteModal()" variant="neutral" size="small">Guardar</sl-button>
             </div>
-        </div>
-    </div>
+    </sl-dialog>
 
     <!-- MODAL PERFIL CLIENTE -->
-    <div id="modalPerfilCliente" class="modal-overlay">
-        <div class="bg-white rounded-2xl shadow-2xl max-w-4xl w-full overflow-hidden max-h-[90vh] overflow-y-auto">
+    <sl-dialog id="modalPerfilCliente" no-header style="--width: 56rem;">
             <div class="p-6 border-b border-gray-100">
                 <div class="flex justify-between items-start">
                     <div>
@@ -1780,18 +1748,13 @@
                     </div>
                 </div>
             </div>
-        </div>
-    </div>
+    </sl-dialog>
 
 
     <!-- MODAL EDITAR PEDIDO -->
-    <div id="modalEditarPedido" class="modal-overlay">
-        <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden max-h-[90vh] overflow-y-auto">
-            <div class="p-6 border-b border-gray-100 flex justify-between items-center">
-                <h3 class="text-xl font-bold text-gray-800">Editar Pedido</h3>
-                <span class="text-sm text-gray-400" id="editPedidoId"></span>
-            </div>
-            <div class="p-6 space-y-4">
+    <sl-dialog id="modalEditarPedido" style="--width: 42rem;">
+            <span slot="label">Editar Pedido <span class="text-sm text-gray-400 ml-2" id="editPedidoId"></span></span>
+            <div class="space-y-4">
                 <div class="bg-gray-50 p-4 rounded-xl">
                     <p class="text-xs font-bold text-gray-500 mb-2">CLIENTE</p>
                     <p class="font-bold text-gray-800" id="editPedidoCliente"></p>
@@ -1821,7 +1784,7 @@
                     <span class="text-2xl font-bold text-blue-900" id="editPedidoTotal">Gs. 0</span>
                 </div>
             </div>
-            <div class="p-6 bg-gray-50 flex justify-between">
+            <div slot="footer" class="flex justify-between w-full">
                 <div class="flex gap-2">
                     <sl-button onclick="generarPDFRemision(pedidoEditandoId)" variant="neutral" size="small"><i data-lucide="file-text" class="w-4 h-4"></i> PDF A4</sl-button>
                     <sl-button onclick="generarTicketTermico(pedidoEditandoId)" variant="neutral" size="small"><i data-lucide="printer" class="w-4 h-4"></i> Ticket</sl-button>
@@ -1831,12 +1794,10 @@
                     <sl-button id="btnGuardarEdicionPedido" onclick="guardarEdicionPedido()" variant="neutral" size="small">Guardar Cambios</sl-button>
                 </div>
             </div>
-        </div>
-    </div>
+    </sl-dialog>
 
     <!-- MODAL PERFIL PRODUCTO -->
-    <div id="modalPerfilProducto" class="modal-overlay">
-        <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden max-h-[90vh] overflow-y-auto">
+    <sl-dialog id="modalPerfilProducto" no-header style="--width: 42rem;">
             <div class="p-6 border-b border-gray-100">
                 <div class="flex justify-between items-start">
                     <div class="flex items-center gap-4">
@@ -1866,8 +1827,7 @@
                     <sl-button onclick="guardarStockDesdePerfilProducto()" variant="neutral" size="small" class="mt-3"><i data-lucide="save" class="w-4 h-4"></i> Guardar Stock</sl-button>
                 </div>
             </div>
-        </div>
-    </div>
+    </sl-dialog>
 
     <!-- MODAL FACTURA ADMIN -->
     <sl-dialog id="modalFacturaAdmin" no-header style="--width: 24rem;">

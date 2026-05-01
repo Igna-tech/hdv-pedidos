@@ -322,9 +322,7 @@ async function procesarFacturaMock() {
         limpiarDespuesDeVenta();
 
         // Mostrar modal de exito
-        const modal = document.getElementById('modalFacturaExito');
-        modal.classList.remove('hidden');
-        modal.style.display = 'flex';
+        document.getElementById('modalFacturaExito').show();
         if (typeof lucide !== 'undefined') lucide.createIcons();
     }, 'Conectando con SIFEN...')();
 }
@@ -344,7 +342,5 @@ function imprimirFactura() {
 
 // --- Cerrar modal factura ---
 function cerrarModalFactura() {
-    const modal = document.getElementById('modalFacturaExito');
-    modal.style.display = 'none';
-    modal.classList.add('hidden');
+    document.getElementById('modalFacturaExito').hide();
 }

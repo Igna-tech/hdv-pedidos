@@ -53,23 +53,6 @@
             box-shadow: 0 2px 8px rgba(17, 24, 39, 0.25);
         }
 
-        /* Off-canvas cart drawer */
-        #cartDrawer {
-            transform: translateX(100%);
-            transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        #cartDrawer.open {
-            transform: translateX(0);
-        }
-        #cartBackdrop {
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            pointer-events: none;
-        }
-        #cartBackdrop.open {
-            opacity: 1;
-            pointer-events: auto;
-        }
 
         .dark-mode { background-color: var(--grafito-oscuro) !important; color: white; }
         .dark-mode .bg-white { background-color: var(--grafito) !important; color: white; border-color: #374151; }
@@ -334,14 +317,7 @@
     </nav>
 
     <!-- MODAL BACKUP VENDEDOR -->
-    <div id="backupModal" class="fixed inset-0 bg-black/50 z-[100] hidden flex items-end">
-        <div class="bg-white w-full rounded-t-3xl max-h-[85vh] overflow-y-auto p-6 shadow-2xl pb-10">
-            <div class="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-6"></div>
-            <div class="flex justify-between items-center mb-6">
-                <h3 class="text-xl font-bold text-gray-900">Copia de Seguridad</h3>
-                <sl-icon-button name="x-lg" label="Cerrar" onclick="cerrarModalBackup()" style="font-size:1.25rem;"></sl-icon-button>
-            </div>
-
+    <sl-dialog id="backupModal" label="Copia de Seguridad" style="--width: 28rem;">
             <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
                 <p class="text-sm text-blue-800 font-medium" id="backupInfoText">Gestiona tus copias de seguridad</p>
                 <p class="text-xs text-blue-600 mt-1" id="backupInfoDate"></p>
@@ -377,14 +353,14 @@
                     </div>
                 </div>
             </div>
-            <sl-button onclick="cerrarModalBackup()" variant="default" class="w-full mt-6">Cerrar</sl-button>
-        </div>
-    </div>
+            <div slot="footer">
+                <sl-button onclick="cerrarModalBackup()" variant="default" class="w-full">Cerrar</sl-button>
+            </div>
+    </sl-dialog>
 
-    <!-- Cart Drawer (Off-canvas right panel) -->
-    <div id="cartBackdrop" class="fixed inset-0 bg-black/50 z-[100] hidden" onclick="closeCartModal()"></div>
-    <div id="cartDrawer" class="fixed top-0 right-0 bottom-0 w-full max-w-md bg-white z-[101] flex flex-col shadow-2xl">
-        <!-- Fixed header -->
+    <!-- Cart Drawer (sl-drawer, right panel) -->
+    <sl-drawer id="cartDrawer" placement="end" style="--size: 28rem;" no-header>
+        <!-- Custom header -->
         <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
             <div class="flex items-center gap-3">
                 <i data-lucide="shopping-cart" class="w-5 h-5 text-gray-700"></i>
@@ -395,7 +371,7 @@
         </div>
 
         <!-- Scrollable content -->
-        <div class="flex-1 overflow-y-auto px-5 py-4 space-y-3">
+        <div class="px-5 py-4 space-y-3">
             <div id="cartItemsList" class="space-y-2"></div>
 
             <div class="space-y-3 pt-3">
@@ -414,8 +390,8 @@
             </div>
         </div>
 
-        <!-- Sticky footer -->
-        <div class="border-t border-gray-100 px-5 py-4 space-y-3 shrink-0 bg-white">
+        <!-- Footer -->
+        <div slot="footer" class="space-y-3 w-full">
             <div id="totalSection" class="space-y-2 hidden"></div>
             <div class="space-y-2">
                 <sl-button id="btnPedido" onclick="procesarPedido()" variant="default" outline size="large" class="w-full">
@@ -430,11 +406,11 @@
                 <sl-button onclick="closeCartModal()" variant="default" size="small" class="w-full">Volver al catalogo</sl-button>
             </div>
         </div>
-    </div>
+    </sl-drawer>
 
     <!-- MODAL FACTURA EXITOSA -->
-    <div id="modalFacturaExito" class="fixed inset-0 bg-black/60 z-[200] hidden items-center justify-center p-4">
-        <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl text-center" style="animation: confirmSlideUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
+    <sl-dialog id="modalFacturaExito" no-header style="--width: 24rem;">
+        <div class="text-center">
             <div class="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <i data-lucide="check-circle" class="w-8 h-8 text-emerald-600"></i>
             </div>
@@ -451,7 +427,7 @@
                 <sl-button onclick="cerrarModalFactura()" variant="default" class="w-full">Nueva Venta</sl-button>
             </div>
         </div>
-    </div>
+    </sl-dialog>
 
     <!-- CONTENEDOR IMPRESION: Recibo Interno (oculto en web, visible al imprimir) -->
     <div id="printReciboInterno" class="print-only" style="display:none;">

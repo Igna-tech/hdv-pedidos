@@ -432,12 +432,12 @@ function abrirModalEditarPedido(pedidoId) {
 
     renderizarItemsEdicion(pedido.items || []);
     recalcularTotalEdicion();
-    document.getElementById('modalEditarPedido')?.classList.add('show');
+    document.getElementById('modalEditarPedido')?.show();
 }
 
 function cerrarModalEditarPedido() {
     pedidoEditandoId = null;
-    document.getElementById('modalEditarPedido')?.classList.remove('show');
+    document.getElementById('modalEditarPedido')?.hide();
 }
 
 function renderizarItemsEdicion(items) {

@@ -490,10 +490,10 @@ async function abrirModalMeta(metaId) {
             document.getElementById('formMetaActiva').value = m.activa ? 'true' : 'false';
         }
     }
-    document.getElementById('modalMeta').classList.add('show');
+    document.getElementById('modalMeta').show();
 }
 
-function cerrarModalMeta() { document.getElementById('modalMeta').classList.remove('show'); }
+function cerrarModalMeta() { document.getElementById('modalMeta').hide(); }
 function editarMeta(id) { abrirModalMeta(id); }
 
 async function guardarMeta() {

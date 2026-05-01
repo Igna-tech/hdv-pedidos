@@ -179,11 +179,22 @@ async function mostrarInfoCliente(cliente) {
 // ============================================
 function crearFiltrosCategorias() {
     const container = document.getElementById('categoryFilters');
-    container.innerHTML = '<button class="px-4 py-2 bg-gray-900 text-white rounded-full text-xs font-bold whitespace-nowrap category-btn" onclick="filtrarCategoria(\'todas\')">Todas</button>';
+    const todasBtn = document.createElement('sl-button');
+    todasBtn.pill = true;
+    todasBtn.size = 'small';
+    todasBtn.variant = 'primary';
+    todasBtn.className = 'category-btn whitespace-nowrap';
+    todasBtn.textContent = 'Todas';
+    todasBtn.onclick = () => filtrarCategoria('todas');
+    container.innerHTML = '';
+    container.appendChild(todasBtn);
 
     categorias.forEach(cat => {
-        const btn = document.createElement('button');
-        btn.className = 'px-4 py-2 bg-gray-100 text-gray-700 rounded-full text-xs font-bold whitespace-nowrap category-btn';
+        const btn = document.createElement('sl-button');
+        btn.pill = true;
+        btn.size = 'small';
+        btn.variant = 'default';
+        btn.className = 'category-btn whitespace-nowrap';
         btn.textContent = cat.nombre;
         btn.onclick = () => filtrarCategoria(cat.id);
         container.appendChild(btn);
@@ -201,9 +212,9 @@ function filtrarCategoria(catId) {
     }
     document.querySelectorAll('.category-btn').forEach((btn, i) => {
         if ((catId === 'todas' && i === 0) || btn.textContent === categorias.find(c => c.id === catId)?.nombre) {
-            btn.className = 'px-4 py-2 bg-gray-900 text-white rounded-full text-xs font-bold whitespace-nowrap category-btn';
+            btn.variant = 'primary';
         } else {
-            btn.className = 'px-4 py-2 bg-gray-100 text-gray-700 rounded-full text-xs font-bold whitespace-nowrap category-btn';
+            btn.variant = 'default';
         }
     });
     mostrarProductos();
@@ -742,23 +753,13 @@ function mostrarModalCarrito() {
         return;
     }
 
-    const backdrop = document.getElementById('cartBackdrop');
-    const drawer = document.getElementById('cartDrawer');
-    backdrop.classList.remove('hidden');
-    requestAnimationFrame(() => {
-        backdrop.classList.add('open');
-        drawer.classList.add('open');
-    });
+    document.getElementById('cartDrawer').show();
     renderizarCarrito();
     lucide.createIcons();
 }
 
 function closeCartModal() {
-    const backdrop = document.getElementById('cartBackdrop');
-    const drawer = document.getElementById('cartDrawer');
-    backdrop.classList.remove('open');
-    drawer.classList.remove('open');
-    setTimeout(() => backdrop.classList.add('hidden'), 350);
+    document.getElementById('cartDrawer').hide();
 }
 
 async function renderizarCarrito() {
@@ -1386,15 +1387,14 @@ async function mostrarMiCaja() {
 // BACKUP UI
 // ============================================
 function mostrarModalBackup() {
-    const modal = document.getElementById('backupModal');
-    modal.classList.remove('hidden');
     actualizarInfoBackup();
     mostrarHistorialBackups();
+    document.getElementById('backupModal').show();
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 function cerrarModalBackup() {
-    document.getElementById('backupModal').classList.add('hidden');
+    document.getElementById('backupModal').hide();
 }
 
 async function actualizarInfoBackup() {

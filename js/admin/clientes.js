@@ -206,13 +206,13 @@ function abrirModalCliente(clienteId) {
         });
         document.getElementById('nuevoClienteTipoDoc').value = 'RUC';
     }
-    document.getElementById('modalCliente')?.classList.add('show');
+    document.getElementById('modalCliente')?.show();
 }
 
 function editarCliente(id) { abrirModalCliente(id); }
 
 function cerrarModalCliente() {
-    document.getElementById('modalCliente')?.classList.remove('show');
+    document.getElementById('modalCliente')?.hide();
 }
 
 async function guardarClienteModal() {
@@ -312,11 +312,11 @@ async function abrirPerfilCliente(clienteId) {
     document.getElementById('perfilPreciosEsp').textContent = preciosEsp;
 
     cambiarTabPerfil('precios');
-    document.getElementById('modalPerfilCliente')?.classList.add('show');
+    document.getElementById('modalPerfilCliente')?.show();
 }
 
 function cerrarPerfilCliente() {
-    document.getElementById('modalPerfilCliente')?.classList.remove('show');
+    document.getElementById('modalPerfilCliente')?.hide();
     clientePerfilActual = null;
 }
 

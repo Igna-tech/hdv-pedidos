@@ -705,11 +705,11 @@ async function abrirModalPromocion(promoId) {
     }
 
     toggleCamposPromo();
-    document.getElementById('modalPromocion')?.classList.add('show');
+    document.getElementById('modalPromocion')?.show();
 }
 
 function cerrarModalPromocion() {
-    document.getElementById('modalPromocion')?.classList.remove('show');
+    document.getElementById('modalPromocion')?.hide();
 }
 
 function actualizarPresentacionesPromo() {
@@ -948,11 +948,11 @@ async function abrirModalCuentaBancaria(cuentaId) {
             document.getElementById('formCuentaRUC').value = c.ruc || '';
         }
     }
-    document.getElementById('modalCuentaBancaria').classList.add('show');
+    document.getElementById('modalCuentaBancaria').show();
 }
 
 function cerrarModalCuentaBancaria() {
-    document.getElementById('modalCuentaBancaria').classList.remove('show');
+    document.getElementById('modalCuentaBancaria').hide();
 }
 
 function editarCuentaBancaria(id) { abrirModalCuentaBancaria(id); }

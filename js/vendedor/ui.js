@@ -515,7 +515,6 @@ function mostrarMatrizProducto(producto) {
                 <sl-input type="number" id="mtz-${producto.id}-${idx}" value="0" min="0"
                     ${esAgotado ? 'disabled' : ''}
                     class="mtz-input"
-                    style="--sl-input-font-size-medium:1.5rem;--sl-input-font-weight:700;text-align:center;"
                     data-idx="${idx}" data-precio="${precio}" no-spin-buttons
                     oninput="actualizarCeldaMatriz('${producto.id}',${idx})"></sl-input>
                 <p class="text-[10px] text-blue-600 font-bold mt-1">${formatearGuaranies(precio)}</p>
@@ -528,7 +527,7 @@ function mostrarMatrizProducto(producto) {
     modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
     modal.innerHTML = `
         <div class="bg-gray-50 w-full rounded-t-3xl max-h-[90vh] overflow-y-auto shadow-2xl" onclick="event.stopPropagation()">
-            <div class="bg-[#111827] text-white p-4 rounded-t-3xl">
+            <div class="bg-grafito-oscuro text-white p-4 rounded-t-3xl">
                 <div class="w-12 h-1.5 bg-gray-600 rounded-full mx-auto mb-3"></div>
                 <div class="flex items-center gap-3">
                     ${iconHtml}
@@ -656,7 +655,7 @@ function mostrarDetalleMasivo(producto) {
                 <div class="flex items-center gap-2">
                     <sl-button onclick="ajustarQty('${producto.id}',${idx},-1)" variant="default" size="small" circle>-</sl-button>
                     <sl-input type="number" id="qty-${producto.id}-${idx}" value="0" min="0" data-precio="${precio}"
-                        class="masivo-input" style="width:3.5rem;--sl-input-font-size-medium:1.125rem;--sl-input-font-weight:700;text-align:center;"
+                        class="masivo-input" style="width:3.5rem;"
                         size="small" no-spin-buttons
                         oninput="recalcularTotalMasivo('${producto.id}')"></sl-input>
                     <sl-button onclick="ajustarQty('${producto.id}',${idx},1)" variant="default" size="small" circle>+</sl-button>
@@ -670,7 +669,7 @@ function mostrarDetalleMasivo(producto) {
     modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
     modal.innerHTML = `
         <div class="bg-gray-50 w-full rounded-t-3xl max-h-[90vh] overflow-y-auto shadow-2xl" onclick="event.stopPropagation()">
-            <div class="bg-[#111827] text-white p-4 rounded-t-3xl">
+            <div class="bg-grafito-oscuro text-white p-4 rounded-t-3xl">
                 <div class="w-12 h-1.5 bg-gray-600 rounded-full mx-auto mb-3"></div>
                 <div class="flex items-center gap-3">
                     ${imgUrlMasivo ? `<img src="${imgUrlMasivo}" class="w-12 h-12 rounded-xl object-contain bg-white/10">` : '<i data-lucide="package" class="w-10 h-10 text-gray-400"></i>'}
@@ -783,9 +782,9 @@ async function renderizarCarrito() {
                         <p class="text-xs text-gray-500">${escapeHTML(item.presentacion)} · ${formatearGuaranies(item.precio)} c/u</p>
                     </div>
                     <div class="flex items-center gap-2 shrink-0">
-                        <sl-icon-button name="dash-lg" label="Menos" onclick="cambiarCantidadCarrito(${idx},-1)" style="font-size:1.2rem;--sl-input-border-radius-medium:10px;" class="cart-qty-btn"></sl-icon-button>
+                        <sl-icon-button name="dash-lg" label="Menos" onclick="cambiarCantidadCarrito(${idx},-1)" class="cart-qty-btn"></sl-icon-button>
                         <span class="font-bold text-base w-8 text-center">${item.cantidad}</span>
-                        <sl-icon-button name="plus-lg" label="Mas" onclick="cambiarCantidadCarrito(${idx},1)" style="font-size:1.2rem;--sl-input-border-radius-medium:10px;" class="cart-qty-btn"></sl-icon-button>
+                        <sl-icon-button name="plus-lg" label="Mas" onclick="cambiarCantidadCarrito(${idx},1)" class="cart-qty-btn"></sl-icon-button>
                         <p class="font-bold text-gray-900 ml-1 text-sm text-right whitespace-nowrap">${formatearGuaranies(item.subtotal)}</p>
                     </div>
                 </div>
@@ -1108,8 +1107,8 @@ function mostrarModalSinCliente() {
                     <sl-input id="ncvRuc" label="RUC (opcional)" placeholder="Ej: 80012345-6" size="medium"></sl-input>
                     <sl-input id="ncvEncargado" label="ENCARGADO (opcional)" placeholder="Ej: Juan Perez" size="medium"></sl-input>
                     <div class="flex gap-3 pt-2">
-                        <sl-button onclick="cerrarModalSinCliente()" variant="default" size="large" class="flex-1" style="--sl-input-border-radius-large:12px;">Cancelar</sl-button>
-                        <sl-button onclick="guardarNuevoClienteDesdeVendedor()" variant="primary" size="large" class="flex-1" style="--sl-input-border-radius-large:12px;">Enviar para aprobacion</sl-button>
+                        <sl-button onclick="cerrarModalSinCliente()" variant="default" size="large" class="flex-1">Cancelar</sl-button>
+                        <sl-button onclick="guardarNuevoClienteDesdeVendedor()" variant="primary" size="large" class="flex-1">Enviar para aprobacion</sl-button>
                     </div>
                 </div>
             </div>`;

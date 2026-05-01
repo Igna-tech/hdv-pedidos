@@ -114,7 +114,7 @@ async function facturarPedidoAdmin(pedidoId) {
         // Guardar referencia para impresion post-facturacion via closure
         _ultimaFactura = { pedido: pedidoActualizado, clienteInfo, numFactura, cdc };
 
-        document.getElementById('modalFacturaAdmin').classList.add('show');
+        document.getElementById('modalFacturaAdmin').show();
 
         // Refrescar lista pedidos
         cargarPedidos();
@@ -132,7 +132,7 @@ function adminImprimirVenta(formato) {
 }
 
 function cerrarModalFacturaAdmin() {
-    document.getElementById('modalFacturaAdmin').classList.remove('show');
+    document.getElementById('modalFacturaAdmin').hide();
 }
 
 // ============================================
@@ -185,13 +185,13 @@ ventasCtrl.abrirReimpresion = function(ventaId) {
     // Guardar ID en data-attr del modal para evitar global mutable
     const modal = document.getElementById('modalElegirImpresion');
     modal.dataset.ventaId = ventaId;
-    modal.classList.add('show');
+    modal.show();
     lucide.createIcons();
 };
 
 function cerrarModalElegirImpresion() {
     const modal = document.getElementById('modalElegirImpresion');
-    modal.classList.remove('show');
+    modal.hide();
     delete modal.dataset.ventaId;
     // Limpiar flag NC para evitar que quede activa
     window._reimprimirNCActiva = false;

@@ -652,7 +652,7 @@ function mostrarModalForense(titulo, datos) {
     body.innerHTML = '';
     body.appendChild(pre);
 
-    modal.classList.add('show');
+    modal.show();
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
@@ -695,12 +695,12 @@ function mostrarModalForenseDiff(titulo, antes, despues) {
         body.appendChild(empty);
     }
 
-    modal.classList.add('show');
+    modal.show();
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 function cerrarModalForense() {
-    document.getElementById('modalForenseDetalle').classList.remove('show');
+    document.getElementById('modalForenseDetalle').hide();
 }
 
 // ============================================

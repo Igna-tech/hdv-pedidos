@@ -232,7 +232,7 @@
 </head>
 <body class="pb-24 transition-colors duration-200">
 
-    <header class="bg-[#111827] text-white p-4 sticky top-0 z-50 shadow-lg">
+    <header class="bg-grafito-oscuro text-white p-4 sticky top-0 z-50 shadow-lg">
         <div class="flex justify-between items-center mb-3">
             <div class="flex items-center gap-3">
                 <svg width="44" height="44" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
@@ -249,15 +249,15 @@
                 </div>
             </div>
             <div class="flex gap-2">
-                <sl-icon-button name="arrow-clockwise" label="Forzar actualizacion" onclick="forzarActualizacion()" style="font-size:1rem;color:#d1d5db;"></sl-icon-button>
-                <sl-icon-button name="moon" label="Cambiar modo oscuro" onclick="toggleDarkMode()" class="dark-mode-toggle" style="font-size:1rem;color:#d1d5db;"></sl-icon-button>
-                <sl-icon-button name="box-arrow-right" label="Cerrar sesion" onclick="cerrarSesion()" style="font-size:1rem;color:#f87171;"></sl-icon-button>
+                <sl-icon-button name="arrow-clockwise" label="Forzar actualizacion" onclick="forzarActualizacion()" class="header-icon-btn"></sl-icon-button>
+                <sl-icon-button name="moon" label="Cambiar modo oscuro" onclick="toggleDarkMode()" class="dark-mode-toggle header-icon-btn"></sl-icon-button>
+                <sl-icon-button name="box-arrow-right" label="Cerrar sesion" onclick="cerrarSesion()" class="header-icon-btn-danger"></sl-icon-button>
             </div>
         </div>
         
         <div id="btnSeleccionarCliente">
             <sl-select id="clienteSelect" placeholder="Buscar cliente..." clearable size="medium"
-                style="--sl-input-background-color:#1f2937;--sl-input-color:white;--sl-input-border-color:#374151;--sl-input-placeholder-color:#9ca3af;--sl-input-border-radius-medium:12px;">
+                class="sl-dark-input">
             </sl-select>
         </div>
         <!-- Zone pills (scroll horizontal) -->
@@ -296,7 +296,7 @@
         <div class="relative">
             <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"></i>
             <sl-input type="text" id="searchInput" placeholder="Buscar producto..." disabled aria-label="Buscar producto"
-                   class="w-full" size="medium" style="--sl-input-border-radius-medium:12px;"></sl-input>
+                   class="w-full" size="medium"></sl-input>
         </div>
     </div>
 
@@ -317,7 +317,7 @@
             <span class="text-[10px] font-bold">Inicio</span>
         </button>
 
-        <button onclick="mostrarModalCarrito()" id="viewCartBtn" aria-label="Ver carrito de compras" class="relative -mt-12 bg-[#111827] text-white p-4 rounded-full shadow-xl border-4 border-gray-100 disabled:opacity-50 disabled:bg-gray-400">
+        <button onclick="mostrarModalCarrito()" id="viewCartBtn" aria-label="Ver carrito de compras" class="relative -mt-12 bg-grafito-oscuro text-white p-4 rounded-full shadow-xl border-4 border-gray-100 disabled:opacity-50 disabled:bg-gray-400">
             <i data-lucide="shopping-cart" class="w-6 h-6"></i>
             <span id="cartItems" class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center border-2 border-white">0</span>
         </button>
@@ -362,7 +362,7 @@
                 <sl-button onclick="exportarSoloPedidos()" variant="primary" class="w-full">
                     <i data-lucide="file-text" class="w-4 h-4"></i> Descargar Solo Pedidos
                 </sl-button>
-                <sl-button onclick="compartirBackupWhatsApp()" variant="success" class="w-full" style="--sl-color-success-600:#25D366;--sl-color-success-700:#1da851;">
+                <sl-button onclick="compartirBackupWhatsApp()" variant="success" class="w-full sl-btn-whatsapp">
                     <i data-lucide="send" class="w-4 h-4"></i> Enviar Resumen por WhatsApp
                 </sl-button>
                 <sl-button onclick="document.getElementById('restaurarFileVendedor').click()" variant="warning" class="w-full">
@@ -418,16 +418,16 @@
         <div class="border-t border-gray-100 px-5 py-4 space-y-3 shrink-0 bg-white">
             <div id="totalSection" class="space-y-2 hidden"></div>
             <div class="space-y-2">
-                <sl-button id="btnPedido" onclick="procesarPedido()" variant="default" outline size="large" class="w-full" style="--sl-input-border-radius-large:12px;">
+                <sl-button id="btnPedido" onclick="procesarPedido()" variant="default" outline size="large" class="w-full">
                     <sl-icon name="send" slot="prefix"></sl-icon> Generar Pedido
                 </sl-button>
-                <sl-button id="btnCobro" onclick="procesarCobroInterno()" variant="warning" size="large" class="w-full" style="--sl-input-border-radius-large:12px;">
+                <sl-button id="btnCobro" onclick="procesarCobroInterno()" variant="warning" size="large" class="w-full">
                     <sl-icon name="receipt" slot="prefix"></sl-icon> Cobrar (Recibo Interno)
                 </sl-button>
-                <sl-button id="btnFactura" onclick="procesarFacturaMock()" variant="success" size="large" class="w-full" style="--sl-input-border-radius-large:12px;">
+                <sl-button id="btnFactura" onclick="procesarFacturaMock()" variant="success" size="large" class="w-full">
                     <sl-icon name="file-earmark-check" slot="prefix"></sl-icon> Emitir Factura (SIFEN)
                 </sl-button>
-                <sl-button onclick="closeCartModal()" variant="default" size="small" class="w-full" style="--sl-input-border-radius-large:12px;">Volver al catalogo</sl-button>
+                <sl-button onclick="closeCartModal()" variant="default" size="small" class="w-full">Volver al catalogo</sl-button>
             </div>
         </div>
     </div>

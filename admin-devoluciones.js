@@ -244,7 +244,7 @@ async function procesarNotaCredito() {
 
         // Mostrar modal exito
         document.getElementById('ncNumeroDisplay').textContent = `${numNC} | CDC: ${cdcNC}\nRef: ${facturaSeleccionadaNC.numFactura || facturaSeleccionadaNC.id}`;
-        document.getElementById('modalNCExito').classList.add('show');
+        document.getElementById('modalNCExito').show();
 
         // Limpiar y refrescar historial
         limpiarDevolucion();
@@ -302,7 +302,7 @@ function limpiarDevolucion() {
 }
 
 function cerrarModalNC() {
-    document.getElementById('modalNCExito').classList.remove('show');
+    document.getElementById('modalNCExito').hide();
 }
 
 // ============================================
@@ -508,7 +508,7 @@ async function reimprimirNC(ncId) {
     ultimaNCEmitida = { notaCredito: nc, clienteInfo, totalNC: Math.abs(nc.total || 0) };
 
     // Mostrar modal elegir formato
-    document.getElementById('modalElegirImpresion').classList.add('show');
+    document.getElementById('modalElegirImpresion').show();
 
     // Sobreescribir temporalmente la funcion de ejecucion
     window._reimprimirNCActiva = true;

@@ -1870,8 +1870,8 @@
     </div>
 
     <!-- MODAL FACTURA ADMIN -->
-    <div id="modalFacturaAdmin" class="modal-overlay">
-        <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center" style="animation: confirmSlideUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
+    <sl-dialog id="modalFacturaAdmin" no-header style="--width: 24rem;">
+        <div class="text-center">
             <div class="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <i data-lucide="check-circle" class="w-8 h-8 text-emerald-600"></i>
             </div>
@@ -1893,27 +1893,24 @@
                 <sl-button onclick="cerrarModalFacturaAdmin()" variant="default" class="w-full">Cerrar</sl-button>
             </div>
         </div>
-    </div>
+    </sl-dialog>
 
     <!-- MODAL ELEGIR FORMATO IMPRESION (re-imprimir desde ventas) -->
-    <div id="modalElegirImpresion" class="modal-overlay">
-        <div class="bg-white rounded-2xl shadow-2xl max-w-xs w-full p-6 text-center" style="animation: confirmSlideUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
-            <h3 class="text-lg font-bold text-gray-900 mb-4">Formato de Impresion</h3>
-            <div class="space-y-2">
-                <sl-button onclick="ejecutarReimpresion('thermal')" variant="neutral" class="w-full">
-                    <i data-lucide="printer" class="w-4 h-4"></i> Ticket Termico (58mm)
-                </sl-button>
-                <sl-button onclick="ejecutarReimpresion('a4')" variant="neutral" class="w-full">
-                    <i data-lucide="file-text" class="w-4 h-4"></i> Hoja A4
-                </sl-button>
-                <sl-button onclick="cerrarModalElegirImpresion()" variant="default" class="w-full">Cancelar</sl-button>
-            </div>
+    <sl-dialog id="modalElegirImpresion" label="Formato de Impresion" style="--width: 20rem;">
+        <div class="space-y-2">
+            <sl-button onclick="ejecutarReimpresion('thermal')" variant="neutral" class="w-full">
+                <i data-lucide="printer" class="w-4 h-4"></i> Ticket Termico (58mm)
+            </sl-button>
+            <sl-button onclick="ejecutarReimpresion('a4')" variant="neutral" class="w-full">
+                <i data-lucide="file-text" class="w-4 h-4"></i> Hoja A4
+            </sl-button>
+            <sl-button onclick="cerrarModalElegirImpresion()" variant="default" class="w-full">Cancelar</sl-button>
         </div>
-    </div>
+    </sl-dialog>
 
     <!-- MODAL NC EXITOSA -->
-    <div id="modalNCExito" class="modal-overlay">
-        <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center" style="animation: confirmSlideUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
+    <sl-dialog id="modalNCExito" no-header style="--width: 24rem;">
+        <div class="text-center">
             <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <i data-lucide="file-minus" class="w-8 h-8 text-red-600"></i>
             </div>
@@ -1932,25 +1929,20 @@
                 <sl-button onclick="cerrarModalNC()" variant="default" class="w-full">Cerrar</sl-button>
             </div>
         </div>
-    </div>
+    </sl-dialog>
 
     <!-- MODAL FORENSE: Detalle JSON -->
-    <div id="modalForenseDetalle" class="modal-overlay">
-        <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden max-h-[90vh] flex flex-col">
-            <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-900">
-                <h3 class="text-base font-bold text-white flex items-center gap-2">
-                    <i data-lucide="code-2" class="w-5 h-5 text-orange-400"></i>
-                    <span id="modalForenseTitulo">Detalle Forense</span>
-                </h3>
-                <sl-icon-button onclick="cerrarModalForense()" name="x-lg" label="Cerrar" style="font-size:1rem; color:#9ca3af;"></sl-icon-button>
-            </div>
-            <div class="p-5 overflow-y-auto flex-1 bg-gray-50" id="modalForenseBody">
-            </div>
-            <div class="p-4 border-t border-gray-100 flex justify-end">
-                <sl-button onclick="cerrarModalForense()" variant="default" size="small">Cerrar</sl-button>
-            </div>
+    <sl-dialog id="modalForenseDetalle" style="--width: 42rem;">
+        <span slot="label" class="flex items-center gap-2">
+            <i data-lucide="code-2" class="w-5 h-5 text-orange-400"></i>
+            <span id="modalForenseTitulo">Detalle Forense</span>
+        </span>
+        <div id="modalForenseBody" class="bg-gray-50 rounded-lg p-4">
         </div>
-    </div>
+        <div slot="footer" class="flex justify-end">
+            <sl-button onclick="cerrarModalForense()" variant="default" size="small">Cerrar</sl-button>
+        </div>
+    </sl-dialog>
 
     <!-- PRINT: Ticket Termico Admin -->
     <div id="adminPrintThermal" class="print-only" style="display:none;">

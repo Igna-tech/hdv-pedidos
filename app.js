@@ -36,13 +36,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     setTimeout(() => { window._hdvAppReady = true; }, TIEMPOS.SYNC_DELAY_ONLINE_MS);
 
     // Alerta al cerrar/recargar si hay pedidos sin sincronizar
-    window.addEventListener('beforeunload', async (e) => {
+    // Usa lectura sincrona del cache en memoria (beforeunload no espera promesas)
+    window.addEventListener('beforeunload', (e) => {
         try {
-            const pedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
+            const pedidos = HDVStorage.getCached('hdv_pedidos') || [];
             const sinSync = pedidos.filter(p => p.sincronizado === false);
             if (sinSync.length > 0) {
                 e.preventDefault();
-                // Navegadores modernos ignoran el mensaje custom pero requieren returnValue
                 e.returnValue = '';
             }
         } catch (_err) { /* silencioso si storage falla */ }

@@ -55,11 +55,15 @@ async function obtenerPerfilesPedidosMap() {
 async function poblarFiltroVendedor() {
     const select = document.getElementById('filtroVendedor');
     if (!select) return;
+    // Limpiar opciones previas (preservar la primera: "Todos")
+    const existentes = select.querySelectorAll('sl-option[data-vendedor]');
+    existentes.forEach(el => el.remove());
     const perfiles = await obtenerPerfilesPedidosMap();
     Object.entries(perfiles).forEach(([id, nombre]) => {
         const opt = document.createElement('sl-option');
         opt.value = id;
         opt.textContent = nombre;
+        opt.setAttribute('data-vendedor', '');
         select.appendChild(opt);
     });
 }
@@ -333,7 +337,7 @@ async function eliminarPedidoAdmin(id) {
 var eliminarPedido = eliminarPedidoAdmin;
 
 function exportarExcelPedidos() {
-    const pedidos = todosLosPedidos;
+    const pedidos = _pedidosFiltradosActuales || todosLosPedidos;
     if (pedidos.length === 0) { mostrarToast('No hay pedidos para exportar', 'error'); return; }
     let csv = 'Fecha,Cliente,Vendedor,Producto,Presentacion,Cantidad,Precio,Subtotal,Total Pedido,Estado,Pago,Tipo,Notas,Alerta Fraude\n';
     pedidos.forEach(p => {
@@ -462,7 +466,11 @@ function renderizarItemsEdicion(items) {
         container.appendChild(div);
     });
     // Event delegation: sl-change para selects y inputs dinamicos
-    container.addEventListener('sl-change', (e) => {
+    // Remover listener previo para evitar apilamiento
+    if (container._editChangeHandler) {
+        container.removeEventListener('sl-change', container._editChangeHandler);
+    }
+    container._editChangeHandler = (e) => {
         const sel = e.target.closest('.edit-item-producto');
         const inp = e.target.closest('.edit-item-cantidad');
         if (sel) {
@@ -474,7 +482,8 @@ function renderizarItemsEdicion(items) {
             actualizarItemEdicion(idx, 'cantidad', inp.value);
             recalcularTotalEdicion();
         }
-    });
+    };
+    container.addEventListener('sl-change', container._editChangeHandler);
 }
 
 function actualizarItemEdicion(idx, campo, valor) {

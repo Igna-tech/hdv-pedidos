@@ -389,8 +389,12 @@ const HDVStorage = (() => {
         return next;
     }
 
+    function getCached(key) {
+        return _cache.has(key) ? _cache.get(key) : null;
+    }
+
     // Auto-init al cargar el script
     _init();
 
-    return { getItem, setItem, removeItem, keys, ready, isHealthy, atomicUpdate };
+    return { getItem, getCached, setItem, removeItem, keys, ready, isHealthy, atomicUpdate };
 })();

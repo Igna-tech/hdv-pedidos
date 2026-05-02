@@ -28,7 +28,7 @@ function obtenerEmoji(producto) {
 // ============================================
 function agregarAlCarrito(productoId, presIdx) {
     if (!clienteActual) {
-        mostrarExito('Selecciona un cliente primero');
+        mostrarToast('Selecciona un cliente primero', 'warning');
         return;
     }
 
@@ -233,7 +233,7 @@ async function confirmarPedido() {
     const total = subtotal;
 
     const pedido = {
-        id: 'PED-' + Date.now(),
+        id: 'PED-' + crypto.randomUUID(),
         fecha: new Date().toISOString(),
         cliente: { id: clienteActual.id, nombre: clienteActual.razon_social || clienteActual.nombre },
         items: carrito.map(i => ({...i})),
@@ -313,9 +313,9 @@ async function guardarNuevoClienteDesdeVendedor() {
     pendientes.push(nuevoCliente);
     await HDVStorage.setItem('hdv_clientes_pendientes', pendientes);
 
-    if (typeof db !== 'undefined') {
-        db.collection('configuracion').doc('clientes_pendientes').set({ lista: pendientes })
-          .catch(e => console.error('[Vendedor] Error al subir cliente pendiente:', e));
+    if (typeof guardarConfig === 'function') {
+        guardarConfig('clientes_pendientes', { lista: pendientes })
+            .catch(e => console.error('[Vendedor] Error al subir cliente pendiente:', e));
     }
 
     cerrarModalSinCliente();

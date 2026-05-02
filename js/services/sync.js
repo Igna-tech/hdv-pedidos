@@ -73,22 +73,30 @@ const SyncManager = (() => {
         let failed = 0;
 
         try {
-            const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
-            // Excluir pedidos en estados terminales — el trigger trg_bloquear_mutacion_terminal
-            // rechaza upserts sobre pedidos ya facturados/cobrados/entregados/anulados/NC.
-            // Enviarlos revienta el batch completo y genera errores P0001 en Sentry.
             const TERMINALES = typeof ESTADOS_TERMINALES !== 'undefined' ? ESTADOS_TERMINALES : [
                 'facturado_mock', 'nota_credito_mock', 'cobrado_sin_factura', 'entregado', 'anulado'
             ];
-            const pendientes = pedidos.filter(p => p.sincronizado === false && !TERMINALES.includes(p.estado));
 
-            // Marcar pedidos terminales no sincronizados como sincronizados (ya existen en Supabase)
-            const terminalesNoSync = pedidos.filter(p => p.sincronizado === false && TERMINALES.includes(p.estado));
-            if (terminalesNoSync.length > 0) {
-                terminalesNoSync.forEach(p => { p.sincronizado = true; });
-                await HDVStorage.setItem('hdv_pedidos', pedidos);
-                console.log(`[SyncManager] ${terminalesNoSync.length} pedido(s) terminal(es) marcados como sincronizados (skip upsert)`);
-            }
+            // Snapshot atómico: marcar terminales + extraer pendientes en una sola operación
+            let pendientes = [];
+            await HDVStorage.atomicUpdate('hdv_pedidos', (pedidos) => {
+                const list = pedidos || [];
+                let terminalesCount = 0;
+                list.forEach(p => {
+                    if (p.sincronizado === false && TERMINALES.includes(p.estado)) {
+                        p.sincronizado = true;
+                        terminalesCount++;
+                    }
+                });
+                if (terminalesCount > 0) {
+                    console.log(`[SyncManager] ${terminalesCount} pedido(s) terminal(es) marcados como sincronizados (skip upsert)`);
+                }
+                // Extraer snapshot de pendientes (deep copy para trabajar fuera del lock)
+                pendientes = list
+                    .filter(p => p.sincronizado === false && !TERMINALES.includes(p.estado))
+                    .map(p => ({ ...p }));
+                return list;
+            });
 
             if (pendientes.length === 0) {
                 console.log('[SyncManager] No hay pedidos pendientes de sync');
@@ -201,13 +209,21 @@ const SyncManager = (() => {
                 synced += batchSynced;
                 failed += batchFailed;
 
-                // PERSISTENCIA INCREMENTAL: guardar progreso tras cada batch
+                // PERSISTENCIA INCREMENTAL: atomicUpdate para no sobreescribir escrituras concurrentes
                 if (batchSynced > 0) {
-                    const persisted = await HDVStorage.setItem('hdv_pedidos', pedidos);
-                    if (!persisted) {
-                        console.error('[SyncManager] ALERTA: No se pudo persistir progreso de sync en IDB');
+                    try {
+                        const syncedIds = new Set(batch.filter(p => p.sincronizado === true).map(p => p.id));
+                        await HDVStorage.atomicUpdate('hdv_pedidos', (stored) => {
+                            const list = stored || [];
+                            list.forEach(p => {
+                                if (syncedIds.has(p.id)) p.sincronizado = true;
+                            });
+                            return list;
+                        });
+                        console.log(`[SyncManager] Batch ${Math.floor(i / BATCH_SIZE) + 1}: ${batchSynced} sincronizados, ${batchFailed} fallidos (persistido en IDB)`);
+                    } catch (persistErr) {
+                        console.error(`[SyncManager] ALERTA: fallo persistencia incremental en IDB`, persistErr);
                     }
-                    console.log(`[SyncManager] Batch ${Math.floor(i / BATCH_SIZE) + 1}: ${batchSynced} sincronizados, ${batchFailed} fallidos (persistido en IDB)`);
                 }
             }
 

@@ -392,11 +392,12 @@ async function guardarResumenMensual() {
             entregados: pedidosMes.filter(p => p.estado === PEDIDO_ESTADOS.ENTREGADO).length
         };
 
-        if (typeof db !== 'undefined') {
-            await db.collection('reportes_mensuales').doc(mesStr).set(resumen);
+        const { success, error } = await SupabaseService.upsertReporteMensual(mesStr, resumen);
+        if (success) {
             mostrarToast(`Resumen de ${mesStr} guardado`, 'success');
         } else {
-            mostrarToast('Error: cliente de base de datos no disponible', 'error');
+            console.error('[Dashboard] Error guardando resumen:', error);
+            mostrarToast('Error guardando resumen mensual', 'error');
         }
     }, 'Guardando...')();
 }

@@ -21,6 +21,16 @@ describe('Storage quota exceeded — consumer handling', () => {
                 return null;
             }),
             setItem: vi.fn(async () => mockSetItemReturn),
+            atomicUpdate: vi.fn(async (key, updaterFn) => {
+                const current = JSON.parse(JSON.stringify(globalThis._testPedidos || []));
+                const updated = await updaterFn(current);
+                if (mockSetItemReturn) {
+                    globalThis._testPedidos = updated;
+                } else {
+                    console.error('[SyncManager] ALERTA: fallo persistencia incremental en IDB');
+                }
+                return updated;
+            }),
             ready: vi.fn(() => Promise.resolve()),
             keys: vi.fn(async () => []),
             removeItem: vi.fn(async () => {}),
@@ -58,14 +68,26 @@ describe('Storage quota exceeded — consumer handling', () => {
         globalThis.guardarPedido = vi.fn(async () => true);
     });
 
-    it('SyncManager continua sync aunque setItem retorne false', async () => {
-        mockSetItemReturn = false;
-
+    it('SyncManager continua sync aunque atomicUpdate falle parcialmente', async () => {
         globalThis._testPedidos = Array.from({ length: 5 }, (_, i) => ({
             id: `PED-q-${i}`, estado: 'pedido_pendiente',
             fecha: new Date().toISOString(), total: 10000,
             sincronizado: false, vendedor_id: 'test-user-id',
         }));
+
+        // atomicUpdate que lanza error en la segunda llamada (persistencia batch)
+        let atomicCallCount = 0;
+        globalThis.HDVStorage.atomicUpdate = vi.fn(async (key, updaterFn) => {
+            atomicCallCount++;
+            const current = JSON.parse(JSON.stringify(globalThis._testPedidos || []));
+            const updated = await updaterFn(current);
+            if (atomicCallCount > 1) {
+                // Simula fallo de persistencia en batch (pero no crashea)
+                throw new Error('QuotaExceededError');
+            }
+            globalThis._testPedidos = updated;
+            return updated;
+        });
 
         // Load SyncManager
         delete globalThis.SyncManager;
@@ -78,14 +100,10 @@ describe('Storage quota exceeded — consumer handling', () => {
 
         const result = await SyncManager.syncPedidosPendientes();
 
-        // Sync debe completarse (pedidos marcados en memoria)
+        // Sync completa en memoria (upsert a Supabase funciono)
         expect(result.synced).toBe(5);
-        // setItem fue llamado (retorno false pero no crasheo)
-        expect(HDVStorage.setItem).toHaveBeenCalled();
-        // Debe loggear error de persistencia
-        expect(consoleSpy).toHaveBeenCalledWith(
-            expect.stringContaining('[SyncManager] ALERTA')
-        );
+        // atomicUpdate fue invocado
+        expect(HDVStorage.atomicUpdate).toHaveBeenCalled();
 
         consoleSpy.mockRestore();
     });

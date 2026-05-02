@@ -18,12 +18,12 @@ function crearPedidosMock(n) {
     }));
 }
 
-let mockSetItemCalls;
+let mockAtomicCalls;
 let mockBatchCallCount;
 let mockUpsertShouldFail;
 
 beforeEach(() => {
-    mockSetItemCalls = [];
+    mockAtomicCalls = [];
     mockBatchCallCount = 0;
     mockUpsertShouldFail = false;
 
@@ -33,8 +33,14 @@ beforeEach(() => {
             return null;
         }),
         setItem: vi.fn(async (key, val) => {
-            mockSetItemCalls.push({ key, val: JSON.parse(JSON.stringify(val)) });
             return true;
+        }),
+        atomicUpdate: vi.fn(async (key, updaterFn) => {
+            const current = JSON.parse(JSON.stringify(globalThis._testPedidos || []));
+            const updated = await updaterFn(current);
+            globalThis._testPedidos = updated;
+            mockAtomicCalls.push({ key, val: JSON.parse(JSON.stringify(updated)) });
+            return updated;
         }),
         ready: vi.fn(() => Promise.resolve()),
         keys: vi.fn(async () => []),
@@ -76,13 +82,12 @@ beforeEach(() => {
     };
 
     globalThis.mostrarToast = vi.fn();
-    globalThis.guardarPedido = vi.fn(async () => false); // Fallback individual tambien falla
+    globalThis.guardarPedido = vi.fn(async () => false);
 
     // Load SyncManager fresh
     delete globalThis.SyncManager;
     let code = readFileSync(join(process.cwd(), 'js/services/sync.js'), 'utf-8');
     code = code.replace(/HDVStorage\.ready\(\)\.then[^;]*;/, '// auto-init disabled for test');
-    // const → var para que el IIFE se registre en scope global via indirect eval
     code = code.replace(/^const SyncManager/m, 'var SyncManager');
     (0, eval)(code);
 });
@@ -95,8 +100,8 @@ describe('SyncManager — batch partial failure', () => {
 
         expect(result.synced).toBe(120);
         expect(result.failed).toBe(0);
-        // 3 batches (50+50+20) → 3 llamadas a setItem
-        expect(mockSetItemCalls.length).toBe(3);
+        // 1 atomicUpdate initial (snapshot + terminal marking) + 3 batch persistence = 4 total
+        expect(mockAtomicCalls.length).toBe(4);
     });
 
     it('batch 2 falla: batch 1 ya fue persistido', async () => {
@@ -105,15 +110,15 @@ describe('SyncManager — batch partial failure', () => {
 
         const result = await SyncManager.syncPedidosPendientes();
 
-        // Batch 1 (50 pedidos) debe haberse persistido
-        expect(mockSetItemCalls.length).toBeGreaterThanOrEqual(1);
+        // At least 2 atomicUpdate calls: 1 initial + 1 batch1 persistence
+        expect(mockAtomicCalls.length).toBeGreaterThanOrEqual(2);
 
-        // Verificar que los primeros 50 estan sincronizados en la primera persistencia
-        const primeraPersistencia = mockSetItemCalls[0].val;
-        const sincronizadosBatch1 = primeraPersistencia.filter(p => p.sincronizado === true);
+        // After initial snapshot + batch 1 persistence, check synced items
+        const afterBatch1 = mockAtomicCalls[1].val;
+        const sincronizadosBatch1 = afterBatch1.filter(p => p.sincronizado === true);
         expect(sincronizadosBatch1.length).toBe(50);
 
-        // El resultado total debe tener al menos 50 synced
+        // Result has at least 50 synced (batch 1) and some failed (batch 2)
         expect(result.synced).toBeGreaterThanOrEqual(50);
         expect(result.failed).toBeGreaterThan(0);
     });
@@ -124,7 +129,8 @@ describe('SyncManager — batch partial failure', () => {
 
         expect(result.synced).toBe(0);
         expect(result.failed).toBe(0);
-        expect(mockSetItemCalls.length).toBe(0);
+        // Only the initial atomicUpdate (snapshot extraction) which finds nothing
+        expect(mockAtomicCalls.length).toBe(1);
     });
 
     it('pre-flight falla (offline): sync se pospone', async () => {
@@ -135,7 +141,7 @@ describe('SyncManager — batch partial failure', () => {
 
         expect(result.synced).toBe(0);
         expect(result.failed).toBe(0);
-        expect(mockSetItemCalls.length).toBe(0);
+        expect(mockAtomicCalls.length).toBe(0);
     });
 
     it('getQueueStatus refleja pedidos pendientes', async () => {

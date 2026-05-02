@@ -112,15 +112,16 @@ async function cargarCreditos() {
     container.innerHTML = '';
 
     // Pedidos a credito
-    pedidosCredito.sort((a, b) => new Date(a.fecha) - new Date(b.fecha)).forEach(p => {
+    pedidosCredito.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+    for (const p of pedidosCredito) {
         const dias = calcularDiasDesde(p.fecha);
-        const saldo = obtenerSaldoPendiente(p);
-        const pagos = obtenerPagosCredito(p.id);
+        const saldo = await obtenerSaldoPendiente(p);
+        const pagos = await obtenerPagosCredito(p.id);
         const totalPagado = pagos.reduce((s, pg) => s + (pg.monto || 0), 0);
         const esVencido = dias > 15;
         const clienteInfo = productosData.clientes.find(c => c.id === p.cliente?.id);
 
-        if (saldo <= 0) return; // Ya pagado
+        if (saldo <= 0) continue; // Ya pagado
 
         const div = document.createElement('div');
         div.className = `p-5 hover:bg-gray-50 transition-colors ${esVencido ? 'bg-red-50 border-l-4 border-red-500' : ''}`;
@@ -154,7 +155,7 @@ async function cargarCreditos() {
                 <sl-button onclick="eliminarCreditoPedido('${p.id}')" variant="danger" size="small">Eliminar</sl-button>
             </div>`;
         container.appendChild(div);
-    });
+    }
 
     // Creditos manuales
     creditosManuales.forEach(c => {
@@ -198,7 +199,7 @@ async function cargarCreditos() {
 async function registrarPagoCredito(pedidoId) {
     const pedido = todosLosPedidos.find(p => p.id === pedidoId);
     if (!pedido) return;
-    const saldo = obtenerSaldoPendiente(pedido);
+    const saldo = await obtenerSaldoPendiente(pedido);
 
     const datos = await mostrarInputModal({
         titulo: 'Registrar Pago',
@@ -966,10 +967,6 @@ async function guardarPromocion() {
         if (idx >= 0) promos[idx] = promo;
         else promos.push(promo);
         await guardarPromocionesEnStorage(promos);
-
-        if (typeof db !== 'undefined') {
-            db.collection('promociones').doc(id).set(promo).catch(e => console.error(e));
-        }
 
         cerrarModalPromocion();
         cargarPromociones();

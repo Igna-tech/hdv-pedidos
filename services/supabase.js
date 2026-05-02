@@ -147,18 +147,34 @@ const SupabaseService = (() => {
 
     async function fetchClientes(limit = 1000, offset = 0) {
         try {
-            // V3-C02: Vendedores consultan VIEW sin precios_personalizados
             const esAdmin = window.hdvUsuario?.rol === 'admin';
             const tabla = esAdmin ? 'clientes' : 'clientes_vendedor';
-            const { data, error } = await supabaseClient
-                .from(tabla)
-                .select('*')
-                .range(offset, offset + limit - 1);
-            if (error) throw error;
-            if (data && data.length === limit) {
-                console.warn(`[SupabaseService] fetchClientes: se alcanzo el limite de ${limit} registros, pueden faltar datos`);
+            const PAGE_SIZE = limit;
+            let allData = [];
+            let currentOffset = offset;
+            let hasMore = true;
+
+            while (hasMore) {
+                const { data, error } = await supabaseClient
+                    .from(tabla)
+                    .select('*')
+                    .range(currentOffset, currentOffset + PAGE_SIZE - 1);
+                if (error) throw error;
+
+                allData = allData.concat(data || []);
+
+                if (!data || data.length < PAGE_SIZE) {
+                    hasMore = false;
+                } else {
+                    currentOffset += PAGE_SIZE;
+                    if (allData.length >= PAGE_SIZE * 10) {
+                        console.warn(`[SupabaseService] fetchClientes: cap de ${allData.length} registros alcanzado`);
+                        hasMore = false;
+                    }
+                }
             }
-            return { data: data || [], error: null };
+
+            return { data: allData, error: null };
         } catch (error) {
             console.error('[SupabaseService] fetchClientes:', error);
             _reportError('fetchClientes', error);
@@ -168,20 +184,36 @@ const SupabaseService = (() => {
 
     async function fetchProductosConVariantes(limit = 1000, offset = 0) {
         try {
-            // V3-M02: Vendedores no deben ver columna 'costo'
             const esAdmin = window.hdvUsuario?.rol === 'admin';
             const variantesSelect = esAdmin
                 ? 'producto_variantes(*)'
                 : 'producto_variantes(id, producto_id, nombre_variante, precio, stock, activo, created_at)';
-            const { data, error } = await supabaseClient
-                .from('productos')
-                .select(`*, ${variantesSelect}`)
-                .range(offset, offset + limit - 1);
-            if (error) throw error;
-            if (data && data.length === limit) {
-                console.warn(`[SupabaseService] fetchProductosConVariantes: se alcanzo el limite de ${limit} registros, pueden faltar datos`);
+            const PAGE_SIZE = limit;
+            let allData = [];
+            let currentOffset = offset;
+            let hasMore = true;
+
+            while (hasMore) {
+                const { data, error } = await supabaseClient
+                    .from('productos')
+                    .select(`*, ${variantesSelect}`)
+                    .range(currentOffset, currentOffset + PAGE_SIZE - 1);
+                if (error) throw error;
+
+                allData = allData.concat(data || []);
+
+                if (!data || data.length < PAGE_SIZE) {
+                    hasMore = false;
+                } else {
+                    currentOffset += PAGE_SIZE;
+                    if (allData.length >= PAGE_SIZE * 10) {
+                        console.warn(`[SupabaseService] fetchProductosConVariantes: cap de ${allData.length} registros alcanzado`);
+                        hasMore = false;
+                    }
+                }
             }
-            return { data: data || [], error: null };
+
+            return { data: allData, error: null };
         } catch (error) {
             console.error('[SupabaseService] fetchProductosConVariantes:', error);
             _reportError('fetchProductosConVariantes', error);

@@ -8,6 +8,40 @@ let chartCred = null;
 let chartCredPie = null;
 
 // ============================================
+// HISTORIAL DE CREDITOS — Registro de eventos
+// ============================================
+
+async function registrarEventoCredito(evento) {
+    const historial = (await HDVStorage.getItem('hdv_historial_creditos')) || [];
+    historial.push({
+        id: 'HCR' + Date.now(),
+        ...evento,
+        fecha: new Date().toISOString()
+    });
+    await HDVStorage.setItem('hdv_historial_creditos', historial);
+    if (typeof guardarHistorialCreditos === 'function') {
+        try { await guardarHistorialCreditos(historial); } catch(e) { console.error('[Creditos] Error sync historial:', e); }
+    }
+}
+
+function obtenerEstadoCredito(credito, tipo) {
+    if (tipo === 'manual') {
+        if (credito.eliminado) return { estado: 'eliminado', clase: 'bg-gray-200 text-gray-700', label: 'Eliminado' };
+        if (credito.pagado) return { estado: 'pagado', clase: 'bg-green-100 text-green-800', label: 'Pagado' };
+        const saldo = obtenerSaldoManual(credito);
+        if (saldo <= 0) return { estado: 'pagado', clase: 'bg-green-100 text-green-800', label: 'Pagado' };
+        const dias = calcularDiasDesde(credito.fecha);
+        if (dias > 15) return { estado: 'vencido', clase: 'bg-red-100 text-red-800', label: 'Vencido' };
+        if ((credito.pagos || []).length > 0) return { estado: 'parcial', clase: 'bg-yellow-100 text-yellow-800', label: 'Parcial' };
+        return { estado: 'pendiente', clase: 'bg-blue-100 text-blue-800', label: 'Pendiente' };
+    }
+    // tipo === 'pedido'
+    if (credito.estado === 'anulado') return { estado: 'anulado', clase: 'bg-red-200 text-red-800', label: 'Anulado' };
+    if (credito.estado === 'pagado') return { estado: 'pagado', clase: 'bg-green-100 text-green-800', label: 'Pagado' };
+    return { estado: 'pendiente', clase: 'bg-blue-100 text-blue-800', label: 'Pendiente' };
+}
+
+// ============================================
 // SISTEMA DE CREDITOS COMPLETO
 // ============================================
 
@@ -39,7 +73,7 @@ function obtenerSaldoManual(credito) {
 async function cargarCreditos() {
     // Pedidos a credito
     const pedidosCredito = todosLosPedidos.filter(p => p.tipoPago === 'credito' && p.estado !== 'pagado');
-    const creditosManuales = (await obtenerCreditosManuales()).filter(c => !c.pagado);
+    const creditosManuales = (await obtenerCreditosManuales()).filter(c => !c.pagado && !c.eliminado);
     const allPagos = (await HDVStorage.getItem('hdv_pagos_credito')) || [];
 
     // Calcular stats
@@ -194,6 +228,8 @@ async function registrarPagoCredito(pedidoId) {
         }
     }
 
+    registrarEventoCredito({ creditoId: pedidoId, tipo: 'pedido', accion: 'pago_registrado', monto, saldoAnterior: saldo, saldoNuevo: saldo - monto, clienteNombre: pedido.cliente?.nombre, nota: datos.nota || '' });
+
     if (saldo - monto <= 0) {
         marcarPagado(pedidoId);
     }
@@ -233,11 +269,16 @@ async function registrarPagoManual(creditoId) {
             console.error('[Creditos] Error sincronizando pago manual con Supabase:', e);
         }
     }
+    registrarEventoCredito({ creditoId, tipo: 'manual', accion: 'pago_registrado', monto, saldoAnterior: saldo, saldoNuevo: saldo - monto, clienteNombre: credito.clienteNombre, nota: datos.nota || '' });
+    if (credito.pagado) {
+        registrarEventoCredito({ creditoId, tipo: 'manual', accion: 'marcado_pagado', monto: 0, saldoAnterior: saldo - monto, saldoNuevo: 0, clienteNombre: credito.clienteNombre });
+    }
     mostrarToast(`Pago de ${formatearGuaranies(monto)} registrado`, 'success');
     cargarCreditos();
 }
 
 async function marcarPagado(id) {
+    const pedido = todosLosPedidos.find(p => p.id === id);
     await HDVStorage.atomicUpdate('hdv_pedidos', (pedidos) => {
         const list = pedidos || [];
         const p = list.find(x => x.id === id);
@@ -245,6 +286,7 @@ async function marcarPagado(id) {
         return list;
     });
     if (typeof actualizarEstadoPedido === 'function') actualizarEstadoPedido(id, 'pagado');
+    registrarEventoCredito({ creditoId: id, tipo: 'pedido', accion: 'marcado_pagado', monto: 0, saldoAnterior: 0, saldoNuevo: 0, clienteNombre: pedido?.cliente?.nombre });
     cargarCreditos();
 }
 
@@ -381,6 +423,7 @@ async function agregarCreditoManual() {
     };
     creditos.push(nuevo);
     await HDVStorage.setItem('hdv_creditos_manuales', creditos);
+    registrarEventoCredito({ creditoId: nuevo.id, tipo: 'manual', accion: 'credito_creado', monto: nuevo.monto, saldoAnterior: 0, saldoNuevo: nuevo.monto, clienteNombre: nombre });
 
     if (typeof guardarCreditosManuales === 'function') {
         try {
@@ -418,6 +461,7 @@ async function editarCreditoManualItem(creditoId) {
         textoConfirmar: 'Guardar Cambios'
     });
     if (!datos) return;
+    const montoAnterior = c.monto;
     if (datos.monto > 0) c.monto = datos.monto;
     if (datos.descripcion.trim()) c.descripcion = datos.descripcion;
     await HDVStorage.setItem('hdv_creditos_manuales', creditos);
@@ -428,6 +472,7 @@ async function editarCreditoManualItem(creditoId) {
             console.error('[Creditos] Error sincronizando edicion con Supabase:', e);
         }
     }
+    registrarEventoCredito({ creditoId, tipo: 'manual', accion: 'editado', monto: datos.monto, saldoAnterior: montoAnterior, saldoNuevo: datos.monto, clienteNombre: c.clienteNombre });
     mostrarToast('Credito actualizado', 'success');
     cargarCreditos();
 }
@@ -436,16 +481,19 @@ async function eliminarCreditoManualItem(creditoId) {
     const creditos = await obtenerCreditosManuales();
     const c = creditos.find(x => x.id === creditoId);
     if (!c) return;
-    if (!await mostrarConfirmModal(`¿Eliminar credito manual de ${c.clienteNombre} (${formatearGuaranies(c.monto)})?\nEsta accion es irreversible.`, { destructivo: true, textoConfirmar: 'Eliminar' })) return;
-    const nuevos = creditos.filter(x => x.id !== creditoId);
-    await HDVStorage.setItem('hdv_creditos_manuales', nuevos);
+    if (!await mostrarConfirmModal(`¿Eliminar credito manual de ${c.clienteNombre} (${formatearGuaranies(c.monto)})?\nEl credito se movera al historial como eliminado.`, { destructivo: true, textoConfirmar: 'Eliminar' })) return;
+    const saldoAlEliminar = obtenerSaldoManual(c);
+    c.eliminado = true;
+    c.fechaEliminacion = new Date().toISOString();
+    await HDVStorage.setItem('hdv_creditos_manuales', creditos);
     if (typeof guardarCreditosManuales === 'function') {
         try {
-            await guardarCreditosManuales(nuevos);
+            await guardarCreditosManuales(creditos);
         } catch(e) {
             console.error('[Creditos] Error sincronizando eliminacion con Supabase:', e);
         }
     }
+    registrarEventoCredito({ creditoId, tipo: 'manual', accion: 'eliminado', monto: c.monto, saldoAnterior: saldoAlEliminar, saldoNuevo: 0, clienteNombre: c.clienteNombre });
     cargarCreditos();
 }
 
@@ -475,29 +523,49 @@ async function editarPagosCreditoPedido(pedidoId) {
 
     if (!await mostrarConfirmModal(`¿Eliminar pago de ${formatearGuaranies(pagos[idx].monto)}?`, { destructivo: true, textoConfirmar: 'Eliminar' })) return;
     const pagoAEliminar = pagos[idx];
+    const pedido = todosLosPedidos.find(p => p.id === pedidoId);
+    const totalPagadoAntes = pagos.reduce((s, p) => s + (p.monto || 0), 0);
+    const saldoAntes = (pedido?.total || 0) - totalPagadoAntes;
+    const saldoDespues = saldoAntes + pagoAEliminar.monto;
     const nuevosPagos = allPagos.filter(p => !(p.pedidoId === pedidoId && p.fecha === pagoAEliminar.fecha && p.monto === pagoAEliminar.monto));
     await HDVStorage.setItem('hdv_pagos_credito', nuevosPagos);
+    registrarEventoCredito({ creditoId: pedidoId, tipo: 'pedido', accion: 'pago_eliminado', monto: pagoAEliminar.monto, saldoAnterior: saldoAntes, saldoNuevo: saldoDespues, clienteNombre: pedido?.cliente?.nombre });
     cargarCreditos();
 }
 
 async function eliminarCreditoPedido(pedidoId) {
     const pedido = todosLosPedidos.find(p => p.id === pedidoId);
     if (!pedido) return;
-    if (!await mostrarConfirmModal(`¿Marcar como pagado el credito de ${pedido.cliente?.nombre}?\nEsto lo marcara como pagado en el sistema.`, { textoConfirmar: 'Marcar Pagado' })) return;
-    marcarPagado(pedidoId);
+    if (!await mostrarConfirmModal(`¿Eliminar credito de ${pedido.cliente?.nombre}?\nEl credito se movera al historial como eliminado.`, { destructivo: true, textoConfirmar: 'Eliminar' })) return;
+    const allPagos = (await HDVStorage.getItem('hdv_pagos_credito')) || [];
+    const pagos = allPagos.filter(p => p.pedidoId === pedidoId);
+    const totalPagado = pagos.reduce((s, p) => s + (p.monto || 0), 0);
+    const saldo = (pedido.total || 0) - totalPagado;
+    registrarEventoCredito({ creditoId: pedidoId, tipo: 'pedido', accion: 'eliminado', monto: pedido.total, saldoAnterior: saldo, saldoNuevo: 0, clienteNombre: pedido.cliente?.nombre });
+    // Marcar como pagado para que salga de la lista activa
+    await HDVStorage.atomicUpdate('hdv_pedidos', (pedidos) => {
+        const list = pedidos || [];
+        const p = list.find(x => x.id === pedidoId);
+        if (p) p.estado = 'pagado';
+        return list;
+    });
+    if (typeof actualizarEstadoPedido === 'function') actualizarEstadoPedido(pedidoId, 'pagado');
+    cargarCreditos();
 }
 
 function toggleVistaCreditos(vista) {
     document.getElementById('vistaListaCreditos').style.display = vista === 'lista' ? '' : 'none';
     document.getElementById('vistaResumenCreditos').style.display = vista === 'resumen' ? '' : 'none';
     document.getElementById('vistaGraficosCreditos').style.display = vista === 'graficos' ? '' : 'none';
+    document.getElementById('vistaHistorialCreditos').style.display = vista === 'historial' ? '' : 'none';
     if (vista === 'resumen') mostrarDeudaPorCliente();
     if (vista === 'graficos') renderizarGraficoCreditos();
+    if (vista === 'historial') cargarHistorialCreditos();
 }
 
 async function mostrarDeudaPorCliente() {
     const pedidosCredito = todosLosPedidos.filter(p => p.tipoPago === 'credito' && p.estado !== 'pagado');
-    const creditosManuales = (await obtenerCreditosManuales()).filter(c => !c.pagado);
+    const creditosManuales = (await obtenerCreditosManuales()).filter(c => !c.pagado && !c.eliminado);
     const allPagos = (await HDVStorage.getItem('hdv_pagos_credito')) || [];
     const resumen = {};
 
@@ -587,6 +655,143 @@ async function renderizarGraficoCreditos() {
     }
 }
 
+
+// ============================================
+// HISTORIAL DE CREDITOS — Vista y detalle
+// ============================================
+
+async function cargarHistorialCreditos() {
+    const container = document.getElementById('listaHistorialCreditos');
+    if (!container) return;
+
+    const filtroEl = document.getElementById('filtroEstadoHistorial');
+    const filtro = filtroEl?.value || 'todos';
+
+    // Recopilar creditos cerrados
+    const cerrados = [];
+
+    // Pedidos a credito pagados/anulados
+    const pedidosCredito = todosLosPedidos.filter(p => p.tipoPago === 'credito' && (p.estado === 'pagado' || p.estado === 'anulado'));
+    const allPagos = (await HDVStorage.getItem('hdv_pagos_credito')) || [];
+    const historial = (await HDVStorage.getItem('hdv_historial_creditos')) || [];
+
+    for (const p of pedidosCredito) {
+        const eventos = historial.filter(e => e.creditoId === p.id);
+        const tieneEliminar = eventos.some(e => e.accion === 'eliminado');
+        const est = tieneEliminar
+            ? { estado: 'eliminado', clase: 'bg-gray-200 text-gray-700', label: 'Eliminado' }
+            : obtenerEstadoCredito(p, 'pedido');
+        if (filtro !== 'todos' && est.estado !== filtro) continue;
+        const pagos = allPagos.filter(pg => pg.pedidoId === p.id);
+        const totalPagado = pagos.reduce((s, pg) => s + (pg.monto || 0), 0);
+        const fechaCierre = eventos.length > 0 ? eventos[eventos.length - 1].fecha : null;
+        cerrados.push({
+            id: p.id, tipo: 'pedido', clienteNombre: p.cliente?.nombre || 'N/A',
+            monto: p.total, totalPagado, fechaCreacion: p.fecha, fechaCierre,
+            estado: est, eventos
+        });
+    }
+
+    // Creditos manuales cerrados (pagados o eliminados)
+    const creditosManuales = await obtenerCreditosManuales();
+    for (const c of creditosManuales) {
+        if (!c.pagado && !c.eliminado) continue;
+        const est = obtenerEstadoCredito(c, 'manual');
+        if (filtro !== 'todos' && est.estado !== filtro) continue;
+        const totalPagado = (c.pagos || []).reduce((s, p) => s + (p.monto || 0), 0);
+        const eventos = historial.filter(e => e.creditoId === c.id);
+        const fechaCierre = c.fechaEliminacion || (eventos.length > 0 ? eventos[eventos.length - 1].fecha : null);
+        cerrados.push({
+            id: c.id, tipo: 'manual', clienteNombre: c.clienteNombre || 'N/A',
+            monto: c.monto, totalPagado, fechaCreacion: c.fecha, fechaCierre,
+            descripcion: c.descripcion, estado: est, eventos
+        });
+    }
+
+    // Ordenar por fecha de cierre (mas reciente primero)
+    cerrados.sort((a, b) => new Date(b.fechaCierre || b.fechaCreacion) - new Date(a.fechaCierre || a.fechaCreacion));
+
+    if (cerrados.length === 0) {
+        container.innerHTML = '<p class="p-8 text-center text-gray-400 italic">Sin creditos en el historial</p>';
+        return;
+    }
+
+    container.innerHTML = cerrados.map(c => `
+        <div class="p-5 hover:bg-gray-50 transition-colors">
+            <div class="flex justify-between items-start mb-2">
+                <div>
+                    <p class="font-bold text-gray-800 text-lg">${escapeHTML(c.clienteNombre)}</p>
+                    <p class="text-sm text-gray-500">${new Date(c.fechaCreacion).toLocaleDateString('es-PY')} — ${c.tipo === 'manual' ? 'Manual' : 'Pedido'} #${escapeHTML(c.id)}</p>
+                    ${c.descripcion ? `<p class="text-xs text-gray-400">${escapeHTML(c.descripcion)}</p>` : ''}
+                </div>
+                <div class="text-right flex flex-col items-end gap-1">
+                    <span class="px-3 py-1 rounded-full text-xs font-bold ${c.estado.clase}">${escapeHTML(c.estado.label)}</span>
+                    ${c.fechaCierre ? `<span class="text-xs text-gray-400">Cerrado: ${new Date(c.fechaCierre).toLocaleDateString('es-PY')}</span>` : ''}
+                </div>
+            </div>
+            <div class="grid grid-cols-3 gap-4 mb-3 text-sm">
+                <div><span class="text-gray-500">Total:</span> <strong>${formatearGuaranies(c.monto)}</strong></div>
+                <div><span class="text-gray-500">Pagado:</span> <strong class="text-green-600">${formatearGuaranies(c.totalPagado)}</strong></div>
+                <div><span class="text-gray-500">Saldo final:</span> <strong class="${c.monto - c.totalPagado > 0 ? 'text-red-600' : 'text-green-600'}">${formatearGuaranies(Math.max(0, c.monto - c.totalPagado))}</strong></div>
+            </div>
+            <sl-button onclick="mostrarDetalleCredito('${c.id}')" variant="default" size="small">Ver Detalle</sl-button>
+        </div>
+    `).join('');
+}
+
+async function mostrarDetalleCredito(creditoId) {
+    const historial = (await HDVStorage.getItem('hdv_historial_creditos')) || [];
+    const eventos = historial.filter(e => e.creditoId === creditoId).sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+
+    const accionLabels = {
+        credito_creado: 'Credito creado',
+        pago_registrado: 'Pago registrado',
+        pago_eliminado: 'Pago eliminado',
+        marcado_pagado: 'Marcado como pagado',
+        eliminado: 'Eliminado',
+        editado: 'Editado',
+        anulado: 'Anulado'
+    };
+
+    const accionIconos = {
+        credito_creado: '🟢',
+        pago_registrado: '💰',
+        pago_eliminado: '🔴',
+        marcado_pagado: '✅',
+        eliminado: '🗑️',
+        editado: '✏️',
+        anulado: '❌'
+    };
+
+    let clienteNombre = eventos.length > 0 ? eventos[0].clienteNombre : creditoId;
+
+    const timelineHTML = eventos.length === 0
+        ? '<p class="text-center text-gray-400 italic py-4">Sin eventos registrados para este credito</p>'
+        : eventos.map(e => `
+            <div class="flex gap-3 py-3">
+                <div class="flex-shrink-0 text-lg">${accionIconos[e.accion] || '●'}</div>
+                <div class="flex-1">
+                    <p class="font-bold text-gray-800 text-sm">${accionLabels[e.accion] || e.accion}</p>
+                    <p class="text-xs text-gray-500">${new Date(e.fecha).toLocaleString('es-PY')}</p>
+                    ${e.monto > 0 ? `<p class="text-sm text-gray-700 mt-1">Monto: <strong>${formatearGuaranies(e.monto)}</strong></p>` : ''}
+                    ${e.saldoAnterior !== undefined && e.accion !== 'credito_creado' && e.accion !== 'marcado_pagado' ? `<p class="text-xs text-gray-500">Saldo: ${formatearGuaranies(e.saldoAnterior)} → ${formatearGuaranies(e.saldoNuevo)}</p>` : ''}
+                    ${e.nota ? `<p class="text-xs text-gray-400 italic mt-0.5">${escapeHTML(e.nota)}</p>` : ''}
+                </div>
+            </div>
+        `).join('<div class="border-l-2 border-gray-200 ml-3 h-2"></div>');
+
+    // Dialog dinamico
+    let dialog = document.getElementById('dialogDetalleCredito');
+    if (!dialog) {
+        dialog = document.createElement('sl-dialog');
+        dialog.id = 'dialogDetalleCredito';
+        dialog.style.setProperty('--width', '500px');
+        document.body.appendChild(dialog);
+    }
+    dialog.label = `Detalle: ${escapeHTML(clienteNombre)}`;
+    dialog.innerHTML = `<div class="divide-y divide-gray-100">${timelineHTML}</div>`;
+    dialog.show();
+}
 
 // ============================================
 // MOTOR DE PROMOCIONES
@@ -1002,4 +1207,5 @@ async function eliminarCuentaBancaria(id) {
     document.getElementById('formPromoTipo')?.addEventListener('sl-change', () => toggleCamposPromo());
     document.getElementById('formPromoProducto')?.addEventListener('sl-change', () => actualizarPresentacionesPromo());
     document.getElementById('rendSemana')?.addEventListener('sl-change', () => cargarRendiciones());
+    document.getElementById('filtroEstadoHistorial')?.addEventListener('sl-change', () => cargarHistorialCreditos());
 })();

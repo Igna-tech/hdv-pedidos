@@ -707,6 +707,7 @@
                     <sl-button onclick="toggleVistaCreditos('resumen')" variant="primary" size="small">Resumen por Cliente</sl-button>
                     <sl-button onclick="toggleVistaCreditos('graficos')" variant="neutral" size="small" style="--sl-color-neutral-600:#9333ea;--sl-color-neutral-700:#7e22ce;">Graficos</sl-button>
                     <sl-button onclick="toggleVistaCreditos('lista')" variant="neutral" size="small">Ver Lista</sl-button>
+                    <sl-button onclick="toggleVistaCreditos('historial')" variant="neutral" size="small" style="--sl-color-neutral-600:#6b7280;--sl-color-neutral-700:#4b5563;">Historial</sl-button>
                 </div>
 
                 <!-- Lista de creditos -->
@@ -722,6 +723,24 @@
                         <h3 class="font-bold text-gray-800">Deuda por Cliente</h3>
                     </div>
                     <div id="resumenDeudaClientes" class="p-4"></div>
+                </div>
+
+                <!-- Historial de creditos cerrados -->
+                <div id="vistaHistorialCreditos" class="saas-card overflow-hidden" style="display:none;">
+                    <div class="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
+                        <h3 class="font-bold text-gray-800">Historial de Creditos</h3>
+                        <div class="flex gap-2">
+                            <sl-select id="filtroEstadoHistorial" size="small" value="todos" style="min-width:140px;">
+                                <sl-option value="todos">Todos</sl-option>
+                                <sl-option value="pagado">Pagados</sl-option>
+                                <sl-option value="eliminado">Eliminados</sl-option>
+                                <sl-option value="anulado">Anulados</sl-option>
+                            </sl-select>
+                        </div>
+                    </div>
+                    <div id="listaHistorialCreditos" class="divide-y divide-gray-100">
+                        <p class="p-8 text-center text-gray-400 italic">Sin historial</p>
+                    </div>
                 </div>
 
                 <!-- Graficos de creditos -->

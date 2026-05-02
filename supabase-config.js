@@ -521,6 +521,9 @@ async function obtenerPagosCredito() { return await obtenerConfig('pagos_credito
 function guardarCreditosManuales(creditos) { return guardarConfig('creditos_manuales', creditos); }
 async function obtenerCreditosManuales() { return await obtenerConfig('creditos_manuales'); }
 
+function guardarHistorialCreditos(historial) { return guardarConfig('historial_creditos', historial); }
+async function obtenerHistorialCreditos() { return await obtenerConfig('historial_creditos'); }
+
 function guardarPromociones(promos) { return guardarConfig('promociones', promos); }
 async function obtenerPromociones() { return await obtenerConfig('promociones'); }
 
@@ -595,6 +598,7 @@ async function sincronizarDatosNegocio() {
     const mapeo = [
         { key: 'hdv_pagos_credito', doc: 'pagos_credito' },
         { key: 'hdv_creditos_manuales', doc: 'creditos_manuales' },
+        { key: 'hdv_historial_creditos', doc: 'historial_creditos' },
         { key: 'hdv_promociones', doc: 'promociones' },
         { key: 'hdv_whatsapp_mensaje_credito', doc: 'whatsapp_plantilla' },
         { key: 'hdv_gastos', doc: vendedorId ? `gastos_vendedor_${vendedorId}` : 'gastos_vendedor' },
@@ -616,6 +620,7 @@ async function cargarDatosNegocio() {
     const mapeo = [
         { key: 'hdv_pagos_credito', doc: 'pagos_credito' },
         { key: 'hdv_creditos_manuales', doc: 'creditos_manuales' },
+        { key: 'hdv_historial_creditos', doc: 'historial_creditos' },
         { key: 'hdv_promociones', doc: 'promociones' },
         { key: 'hdv_whatsapp_mensaje_credito', doc: 'whatsapp_plantilla' },
         { key: 'hdv_gastos', doc: vendedorId ? `gastos_vendedor_${vendedorId}` : 'gastos_vendedor' },
@@ -640,6 +645,7 @@ function iniciarListenersDatosNegocio() {
     const vendedorId = window.hdvUsuario?.id;
     escucharConfigRealtime('pagos_credito', 'hdv_pagos_credito');
     escucharConfigRealtime('creditos_manuales', 'hdv_creditos_manuales');
+    escucharConfigRealtime('historial_creditos', 'hdv_historial_creditos');
     escucharConfigRealtime('promociones', 'hdv_promociones');
     escucharConfigRealtime('whatsapp_plantilla', 'hdv_whatsapp_mensaje_credito');
     escucharConfigRealtime(vendedorId ? `gastos_vendedor_${vendedorId}` : 'gastos_vendedor', 'hdv_gastos');

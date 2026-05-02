@@ -52,7 +52,7 @@ PWA mobile-first para vendedores de calle + panel admin de escritorio.
 ├── js/admin/dashboard.js   → Modulo admin: dashboard con Chart.js
 ├── js/admin/productos.js   → Modulo admin: CRUD de productos y variantes
 ├── js/admin/clientes.js    → Modulo admin: CRUD de clientes
-├── js/admin/creditos.js    → Modulo admin: control de creditos
+├── js/admin/creditos.js    → Modulo admin: creditos con historial, soft-delete, event log
 ├── js/modules/ventas/ventas-data.js      → Datos y logica de ventas/facturacion
 ├── js/modules/ventas/ventas-templates.js → Templates HTML para documentos de venta
 │
@@ -103,7 +103,7 @@ supabase CDN → supabase-init.js → js/utils/storage.js → login.js
 
 ### Tablas operativas:
 - `pedidos` (id TEXT PK, estado, fecha TEXT, datos JSONB, creado_en, actualizado_en, vendedor_id UUID FK→auth.users DEFAULT auth.uid()) — estados: pedido_pendiente, entregado, cobrado_sin_factura, facturado_mock, nota_credito_mock, anulado
-- `configuracion` (doc_id TEXT PK, datos JSONB) — docs: pagos_credito, creditos_manuales, promociones, whatsapp_plantilla, gastos_vendedor_${vendedorId}, rendiciones_${vendedorId}, cuentas_bancarias, metas_vendedor. NOTA: gastos y rendiciones particionados por vendedor_id desde Fase 1 (antes era doc_id compartido → last-write-wins)
+- `configuracion` (doc_id TEXT PK, datos JSONB) — docs: pagos_credito, creditos_manuales, historial_creditos, promociones, whatsapp_plantilla, gastos_vendedor_${vendedorId}, rendiciones_${vendedorId}, cuentas_bancarias, metas_vendedor. NOTA: gastos y rendiciones particionados por vendedor_id desde Fase 1 (antes era doc_id compartido → last-write-wins)
 - `configuracion_empresa` (id INT PK default 1, ruc_empresa, razon_social, nombre_fantasia, timbrado_numero, timbrado_vencimiento, establecimiento, punto_expedicion, direccion_fiscal, telefono_empresa, email_empresa, actividad_economica) — fila unica, DELETE bloqueado
 - `reportes_mensuales` (mes TEXT PK, datos JSONB)
 - `perfiles` (id UUID PK FK→auth.users, nombre_completo, rol CHECK('admin','vendedor'), activo)
@@ -147,7 +147,7 @@ Retornos: `{ data, error }` para fetches, `{ success, error }` para mutaciones.
 Consume `SupabaseService`. Expone funciones globales:
 - **Catalogo**: `obtenerCatalogo()`, `guardarCatalogo(data)`, `escucharCatalogoRealtime(cb)`
 - **Pedidos**: `guardarPedido(pedido)`, `actualizarEstadoPedido(id,estado)`, `eliminarPedido(id)`, `obtenerPedidos()`, `escucharPedidosRealtime(cb)` [debounce 500ms], `escucharPedidosRealtimeVendedor(callbacks)` [granular: onEstadoCambiado, onPedidoEliminado, onSync], `sincronizarPedidosLocales()`
-- **Config**: 8 pares guardar/obtener + `sincronizarDatosNegocio()`, `cargarDatosNegocio()`, `iniciarListenersDatosNegocio()`. `guardarGastos()`/`guardarRendiciones()` particionan por `vendedor_id` automaticamente
+- **Config**: 9 pares guardar/obtener (incluye `historial_creditos`) + `sincronizarDatosNegocio()`, `cargarDatosNegocio()`, `iniciarListenersDatosNegocio()`. `guardarGastos()`/`guardarRendiciones()` particionan por `vendedor_id` automaticamente
 - **Conexion**: `monitorearConexion()` — healthCheck cada 30s, `actualizarIndicadorConexion()` — badge verde(sincronizado)/amarillo(conectando)/rojo(sin conexion) + banner offline. Indicador presente en ambos HTML (vendedor header + admin header)
 
 ## Formato de datos en memoria
@@ -187,7 +187,7 @@ Migra automaticamente de localStorage a IndexedDB al primer uso. Supabase Auth s
 - `isHealthy()` — flag global de salud del storage
 - `atomicUpdate(key, updaterFn)` — mutex per-key (promise-queue) para read-modify-write seguro. `updaterFn` recibe valor actual, retorna nuevo valor. Libera lock en `finally` ante errores. **OBLIGATORIO** para toda mutacion de `hdv_pedidos` en callbacks realtime.
 
-**Keys principales:** `hdv_catalogo_local`, `hdv_pedidos`, `hdv_carrito_${clienteId}`, `hdv_pagos_credito`, `hdv_creditos_manuales`, `hdv_promociones`, `hdv_gastos`, `hdv_rendiciones`, `hdv_cuentas_bancarias`, `hdv_metas`, `hdv_user_rol/email/nombre`, `hdv_darkmode`, `hdv_auto_backup(s)`.
+**Keys principales:** `hdv_catalogo_local`, `hdv_pedidos`, `hdv_carrito_${clienteId}`, `hdv_pagos_credito`, `hdv_creditos_manuales`, `hdv_historial_creditos`, `hdv_promociones`, `hdv_gastos`, `hdv_rendiciones`, `hdv_cuentas_bancarias`, `hdv_metas`, `hdv_user_rol/email/nombre`, `hdv_darkmode`, `hdv_auto_backup(s)`.
 
 **SyncManager** (js/services/sync.js): auto-sincroniza pedidos con `sincronizado: false` al detectar conexion online o al arrancar. Mutex para evitar sync concurrentes.
 

@@ -142,11 +142,11 @@ async function mostrarInfoCliente(cliente) {
     }
 
     // Saldo de deuda
-    const pagos = (await HDVStorage.getItem('hdv_pagos_credito', { clone: false })) || {};
+    const allPagos = (await HDVStorage.getItem('hdv_pagos_credito', { clone: false })) || [];
     const creditos = pedidosCliente.filter(p => p.tipoPago === 'credito');
     let deudaTotal = 0;
     creditos.forEach(p => {
-        const pagosP = (pagos[p.id] || []).reduce((s, pg) => s + (pg.monto || 0), 0);
+        const pagosP = allPagos.filter(pg => pg.pedidoId === p.id).reduce((s, pg) => s + (pg.monto || 0), 0);
         deudaTotal += (p.total || 0) - pagosP;
     });
     const elDeuda = document.getElementById('clienteInfoDeuda');

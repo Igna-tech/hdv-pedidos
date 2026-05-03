@@ -4,8 +4,6 @@
 // NO acceden al DOM, localStorage ni globals.
 // ============================================
 
-// TODO: Refactor Phase 1 - tplFormatearFechaAdmin ahora en js/utils/formatters.js
-
 // --- Helpers internos ---
 
 function _tplFeIniTimbrado(venc) {

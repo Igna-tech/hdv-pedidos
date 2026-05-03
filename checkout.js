@@ -53,10 +53,6 @@ function limpiarDespuesDeVenta() {
     document.getElementById('tipoPago').value = 'contado';
 }
 
-// TODO: Refactor Phase 1 - Movido a js/utils/formatters.js
-// function generarNumeroFactura() { ... }
-// function generarCDC() { ... }
-// function formatearFecha(fecha) { ... }
 
 function generarHTMLItems(items) {
     return items.map(i =>

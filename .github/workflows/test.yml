@@ -19,6 +19,25 @@ jobs:
       - run: npm ci
       - run: npm test
 
+  css:
+    name: Tailwind CSS Build Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build:css
+      - name: Check for uncommitted CSS changes
+        run: |
+          if ! git diff --quiet dist/tailwind.css; then
+            echo "::error::dist/tailwind.css is out of date. Run 'npm run build:css' and commit."
+            git diff --stat dist/tailwind.css
+            exit 1
+          fi
+
   e2e:
     name: E2E Tests (Playwright)
     runs-on: ubuntu-latest

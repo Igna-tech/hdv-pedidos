@@ -6,8 +6,6 @@
 //   guardarPedido (supabase-config.js), productosData (admin.js)
 // ============================================
 
-// TODO: Refactor Phase 1 - generarNumeroFacturaAdmin y generarCDCAdmin ahora en js/utils/formatters.js
-
 // --- Lectura ---
 
 async function ventasDataObtenerPedidos() {

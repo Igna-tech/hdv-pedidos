@@ -6,12 +6,6 @@
 // ============================================
 
 // --- Estado local del controlador ---
-// TODO: Refactor Phase 1 - Estado global movido a js/core/state.js
-// let productos = [];
-// let categorias = [];
-// let clientes = [];
-// let clienteActual = null;
-// let carrito = [];
 let categoriaActual = 'todas';
 let vistaCatalogo = 'categorias'; // 'categorias' o 'productos'
 let categoriaSeleccionada = null; // categoria clickeada en el grid
@@ -255,10 +249,6 @@ function configurarEventos() {
 
 // ============================================
 // DESGLOSE IVA (Paraguay — precios con IVA incluido)
-// ============================================
-// TODO: Refactor Phase 1 - Movido a js/utils/formatters.js
-// function calcularDesgloseIVA(items) { ... }
-
 // ============================================
 // NAVEGACION DE VISTAS
 // ============================================
@@ -805,13 +795,9 @@ function descargarArchivoJSON(data, nombre) {
     URL.revokeObjectURL(link.href);
 }
 
-// TODO: Refactor Phase 1 - Movido a js/utils/formatters.js
-// function formatearFechaArchivo() { ... }
-
 // ============================================
 // IMPRESION Y COMPARTIR POR PEDIDO
 // ============================================
-// TODO: Refactor Phase 1 - Usa js/utils/printer.js (generarTicketHTML + imprimirViaIframe)
 async function imprimirTicketVendedor(pedidoId) {
     const pedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
     const pedido = pedidos.find(p => p.id === pedidoId);
@@ -820,7 +806,6 @@ async function imprimirTicketVendedor(pedidoId) {
     imprimirViaIframe('printFrameVendedor', ticketHTML);
 }
 
-// TODO: Refactor Phase 1 - Usa js/utils/pdf-generator.js (generarPDFPedido)
 async function generarPDFVendedor(pedidoId) {
     const pedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
     const pedido = pedidos.find(p => p.id === pedidoId);

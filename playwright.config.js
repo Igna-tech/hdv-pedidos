@@ -10,7 +10,7 @@ export default defineConfig({
         screenshot: 'only-on-failure',
     },
     webServer: process.env.TEST_URL ? undefined : {
-        command: 'npx serve . -l 3000 -s',
+        command: 'npx serve . -l 3000',
         port: 3000,
         reuseExistingServer: true,
     },

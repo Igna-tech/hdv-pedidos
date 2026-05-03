@@ -559,36 +559,6 @@ async function obtenerCuentasBancarias() { return await obtenerConfig('cuentas_b
 function guardarMetas(metas) { return guardarConfig('metas_vendedor', metas); }
 async function obtenerMetas() { return await obtenerConfig('metas_vendedor'); }
 
-// ============================================
-// COMPATIBILIDAD: shim para llamadas directas db.collection()
-// ============================================
-const db = {
-    collection: (collectionName) => ({
-        doc: (docId) => ({
-            set: async (data) => {
-                if (collectionName === 'configuracion') {
-                    return guardarConfig(docId, data);
-                } else if (collectionName === 'reportes_mensuales') {
-                    const { success, error } = await SupabaseService.upsertReporteMensual(docId, data);
-                    if (!success) throw error;
-                    return true;
-                } else if (collectionName === 'promociones') {
-                    const promos = (await HDVStorage.getItem('hdv_promociones')) || [];
-                    const idx = promos.findIndex(p => p.id === docId);
-                    if (idx >= 0) promos[idx] = data; else promos.push(data);
-                    return guardarConfig('promociones', promos);
-                }
-            },
-            get: async () => {
-                if (collectionName === 'reportes_mensuales') {
-                    const { data } = await SupabaseService.fetchReporteMensual(docId);
-                    return { exists: !!data, data: () => data };
-                }
-                return { exists: false, data: () => null };
-            }
-        })
-    })
-};
 
 // ============================================
 // SINCRONIZACION MASIVA

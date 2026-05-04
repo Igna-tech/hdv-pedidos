@@ -1122,7 +1122,10 @@
                 </div>
                 <!-- Lista de metas configuradas -->
                 <div class="saas-card overflow-hidden">
-                    <div class="p-4 bg-gray-50 border-b border-gray-200 font-bold text-sm text-gray-600">Metas Configuradas</div>
+                    <div class="p-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
+                        <span class="font-bold text-sm text-gray-600">Metas Configuradas</span>
+                        <sl-switch id="metasVerHistorial" size="small">Ver historial</sl-switch>
+                    </div>
                     <div id="metasContainer" class="divide-y divide-gray-100">
                         <p class="p-6 text-center text-gray-400 italic">Sin metas configuradas</p>
                     </div>
@@ -1135,7 +1138,8 @@
                         <input type="hidden" id="formMetaId">
                         <div>
                             <label class="block text-xs font-bold text-gray-500 mb-1">VENDEDOR</label>
-                            <sl-input type="text" id="formMetaVendedor" class="w-full" size="small" placeholder="Ej: Juan Perez" value="Vendedor Principal"></sl-input>
+                            <sl-select id="formMetaVendedor" class="w-full" size="small" hoist placeholder="Seleccionar vendedor">
+                            </sl-select>
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-gray-500 mb-1">META MENSUAL (Gs.)</label>

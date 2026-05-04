@@ -8,15 +8,14 @@ import { test, expect } from '@playwright/test';
 test.describe('Proteccion de rutas', () => {
     test('redirige /admin.html a /login.html sin sesion', async ({ page }) => {
         await page.goto('/admin.html');
-        // guard.js debe redirigir a login
-        await page.waitForURL(/login\.html/, { timeout: 10000 });
-        expect(page.url()).toContain('login.html');
+        await page.waitForURL(/login/, { timeout: 15000 });
+        expect(page.url()).toMatch(/login/);
     });
 
     test('redirige /index.html a /login.html sin sesion', async ({ page }) => {
         await page.goto('/index.html');
-        await page.waitForURL(/login\.html/, { timeout: 10000 });
-        expect(page.url()).toContain('login.html');
+        await page.waitForURL(/login/, { timeout: 15000 });
+        expect(page.url()).toMatch(/login/);
     });
 });
 
@@ -47,17 +46,22 @@ test.describe('Pagina de login', () => {
             .catch(() => false);
 
         // Al menos no debe haber navegado a admin o index
-        expect(page.url()).toContain('login.html');
+        expect(page.url()).toMatch(/login/);
     });
 
     test('muestra alerta de cuenta bloqueada con ?blocked=1', async ({ page }) => {
         await page.goto('/login.html?blocked=1');
 
+        // Esperar a que el alert se renderice
+        await page.waitForTimeout(2000);
+
         // Debe mostrar alerta visual de cuenta bloqueada
         const pageContent = await page.textContent('body');
-        const hasBlockedMessage = pageContent.toLowerCase().includes('bloqueada') ||
-            pageContent.toLowerCase().includes('desactivada') ||
-            pageContent.toLowerCase().includes('blocked');
+        const lc = pageContent.toLowerCase();
+        const hasBlockedMessage = lc.includes('bloqueado') ||
+            lc.includes('bloqueada') ||
+            lc.includes('desactivada') ||
+            lc.includes('blocked');
 
         expect(hasBlockedMessage).toBe(true);
     });

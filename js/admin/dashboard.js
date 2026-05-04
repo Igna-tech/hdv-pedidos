@@ -405,15 +405,55 @@ async function guardarResumenMensual() {
 // ============================================
 // METAS Y COMISIONES
 // ============================================
+
+let _metasPerfilesCache = null;
+
+async function _obtenerPerfilesMetas() {
+    if (_metasPerfilesCache) return _metasPerfilesCache;
+    try {
+        const { data } = await supabaseClient.from('perfiles').select('id, nombre_completo, rol');
+        _metasPerfilesCache = (data || []).filter(p => p.rol === 'vendedor');
+    } catch (e) { _metasPerfilesCache = []; }
+    return _metasPerfilesCache;
+}
+
+function _obtenerNombreVendedorMeta(m, perfilesMap) {
+    if (m.vendedor_id && perfilesMap[m.vendedor_id]) return perfilesMap[m.vendedor_id];
+    return m.vendedor || 'Sin vendedor';
+}
+
 async function cargarMetas() {
-    const metas = (await HDVStorage.getItem('hdv_metas', { clone: false })) || [];
+    let metas = (await HDVStorage.getItem('hdv_metas')) || [];
     const mesActual = new Date().toISOString().slice(0, 7);
+    const perfiles = await _obtenerPerfilesMetas();
+    const perfilesMap = {};
+    perfiles.forEach(p => { perfilesMap[p.id] = p.nombre_completo || 'Sin nombre'; });
+
+    let cambio = false;
+    metas.forEach(m => {
+        if (m.activa && m.mes < mesActual) {
+            m.activa = false;
+            cambio = true;
+        }
+        if (m.vendedor && !m.vendedor_id) {
+            const perfil = perfiles.find(p => (p.nombre_completo || '').toLowerCase() === m.vendedor.toLowerCase());
+            if (perfil) { m.vendedor_id = perfil.id; cambio = true; }
+        }
+    });
+    if (cambio) {
+        await HDVStorage.setItem('hdv_metas', metas);
+        if (typeof guardarMetas === 'function') guardarMetas(metas).catch(() => {});
+    }
+
     const metaActiva = metas.find(m => m.mes === mesActual && m.activa) || metas.find(m => m.activa);
 
-    // Calcular ventas del mes
     const pedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
     const pedidosMes = pedidos.filter(p => p.fecha && p.fecha.startsWith(mesActual));
-    const totalVendido = pedidosMes.reduce((sum, p) => sum + (p.total || 0), 0);
+
+    let totalVendido = pedidosMes.reduce((sum, p) => sum + (p.total || 0), 0);
+    if (metaActiva && metaActiva.vendedor_id) {
+        totalVendido = pedidosMes.filter(p => p.vendedor_id === metaActiva.vendedor_id).reduce((sum, p) => sum + (p.total || 0), 0);
+    }
 
     if (metaActiva) {
         const objetivo = metaActiva.monto || 0;
@@ -443,20 +483,27 @@ async function cargarMetas() {
         document.getElementById('metaBarraProgreso').style.width = '0%';
     }
 
-    // Lista de metas
+    const verHistorial = document.getElementById('metasVerHistorial')?.checked;
+    const metasFiltradas = verHistorial ? metas : metas.filter(m => m.activa || m.mes === mesActual);
+
     const container = document.getElementById('metasContainer');
-    if (metas.length === 0) {
+    if (metasFiltradas.length === 0) {
         container.innerHTML = generarAdminEmptyState(SVG_ADMIN_EMPTY_ORDERS, 'Sin metas configuradas', 'Crea metas mensuales para los vendedores');
     } else {
-        container.innerHTML = metas.map(m => {
-            const pedMes = pedidos.filter(p => p.fecha && p.fecha.startsWith(m.mes));
+        container.innerHTML = metasFiltradas.sort((a, b) => b.mes.localeCompare(a.mes)).map(m => {
+            const nombre = _obtenerNombreVendedorMeta(m, perfilesMap);
+            const pedMes = pedidos.filter(p => p.fecha && p.fecha.startsWith(m.mes) && (!m.vendedor_id || p.vendedor_id === m.vendedor_id));
             const vendMes = pedMes.reduce((s, p) => s + (p.total || 0), 0);
             const pct = m.monto > 0 ? Math.min(100, Math.round((vendMes / m.monto) * 100)) : 0;
+            const comisionEst = Math.round(vendMes * ((m.comision || 0) / 100));
+            const pagadaBadge = m.comision_pagada
+                ? '<span class="text-xs px-2 py-1 rounded-full bg-green-100 text-green-700">Comision Pagada</span>'
+                : (pct >= 100 ? `<sl-button onclick="marcarComisionPagada('${m.id}')" variant="success" size="small">Pagar Comision</sl-button>` : '');
             return `
             <div class="p-4 flex justify-between items-center">
                 <div>
-                    <p class="font-bold text-gray-800">${escapeHTML(m.vendedor)} - ${escapeHTML(m.mes)}</p>
-                    <p class="text-sm text-gray-500">Meta: ${formatearGuaranies(m.monto)} | Comision: ${m.comision}%</p>
+                    <p class="font-bold text-gray-800">${escapeHTML(nombre)} - ${escapeHTML(m.mes)}</p>
+                    <p class="text-sm text-gray-500">Meta: ${formatearGuaranies(m.monto)} | Comision: ${m.comision}% (${formatearGuaranies(comisionEst)})</p>
                     <div class="mt-2 w-48 bg-gray-200 rounded-full h-3">
                         <div class="h-3 rounded-full ${pct < 50 ? 'bg-red-500' : pct < 80 ? 'bg-yellow-500' : 'bg-green-500'}" style="width: ${pct}%"></div>
                     </div>
@@ -464,6 +511,7 @@ async function cargarMetas() {
                 <div class="flex items-center gap-3">
                     <span class="text-sm font-bold ${pct >= 100 ? 'text-green-600' : 'text-gray-600'}">${pct}%</span>
                     <span class="text-xs px-2 py-1 rounded-full ${m.activa ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}">${m.activa ? 'Activa' : 'Inactiva'}</span>
+                    ${pagadaBadge}
                     <button onclick="editarMeta('${m.id}')" class="text-blue-600 text-sm font-bold">Editar</button>
                     <button onclick="eliminarMeta('${m.id}')" class="text-red-600 text-sm font-bold">Eliminar</button>
                 </div>
@@ -472,9 +520,24 @@ async function cargarMetas() {
     }
 }
 
+async function _poblarSelectVendedorMeta() {
+    const select = document.getElementById('formMetaVendedor');
+    if (!select) return;
+    const existentes = select.querySelectorAll('sl-option');
+    existentes.forEach(el => el.remove());
+    const perfiles = await _obtenerPerfilesMetas();
+    perfiles.forEach(p => {
+        const opt = document.createElement('sl-option');
+        opt.value = p.id;
+        opt.textContent = p.nombre_completo || 'Sin nombre';
+        select.appendChild(opt);
+    });
+}
+
 async function abrirModalMeta(metaId) {
+    await _poblarSelectVendedorMeta();
     document.getElementById('formMetaId').value = '';
-    document.getElementById('formMetaVendedor').value = 'Vendedor Principal';
+    document.getElementById('formMetaVendedor').value = '';
     document.getElementById('formMetaMonto').value = '';
     document.getElementById('formMetaComision').value = '5';
     document.getElementById('formMetaMes').value = new Date().toISOString().slice(0, 7);
@@ -484,7 +547,7 @@ async function abrirModalMeta(metaId) {
         const m = metas.find(x => x.id === metaId);
         if (m) {
             document.getElementById('formMetaId').value = m.id;
-            document.getElementById('formMetaVendedor').value = m.vendedor;
+            document.getElementById('formMetaVendedor').value = m.vendedor_id || '';
             document.getElementById('formMetaMonto').value = m.monto;
             document.getElementById('formMetaComision').value = m.comision;
             document.getElementById('formMetaMes').value = m.mes;
@@ -499,20 +562,28 @@ function editarMeta(id) { abrirModalMeta(id); }
 
 async function guardarMeta() {
     const id = document.getElementById('formMetaId').value || 'META' + Date.now();
+    const vendedorId = document.getElementById('formMetaVendedor').value;
+    const perfiles = await _obtenerPerfilesMetas();
+    const perfil = perfiles.find(p => p.id === vendedorId);
     const meta = {
         id,
-        vendedor: document.getElementById('formMetaVendedor').value,
+        vendedor_id: vendedorId || null,
+        vendedor: perfil ? perfil.nombre_completo : (vendedorId || 'Sin vendedor'),
         monto: parseInt(document.getElementById('formMetaMonto').value) || 0,
         comision: parseFloat(document.getElementById('formMetaComision').value) || 0,
         mes: document.getElementById('formMetaMes').value,
         activa: document.getElementById('formMetaActiva').value === 'true'
     };
     if (!meta.monto) { mostrarToast('Monto de meta es obligatorio', 'error'); return; }
+    if (!meta.vendedor_id) { mostrarToast('Selecciona un vendedor', 'error'); return; }
 
     await withButtonLock('btnGuardarMeta', async () => {
         let metas = (await HDVStorage.getItem('hdv_metas')) || [];
+        const existente = metas.find(m => m.id !== id && m.vendedor_id === meta.vendedor_id && m.mes === meta.mes);
+        if (existente) { mostrarToast('Ya existe una meta para este vendedor en ese mes', 'error'); return; }
         const idx = metas.findIndex(m => m.id === id);
-        if (idx >= 0) metas[idx] = meta; else metas.push(meta);
+        if (idx >= 0) { meta.comision_pagada = metas[idx].comision_pagada; meta.fecha_pago = metas[idx].fecha_pago; metas[idx] = meta; }
+        else metas.push(meta);
         await HDVStorage.setItem('hdv_metas', metas);
         if (typeof guardarMetas === 'function') {
             try { await guardarMetas(metas); }
@@ -522,6 +593,22 @@ async function guardarMeta() {
         cargarMetas();
         mostrarToast('Meta guardada', 'success');
     }, 'Guardando...')();
+}
+
+async function marcarComisionPagada(metaId) {
+    if (!await mostrarConfirmModal('¿Marcar la comision como PAGADA?', { textoConfirmar: 'Marcar Pagada' })) return;
+    let metas = (await HDVStorage.getItem('hdv_metas')) || [];
+    const m = metas.find(x => x.id === metaId);
+    if (!m) return;
+    m.comision_pagada = true;
+    m.fecha_pago = new Date().toISOString();
+    await HDVStorage.setItem('hdv_metas', metas);
+    if (typeof guardarMetas === 'function') {
+        try { await guardarMetas(metas); }
+        catch (e) { console.error('[Metas] Error sincronizando pago comision:', e); }
+    }
+    mostrarExito('Comision marcada como pagada');
+    cargarMetas();
 }
 
 async function eliminarMeta(id) {
@@ -535,3 +622,7 @@ async function eliminarMeta(id) {
     }
     cargarMetas();
 }
+
+(function _initMetasListeners() {
+    document.getElementById('metasVerHistorial')?.addEventListener('sl-change', () => cargarMetas());
+})();

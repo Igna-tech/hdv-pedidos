@@ -1299,6 +1299,41 @@
                             </div>
                         </div>
 
+                            <!-- Libro Diario -->
+                            <div class="saas-card p-6 border-t-4 border-t-emerald-500">
+                                <div class="flex items-center gap-3 mb-3">
+                                    <div class="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center">
+                                        <i data-lucide="book-open" class="w-5 h-5 text-emerald-600"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-bold text-gray-800">Libro Diario</h4>
+                                        <p class="text-xs text-gray-500">Asientos contables del periodo</p>
+                                    </div>
+                                </div>
+                                <p class="text-sm text-gray-500 mb-4">Exporta asientos contables con cuentas: Caja, Cuentas por Cobrar, Ventas, IVA Debito Fiscal. Incluye gastos operativos.</p>
+                                <sl-button onclick="exportarLibroDiario()" id="btnLibroDiario" variant="neutral" class="w-full" style="--sl-color-neutral-600:#059669;--sl-color-neutral-700:#047857;">
+                                    <i data-lucide="download" class="w-4 h-4"></i> Exportar Libro Diario (CSV)
+                                </sl-button>
+                            </div>
+
+                            <!-- Resumen IVA -->
+                            <div class="saas-card p-6 border-t-4 border-t-amber-500">
+                                <div class="flex items-center gap-3 mb-3">
+                                    <div class="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center">
+                                        <i data-lucide="receipt" class="w-5 h-5 text-amber-600"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-bold text-gray-800">Resumen IVA</h4>
+                                        <p class="text-xs text-gray-500">Cuadro liquidacion IVA</p>
+                                    </div>
+                                </div>
+                                <p class="text-sm text-gray-500 mb-4">Cuadro resumen con totales gravados al 10%, 5%, exentas y neto a declarar para la liquidacion mensual del IVA.</p>
+                                <sl-button onclick="generarResumenIVA()" id="btnResumenIVA" variant="neutral" class="w-full" style="--sl-color-neutral-600:#d97706;--sl-color-neutral-700:#b45309;">
+                                    <i data-lucide="calculator" class="w-4 h-4"></i> Generar Resumen IVA
+                                </sl-button>
+                            </div>
+                        </div>
+
                         <!-- Preview tabla -->
                         <div class="saas-card overflow-hidden mt-6">
                             <div class="p-4 border-b border-gray-100 flex justify-between items-center">

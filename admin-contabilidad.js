@@ -287,3 +287,134 @@ async function exportarPaqueteZIP() {
         mostrarToast(`Paquete tributario de ${nombreMes} ${anio} descargado (${registros.length} documentos)`, 'success');
     }, 'Comprimiendo archivos...')();
 }
+
+// ============================================
+// LIBRO DIARIO (CSV)
+// ============================================
+
+async function exportarLibroDiario() {
+    const registros = await obtenerRegistrosPeriodo();
+    const mes = parseInt(document.getElementById('cierreMes').value);
+    const anio = parseInt(document.getElementById('cierreAnio').value);
+    const nombreMes = getNombreMes(mes);
+
+    if (registros.length === 0) {
+        mostrarToast('No hay registros en el periodo seleccionado', 'warning');
+        return;
+    }
+
+    await withButtonLock('btnLibroDiario', async () => {
+        const gastos = await _obtenerGastosPeriodo(mes, anio);
+
+        let csv = '﻿';
+        csv += 'Fecha,Cuenta,Debe,Haber,Concepto,Referencia\n';
+        let asiento = 1;
+
+        registros.forEach(r => {
+            const fecha = new Date(r.fecha).toLocaleDateString('es-PY');
+            const esNC = r.estado === PEDIDO_ESTADOS.NOTA_CREDITO;
+            const total = Math.abs(r.total || 0);
+            const desglose = calcularDesglose(total, r);
+            const ref = r.numFactura || r.id;
+            const concepto = esNC ? 'Nota de Credito' : `Venta ${r.tipoPago === 'credito' ? 'credito' : 'contado'}`;
+            const cuentaCobro = r.tipoPago === 'credito' ? 'Cuentas por Cobrar' : 'Caja';
+
+            if (esNC) {
+                csv += `${escaparCSV(fecha)},Ventas,${total},0,${escaparCSV(concepto)},${escaparCSV(ref)}\n`;
+                if (desglose.iva10 > 0) csv += `${escaparCSV(fecha)},IVA Debito Fiscal 10%,${desglose.iva10},0,${escaparCSV(concepto)},${escaparCSV(ref)}\n`;
+                if (desglose.iva5 > 0) csv += `${escaparCSV(fecha)},IVA Debito Fiscal 5%,${desglose.iva5},0,${escaparCSV(concepto)},${escaparCSV(ref)}\n`;
+                csv += `${escaparCSV(fecha)},${escaparCSV(cuentaCobro)},0,${total},${escaparCSV(concepto)},${escaparCSV(ref)}\n`;
+            } else {
+                csv += `${escaparCSV(fecha)},${escaparCSV(cuentaCobro)},${total},0,${escaparCSV(concepto)},${escaparCSV(ref)}\n`;
+                const ventaNeta = total - (desglose.iva10 || 0) - (desglose.iva5 || 0);
+                csv += `${escaparCSV(fecha)},Ventas,0,${ventaNeta},${escaparCSV(concepto)},${escaparCSV(ref)}\n`;
+                if (desglose.iva10 > 0) csv += `${escaparCSV(fecha)},IVA Debito Fiscal 10%,0,${desglose.iva10},${escaparCSV(concepto)},${escaparCSV(ref)}\n`;
+                if (desglose.iva5 > 0) csv += `${escaparCSV(fecha)},IVA Debito Fiscal 5%,0,${desglose.iva5},${escaparCSV(concepto)},${escaparCSV(ref)}\n`;
+            }
+            asiento++;
+        });
+
+        gastos.forEach(g => {
+            const fecha = g.fecha ? new Date(g.fecha).toLocaleDateString('es-PY') : '-';
+            csv += `${escaparCSV(fecha)},Gastos Operativos,${g.monto || 0},0,${escaparCSV(g.concepto || 'Gasto')},${escaparCSV('GASTO-' + (g.id || ''))}\n`;
+            csv += `${escaparCSV(fecha)},Caja,0,${g.monto || 0},${escaparCSV(g.concepto || 'Gasto')},${escaparCSV('GASTO-' + (g.id || ''))}\n`;
+        });
+
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `LibroDiario_${nombreMes}_${anio}.csv`;
+        link.click();
+        URL.revokeObjectURL(url);
+        mostrarExito(`Libro Diario de ${nombreMes} ${anio} descargado`);
+    }, 'Generando libro diario...')();
+}
+
+async function _obtenerGastosPeriodo(mes, anio) {
+    const allGastos = (await HDVStorage.getItem('hdv_gastos', { clone: false })) || [];
+    return allGastos.filter(g => {
+        if (!g.fecha) return false;
+        const f = new Date(g.fecha);
+        return f.getMonth() + 1 === mes && f.getFullYear() === anio;
+    });
+}
+
+// ============================================
+// RESUMEN IVA
+// ============================================
+
+async function generarResumenIVA() {
+    const registros = await obtenerRegistrosPeriodo();
+    const mes = parseInt(document.getElementById('cierreMes').value);
+    const anio = parseInt(document.getElementById('cierreAnio').value);
+    const nombreMes = getNombreMes(mes);
+
+    let totalExentas = 0, totalGravada5 = 0, totalIva5 = 0, totalGravada10 = 0, totalIva10 = 0;
+    let totalVentas = 0, totalNCs = 0;
+
+    registros.forEach(r => {
+        const esNC = r.estado === PEDIDO_ESTADOS.NOTA_CREDITO;
+        const total = Math.abs(r.total || 0);
+        const d = calcularDesglose(total, r);
+        const signo = esNC ? -1 : 1;
+
+        totalExentas += d.exentas * signo;
+        totalGravada5 += (d.gravada5 || 0) * signo;
+        totalIva5 += d.iva5 * signo;
+        totalGravada10 += (d.gravada10 || 0) * signo;
+        totalIva10 += d.iva10 * signo;
+
+        if (esNC) totalNCs += total;
+        else totalVentas += total;
+    });
+
+    const totalIva = totalIva5 + totalIva10;
+    const netoDeclarar = totalIva;
+
+    const gastos = await _obtenerGastosPeriodo(mes, anio);
+    const totalGastos = gastos.reduce((s, g) => s + (g.monto || 0), 0);
+    const utilidadBruta = totalVentas - totalNCs - totalGastos;
+
+    const html = `<div class="space-y-4">
+        <h4 class="font-bold text-gray-800">Resumen IVA — ${nombreMes} ${anio}</h4>
+        <table class="w-full text-sm">
+            <thead class="bg-gray-50"><tr><th class="px-4 py-2 text-left">Concepto</th><th class="px-4 py-2 text-right">Base Gravada</th><th class="px-4 py-2 text-right">IVA Liquidado</th></tr></thead>
+            <tbody class="divide-y">
+                <tr><td class="px-4 py-2">Gravado 10%</td><td class="px-4 py-2 text-right">${formatearGuaranies(totalGravada10)}</td><td class="px-4 py-2 text-right font-bold">${formatearGuaranies(totalIva10)}</td></tr>
+                <tr><td class="px-4 py-2">Gravado 5%</td><td class="px-4 py-2 text-right">${formatearGuaranies(totalGravada5)}</td><td class="px-4 py-2 text-right font-bold">${formatearGuaranies(totalIva5)}</td></tr>
+                <tr><td class="px-4 py-2">Exentas</td><td class="px-4 py-2 text-right">${formatearGuaranies(totalExentas)}</td><td class="px-4 py-2 text-right text-gray-400">-</td></tr>
+                <tr class="bg-blue-50 font-bold"><td class="px-4 py-2">Total IVA a Declarar</td><td class="px-4 py-2 text-right">${formatearGuaranies(totalVentas - totalNCs)}</td><td class="px-4 py-2 text-right text-blue-700">${formatearGuaranies(netoDeclarar)}</td></tr>
+            </tbody>
+        </table>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
+            <div class="bg-green-50 rounded-lg p-3 text-center"><p class="text-xs text-green-600 font-bold">VENTAS BRUTAS</p><p class="text-lg font-bold text-green-800">${formatearGuaranies(totalVentas)}</p></div>
+            <div class="bg-red-50 rounded-lg p-3 text-center"><p class="text-xs text-red-600 font-bold">NOTAS CREDITO</p><p class="text-lg font-bold text-red-800">-${formatearGuaranies(totalNCs)}</p></div>
+            <div class="bg-yellow-50 rounded-lg p-3 text-center"><p class="text-xs text-yellow-600 font-bold">GASTOS</p><p class="text-lg font-bold text-yellow-800">-${formatearGuaranies(totalGastos)}</p></div>
+            <div class="bg-blue-50 rounded-lg p-3 text-center"><p class="text-xs text-blue-600 font-bold">UTILIDAD BRUTA</p><p class="text-lg font-bold text-blue-800">${formatearGuaranies(utilidadBruta)}</p></div>
+        </div>
+        <p class="text-xs text-gray-400 text-right">${registros.length} documentos | ${gastos.length} gastos</p>
+    </div>`;
+
+    await mostrarConfirmModal(html, { titulo: `Resumen IVA — ${nombreMes} ${anio}`, textoConfirmar: 'Cerrar', ocultarCancelar: true, html: true });
+}

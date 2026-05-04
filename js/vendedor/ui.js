@@ -1154,12 +1154,14 @@ async function mostrarMiCaja() {
     const cuentas = (await HDVStorage.getItem('hdv_cuentas_bancarias', { clone: false })) || [];
     const rendiciones = (await HDVStorage.getItem('hdv_rendiciones', { clone: false })) || [];
 
+    const vendedorId = window.hdvUsuario?.id || null;
+
     const pedidosSemana = pedidos.filter(p => {
         const f = new Date(p.fecha);
-        return f >= inicio && f <= fin;
+        return f >= inicio && f <= fin && p.vendedor_id === vendedorId;
     });
     const totalContado = pedidosSemana
-        .filter(p => p.tipoPago === 'contado' && (p.estado === PEDIDO_ESTADOS.ENTREGADO || p.estado === 'pendiente'))
+        .filter(p => p.tipoPago === 'contado' && _esEstadoContadoVendedor(p.estado))
         .reduce((s, p) => s + (p.total || 0), 0);
     const totalCredito = pedidosSemana
         .filter(p => p.tipoPago === 'credito')
@@ -1167,14 +1169,14 @@ async function mostrarMiCaja() {
 
     const gastosSemana = gastos.filter(g => {
         const f = new Date(g.fecha);
-        return f >= inicio && f <= fin;
+        return f >= inicio && f <= fin && g.vendedor_id === vendedorId;
     });
     const totalGastos = gastosSemana.reduce((s, g) => s + (g.monto || 0), 0);
     const aRendir = totalContado - totalGastos;
 
     const metaWidget = await generarWidgetMeta();
 
-    const rendSemana = rendiciones.find(r => r.semana === semana);
+    const rendSemana = rendiciones.find(r => r.semana === semana && r.vendedor_id === vendedorId);
 
     const fechaInicio = inicio.toLocaleDateString('es-PY', { day: '2-digit', month: 'short' });
     const fechaFin = fin.toLocaleDateString('es-PY', { day: '2-digit', month: 'short' });
@@ -1186,7 +1188,12 @@ async function mostrarMiCaja() {
 
         <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100 mb-3">
             <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Semana: ${fechaInicio} - ${fechaFin}</p>
-            ${rendSemana ? '<span class="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-bold">RENDIDO</span>' : ''}
+            ${rendSemana ? (() => {
+                const _e = rendSemana.estado || 'pendiente';
+                const _cls = _e === 'pagado' ? 'bg-green-100 text-green-700' : _e === 'aprobado' ? 'bg-blue-100 text-blue-700' : 'bg-yellow-100 text-yellow-700';
+                const _lbl = _e === 'pagado' ? 'PAGADO' : _e === 'aprobado' ? 'APROBADO' : 'PENDIENTE';
+                return `<span class="text-xs px-2 py-0.5 rounded-full ${_cls} font-bold">${_lbl}</span>`;
+            })() : ''}
             <div class="grid grid-cols-2 gap-3 mt-3">
                 <div class="bg-green-50 rounded-lg p-3 text-center">
                     <p class="text-lg font-bold text-green-700">${formatearGuaranies(totalContado)}</p>

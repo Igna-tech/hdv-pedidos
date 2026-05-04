@@ -992,12 +992,14 @@ async function eliminarPromocion(promoId) {
 // RENDICIONES DE CAJA Y GASTOS
 // ============================================
 
+let _rendPerfilesCache = null;
+
 function obtenerSemanaActual() {
-    const now = new Date();
-    const year = now.getFullYear();
-    const oneJan = new Date(year, 0, 1);
-    const week = Math.ceil(((now - oneJan) / 86400000 + oneJan.getDay() + 1) / 7);
-    return `${year}-W${String(week).padStart(2, '0')}`;
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    const week = Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
+    return `${d.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
 }
 
 function obtenerRangoSemana(weekStr) {
@@ -1015,32 +1017,69 @@ function obtenerRangoSemana(weekStr) {
     return { inicio, fin };
 }
 
+function _esEstadoContado(estado) {
+    const norm = ESTADOS_ALIAS[estado] || estado;
+    return norm === PEDIDO_ESTADOS.ENTREGADO || norm === PEDIDO_ESTADOS.PENDIENTE;
+}
+
+async function _obtenerPerfilesRendiciones() {
+    if (_rendPerfilesCache) return _rendPerfilesCache;
+    try {
+        const { data } = await supabaseClient.from('perfiles').select('id, nombre_completo, rol, activo');
+        _rendPerfilesCache = (data || []).filter(p => p.rol === 'vendedor');
+    } catch (e) { _rendPerfilesCache = []; }
+    return _rendPerfilesCache;
+}
+
+async function poblarFiltroVendedorRendiciones() {
+    const select = document.getElementById('rendVendedor');
+    if (!select) return;
+    const existentes = select.querySelectorAll('sl-option[data-vendedor-rend]');
+    existentes.forEach(el => el.remove());
+    const perfiles = await _obtenerPerfilesRendiciones();
+    perfiles.forEach(p => {
+        const opt = document.createElement('sl-option');
+        opt.value = p.id;
+        opt.textContent = p.nombre_completo || 'Sin nombre';
+        opt.setAttribute('data-vendedor-rend', '');
+        select.appendChild(opt);
+    });
+}
+
 async function cargarRendiciones() {
     const weekInput = document.getElementById('rendSemana');
     if (!weekInput.value) weekInput.value = obtenerSemanaActual();
     const { inicio, fin } = obtenerRangoSemana(weekInput.value);
+    const vendedorId = document.getElementById('rendVendedor')?.value || 'todos';
+
+    await poblarFiltroVendedorRendiciones();
 
     const pedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
     const gastos = (await HDVStorage.getItem('hdv_gastos', { clone: false })) || [];
+    const perfiles = await _obtenerPerfilesRendiciones();
+    const perfilesMap = {};
+    perfiles.forEach(p => { perfilesMap[p.id] = p.nombre_completo || 'Sin nombre'; });
 
-    // Filtrar pedidos de la semana
-    const pedidosSemana = pedidos.filter(p => {
+    let pedidosSemana = pedidos.filter(p => {
         const fecha = new Date(p.fecha);
         return fecha >= inicio && fecha <= fin;
     });
+    let gastosSemana = gastos.filter(g => {
+        const fecha = new Date(g.fecha);
+        return fecha >= inicio && fecha <= fin;
+    });
+
+    if (vendedorId !== 'todos') {
+        pedidosSemana = pedidosSemana.filter(p => p.vendedor_id === vendedorId);
+        gastosSemana = gastosSemana.filter(g => g.vendedor_id === vendedorId);
+    }
 
     const totalContado = pedidosSemana
-        .filter(p => p.tipoPago === 'contado' && (p.estado === PEDIDO_ESTADOS.ENTREGADO || p.estado === 'pendiente'))
+        .filter(p => p.tipoPago === 'contado' && _esEstadoContado(p.estado))
         .reduce((sum, p) => sum + (p.total || 0), 0);
     const totalCredito = pedidosSemana
         .filter(p => p.tipoPago === 'credito')
         .reduce((sum, p) => sum + (p.total || 0), 0);
-
-    // Gastos de la semana
-    const gastosSemana = gastos.filter(g => {
-        const fecha = new Date(g.fecha);
-        return fecha >= inicio && fecha <= fin;
-    });
     const totalGastos = gastosSemana.reduce((sum, g) => sum + (g.monto || 0), 0);
     const aRendir = totalContado - totalGastos;
 
@@ -1049,7 +1088,6 @@ async function cargarRendiciones() {
     document.getElementById('rendGastos').textContent = formatearGuaranies(totalGastos);
     document.getElementById('rendTotal').textContent = formatearGuaranies(aRendir);
 
-    // Mostrar gastos
     const gastosEl = document.getElementById('rendGastosLista');
     if (gastosSemana.length === 0) {
         gastosEl.innerHTML = '<p class="p-6 text-center text-gray-500 font-medium">Sin gastos registrados esta semana</p>';
@@ -1058,7 +1096,7 @@ async function cargarRendiciones() {
             <div class="p-4 flex justify-between items-center">
                 <div>
                     <p class="font-bold text-gray-800">${escapeHTML(g.concepto)}</p>
-                    <p class="text-xs text-gray-400">${new Date(g.fecha).toLocaleDateString('es-PY')}</p>
+                    <p class="text-xs text-gray-400">${new Date(g.fecha).toLocaleDateString('es-PY')}${g.vendedor_id && perfilesMap[g.vendedor_id] ? ' — ' + escapeHTML(perfilesMap[g.vendedor_id]) : ''}</p>
                 </div>
                 <div class="text-right">
                     <p class="font-bold text-red-600">- ${formatearGuaranies(g.monto)}</p>
@@ -1068,28 +1106,89 @@ async function cargarRendiciones() {
         `).join('');
     }
 
-    // Historial de rendiciones
-    const rendiciones = (await HDVStorage.getItem('hdv_rendiciones')) || [];
+    let rendiciones = (await HDVStorage.getItem('hdv_rendiciones')) || [];
+    if (vendedorId !== 'todos') {
+        rendiciones = rendiciones.filter(r => r.vendedor_id === vendedorId);
+    }
     const histEl = document.getElementById('rendHistorial');
     if (rendiciones.length === 0) {
         histEl.innerHTML = '<p class="p-6 text-center text-gray-500 font-medium">Sin rendiciones anteriores</p>';
     } else {
-        histEl.innerHTML = rendiciones.sort((a, b) => new Date(b.fecha) - new Date(a.fecha)).map(r => `
-            <div class="p-4 flex justify-between items-center">
+        const estadoClases = {
+            'pendiente': 'bg-yellow-100 text-yellow-700',
+            'rendido': 'bg-yellow-100 text-yellow-700',
+            'aprobado': 'bg-blue-100 text-blue-700',
+            'pagado': 'bg-green-100 text-green-700'
+        };
+        const estadoLabels = {
+            'pendiente': 'Pendiente',
+            'rendido': 'Pendiente',
+            'aprobado': 'Aprobado',
+            'pagado': 'Pagado'
+        };
+        histEl.innerHTML = rendiciones.sort((a, b) => new Date(b.fecha) - new Date(a.fecha)).map(r => {
+            const vendNombre = r.vendedor_id && perfilesMap[r.vendedor_id] ? escapeHTML(perfilesMap[r.vendedor_id]) : '';
+            const clsEstado = estadoClases[r.estado] || 'bg-gray-100 text-gray-700';
+            const lblEstado = estadoLabels[r.estado] || r.estado || 'Pendiente';
+            const botonesAccion = (r.estado === 'pendiente' || r.estado === 'rendido')
+                ? `<sl-button onclick="aprobarRendicion('${r.id}')" variant="primary" size="small">Aprobar</sl-button>`
+                : r.estado === 'aprobado'
+                    ? `<sl-button onclick="marcarRendicionPagada('${r.id}')" variant="success" size="small">Marcar Pagado</sl-button>`
+                    : '';
+            return `<div class="p-4 flex justify-between items-center">
                 <div>
-                    <p class="font-bold text-gray-800">Semana ${r.semana}</p>
+                    <p class="font-bold text-gray-800">Semana ${r.semana}${vendNombre ? ' — ' + vendNombre : ''}</p>
                     <p class="text-xs text-gray-400">Rendido: ${new Date(r.fecha).toLocaleDateString('es-PY')} - Contado: ${formatearGuaranies(r.contado)} | Gastos: ${formatearGuaranies(r.gastos)}</p>
                 </div>
-                <div class="text-right">
-                    <p class="font-bold ${r.aRendir >= 0 ? 'text-green-600' : 'text-red-600'}">${formatearGuaranies(r.aRendir)}</p>
-                    <span class="text-xs px-2 py-1 rounded-full ${r.estado === 'rendido' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}">${r.estado || 'pendiente'}</span>
+                <div class="text-right flex items-center gap-2">
+                    <div>
+                        <p class="font-bold ${(r.aRendir || 0) >= 0 ? 'text-green-600' : 'text-red-600'}">${formatearGuaranies(r.aRendir)}</p>
+                        <span class="text-xs px-2 py-1 rounded-full ${clsEstado}">${lblEstado}</span>
+                    </div>
+                    ${botonesAccion}
                 </div>
-            </div>
-        `).join('');
+            </div>`;
+        }).join('');
     }
 
-    // Cuentas bancarias
     cargarCuentasBancariasAdmin();
+}
+
+async function agregarGastoAdmin() {
+    const perfiles = await _obtenerPerfilesRendiciones();
+    const opcionesVendedor = perfiles.map(p => ({ value: p.id, label: p.nombre_completo || 'Sin nombre' }));
+    if (opcionesVendedor.length === 0) { mostrarToast('No hay vendedores registrados', 'warning'); return; }
+
+    const datos = await mostrarInputModal({
+        titulo: 'Registrar Gasto (Admin)',
+        campos: [
+            { key: 'vendedor_id', label: 'Vendedor', tipo: 'select', opciones: opcionesVendedor, requerido: true },
+            { key: 'concepto', label: 'Concepto', tipo: 'text', placeholder: 'Ej: Combustible, Almuerzo', requerido: true },
+            { key: 'monto', label: 'Monto (Gs.)', tipo: 'number', placeholder: '0', requerido: true }
+        ],
+        textoConfirmar: 'Registrar'
+    });
+    if (!datos) return;
+    if (datos.monto <= 0) { mostrarToast('Monto invalido', 'error'); return; }
+
+    const gasto = {
+        id: 'GA' + Date.now(),
+        concepto: datos.concepto,
+        monto: datos.monto,
+        vendedor_id: datos.vendedor_id,
+        origen: 'admin',
+        fecha: new Date().toISOString()
+    };
+
+    const gastos = (await HDVStorage.getItem('hdv_gastos')) || [];
+    gastos.push(gasto);
+    await HDVStorage.setItem('hdv_gastos', gastos);
+    if (typeof guardarGastos === 'function') {
+        try { await guardarGastos(gastos); }
+        catch (e) { console.error('[Gastos] Error sincronizando:', e); }
+    }
+    mostrarExito('Gasto registrado');
+    cargarRendiciones();
 }
 
 async function eliminarGastoAdmin(gastoId) {
@@ -1102,6 +1201,100 @@ async function eliminarGastoAdmin(gastoId) {
         catch (e) { console.error('[Gastos] Error sincronizando:', e); mostrarToast('Gasto eliminado local pero fallo la sincronizacion', 'warning'); }
     }
     cargarRendiciones();
+}
+
+async function aprobarRendicion(rendId) {
+    if (!await mostrarConfirmModal('¿Aprobar esta rendicion?', { textoConfirmar: 'Aprobar' })) return;
+    const rendiciones = (await HDVStorage.getItem('hdv_rendiciones')) || [];
+    const r = rendiciones.find(x => x.id === rendId);
+    if (!r) return;
+    r.estado = 'aprobado';
+    r.fechaAprobacion = new Date().toISOString();
+    await HDVStorage.setItem('hdv_rendiciones', rendiciones);
+    if (typeof guardarRendiciones === 'function') {
+        try { await guardarRendiciones(rendiciones); }
+        catch (e) { console.error('[Rendiciones] Error sincronizando aprobacion:', e); }
+    }
+    mostrarExito('Rendicion aprobada');
+    cargarRendiciones();
+}
+
+async function marcarRendicionPagada(rendId) {
+    if (!await mostrarConfirmModal('¿Marcar esta rendicion como PAGADA?', { textoConfirmar: 'Marcar Pagado' })) return;
+    const rendiciones = (await HDVStorage.getItem('hdv_rendiciones')) || [];
+    const r = rendiciones.find(x => x.id === rendId);
+    if (!r) return;
+    r.estado = 'pagado';
+    r.fechaPago = new Date().toISOString();
+    await HDVStorage.setItem('hdv_rendiciones', rendiciones);
+    if (typeof guardarRendiciones === 'function') {
+        try { await guardarRendiciones(rendiciones); }
+        catch (e) { console.error('[Rendiciones] Error sincronizando pago:', e); }
+    }
+    mostrarExito('Rendicion marcada como pagada');
+    cargarRendiciones();
+}
+
+async function exportarRendicionPDF() {
+    if (typeof jspdf === 'undefined' && typeof jsPDF === 'undefined') { mostrarToast('jsPDF no disponible', 'error'); return; }
+    const JsPDF = typeof jspdf !== 'undefined' ? jspdf.jsPDF : jsPDF;
+
+    const weekInput = document.getElementById('rendSemana');
+    const semana = weekInput?.value || obtenerSemanaActual();
+    const { inicio, fin } = obtenerRangoSemana(semana);
+    const vendedorId = document.getElementById('rendVendedor')?.value || 'todos';
+    const perfiles = await _obtenerPerfilesRendiciones();
+    const perfilesMap = {};
+    perfiles.forEach(p => { perfilesMap[p.id] = p.nombre_completo || 'Sin nombre'; });
+
+    const vendNombre = vendedorId === 'todos' ? 'Todos los vendedores' : (perfilesMap[vendedorId] || 'Vendedor');
+    const contado = document.getElementById('rendContado').textContent;
+    const credito = document.getElementById('rendCredito').textContent;
+    const gastos = document.getElementById('rendGastos').textContent;
+    const aRendir = document.getElementById('rendTotal').textContent;
+
+    const fechaIni = inicio.toLocaleDateString('es-PY');
+    const fechaFin = fin.toLocaleDateString('es-PY');
+
+    const doc = new JsPDF({ unit: 'mm', format: 'a4' });
+    let y = 20;
+    doc.setFontSize(16);
+    doc.text('HDV Distribuciones — Rendicion de Caja', 15, y);
+    y += 10;
+    doc.setFontSize(11);
+    doc.text(`Vendedor: ${vendNombre}`, 15, y); y += 7;
+    doc.text(`Semana: ${semana} (${fechaIni} - ${fechaFin})`, 15, y); y += 7;
+    doc.text(`Fecha de emision: ${new Date().toLocaleDateString('es-PY')}`, 15, y); y += 12;
+
+    doc.setFontSize(12);
+    doc.text('Resumen', 15, y); y += 8;
+    doc.setFontSize(11);
+    doc.text(`Contado cobrado:    ${contado}`, 20, y); y += 7;
+    doc.text(`Credito entregado:  ${credito}`, 20, y); y += 7;
+    doc.text(`Gastos:             ${gastos}`, 20, y); y += 7;
+    doc.setFontSize(13);
+    doc.text(`A RENDIR EN MANO:   ${aRendir}`, 20, y); y += 12;
+
+    const gastosData = (await HDVStorage.getItem('hdv_gastos', { clone: false })) || [];
+    let gastosSemana = gastosData.filter(g => {
+        const f = new Date(g.fecha);
+        return f >= inicio && f <= fin;
+    });
+    if (vendedorId !== 'todos') gastosSemana = gastosSemana.filter(g => g.vendedor_id === vendedorId);
+
+    if (gastosSemana.length > 0) {
+        doc.setFontSize(12);
+        doc.text('Detalle de Gastos', 15, y); y += 8;
+        doc.setFontSize(10);
+        gastosSemana.forEach(g => {
+            if (y > 270) { doc.addPage(); y = 20; }
+            doc.text(`${new Date(g.fecha).toLocaleDateString('es-PY')}  ${g.concepto}  -${formatearGuaranies(g.monto)}`, 20, y);
+            y += 6;
+        });
+    }
+
+    doc.save(`Rendicion_${semana}_${vendNombre.replace(/\s/g, '_')}.pdf`);
+    mostrarExito('PDF generado');
 }
 
 // Cuentas bancarias
@@ -1204,5 +1397,6 @@ async function eliminarCuentaBancaria(id) {
     document.getElementById('formPromoTipo')?.addEventListener('sl-change', () => toggleCamposPromo());
     document.getElementById('formPromoProducto')?.addEventListener('sl-change', () => actualizarPresentacionesPromo());
     document.getElementById('rendSemana')?.addEventListener('sl-change', () => cargarRendiciones());
+    document.getElementById('rendVendedor')?.addEventListener('sl-change', () => cargarRendiciones());
     document.getElementById('filtroEstadoHistorial')?.addEventListener('sl-change', () => cargarHistorialCreditos());
 })();

@@ -363,6 +363,11 @@ function obtenerRangoSemanaVendedor(weekStr) {
     return { inicio, fin };
 }
 
+function _esEstadoContadoVendedor(estado) {
+    const norm = ESTADOS_ALIAS[estado] || estado;
+    return norm === PEDIDO_ESTADOS.ENTREGADO || norm === PEDIDO_ESTADOS.PENDIENTE;
+}
+
 async function agregarGastoVendedor() {
     const datos = await mostrarInputModal({
         titulo: 'Registrar Gasto',
@@ -379,6 +384,7 @@ async function agregarGastoVendedor() {
         id: 'G' + Date.now(),
         concepto: datos.concepto,
         monto: datos.monto,
+        vendedor_id: window.hdvUsuario?.id || null,
         fecha: new Date().toISOString()
     };
 
@@ -404,21 +410,29 @@ async function eliminarGastoVendedor(gastoId) {
 }
 
 async function cerrarSemanaVendedor(semana) {
+    const rendiciones = (await HDVStorage.getItem('hdv_rendiciones')) || [];
+    const vendedorId = window.hdvUsuario?.id || null;
+    if (rendiciones.find(r => r.semana === semana && r.vendedor_id === vendedorId)) {
+        mostrarToast('Esta semana ya fue cerrada', 'warning');
+        return;
+    }
+
     const { inicio, fin } = obtenerRangoSemanaVendedor(semana);
     const pedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
     const gastos = (await HDVStorage.getItem('hdv_gastos', { clone: false })) || [];
 
     const pedidosSemana = pedidos.filter(p => {
         const f = new Date(p.fecha);
-        return f >= inicio && f <= fin;
+        return f >= inicio && f <= fin && p.vendedor_id === vendedorId;
     });
     const totalContado = pedidosSemana
-        .filter(p => p.tipoPago === 'contado' && (p.estado === PEDIDO_ESTADOS.ENTREGADO || p.estado === PEDIDO_ESTADOS.PENDIENTE || p.estado === 'pendiente'))
+        .filter(p => p.tipoPago === 'contado' && _esEstadoContadoVendedor(p.estado))
         .reduce((s, p) => s + (p.total || 0), 0);
-    const totalGastos = gastos.filter(g => {
+    const gastosSemana = gastos.filter(g => {
         const f = new Date(g.fecha);
-        return f >= inicio && f <= fin;
-    }).reduce((s, g) => s + (g.monto || 0), 0);
+        return f >= inicio && f <= fin && g.vendedor_id === vendedorId;
+    });
+    const totalGastos = gastosSemana.reduce((s, g) => s + (g.monto || 0), 0);
 
     const aRendir = totalContado - totalGastos;
 
@@ -427,15 +441,15 @@ async function cerrarSemanaVendedor(semana) {
     const rendicion = {
         id: 'REND' + Date.now(),
         semana,
+        vendedor_id: vendedorId,
         fecha: new Date().toISOString(),
         contado: totalContado,
         gastos: totalGastos,
         aRendir,
-        estado: 'rendido',
+        estado: 'pendiente',
         pedidos: pedidosSemana.length
     };
 
-    const rendiciones = (await HDVStorage.getItem('hdv_rendiciones')) || [];
     rendiciones.push(rendicion);
     await HDVStorage.setItem('hdv_rendiciones', rendiciones);
 
@@ -443,7 +457,7 @@ async function cerrarSemanaVendedor(semana) {
         guardarRendiciones(rendiciones).catch(e => console.error(e));
     }
 
-    mostrarExito('Semana cerrada exitosamente');
+    mostrarExito('Semana cerrada — pendiente aprobacion');
     mostrarMiCaja();
 }
 

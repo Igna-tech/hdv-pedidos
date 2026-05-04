@@ -965,10 +965,22 @@
                 <div class="flex justify-between items-center flex-wrap gap-4">
                     <h3 class="text-xl font-bold text-gray-800">Rendiciones de Caja</h3>
                     <div class="flex gap-2">
+                        <sl-button onclick="agregarGastoAdmin()" variant="danger" size="small"><i data-lucide="plus" class="w-4 h-4"></i> Agregar Gasto</sl-button>
                         <sl-button onclick="abrirModalCuentaBancaria()" variant="primary" size="small"><i data-lucide="landmark" class="w-4 h-4"></i> Cuentas Bancarias</sl-button>
                     </div>
                 </div>
-                <!-- Resumen de caja actual -->
+                <!-- Filtros: vendedor + semana -->
+                <div class="saas-card p-4 flex items-center gap-4 flex-wrap">
+                    <label class="text-sm font-bold text-gray-600">Vendedor:</label>
+                    <sl-select id="rendVendedor" size="small" value="todos" style="min-width:180px;">
+                        <sl-option value="todos">Todos</sl-option>
+                    </sl-select>
+                    <label class="text-sm font-bold text-gray-600">Semana:</label>
+                    <sl-input type="week" id="rendSemana" size="small"></sl-input>
+                    <sl-button onclick="cargarRendiciones()" variant="neutral" size="small">Calcular</sl-button>
+                    <sl-button onclick="exportarRendicionPDF()" variant="neutral" size="small" outline><i data-lucide="file-text" class="w-4 h-4"></i> PDF</sl-button>
+                </div>
+                <!-- Resumen de caja -->
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div class="bg-green-50 border border-green-200 rounded-xl p-4 text-center">
                         <p class="text-xs font-bold text-green-600 mb-1">CONTADO COBRADO</p>
@@ -986,12 +998,6 @@
                         <p class="text-xs font-bold text-blue-600 mb-1">A RENDIR EN MANO</p>
                         <p class="text-2xl font-bold text-blue-900" id="rendTotal">Gs. 0</p>
                     </div>
-                </div>
-                <!-- Filtro de semana -->
-                <div class="saas-card p-4 flex items-center gap-4 flex-wrap">
-                    <label class="text-sm font-bold text-gray-600">Semana:</label>
-                    <sl-input type="week" id="rendSemana" size="small"></sl-input>
-                    <sl-button onclick="cargarRendiciones()" variant="neutral" size="small">Calcular</sl-button>
                 </div>
                 <!-- Detalle gastos -->
                 <div class="saas-card overflow-hidden">

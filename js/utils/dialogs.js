@@ -63,15 +63,22 @@ function mostrarConfirmModal(mensaje, opciones = {}) {
         const iconColor = opciones.destructivo ? 'text-red-500' : 'text-blue-500';
         const iconName = opciones.destructivo ? 'alert-triangle' : 'help-circle';
 
-        dialog.innerHTML = `
-            <div class="text-center mb-5">
+        if (opciones.titulo) {
+            dialog.noHeader = false;
+            dialog.label = opciones.titulo;
+            dialog.style.setProperty('--width', '36rem');
+        }
+
+        const contenido = opciones.html ? mensaje : `<div class="text-center mb-5">
                 <div class="w-14 h-14 mx-auto mb-3 rounded-full ${iconBg} flex items-center justify-center">
                     <i data-lucide="${iconName}" class="w-6 h-6 ${iconColor}"></i>
                 </div>
                 <p class="text-gray-800 font-semibold text-sm whitespace-pre-line leading-relaxed">${escapeHTML(mensaje)}</p>
-            </div>
+            </div>`;
+
+        dialog.innerHTML = `${contenido}
             <div slot="footer" class="flex gap-3 w-full">
-                <sl-button class="confirm-cancel-btn flex-1" variant="default" size="medium">Cancelar</sl-button>
+                ${opciones.ocultarCancelar ? '' : '<sl-button class="confirm-cancel-btn flex-1" variant="default" size="medium">Cancelar</sl-button>'}
                 <sl-button class="confirm-ok-btn flex-1" variant="${opciones.destructivo ? 'danger' : 'primary'}" size="medium">${opciones.textoConfirmar || 'Confirmar'}</sl-button>
             </div>`;
 
@@ -82,7 +89,8 @@ function mostrarConfirmModal(mensaje, opciones = {}) {
             dialog.hide().then(() => dialog.remove());
             resolve(result);
         };
-        dialog.querySelector('.confirm-cancel-btn').onclick = () => cerrar(false);
+        const cancelBtn = dialog.querySelector('.confirm-cancel-btn');
+        if (cancelBtn) cancelBtn.onclick = () => cerrar(false);
         dialog.querySelector('.confirm-ok-btn').onclick = () => cerrar(true);
         dialog.addEventListener('sl-request-close', (e) => {
             e.preventDefault();

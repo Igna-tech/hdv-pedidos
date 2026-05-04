@@ -271,8 +271,27 @@ async function abrirPerfilCliente(clienteId) {
     const pedidosCliente = pedidos.filter(p => p.cliente?.id === clienteId);
     const nombre = cliente.razon_social || cliente.nombre || clienteId;
 
+    await _cargarVendedorNombreCache();
+
     // Header
-    document.getElementById('perfilClienteNombre').textContent = nombre;
+    const nombreEl = document.getElementById('perfilClienteNombre');
+    nombreEl.textContent = nombre;
+    const ultimoPedidoGlobal = pedidosCliente.length > 0
+        ? pedidosCliente.sort((a, b) => new Date(b.fecha) - new Date(a.fecha))[0] : null;
+    const diasInactivo = ultimoPedidoGlobal
+        ? Math.floor((new Date() - new Date(ultimoPedidoGlobal.fecha)) / 86400000) : 999;
+    const badgeEl = document.getElementById('perfilInactivoBadge');
+    if (badgeEl) {
+        if (diasInactivo >= 15 && ultimoPedidoGlobal) {
+            const nivel = diasInactivo >= 60 ? 'PERDIDO' : diasInactivo >= 30 ? 'EN RIESGO' : 'ATENCION';
+            const color = diasInactivo >= 60 ? 'bg-gray-800 text-white' : diasInactivo >= 30 ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700';
+            badgeEl.className = `text-xs px-2 py-0.5 rounded-full font-bold ml-2 ${color}`;
+            badgeEl.textContent = `${nivel} (${diasInactivo}d)`;
+            badgeEl.style.display = '';
+        } else {
+            badgeEl.style.display = 'none';
+        }
+    }
     document.getElementById('perfilClienteInfo').textContent = `${cliente.id} | ${cliente.zona || ''} | Tel: ${cliente.telefono || '-'} | RUC: ${cliente.ruc || '-'}`;
 
     // WhatsApp button
@@ -442,29 +461,165 @@ async function renderizarPerfilHistorial() {
     const container = document.getElementById('perfilTab-historial');
     if (!container || !clientePerfilActual) return;
     const pedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
-    const pedidosCliente = pedidos.filter(p => p.cliente?.id === clientePerfilActual.id)
+    let pedidosCliente = pedidos.filter(p => p.cliente?.id === clientePerfilActual.id)
         .sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
 
+    const hoy = new Date();
+    const hace30 = new Date(hoy); hace30.setDate(hace30.getDate() - 30);
+    const desdeVal = document.getElementById('historialDesde')?.value || '';
+    const hastaVal = document.getElementById('historialHasta')?.value || '';
+    const tipoPagoVal = document.getElementById('historialTipoPago')?.value || '';
+    const estadoVal = document.getElementById('historialEstado')?.value || '';
+
+    if (desdeVal) pedidosCliente = pedidosCliente.filter(p => (p.fecha || '').slice(0, 10) >= desdeVal);
+    if (hastaVal) pedidosCliente = pedidosCliente.filter(p => (p.fecha || '').slice(0, 10) <= hastaVal);
+    if (tipoPagoVal) pedidosCliente = pedidosCliente.filter(p => (p.tipoPago || 'contado') === tipoPagoVal);
+    if (estadoVal) pedidosCliente = pedidosCliente.filter(p => p.estado === estadoVal);
+
+    const totalFiltrado = pedidosCliente.reduce((s, p) => s + (p.total || 0), 0);
+
+    let html = `<div class="flex flex-wrap gap-2 mb-4 items-end">
+        <div><label class="text-xs text-gray-500">Desde</label><sl-input id="historialDesde" type="date" size="small" value="${escapeHTML(desdeVal)}"></sl-input></div>
+        <div><label class="text-xs text-gray-500">Hasta</label><sl-input id="historialHasta" type="date" size="small" value="${escapeHTML(hastaVal)}"></sl-input></div>
+        <div><label class="text-xs text-gray-500">Tipo Pago</label>
+            <sl-select id="historialTipoPago" size="small" value="${escapeHTML(tipoPagoVal)}" placeholder="Todos" clearable>
+                <sl-option value="contado">Contado</sl-option>
+                <sl-option value="credito">Credito</sl-option>
+            </sl-select></div>
+        <div><label class="text-xs text-gray-500">Estado</label>
+            <sl-select id="historialEstado" size="small" value="${escapeHTML(estadoVal)}" placeholder="Todos" clearable>
+                <sl-option value="pedido_pendiente">Pendiente</sl-option>
+                <sl-option value="entregado">Entregado</sl-option>
+                <sl-option value="facturado_mock">Facturado</sl-option>
+                <sl-option value="cobrado_sin_factura">Cobrado</sl-option>
+                <sl-option value="anulado">Anulado</sl-option>
+            </sl-select></div>
+        <sl-button onclick="renderizarPerfilHistorial()" variant="neutral" size="small">Filtrar</sl-button>
+        <sl-button onclick="exportarHistorialClienteCSV()" variant="text" size="small">CSV</sl-button>
+    </div>`;
+
+    html += `<p class="text-xs text-gray-500 mb-3">${pedidosCliente.length} pedidos | Total: ${formatearGuaranies(totalFiltrado)}</p>`;
+
     if (pedidosCliente.length === 0) {
-        container.innerHTML = '<p class="text-gray-400 italic text-sm">Sin pedidos registrados</p>';
-        return;
+        html += '<p class="text-gray-400 italic text-sm">Sin pedidos para los filtros seleccionados</p>';
+    } else {
+        html += '<div class="space-y-3">' + pedidosCliente.map(p => {
+            const items = (p.items || []).map(i => `${escapeHTML(i.nombre)} x${i.cantidad}`).join(', ');
+            const { clases: estadoColor, label: estadoLabel } = obtenerEstadoUI(p.estado, '700');
+            return `<div class="bg-gray-50 rounded-lg p-3 cursor-pointer hover:bg-gray-100 transition-colors" onclick="mostrarDetallePedidoCliente('${p.id}')">
+                <div class="flex justify-between items-center mb-1">
+                    <span class="text-xs text-gray-400">${new Date(p.fecha).toLocaleDateString('es-PY')} | ${escapeHTML(p.id)}</span>
+                    <span class="text-xs px-2 py-0.5 rounded-full font-bold ${estadoColor}">${estadoLabel}</span>
+                </div>
+                <p class="text-sm text-gray-600">${items || 'Sin items'}</p>
+                <div class="flex justify-between items-center mt-1">
+                    <span class="text-xs text-gray-400">${escapeHTML(p.tipoPago || 'contado')}${p.vendedor_id ? ' | ' + escapeHTML(_getNombreVendedorCache(p.vendedor_id)) : ''}</span>
+                    <span class="font-bold text-gray-800">${formatearGuaranies(p.total)}</span>
+                </div>
+            </div>`;
+        }).join('') + '</div>';
     }
 
-    container.innerHTML = '<div class="space-y-3">' + pedidosCliente.map(p => {
-        const items = (p.items || []).map(i => `${escapeHTML(i.nombre)} x${i.cantidad}`).join(', ');
-        const { clases: estadoColor, label: estadoLabel } = obtenerEstadoUI(p.estado, '700');
-        return `<div class="bg-gray-50 rounded-lg p-3">
-            <div class="flex justify-between items-center mb-1">
-                <span class="text-xs text-gray-400">${new Date(p.fecha).toLocaleDateString('es-PY')} | ${p.id}</span>
-                <span class="text-xs px-2 py-0.5 rounded-full font-bold ${estadoColor}">${estadoLabel}</span>
-            </div>
-            <p class="text-sm text-gray-600">${items || 'Sin items'}</p>
-            <div class="flex justify-between items-center mt-1">
-                <span class="text-xs text-gray-400">${p.tipoPago || 'contado'}</span>
-                <span class="font-bold text-gray-800">${formatearGuaranies(p.total)}</span>
-            </div>
-        </div>`;
-    }).join('') + '</div>';
+    container.innerHTML = html;
+
+    container.querySelectorAll('sl-input[type="date"], sl-select').forEach(el => {
+        el.addEventListener('sl-change', () => renderizarPerfilHistorial());
+    });
+}
+
+let _vendedorNombreCache = null;
+async function _cargarVendedorNombreCache() {
+    if (_vendedorNombreCache) return;
+    try {
+        const { data } = await supabaseClient.from('perfiles').select('id, nombre_completo');
+        _vendedorNombreCache = {};
+        (data || []).forEach(p => { _vendedorNombreCache[p.id] = p.nombre_completo || 'Sin nombre'; });
+    } catch (e) { _vendedorNombreCache = {}; }
+}
+function _getNombreVendedorCache(id) {
+    return (_vendedorNombreCache && _vendedorNombreCache[id]) || '';
+}
+
+async function mostrarDetallePedidoCliente(pedidoId) {
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
+    const p = pedidos.find(x => x.id === pedidoId);
+    if (!p) return;
+
+    await _cargarVendedorNombreCache();
+    const { clases: estadoColor, label: estadoLabel } = obtenerEstadoUI(p.estado, '700');
+    const vendNombre = _getNombreVendedorCache(p.vendedor_id);
+
+    let html = `<div class="mb-4">
+        <div class="flex justify-between items-center mb-2">
+            <span class="font-bold text-gray-800">${escapeHTML(p.id)}</span>
+            <span class="text-xs px-2 py-0.5 rounded-full font-bold ${estadoColor}">${estadoLabel}</span>
+        </div>
+        <div class="grid grid-cols-2 gap-2 text-sm">
+            <p><span class="text-gray-500">Fecha:</span> ${new Date(p.fecha).toLocaleString('es-PY')}</p>
+            <p><span class="text-gray-500">Tipo pago:</span> ${escapeHTML(p.tipoPago || 'contado')}</p>
+            ${vendNombre ? `<p><span class="text-gray-500">Vendedor:</span> ${escapeHTML(vendNombre)}</p>` : ''}
+            ${p.numFactura ? `<p><span class="text-gray-500">Factura:</span> ${escapeHTML(p.numFactura)}</p>` : ''}
+            ${p.notas ? `<p class="col-span-2"><span class="text-gray-500">Notas:</span> ${escapeHTML(p.notas)}</p>` : ''}
+        </div>
+    </div>
+    <table class="w-full text-sm"><thead class="bg-gray-50"><tr>
+        <th class="px-3 py-2 text-left">Producto</th>
+        <th class="px-3 py-2 text-left">Presentacion</th>
+        <th class="px-3 py-2 text-right">Precio</th>
+        <th class="px-3 py-2 text-right">Cant.</th>
+        <th class="px-3 py-2 text-right">Subtotal</th>
+    </tr></thead><tbody>`;
+    (p.items || []).forEach(i => {
+        html += `<tr class="border-b"><td class="px-3 py-2">${escapeHTML(i.nombre || '')}</td>
+            <td class="px-3 py-2">${escapeHTML(i.presentacion || i.tamano || '')}</td>
+            <td class="px-3 py-2 text-right">${formatearGuaranies(i.precio || 0)}</td>
+            <td class="px-3 py-2 text-right">${i.cantidad || 0}</td>
+            <td class="px-3 py-2 text-right font-bold">${formatearGuaranies(i.subtotal || (i.precio * i.cantidad) || 0)}</td></tr>`;
+    });
+    html += `</tbody><tfoot><tr class="bg-gray-50 font-bold">
+        <td colspan="4" class="px-3 py-2 text-right">TOTAL:</td>
+        <td class="px-3 py-2 text-right">${formatearGuaranies(p.total)}</td>
+    </tr></tfoot></table>`;
+
+    const result = await mostrarConfirmModal(html, { textoConfirmar: 'Cerrar', titulo: 'Detalle del Pedido', ocultarCancelar: true, html: true });
+}
+
+function exportarHistorialClienteCSV() {
+    if (!clientePerfilActual) return;
+    const container = document.getElementById('perfilTab-historial');
+    if (!container) return;
+
+    HDVStorage.getItem('hdv_pedidos', { clone: false }).then(allPedidos => {
+        let pedidos = (allPedidos || []).filter(p => p.cliente?.id === clientePerfilActual.id)
+            .sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+
+        const desdeVal = document.getElementById('historialDesde')?.value || '';
+        const hastaVal = document.getElementById('historialHasta')?.value || '';
+        const tipoPagoVal = document.getElementById('historialTipoPago')?.value || '';
+        const estadoVal = document.getElementById('historialEstado')?.value || '';
+
+        if (desdeVal) pedidos = pedidos.filter(p => (p.fecha || '').slice(0, 10) >= desdeVal);
+        if (hastaVal) pedidos = pedidos.filter(p => (p.fecha || '').slice(0, 10) <= hastaVal);
+        if (tipoPagoVal) pedidos = pedidos.filter(p => (p.tipoPago || 'contado') === tipoPagoVal);
+        if (estadoVal) pedidos = pedidos.filter(p => p.estado === estadoVal);
+
+        let csv = '﻿';
+        csv += 'Fecha,ID,Estado,Tipo Pago,Items,Total\n';
+        pedidos.forEach(p => {
+            const items = (p.items || []).map(i => `${i.nombre} x${i.cantidad}`).join('; ');
+            csv += `${(p.fecha || '').slice(0, 10)},"${p.id}","${p.estado || ''}","${p.tipoPago || 'contado'}","${items}",${p.total || 0}\n`;
+        });
+
+        const nombre = clientePerfilActual.razon_social || clientePerfilActual.nombre || clientePerfilActual.id;
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Historial_${nombre.replace(/[^a-zA-Z0-9]/g, '_')}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+        mostrarExito('CSV descargado');
+    });
 }
 
 async function renderizarPerfilEstadisticas() {
@@ -473,22 +628,39 @@ async function renderizarPerfilEstadisticas() {
     const pedidosCliente = pedidos.filter(p => p.cliente?.id === clientePerfilActual.id);
     const hoy = new Date();
 
-    // Top 5 productos
+    // Top 5 productos con ultima compra y tendencia
     const conteoProductos = {};
     pedidosCliente.forEach(p => {
         (p.items || []).forEach(item => {
             const key = item.nombre || item.productoId;
-            conteoProductos[key] = (conteoProductos[key] || 0) + (item.cantidad || 1);
+            if (!conteoProductos[key]) conteoProductos[key] = { total: 0, ultimaFecha: null, reciente: 0, anterior: 0 };
+            const info = conteoProductos[key];
+            info.total += (item.cantidad || 1);
+            if (!info.ultimaFecha || p.fecha > info.ultimaFecha) info.ultimaFecha = p.fecha;
+            const hace3m = new Date(hoy); hace3m.setMonth(hace3m.getMonth() - 3);
+            const hace6m = new Date(hoy); hace6m.setMonth(hace6m.getMonth() - 6);
+            const pFecha = new Date(p.fecha);
+            if (pFecha >= hace3m) info.reciente += (item.cantidad || 1);
+            else if (pFecha >= hace6m) info.anterior += (item.cantidad || 1);
         });
     });
-    const top5 = Object.entries(conteoProductos).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    const top5 = Object.entries(conteoProductos).sort((a, b) => b[1].total - a[1].total).slice(0, 5);
     const topEl = document.getElementById('perfilTopProductos');
     if (topEl) {
         topEl.innerHTML = top5.length === 0 ? '<p class="text-gray-400 italic text-sm">Sin datos</p>' :
-            top5.map((t, i) => `<div class="flex justify-between items-center py-1.5 ${i < 4 ? 'border-b border-gray-100' : ''}">
-                <span class="text-sm text-gray-700">${i + 1}. ${t[0]}</span>
-                <span class="text-sm font-bold text-gray-800">${t[1]} unid.</span>
-            </div>`).join('');
+            top5.map(([nombre, info], i) => {
+                const tendencia = info.reciente > info.anterior ? '↑' : info.reciente < info.anterior ? '↓' : '=';
+                const tColor = tendencia === '↑' ? 'text-green-600' : tendencia === '↓' ? 'text-red-600' : 'text-gray-400';
+                const ultimaStr = info.ultimaFecha ? new Date(info.ultimaFecha).toLocaleDateString('es-PY') : '-';
+                return `<div class="flex justify-between items-center py-1.5 ${i < 4 ? 'border-b border-gray-100' : ''}">
+                    <div><span class="text-sm text-gray-700">${i + 1}. ${escapeHTML(nombre)}</span>
+                    <span class="text-xs text-gray-400 ml-1">Ult: ${ultimaStr}</span></div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-sm font-bold ${tColor}">${tendencia}</span>
+                        <span class="text-sm font-bold text-gray-800">${info.total} unid.</span>
+                    </div>
+                </div>`;
+            }).join('');
     }
 
     // Grafico ultimos 6 meses

@@ -6,6 +6,28 @@
 
 let chartCred = null;
 let chartCredPie = null;
+let _diasVencimientoCredito = 15;
+
+async function _cargarConfigCreditos() {
+    try {
+        const config = await HDVStorage.getItem('hdv_config_creditos');
+        if (config && config.diasVencimiento > 0) {
+            _diasVencimientoCredito = config.diasVencimiento;
+            const el = document.getElementById('configDiasVencimiento');
+            if (el) el.value = _diasVencimientoCredito;
+        }
+    } catch (e) {}
+}
+_cargarConfigCreditos();
+
+async function guardarConfigCreditos() {
+    const el = document.getElementById('configDiasVencimiento');
+    const dias = parseInt(el?.value) || 15;
+    if (dias < 1 || dias > 365) { mostrarToast('Dias debe ser entre 1 y 365', 'error'); return; }
+    _diasVencimientoCredito = dias;
+    await HDVStorage.setItem('hdv_config_creditos', { diasVencimiento: dias });
+    mostrarExito(`Vencimiento configurado a ${dias} dias`);
+}
 
 // ============================================
 // HISTORIAL DE CREDITOS — Registro de eventos
@@ -31,7 +53,7 @@ function obtenerEstadoCredito(credito, tipo) {
         const saldo = obtenerSaldoManual(credito);
         if (saldo <= 0) return { estado: 'pagado', clase: 'bg-green-100 text-green-800', label: 'Pagado' };
         const dias = calcularDiasDesde(credito.fecha);
-        if (dias > 15) return { estado: 'vencido', clase: 'bg-red-100 text-red-800', label: 'Vencido' };
+        if (dias > _diasVencimientoCredito) return { estado: 'vencido', clase: 'bg-red-100 text-red-800', label: 'Vencido' };
         if ((credito.pagos || []).length > 0) return { estado: 'parcial', clase: 'bg-yellow-100 text-yellow-800', label: 'Parcial' };
         return { estado: 'pendiente', clase: 'bg-blue-100 text-blue-800', label: 'Pendiente' };
     }
@@ -39,6 +61,37 @@ function obtenerEstadoCredito(credito, tipo) {
     if (credito.estado === 'anulado') return { estado: 'anulado', clase: 'bg-red-200 text-red-800', label: 'Anulado' };
     if (credito.estado === 'pagado') return { estado: 'pagado', clase: 'bg-green-100 text-green-800', label: 'Pagado' };
     return { estado: 'pendiente', clase: 'bg-blue-100 text-blue-800', label: 'Pendiente' };
+}
+
+async function actualizarBadgeCreditosVencer() {
+    const badge = document.getElementById('badgeCreditosVencer');
+    if (!badge) return;
+    try {
+        const pedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
+        const creditosManuales = (await HDVStorage.getItem('hdv_creditos_manuales', { clone: false })) || [];
+        const pagos = (await HDVStorage.getItem('hdv_pagos_credito', { clone: false })) || [];
+        const umbral = _diasVencimientoCredito - 3;
+        let count = 0;
+
+        pedidos.filter(p => p.tipoPago === 'credito' && p.estado !== 'anulado' && p.estado !== 'pagado').forEach(p => {
+            const dias = calcularDiasDesde(p.fecha);
+            const totalPagado = pagos.filter(pg => pg.pedidoId === p.id).reduce((s, pg) => s + (pg.monto || 0), 0);
+            if (totalPagado < (p.total || 0) && dias >= umbral) count++;
+        });
+
+        creditosManuales.filter(c => !c.eliminado && !c.pagado).forEach(c => {
+            const dias = calcularDiasDesde(c.fecha);
+            const saldo = obtenerSaldoManual(c);
+            if (saldo > 0 && dias >= umbral) count++;
+        });
+
+        if (count > 0) {
+            badge.textContent = count;
+            badge.classList.remove('hidden');
+        } else {
+            badge.classList.add('hidden');
+        }
+    } catch (e) {}
 }
 
 // ============================================
@@ -118,7 +171,7 @@ async function cargarCreditos() {
         const saldo = await obtenerSaldoPendiente(p);
         const pagos = await obtenerPagosCredito(p.id);
         const totalPagado = pagos.reduce((s, pg) => s + (pg.monto || 0), 0);
-        const esVencido = dias > 15;
+        const esVencido = dias > _diasVencimientoCredito;
         const clienteInfo = productosData.clientes.find(c => c.id === p.cliente?.id);
 
         if (saldo <= 0) continue; // Ya pagado
@@ -162,7 +215,7 @@ async function cargarCreditos() {
         const dias = calcularDiasDesde(c.fecha);
         const saldo = obtenerSaldoManual(c);
         const totalPagado = (c.pagos || []).reduce((s, p) => s + (p.monto || 0), 0);
-        const esVencido = dias > 15;
+        const esVencido = dias > _diasVencimientoCredito;
 
         if (saldo <= 0) return;
 

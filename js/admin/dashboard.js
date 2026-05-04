@@ -182,8 +182,44 @@ function cargarDashboard() {
         }
     }
 
+    // Widget: ventas de hoy por vendedor
+    _renderVentasHoyPorVendedor(pedidos, hoy);
+
     // Cargar selector de meses
     cargarSelectorMeses();
+}
+
+async function _renderVentasHoyPorVendedor(pedidos, hoy) {
+    const container = document.getElementById('dashVendedoresHoy');
+    if (!container) return;
+    const hoyStr = hoy.toISOString().split('T')[0];
+    const pedidosHoy = pedidos.filter(p => (p.fecha || '').slice(0, 10) === hoyStr);
+
+    if (pedidosHoy.length === 0) {
+        container.innerHTML = '<p class="text-gray-400 text-sm italic">Sin pedidos hoy</p>';
+        return;
+    }
+
+    const perfiles = await _obtenerPerfilesMetas();
+    const perfilesMap = {};
+    perfiles.forEach(p => { perfilesMap[p.id] = p.nombre_completo || 'Sin nombre'; });
+
+    const porVendedor = {};
+    pedidosHoy.forEach(p => {
+        const vid = p.vendedor_id || 'sin_vendedor';
+        if (!porVendedor[vid]) porVendedor[vid] = { nombre: perfilesMap[vid] || 'Desconocido', ventas: 0, pedidos: 0 };
+        porVendedor[vid].ventas += p.total || 0;
+        porVendedor[vid].pedidos++;
+    });
+
+    const sorted = Object.entries(porVendedor).sort((a, b) => b[1].ventas - a[1].ventas);
+    container.innerHTML = sorted.map(([_, v]) =>
+        `<div class="bg-gray-50 rounded-lg p-3 text-center min-w-[120px]">
+            <p class="text-xs text-gray-500 font-bold truncate">${escapeHTML(v.nombre)}</p>
+            <p class="text-lg font-bold text-gray-800">${formatearGuaranies(v.ventas)}</p>
+            <p class="text-[10px] text-gray-400">${v.pedidos} pedidos</p>
+        </div>`
+    ).join('');
 }
 
 // ============================================

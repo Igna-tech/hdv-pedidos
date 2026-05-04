@@ -360,6 +360,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         autoBackupToggle.addEventListener('sl-change', () => toggleAdminAutoBackup());
     }
 
+    if (typeof actualizarBadgeCreditosVencer === 'function') actualizarBadgeCreditosVencer();
+
     // Marcar app lista — los toasts info/success se desbloquean despues de la carga inicial
     setTimeout(() => { window._hdvAppReady = true; }, TIEMPOS.SYNC_DELAY_ONLINE_MS);
 });

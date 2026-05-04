@@ -771,11 +771,27 @@
                         </div>
                         <sl-button onclick="generarReporte('cliente')" variant="neutral" size="small">Por Cliente</sl-button>
                         <sl-button onclick="generarReporte('producto')" variant="primary" size="small">Por Producto</sl-button>
+                        <sl-button onclick="generarReporte('vendedor')" variant="warning" size="small">Por Vendedor</sl-button>
                     </div>
                 </div>
                 <div class="saas-card overflow-hidden">
                     <div id="contenidoReporte" class="p-6">
                         <p class="text-center text-gray-400 italic">Selecciona un rango de fechas y tipo de reporte</p>
+                    </div>
+                </div>
+                <!-- Reportes detallados por vendedor -->
+                <div class="saas-card overflow-hidden" id="reporteVendedorDetalle" style="display:none;">
+                    <div class="p-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center flex-wrap gap-3">
+                        <h4 class="font-bold text-sm text-gray-700">Detalle por Vendedor</h4>
+                        <div class="flex gap-2 items-center">
+                            <sl-select id="reporteVendedorSelect" size="small" value="todos" style="min-width:180px;">
+                                <sl-option value="todos">Todos (Ranking)</sl-option>
+                            </sl-select>
+                            <sl-button onclick="exportarReporteVendedorCSV()" variant="neutral" size="small" outline>CSV</sl-button>
+                        </div>
+                    </div>
+                    <div id="reporteVendedorContenido" class="p-4">
+                        <p class="text-center text-gray-400 italic">Selecciona un vendedor o ve el ranking</p>
                     </div>
                 </div>
             </section>
@@ -1971,6 +1987,7 @@
     <script src="js/admin/productos.js"></script>
     <script src="js/admin/clientes.js"></script>
     <script src="js/admin/creditos.js"></script>
+    <script src="js/admin/reportes-vendedor.js"></script>
     <script src="js/modules/ventas/ventas-data.js"></script>
     <script src="js/modules/ventas/ventas-templates.js"></script>
     <script src="admin-ventas.js"></script>

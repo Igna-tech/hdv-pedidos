@@ -386,6 +386,15 @@ async function generarReporte(tipo) {
         return;
     }
 
+    if (tipo === 'vendedor') {
+        if (typeof generarReporteVendedor === 'function') {
+            generarReporteVendedor(filtrados, desde, hasta);
+        } else {
+            container.innerHTML = '<p class="text-center text-gray-500 py-8">Modulo de reportes por vendedor no disponible</p>';
+        }
+        return;
+    }
+
     if (tipo === 'cliente') {
         const porCliente = {};
         filtrados.forEach(p => {

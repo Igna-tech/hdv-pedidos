@@ -361,8 +361,13 @@ function renderizarPerfilPrecios() {
     const cliente = clientePerfilActual;
     if (!container || !cliente) return;
 
-    let html = '<div class="flex justify-between items-center mb-4"><h4 class="font-bold text-gray-700">Precios Especiales</h4>' +
-        `<sl-button onclick="agregarPrecioEspecial()" variant="neutral" size="small">+ Agregar precio especial</sl-button></div>`;
+    let html = `<div class="flex justify-between items-center mb-4"><h4 class="font-bold text-gray-700">Precios Especiales</h4>
+        <div class="flex gap-2 flex-wrap">
+            <sl-button onclick="aplicarDescuentoCategoria()" variant="neutral" size="small">% Categoria</sl-button>
+            <sl-button onclick="copiarPreciosDeCliente()" variant="neutral" size="small">Copiar de otro</sl-button>
+            <sl-button onclick="importarPreciosCSV()" variant="neutral" size="small">Importar CSV</sl-button>
+            <sl-button onclick="agregarPrecioEspecial()" variant="primary" size="small">+ Agregar</sl-button>
+        </div></div>`;
 
     const precios = cliente.precios_personalizados || {};
     const keys = Object.keys(precios);
@@ -455,6 +460,115 @@ function eliminarPrecioEspecial(prodId, tamano) {
         registrarCambio();
         renderizarPerfilPrecios();
     }
+}
+
+async function aplicarDescuentoCategoria() {
+    if (!clientePerfilActual) return;
+    const categorias = productosData.categorias || [];
+    const catOpts = categorias.filter(c => c.estado !== 'discontinuado').map(c => ({ value: c.id, label: c.nombre }));
+
+    const datos = await mostrarInputModal({
+        titulo: 'Descuento por Categoria',
+        subtitulo: `Aplicar descuento a todos los productos de una categoria para ${clientePerfilActual.razon_social || clientePerfilActual.nombre}`,
+        icono: 'percent',
+        campos: [
+            { key: 'categoriaId', label: 'Categoria', tipo: 'select', opciones: catOpts, requerido: true },
+            { key: 'descuento', label: 'Descuento (%)', tipo: 'number', placeholder: '10', requerido: true }
+        ],
+        textoConfirmar: 'Aplicar Descuento'
+    });
+    if (!datos || !datos.descuento) return;
+    if (datos.descuento <= 0 || datos.descuento > 50) { mostrarToast('Descuento debe ser entre 1% y 50%', 'error'); return; }
+
+    const prodsCat = (productosData.productos || []).filter(p => p.categoria === datos.categoriaId && !p.oculto && p.estado !== 'discontinuado');
+    if (prodsCat.length === 0) { mostrarToast('No hay productos en esa categoria', 'warning'); return; }
+
+    if (!clientePerfilActual.precios_personalizados) clientePerfilActual.precios_personalizados = {};
+    let count = 0;
+    prodsCat.forEach(prod => {
+        (prod.presentaciones || []).filter(pr => pr.activo !== false).forEach(pres => {
+            const precioDesc = Math.round(pres.precio_base * (1 - datos.descuento / 100));
+            if (!clientePerfilActual.precios_personalizados[prod.id]) clientePerfilActual.precios_personalizados[prod.id] = [];
+            const arr = clientePerfilActual.precios_personalizados[prod.id];
+            const idx = arr.findIndex(p => p.tamano === pres.tamano);
+            if (idx >= 0) arr[idx].precio = precioDesc;
+            else arr.push({ tamano: pres.tamano, precio: precioDesc });
+            count++;
+        });
+    });
+
+    registrarCambio();
+    renderizarPerfilPrecios();
+    mostrarExito(`${count} precios actualizados con ${datos.descuento}% descuento`);
+}
+
+async function copiarPreciosDeCliente() {
+    if (!clientePerfilActual) return;
+    const clienteOpts = (productosData.clientes || [])
+        .filter(c => c.id !== clientePerfilActual.id && !c.oculto && c.precios_personalizados && Object.keys(c.precios_personalizados).length > 0)
+        .map(c => ({ value: c.id, label: `${c.razon_social || c.nombre} (${Object.keys(c.precios_personalizados).length} productos)` }));
+
+    if (clienteOpts.length === 0) { mostrarToast('No hay otros clientes con precios especiales', 'warning'); return; }
+
+    const datos = await mostrarInputModal({
+        titulo: 'Copiar Precios de Otro Cliente',
+        subtitulo: `Los precios existentes seran reemplazados`,
+        icono: 'copy',
+        campos: [
+            { key: 'clienteOrigen', label: 'Copiar de', tipo: 'select-search', opciones: clienteOpts, requerido: true }
+        ],
+        textoConfirmar: 'Copiar Precios'
+    });
+    if (!datos) return;
+
+    const origen = productosData.clientes.find(c => c.id === datos.clienteOrigen);
+    if (!origen || !origen.precios_personalizados) return;
+
+    clientePerfilActual.precios_personalizados = JSON.parse(JSON.stringify(origen.precios_personalizados));
+    registrarCambio();
+    renderizarPerfilPrecios();
+    const total = Object.values(clientePerfilActual.precios_personalizados).reduce((s, arr) => s + arr.length, 0);
+    mostrarExito(`${total} precios copiados de ${origen.razon_social || origen.nombre}`);
+}
+
+async function importarPreciosCSV() {
+    if (!clientePerfilActual) return;
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.csv';
+    input.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const text = await file.text();
+        const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+        if (lines.length < 2) { mostrarToast('CSV vacio o invalido', 'error'); return; }
+
+        if (!clientePerfilActual.precios_personalizados) clientePerfilActual.precios_personalizados = {};
+        let count = 0;
+        let errores = 0;
+        for (let i = 1; i < lines.length; i++) {
+            const cols = lines[i].split(',').map(c => c.replace(/"/g, '').trim());
+            if (cols.length < 3) { errores++; continue; }
+            const [prodId, presentacion, precioStr] = cols;
+            const precio = parseInt(precioStr);
+            if (!prodId || !presentacion || !precio || precio <= 0) { errores++; continue; }
+
+            const prod = productosData.productos.find(p => p.id === prodId || p.nombre === prodId);
+            if (!prod) { errores++; continue; }
+
+            if (!clientePerfilActual.precios_personalizados[prod.id]) clientePerfilActual.precios_personalizados[prod.id] = [];
+            const arr = clientePerfilActual.precios_personalizados[prod.id];
+            const idx = arr.findIndex(p => p.tamano === presentacion);
+            if (idx >= 0) arr[idx].precio = precio;
+            else arr.push({ tamano: presentacion, precio });
+            count++;
+        }
+
+        registrarCambio();
+        renderizarPerfilPrecios();
+        mostrarToast(`${count} precios importados${errores > 0 ? `, ${errores} filas con error` : ''}`, count > 0 ? 'success' : 'warning');
+    };
+    input.click();
 }
 
 async function renderizarPerfilHistorial() {

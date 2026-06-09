@@ -156,9 +156,9 @@
                 </div>
             </div>
             <div class="flex gap-2">
-                <sl-icon-button name="arrow-clockwise" label="Forzar actualizacion" onclick="forzarActualizacion()" class="header-icon-btn"></sl-icon-button>
-                <sl-icon-button name="moon" label="Cambiar modo oscuro" onclick="toggleDarkMode()" class="dark-mode-toggle header-icon-btn"></sl-icon-button>
-                <sl-icon-button name="box-arrow-right" label="Cerrar sesion" onclick="cerrarSesion()" class="header-icon-btn-danger"></sl-icon-button>
+                <sl-icon-button name="arrow-clockwise" label="Forzar actualizacion" data-action="forzarActualizacion" class="header-icon-btn"></sl-icon-button>
+                <sl-icon-button name="moon" label="Cambiar modo oscuro" data-action="toggleDarkMode" class="dark-mode-toggle header-icon-btn"></sl-icon-button>
+                <sl-icon-button name="box-arrow-right" label="Cerrar sesion" data-action="cerrarSesion" class="header-icon-btn-danger"></sl-icon-button>
             </div>
         </div>
         
@@ -219,22 +219,22 @@
     </main>
 
     <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-3 flex justify-between items-center z-50 shadow-[0_-4px_10px_rgba(0,0,0,0.05)]" role="navigation" aria-label="Navegacion principal">
-        <button onclick="cambiarVistaVendedor('lista')" id="btn-tab-lista" class="flex flex-col items-center gap-1 text-gray-900 transition-colors">
+        <button data-action="cambiarVistaVendedor" data-arg="lista" id="btn-tab-lista" class="flex flex-col items-center gap-1 text-gray-900 transition-colors">
             <i data-lucide="home" class="w-5 h-5"></i>
             <span class="text-[10px] font-bold">Inicio</span>
         </button>
 
-        <button onclick="mostrarModalCarrito()" id="viewCartBtn" aria-label="Ver carrito de compras" class="relative -mt-12 bg-grafito-oscuro text-white p-4 rounded-full shadow-xl border-4 border-gray-100 disabled:opacity-50 disabled:bg-gray-400">
+        <button data-action="mostrarModalCarrito" id="viewCartBtn" aria-label="Ver carrito de compras" class="relative -mt-12 bg-grafito-oscuro text-white p-4 rounded-full shadow-xl border-4 border-gray-100 disabled:opacity-50 disabled:bg-gray-400">
             <i data-lucide="shopping-cart" class="w-6 h-6"></i>
             <span id="cartItems" class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center border-2 border-white">0</span>
         </button>
 
-        <button onclick="cambiarVistaVendedor('pedidos')" id="btn-tab-pedidos" class="flex flex-col items-center gap-1 text-gray-400 transition-colors">
+        <button data-action="cambiarVistaVendedor" data-arg="pedidos" id="btn-tab-pedidos" class="flex flex-col items-center gap-1 text-gray-400 transition-colors">
             <i data-lucide="file-text" class="w-5 h-5"></i>
             <span class="text-[10px] font-bold">Pedidos</span>
         </button>
 
-        <button onclick="cambiarVistaVendedor('caja')" id="btn-tab-caja" class="flex flex-col items-center gap-1 text-gray-400 transition-colors">
+        <button data-action="cambiarVistaVendedor" data-arg="caja" id="btn-tab-caja" class="flex flex-col items-center gap-1 text-gray-400 transition-colors">
             <i data-lucide="wallet" class="w-5 h-5"></i>
             <span class="text-[10px] font-bold">Mi Caja</span>
         </button>
@@ -256,19 +256,19 @@
             </div>
 
             <div class="space-y-3">
-                <sl-button onclick="exportarBackupVendedor()" variant="success" class="w-full">
+                <sl-button data-action="exportarBackupVendedor" variant="success" class="w-full">
                     <i data-lucide="download" class="w-4 h-4"></i> Descargar Backup Completo
                 </sl-button>
-                <sl-button onclick="exportarSoloPedidos()" variant="primary" class="w-full">
+                <sl-button data-action="exportarSoloPedidos" variant="primary" class="w-full">
                     <i data-lucide="file-text" class="w-4 h-4"></i> Descargar Solo Pedidos
                 </sl-button>
-                <sl-button onclick="compartirBackupWhatsApp()" variant="success" class="w-full sl-btn-whatsapp">
+                <sl-button data-action="compartirBackupWhatsApp" variant="success" class="w-full sl-btn-whatsapp">
                     <i data-lucide="send" class="w-4 h-4"></i> Enviar Resumen por WhatsApp
                 </sl-button>
-                <sl-button onclick="document.getElementById('restaurarFileVendedor').click()" variant="warning" class="w-full">
+                <sl-button data-action="triggerRestaurarFileVendedor" variant="warning" class="w-full">
                     <i data-lucide="upload" class="w-4 h-4"></i> Restaurar desde Backup
                 </sl-button>
-                <input type="file" id="restaurarFileVendedor" accept=".json" style="display:none;" onchange="restaurarBackupVendedor(event)">
+                <input type="file" id="restaurarFileVendedor" accept=".json" style="display:none;">
 
                 <div class="mt-4">
                     <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Auto-Backups Guardados</p>
@@ -278,7 +278,7 @@
                 </div>
             </div>
             <div slot="footer">
-                <sl-button onclick="cerrarModalBackup()" variant="default" class="w-full">Cerrar</sl-button>
+                <sl-button data-action="cerrarModalBackup" variant="default" class="w-full">Cerrar</sl-button>
             </div>
     </sl-dialog>
 
@@ -291,7 +291,7 @@
                 <h3 class="text-lg font-bold text-gray-900">Tu Pedido</h3>
                 <span id="drawerCartCount" class="bg-gray-100 text-gray-700 text-xs font-bold px-2 py-0.5 rounded-full">0</span>
             </div>
-            <sl-icon-button name="x-lg" label="Cerrar" onclick="closeCartModal()" style="font-size:1.25rem;color:var(--sl-color-neutral-500);"></sl-icon-button>
+            <sl-icon-button name="x-lg" label="Cerrar" data-action="closeCartModal" style="font-size:1.25rem;color:var(--sl-color-neutral-500);"></sl-icon-button>
         </div>
 
         <!-- Scrollable content -->
@@ -318,16 +318,16 @@
         <div slot="footer" class="space-y-3 w-full">
             <div id="totalSection" class="space-y-2 hidden"></div>
             <div class="space-y-2">
-                <sl-button id="btnPedido" onclick="procesarPedido()" variant="default" outline size="large" class="w-full">
+                <sl-button id="btnPedido" data-action="procesarPedido" variant="default" outline size="large" class="w-full">
                     <sl-icon name="send" slot="prefix"></sl-icon> Generar Pedido
                 </sl-button>
-                <sl-button id="btnCobro" onclick="procesarCobroInterno()" variant="warning" size="large" class="w-full">
+                <sl-button id="btnCobro" data-action="procesarCobroInterno" variant="warning" size="large" class="w-full">
                     <sl-icon name="receipt" slot="prefix"></sl-icon> Cobrar (Recibo Interno)
                 </sl-button>
-                <sl-button id="btnFactura" onclick="procesarFacturaMock()" variant="success" size="large" class="w-full">
+                <sl-button id="btnFactura" data-action="procesarFacturaMock" variant="success" size="large" class="w-full">
                     <sl-icon name="file-earmark-check" slot="prefix"></sl-icon> Emitir Factura (SIFEN)
                 </sl-button>
-                <sl-button onclick="closeCartModal()" variant="default" size="small" class="w-full">Volver al catalogo</sl-button>
+                <sl-button data-action="closeCartModal" variant="default" size="small" class="w-full">Volver al catalogo</sl-button>
             </div>
         </div>
     </sl-drawer>
@@ -342,13 +342,13 @@
             <p class="text-sm text-gray-500 mb-1">Documento electronico procesado</p>
             <p class="text-xs font-mono bg-gray-100 rounded-lg p-2 mb-4 text-gray-700" id="facturaNumeroDisplay"></p>
             <div class="space-y-2">
-                <sl-button onclick="imprimirFactura()" variant="neutral" class="w-full">
+                <sl-button data-action="imprimirFactura" variant="neutral" class="w-full">
                     <i data-lucide="printer" class="w-4 h-4"></i> Imprimir Ticket
                 </sl-button>
                 <a id="facturaWhatsAppLink" href="#" target="_blank" class="block w-full bg-[#25D366] text-white py-3 rounded-xl font-bold text-sm text-center">
                     <span class="flex items-center justify-center gap-2"><i data-lucide="message-circle" class="w-4 h-4"></i> Enviar por WhatsApp</span>
                 </a>
-                <sl-button onclick="cerrarModalFactura()" variant="default" class="w-full">Nueva Venta</sl-button>
+                <sl-button data-action="cerrarModalFactura" variant="default" class="w-full">Nueva Venta</sl-button>
             </div>
         </div>
     </sl-dialog>

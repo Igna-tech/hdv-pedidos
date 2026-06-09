@@ -270,14 +270,14 @@
     <div id="toastContainer"></div>
 
     <!-- Sidebar overlay (mobile) -->
-    <div id="sidebarOverlay" onclick="toggleSidebar()"></div>
+    <div id="sidebarOverlay" data-action="toggleSidebar"></div>
 
     <!-- Global search overlay -->
-    <div id="globalSearchOverlay" onclick="cerrarBusquedaGlobal(event)">
+    <div id="globalSearchOverlay" data-action="cerrarBusquedaGlobal">
         <div id="globalSearchBox">
             <div class="p-4 border-b border-gray-200 flex items-center gap-3">
                 <i data-lucide="search" class="w-5 h-5 text-gray-400"></i>
-                <sl-input type="text" id="globalSearchInput" placeholder="Buscar productos, clientes, pedidos..." class="flex-1" size="large" oninput="ejecutarBusquedaGlobalDebounced()" autofocus no-spin-buttons></sl-input>
+                <sl-input type="text" id="globalSearchInput" placeholder="Buscar productos, clientes, pedidos..." class="flex-1" size="large" autofocus no-spin-buttons></sl-input>
                 <kbd class="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded">ESC</kbd>
             </div>
             <div id="globalSearchResults" class="max-h-[60vh] overflow-y-auto p-2"></div>
@@ -303,63 +303,63 @@
 
         <nav class="flex-1 overflow-y-auto py-4 px-2">
             <div class="px-3 mb-2 text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Datos</div>
-            <button onclick="cambiarSeccion('dashboard')" class="nav-item w-full flex items-center text-sm">
+            <button data-section="dashboard" class="nav-item w-full flex items-center text-sm">
                 <i data-lucide="layout-dashboard" class="w-4 h-4 mr-3 text-gray-400"></i> Dashboard
             </button>
-            <button onclick="cambiarSeccion('pedidos')" class="nav-item w-full flex items-center text-sm active">
+            <button data-section="pedidos" class="nav-item w-full flex items-center text-sm active">
                 <i data-lucide="package" class="w-4 h-4 mr-3 text-gray-400"></i> Pedidos Entrantes
             </button>
-            <button onclick="cambiarSeccion('ventas')" class="nav-item w-full flex items-center text-sm">
+            <button data-section="ventas" class="nav-item w-full flex items-center text-sm">
                 <i data-lucide="receipt" class="w-4 h-4 mr-3 text-gray-400"></i> Ventas
             </button>
-            <button onclick="cambiarSeccion('devoluciones')" class="nav-item w-full flex items-center text-sm">
+            <button data-section="devoluciones" class="nav-item w-full flex items-center text-sm">
                 <i data-lucide="rotate-ccw" class="w-4 h-4 mr-3 text-gray-400"></i> Devoluciones (NC)
             </button>
-            <button onclick="cambiarSeccion('creditos')" class="nav-item w-full flex items-center text-sm">
+            <button data-section="creditos" class="nav-item w-full flex items-center text-sm">
                 <i data-lucide="credit-card" class="w-4 h-4 mr-3 text-gray-400"></i> Creditos
                 <span id="badgeCreditosVencer" class="ml-auto text-[10px] font-bold bg-red-500 text-white rounded-full px-1.5 py-0.5 hidden"></span>
             </button>
-            <button onclick="cambiarSeccion('reportes')" class="nav-item w-full flex items-center text-sm">
+            <button data-section="reportes" class="nav-item w-full flex items-center text-sm">
                 <i data-lucide="bar-chart-3" class="w-4 h-4 mr-3 text-gray-400"></i> Reportes
             </button>
-            <button onclick="cambiarSeccion('stock')" class="nav-item w-full flex items-center text-sm">
+            <button data-section="stock" class="nav-item w-full flex items-center text-sm">
                 <i data-lucide="database" class="w-4 h-4 mr-3 text-gray-400"></i> Stock
             </button>
 
             <div class="px-3 mt-5 mb-2 text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Gestion</div>
-            <button onclick="cambiarSeccion('productos')" class="nav-item w-full flex items-center text-sm">
+            <button data-section="productos" class="nav-item w-full flex items-center text-sm">
                 <i data-lucide="tag" class="w-4 h-4 mr-3 text-gray-400"></i> Productos
             </button>
-            <button onclick="cambiarSeccion('clientes')" class="nav-item w-full flex items-center text-sm">
+            <button data-section="clientes" class="nav-item w-full flex items-center text-sm">
                 <i data-lucide="users" class="w-4 h-4 mr-3 text-gray-400"></i> Clientes
             </button>
-            <button onclick="cambiarSeccion('promociones')" class="nav-item w-full flex items-center text-sm">
+            <button data-section="promociones" class="nav-item w-full flex items-center text-sm">
                 <i data-lucide="gift" class="w-4 h-4 mr-3 text-gray-400"></i> Promociones
             </button>
 
             <div class="px-3 mt-5 mb-2 text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Vendedores</div>
-            <button onclick="cambiarSeccion('rendiciones')" class="nav-item w-full flex items-center text-sm">
+            <button data-section="rendiciones" class="nav-item w-full flex items-center text-sm">
                 <i data-lucide="wallet" class="w-4 h-4 mr-3 text-gray-400"></i> Rendiciones
             </button>
-            <button onclick="cambiarSeccion('metas')" class="nav-item w-full flex items-center text-sm">
+            <button data-section="metas" class="nav-item w-full flex items-center text-sm">
                 <i data-lucide="target" class="w-4 h-4 mr-3 text-gray-400"></i> Metas
             </button>
-            <button onclick="cambiarSeccion('inactivos')" class="nav-item w-full flex items-center text-sm">
+            <button data-section="inactivos" class="nav-item w-full flex items-center text-sm">
                 <i data-lucide="alert-triangle" class="w-4 h-4 mr-3 text-gray-400"></i> Clientes en Riesgo
             </button>
 
             <div class="px-3 mt-5 mb-2 text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Contabilidad</div>
-            <button onclick="cambiarSeccion('cierre')" class="nav-item w-full flex items-center text-sm">
+            <button data-section="cierre" class="nav-item w-full flex items-center text-sm">
                 <i data-lucide="calculator" class="w-4 h-4 mr-3 text-gray-400"></i> Cierre Mensual
             </button>
 
             <div class="px-3 mt-5 mb-2 text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Seguridad</div>
-            <button onclick="cambiarSeccion('forense')" class="nav-item w-full flex items-center text-sm">
+            <button data-section="forense" class="nav-item w-full flex items-center text-sm">
                 <i data-lucide="shield-alert" class="w-4 h-4 mr-3 text-red-400"></i> Seguridad / Forense
             </button>
 
             <div class="px-3 mt-5 mb-2 text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Opciones</div>
-            <button onclick="cambiarSeccion('herramientas')" class="nav-item w-full flex items-center text-sm">
+            <button data-section="herramientas" class="nav-item w-full flex items-center text-sm">
                 <i data-lucide="settings" class="w-4 h-4 mr-3 text-gray-400"></i> Herramientas
             </button>
         </nav>
@@ -371,7 +371,7 @@
                 </div>
                 <span class="text-xs text-gray-600 font-medium truncate" id="sidebar-user-name"></span>
             </div>
-            <sl-button onclick="cerrarSesion()" variant="danger" outline size="small" class="w-full">
+            <sl-button data-action="cerrarSesion" variant="danger" outline size="small" class="w-full">
                 <i data-lucide="log-out" class="w-4 h-4"></i> Cerrar Sesion
             </sl-button>
             <span class="block text-[10px] text-gray-400 font-medium text-center">Version 7.5 - 2026</span>
@@ -382,15 +382,15 @@
     <main class="flex-1 flex flex-col overflow-hidden bg-[#f1f5f9]">
         <header class="bg-white border-b border-gray-200/80 h-14 flex items-center justify-between px-4 md:px-8 shrink-0">
             <div class="flex items-center gap-3">
-                <sl-icon-button id="hamburgerBtn" name="list" onclick="toggleSidebar()" label="Menu" class="hidden" style="font-size:1.25rem; color:#6b7280;"></sl-icon-button>
+                <sl-icon-button id="hamburgerBtn" name="list" data-action="toggleSidebar" label="Menu" class="hidden" style="font-size:1.25rem; color:#6b7280;"></sl-icon-button>
                 <h2 class="text-base font-semibold text-gray-900" id="currentSectionTitle">Gestion de Pedidos</h2>
             </div>
             <div class="flex items-center gap-1.5 md:gap-3">
-                <sl-icon-button name="search" label="Buscar (Ctrl+K)" onclick="abrirBusquedaGlobal()" style="font-size:1rem;"></sl-icon-button>
+                <sl-icon-button name="search" label="Buscar (Ctrl+K)" data-action="abrirBusquedaGlobal" style="font-size:1rem;"></sl-icon-button>
                 <div id="status-badge" class="text-[10px] uppercase tracking-wider font-semibold flex items-center text-gray-400 mr-1">
                     <span class="w-2 h-2 bg-green-500 rounded-full mr-1.5"></span> <span class="hidden md:inline">En linea</span>
                 </div>
-                <sl-icon-button name="arrow-clockwise" label="Forzar actualizacion" onclick="forzarActualizacionAdmin()" style="font-size:1rem;"></sl-icon-button>
+                <sl-icon-button name="arrow-clockwise" label="Forzar actualizacion" data-action="forzarActualizacionAdmin" style="font-size:1rem;"></sl-icon-button>
                 <div class="h-6 w-px bg-gray-200 mx-1"></div>
                 <div class="flex items-center gap-2">
                     <svg width="24" height="24" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
@@ -471,8 +471,8 @@
                         <h3 class="font-bold text-gray-800 mb-4">Resumen Mensual</h3>
                         <div class="flex flex-wrap gap-3 mb-4">
                             <sl-select id="dashMesSelect" size="small" hoist></sl-select>
-                            <sl-button onclick="exportarResumenMensualPDF()" variant="danger" size="small"><i data-lucide="file-text" class="w-4 h-4"></i> Exportar PDF</sl-button>
-                            <sl-button id="btnGuardarResumen" onclick="guardarResumenMensual()" variant="primary" size="small"><i data-lucide="cloud-upload" class="w-4 h-4"></i> Guardar en Nube</sl-button>
+                            <sl-button data-action="exportarResumenMensualPDF" variant="danger" size="small"><i data-lucide="file-text" class="w-4 h-4"></i> Exportar PDF</sl-button>
+                            <sl-button id="btnGuardarResumen" data-action="guardarResumenMensual" variant="primary" size="small"><i data-lucide="cloud-upload" class="w-4 h-4"></i> Guardar en Nube</sl-button>
                         </div>
                         <div id="resumenMensualContenido" class="text-sm text-gray-600">Selecciona un mes</div>
                         <div id="resumenGananciaContenido" class="mt-3"></div>
@@ -529,8 +529,8 @@
                             <sl-option value="anulado">Anulado</sl-option>
                         </sl-select>
                     </div>
-                    <sl-button onclick="filtrarPedidos()" variant="neutral" size="small">Aplicar</sl-button>
-                    <sl-button onclick="exportarExcelPedidos()" variant="default" size="small">Excel</sl-button>
+                    <sl-button data-action="filtrarPedidos" variant="neutral" size="small">Aplicar</sl-button>
+                    <sl-button data-action="exportarExcelPedidos" variant="default" size="small">Excel</sl-button>
                 </div>
 
                 <div class="saas-card overflow-hidden">
@@ -571,8 +571,8 @@
                             <sl-option value="facturado_mock">Facturados SIFEN</sl-option>
                         </sl-select>
                     </div>
-                    <sl-button onclick="filtrarVentas()" variant="neutral" size="small">Aplicar</sl-button>
-                    <sl-button onclick="exportarVentasSemanalesCSV()" variant="success" size="small"><i data-lucide="download" class="w-4 h-4"></i> Exportar Semana</sl-button>
+                    <sl-button data-action="filtrarVentas" variant="neutral" size="small">Aplicar</sl-button>
+                    <sl-button data-action="exportarVentasSemanalesCSV" variant="success" size="small"><i data-lucide="download" class="w-4 h-4"></i> Exportar Semana</sl-button>
                 </div>
 
                 <div class="saas-card overflow-hidden">
@@ -592,7 +592,7 @@
                             <label class="block text-xs font-bold text-gray-500 mb-1">N° COMPROBANTE, RUC O NOMBRE</label>
                             <sl-input type="text" id="devBuscarInput" placeholder="Ej: 001-001-0000123 o 80012345-6 o Juan..." class="w-full" size="small"></sl-input>
                         </div>
-                        <sl-button onclick="buscarFacturaDevolucion()" variant="neutral" size="small">
+                        <sl-button data-action="buscarFacturaDevolucion" variant="neutral" size="small">
                             <i data-lucide="search" class="w-4 h-4"></i> Buscar
                         </sl-button>
                     </div>
@@ -662,13 +662,13 @@
                         </div>
 
                         <div class="flex gap-3 pt-2 flex-wrap">
-                            <sl-button onclick="cancelarFactura48hs()" variant="default" size="small">
+                            <sl-button data-action="cancelarFactura48hs" variant="default" size="small">
                                 <i data-lucide="x-circle" class="w-4 h-4"></i> Cancelar Factura (&lt;48hs)
                             </sl-button>
-                            <sl-button onclick="procesarNotaCredito()" id="btnEmitirNC" variant="danger" size="small">
+                            <sl-button data-action="procesarNotaCredito" id="btnEmitirNC" variant="danger" size="small">
                                 <i data-lucide="file-minus" class="w-4 h-4"></i> Emitir Nota de Credito (NC)
                             </sl-button>
-                            <sl-button onclick="limpiarDevolucion()" variant="text" size="small">Cancelar</sl-button>
+                            <sl-button data-action="limpiarDevolucion" variant="text" size="small">Cancelar</sl-button>
                         </div>
                     </div>
                 </div>
@@ -691,7 +691,7 @@
                     <span>Vencimiento creditos:</span>
                     <sl-input id="configDiasVencimiento" type="number" size="small" min="1" max="365" value="15" style="width:80px;" placeholder="15"></sl-input>
                     <span>dias</span>
-                    <sl-button onclick="guardarConfigCreditos()" variant="text" size="small">Guardar</sl-button>
+                    <sl-button data-action="guardarConfigCreditos" variant="text" size="small">Guardar</sl-button>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div class="saas-card p-6">
@@ -713,12 +713,12 @@
                 </div>
 
                 <div class="saas-card p-4 flex flex-wrap gap-3">
-                    <sl-button onclick="agregarCreditoManual()" variant="neutral" size="small">+ Credito Manual</sl-button>
-                    <sl-button onclick="editarMensajeRecordatorio()" variant="success" size="small">Editar Mensaje WhatsApp</sl-button>
-                    <sl-button onclick="toggleVistaCreditos('resumen')" variant="primary" size="small">Resumen por Cliente</sl-button>
-                    <sl-button onclick="toggleVistaCreditos('graficos')" variant="neutral" size="small" style="--sl-color-neutral-600:#9333ea;--sl-color-neutral-700:#7e22ce;">Graficos</sl-button>
-                    <sl-button onclick="toggleVistaCreditos('lista')" variant="neutral" size="small">Ver Lista</sl-button>
-                    <sl-button onclick="toggleVistaCreditos('historial')" variant="neutral" size="small" style="--sl-color-neutral-600:#6b7280;--sl-color-neutral-700:#4b5563;">Historial</sl-button>
+                    <sl-button data-action="agregarCreditoManual" variant="neutral" size="small">+ Credito Manual</sl-button>
+                    <sl-button data-action="editarMensajeRecordatorio" variant="success" size="small">Editar Mensaje WhatsApp</sl-button>
+                    <sl-button data-action="toggleVistaCreditos" data-arg="resumen" variant="primary" size="small">Resumen por Cliente</sl-button>
+                    <sl-button data-action="toggleVistaCreditos" data-arg="graficos" variant="neutral" size="small" style="--sl-color-neutral-600:#9333ea;--sl-color-neutral-700:#7e22ce;">Graficos</sl-button>
+                    <sl-button data-action="toggleVistaCreditos" data-arg="lista" variant="neutral" size="small">Ver Lista</sl-button>
+                    <sl-button data-action="toggleVistaCreditos" data-arg="historial" variant="neutral" size="small" style="--sl-color-neutral-600:#6b7280;--sl-color-neutral-700:#4b5563;">Historial</sl-button>
                 </div>
 
                 <!-- Lista de creditos -->
@@ -780,9 +780,9 @@
                             <label class="block text-xs font-bold text-gray-500 mb-1">HASTA</label>
                             <sl-input type="date" id="reporteFechaHasta" class="w-full" size="small"></sl-input>
                         </div>
-                        <sl-button onclick="generarReporte('cliente')" variant="neutral" size="small">Por Cliente</sl-button>
-                        <sl-button onclick="generarReporte('producto')" variant="primary" size="small">Por Producto</sl-button>
-                        <sl-button onclick="generarReporte('vendedor')" variant="warning" size="small">Por Vendedor</sl-button>
+                        <sl-button data-action="generarReporte" data-arg="cliente" variant="neutral" size="small">Por Cliente</sl-button>
+                        <sl-button data-action="generarReporte" data-arg="producto" variant="primary" size="small">Por Producto</sl-button>
+                        <sl-button data-action="generarReporte" data-arg="vendedor" variant="warning" size="small">Por Vendedor</sl-button>
                     </div>
                 </div>
                 <div class="saas-card overflow-hidden">
@@ -798,7 +798,7 @@
                             <sl-select id="reporteVendedorSelect" size="small" value="todos" style="min-width:180px;">
                                 <sl-option value="todos">Todos (Ranking)</sl-option>
                             </sl-select>
-                            <sl-button onclick="exportarReporteVendedorCSV()" variant="neutral" size="small" outline>CSV</sl-button>
+                            <sl-button data-action="exportarReporteVendedorCSV" variant="neutral" size="small" outline>CSV</sl-button>
                         </div>
                     </div>
                     <div id="reporteVendedorContenido" class="p-4">
@@ -812,14 +812,14 @@
                 <!-- Toolbar -->
                 <div class="saas-card p-4 flex flex-wrap gap-3 items-center justify-between">
                     <div class="flex items-center gap-2 text-sm text-gray-500">
-                        <sl-button onclick="stockNavegar('inicio')" id="stock-breadcrumb-inicio" variant="text" size="small" style="font-weight:700; --sl-color-primary-600:#1f2937; --sl-color-primary-700:#111827;">Stock</sl-button>
+                        <sl-button data-action="stockNavegar" data-arg="inicio" id="stock-breadcrumb-inicio" variant="text" size="small" style="font-weight:700; --sl-color-primary-600:#1f2937; --sl-color-primary-700:#111827;">Stock</sl-button>
                         <span id="stock-breadcrumb-sep1" class="hidden">/</span>
-                        <sl-button onclick="stockNavegar('categoria')" id="stock-breadcrumb-cat" variant="text" size="small" class="hidden" style="font-weight:700; color:#374151; --sl-color-primary-600:#1f2937; --sl-color-primary-700:#111827;"></sl-button>
+                        <sl-button data-action="stockNavegar" data-arg="categoria" id="stock-breadcrumb-cat" variant="text" size="small" class="hidden" style="font-weight:700; color:#374151; --sl-color-primary-600:#1f2937; --sl-color-primary-700:#111827;"></sl-button>
                         <span id="stock-breadcrumb-sep2" class="hidden">/</span>
                         <span id="stock-breadcrumb-sub" class="hidden font-bold text-gray-900"></span>
                     </div>
                     <div class="flex gap-2 flex-wrap items-center">
-                        <sl-input type="text" id="buscarStock" placeholder="Buscar producto..." oninput="filtrarStockDebounced()" size="small" style="width:12rem"></sl-input>
+                        <sl-input type="text" id="buscarStock" placeholder="Buscar producto..." size="small" style="width:12rem"></sl-input>
                         <sl-select id="filtroStock" size="small" hoist placeholder="Sin filtro">
                             <sl-option value="">Sin filtro</sl-option>
                             <sl-option value="mas-vendidos">Más vendidos</sl-option>
@@ -828,7 +828,7 @@
                             <sl-option value="disponibles">Disponibles</sl-option>
                             <sl-option value="no-disponibles">No disponibles</sl-option>
                         </sl-select>
-                        <sl-button onclick="guardarStock()" variant="neutral" size="small"><i data-lucide="save" class="w-4 h-4"></i> Guardar Stock</sl-button>
+                        <sl-button data-action="guardarStock" variant="neutral" size="small"><i data-lucide="save" class="w-4 h-4"></i> Guardar Stock</sl-button>
                     </div>
                 </div>
                 <!-- Grid content -->
@@ -839,14 +839,14 @@
             <section id="seccion-productos" class="tab-content space-y-4">
                 <div class="saas-card p-4 flex flex-wrap gap-3 items-center justify-between">
                     <div class="flex items-center gap-2 text-sm text-gray-500">
-                        <sl-button onclick="productosNavegar('inicio')" id="prod-breadcrumb-inicio" variant="text" size="small" style="font-weight:700; --sl-color-primary-600:#1f2937; --sl-color-primary-700:#111827;">Catalogo</sl-button>
+                        <sl-button data-action="productosNavegar" data-arg="inicio" id="prod-breadcrumb-inicio" variant="text" size="small" style="font-weight:700; --sl-color-primary-600:#1f2937; --sl-color-primary-700:#111827;">Catalogo</sl-button>
                         <span id="prod-breadcrumb-sep1" class="hidden">/</span>
-                        <sl-button onclick="productosNavegar('categoria')" id="prod-breadcrumb-cat" variant="text" size="small" class="hidden" style="font-weight:700; color:#374151; --sl-color-primary-600:#1f2937; --sl-color-primary-700:#111827;"></sl-button>
+                        <sl-button data-action="productosNavegar" data-arg="categoria" id="prod-breadcrumb-cat" variant="text" size="small" class="hidden" style="font-weight:700; color:#374151; --sl-color-primary-600:#1f2937; --sl-color-primary-700:#111827;"></sl-button>
                         <span id="prod-breadcrumb-sep2" class="hidden">/</span>
                         <span id="prod-breadcrumb-sub" class="hidden font-bold text-gray-900"></span>
                     </div>
                     <div class="flex gap-2 flex-wrap items-center">
-                        <sl-input type="text" id="buscarProducto" oninput="filtrarProductosDebounced()" placeholder="Buscar producto..." size="small" style="width:12rem"></sl-input>
+                        <sl-input type="text" id="buscarProducto" placeholder="Buscar producto..." size="small" style="width:12rem"></sl-input>
                         <sl-select id="filtroCategoria" size="small" hoist placeholder="Todas las categorias">
                             <sl-option value="">Todas las categorias</sl-option>
                         </sl-select>
@@ -864,8 +864,8 @@
                             <sl-option value="menos-vendidos">Menos vendidos</sl-option>
                         </sl-select>
                         <sl-switch id="mostrarOcultosProductos">Ocultos</sl-switch>
-                        <sl-button onclick="abrirModalCategorias()" variant="primary" size="small">Categorias</sl-button>
-                        <sl-button onclick="abrirModalProducto()" variant="neutral" size="small">+ Nuevo</sl-button>
+                        <sl-button data-action="abrirModalCategorias" variant="primary" size="small">Categorias</sl-button>
+                        <sl-button data-action="abrirModalProducto" variant="neutral" size="small">+ Nuevo</sl-button>
                     </div>
                 </div>
                 <div id="productosGridContainer"></div>
@@ -877,20 +877,20 @@
                 <div class="flex justify-between items-center flex-wrap gap-4">
                     <h3 class="text-xl font-bold text-gray-800">Directorio de Clientes</h3>
                     <div class="flex gap-2 flex-wrap">
-                        <sl-input type="text" id="buscarCliente" oninput="filtrarClientesDebounced()" placeholder="Buscar cliente..." size="small" style="width:12rem"></sl-input>
+                        <sl-input type="text" id="buscarCliente" placeholder="Buscar cliente..." size="small" style="width:12rem"></sl-input>
                         <sl-select id="filtroZonaCliente" size="small" hoist placeholder="Todas las zonas">
                             <sl-option value="">Todas las zonas</sl-option>
                         </sl-select>
                         <sl-switch id="mostrarOcultosClientes">Ocultos</sl-switch>
-                        <sl-button onclick="abrirModalCliente()" variant="neutral" size="small">+ Nuevo Cliente</sl-button>
+                        <sl-button data-action="abrirModalCliente" variant="neutral" size="small">+ Nuevo Cliente</sl-button>
                     </div>
                 </div>
                 <div class="saas-card overflow-x-auto">
                     <table class="w-full text-left text-sm">
                         <thead class="text-gray-400 font-semibold uppercase text-[11px] tracking-wider">
                             <tr>
-                                <th class="px-4 py-3 cursor-pointer hover:text-gray-800" onclick="ordenarClientes('nombre')">Nombre</th>
-                                <th class="px-4 py-3 cursor-pointer hover:text-gray-800" onclick="ordenarClientes('zona')">Zona</th>
+                                <th class="px-4 py-3 cursor-pointer hover:text-gray-800" data-action="ordenarClientes" data-arg="nombre">Nombre</th>
+                                <th class="px-4 py-3 cursor-pointer hover:text-gray-800" data-action="ordenarClientes" data-arg="zona">Zona</th>
                                 <th class="px-4 py-3">Telefono</th>
                                 <th class="px-4 py-3">Precios Esp.</th>
                             </tr>
@@ -905,7 +905,7 @@
             <section id="seccion-promociones" class="tab-content space-y-6">
                 <div class="flex justify-between items-center flex-wrap gap-4">
                     <h3 class="text-xl font-bold text-gray-800">Motor de Promociones</h3>
-                    <sl-button onclick="abrirModalPromocion()" variant="neutral" size="small">+ Nueva Promocion</sl-button>
+                    <sl-button data-action="abrirModalPromocion" variant="neutral" size="small">+ Nueva Promocion</sl-button>
                 </div>
                 <div class="saas-card overflow-hidden">
                     <div id="promocionesContainer" class="divide-y divide-gray-100">
@@ -981,8 +981,8 @@
                         <sl-switch id="formPromoActiva" checked>Promocion Activa</sl-switch>
                     </div>
                     <div slot="footer" class="flex justify-end gap-3">
-                        <sl-button onclick="cerrarModalPromocion()" variant="text" size="small">Cancelar</sl-button>
-                        <sl-button id="btnGuardarPromo" onclick="guardarPromocion()" variant="neutral" size="small">Guardar</sl-button>
+                        <sl-button data-action="cerrarModalPromocion" variant="text" size="small">Cancelar</sl-button>
+                        <sl-button id="btnGuardarPromo" data-action="guardarPromocion" variant="neutral" size="small">Guardar</sl-button>
                     </div>
             </sl-dialog>
 
@@ -992,8 +992,8 @@
                 <div class="flex justify-between items-center flex-wrap gap-4">
                     <h3 class="text-xl font-bold text-gray-800">Rendiciones de Caja</h3>
                     <div class="flex gap-2">
-                        <sl-button onclick="agregarGastoAdmin()" variant="danger" size="small"><i data-lucide="plus" class="w-4 h-4"></i> Agregar Gasto</sl-button>
-                        <sl-button onclick="abrirModalCuentaBancaria()" variant="primary" size="small"><i data-lucide="landmark" class="w-4 h-4"></i> Cuentas Bancarias</sl-button>
+                        <sl-button data-action="agregarGastoAdmin" variant="danger" size="small"><i data-lucide="plus" class="w-4 h-4"></i> Agregar Gasto</sl-button>
+                        <sl-button data-action="abrirModalCuentaBancaria" variant="primary" size="small"><i data-lucide="landmark" class="w-4 h-4"></i> Cuentas Bancarias</sl-button>
                     </div>
                 </div>
                 <!-- Filtros: vendedor + semana -->
@@ -1004,8 +1004,8 @@
                     </sl-select>
                     <label class="text-sm font-bold text-gray-600">Semana:</label>
                     <sl-input type="week" id="rendSemana" size="small"></sl-input>
-                    <sl-button onclick="cargarRendiciones()" variant="neutral" size="small">Calcular</sl-button>
-                    <sl-button onclick="exportarRendicionPDF()" variant="neutral" size="small" outline><i data-lucide="file-text" class="w-4 h-4"></i> PDF</sl-button>
+                    <sl-button data-action="cargarRendiciones" variant="neutral" size="small">Calcular</sl-button>
+                    <sl-button data-action="exportarRendicionPDF" variant="neutral" size="small" outline><i data-lucide="file-text" class="w-4 h-4"></i> PDF</sl-button>
                 </div>
                 <!-- Resumen de caja -->
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -1044,7 +1044,7 @@
                 <div class="saas-card overflow-hidden">
                     <div class="p-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
                         <span class="font-bold text-sm text-gray-600">Cuentas Bancarias de la Empresa</span>
-                        <sl-button onclick="abrirModalCuentaBancaria()" variant="text" size="small">+ Agregar</sl-button>
+                        <sl-button data-action="abrirModalCuentaBancaria" variant="text" size="small">+ Agregar</sl-button>
                     </div>
                     <div id="cuentasBancariasAdmin" class="divide-y divide-gray-100">
                         <p class="p-6 text-center text-gray-400 italic">Sin cuentas configuradas</p>
@@ -1094,8 +1094,8 @@
                         </div>
                     </div>
                     <div slot="footer" class="flex justify-end gap-3">
-                        <sl-button onclick="cerrarModalCuentaBancaria()" variant="text" size="small">Cancelar</sl-button>
-                        <sl-button onclick="guardarCuentaBancaria()" variant="neutral" size="small">Guardar</sl-button>
+                        <sl-button data-action="cerrarModalCuentaBancaria" variant="text" size="small">Cancelar</sl-button>
+                        <sl-button data-action="guardarCuentaBancaria" variant="neutral" size="small">Guardar</sl-button>
                     </div>
             </sl-dialog>
 
@@ -1103,7 +1103,7 @@
             <section id="seccion-metas" class="tab-content space-y-6">
                 <div class="flex justify-between items-center flex-wrap gap-4">
                     <h3 class="text-xl font-bold text-gray-800">Metas y Comisiones</h3>
-                    <sl-button onclick="abrirModalMeta()" variant="neutral" size="small">+ Nueva Meta</sl-button>
+                    <sl-button data-action="abrirModalMeta" variant="neutral" size="small">+ Nueva Meta</sl-button>
                 </div>
                 <!-- Resumen metas activas -->
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1175,8 +1175,8 @@
                         </div>
                     </div>
                     <div slot="footer" class="flex justify-end gap-3">
-                        <sl-button onclick="cerrarModalMeta()" variant="text" size="small">Cancelar</sl-button>
-                        <sl-button id="btnGuardarMeta" onclick="guardarMeta()" variant="neutral" size="small">Guardar</sl-button>
+                        <sl-button data-action="cerrarModalMeta" variant="text" size="small">Cancelar</sl-button>
+                        <sl-button id="btnGuardarMeta" data-action="guardarMeta" variant="neutral" size="small">Guardar</sl-button>
                     </div>
             </sl-dialog>
 
@@ -1246,7 +1246,7 @@
                                 <label class="block text-xs font-bold text-gray-500 mb-1">AÑO</label>
                                 <sl-select id="cierreAnio" size="small" hoist></sl-select>
                             </div>
-                            <sl-button onclick="previsualizarCierre()" variant="neutral" size="small">
+                            <sl-button data-action="previsualizarCierre" variant="neutral" size="small">
                                 <i data-lucide="eye" class="w-4 h-4"></i> Previsualizar
                             </sl-button>
                         </div>
@@ -1287,7 +1287,7 @@
                                     </div>
                                 </div>
                                 <p class="text-sm text-gray-500 mb-4">Exporta todas las facturas y notas de credito del periodo en formato CSV compatible con el sistema contable. Incluye desglose IVA 5%, 10% y exentas.</p>
-                                <sl-button onclick="exportarLibroRG90()" id="btnRG90" variant="primary" class="w-full">
+                                <sl-button data-action="exportarLibroRG90" id="btnRG90" variant="primary" class="w-full">
                                     <i data-lucide="download" class="w-4 h-4"></i> Exportar Libro RG90 (CSV)
                                 </sl-button>
                             </div>
@@ -1304,7 +1304,7 @@
                                     </div>
                                 </div>
                                 <p class="text-sm text-gray-500 mb-4">Descarga un archivo ZIP con el KuDE (PDF) y el XML de cada factura y nota de credito emitida en el periodo. Listo para enviar a la contadora.</p>
-                                <sl-button onclick="exportarPaqueteZIP()" id="btnZIP" variant="neutral" class="w-full" style="--sl-color-neutral-600:#9333ea;--sl-color-neutral-700:#7e22ce;">
+                                <sl-button data-action="exportarPaqueteZIP" id="btnZIP" variant="neutral" class="w-full" style="--sl-color-neutral-600:#9333ea;--sl-color-neutral-700:#7e22ce;">
                                     <i data-lucide="file-archive" class="w-4 h-4"></i> Descargar Paquete Tributario (ZIP)
                                 </sl-button>
                             </div>
@@ -1322,7 +1322,7 @@
                                     </div>
                                 </div>
                                 <p class="text-sm text-gray-500 mb-4">Exporta asientos contables con cuentas: Caja, Cuentas por Cobrar, Ventas, IVA Debito Fiscal. Incluye gastos operativos.</p>
-                                <sl-button onclick="exportarLibroDiario()" id="btnLibroDiario" variant="neutral" class="w-full" style="--sl-color-neutral-600:#059669;--sl-color-neutral-700:#047857;">
+                                <sl-button data-action="exportarLibroDiario" id="btnLibroDiario" variant="neutral" class="w-full" style="--sl-color-neutral-600:#059669;--sl-color-neutral-700:#047857;">
                                     <i data-lucide="download" class="w-4 h-4"></i> Exportar Libro Diario (CSV)
                                 </sl-button>
                             </div>
@@ -1339,7 +1339,7 @@
                                     </div>
                                 </div>
                                 <p class="text-sm text-gray-500 mb-4">Cuadro resumen con totales gravados al 10%, 5%, exentas y neto a declarar para la liquidacion mensual del IVA.</p>
-                                <sl-button onclick="generarResumenIVA()" id="btnResumenIVA" variant="neutral" class="w-full" style="--sl-color-neutral-600:#d97706;--sl-color-neutral-700:#b45309;">
+                                <sl-button data-action="generarResumenIVA" id="btnResumenIVA" variant="neutral" class="w-full" style="--sl-color-neutral-600:#d97706;--sl-color-neutral-700:#b45309;">
                                     <i data-lucide="calculator" class="w-4 h-4"></i> Generar Resumen IVA
                                 </sl-button>
                             </div>
@@ -1465,7 +1465,7 @@
                                 <sl-input type="email" id="cfgEmpresaEmail" class="w-full" size="small" placeholder="facturacion@empresa.com.py"></sl-input>
                             </div>
                         </div>
-                        <sl-button id="btnGuardarConfigEmpresa" onclick="guardarConfigEmpresa()" variant="neutral" size="small">
+                        <sl-button id="btnGuardarConfigEmpresa" data-action="guardarConfigEmpresa" variant="neutral" size="small">
                             <i data-lucide="save" class="w-4 h-4"></i> Guardar Datos Fiscales
                         </sl-button>
                     </div>
@@ -1493,11 +1493,11 @@
                         </div>
 
                         <div class="flex gap-3 flex-wrap mb-4">
-                            <sl-button onclick="crearBackup()" variant="success" size="small"><i data-lucide="download" class="w-4 h-4"></i> Descargar Backup Completo</sl-button>
-                            <sl-button onclick="crearBackupSoloProductos()" variant="success" size="small"><i data-lucide="package" class="w-4 h-4"></i> Solo Catalogo</sl-button>
-                            <sl-button onclick="crearBackupSoloPedidos()" variant="primary" size="small"><i data-lucide="file-text" class="w-4 h-4"></i> Solo Pedidos</sl-button>
-                            <sl-button onclick="document.getElementById('restaurarFile').click()" variant="warning" size="small"><i data-lucide="upload" class="w-4 h-4"></i> Restaurar Backup</sl-button>
-                            <input type="file" id="restaurarFile" accept=".json" style="display:none;" onchange="restaurarBackup(event)">
+                            <sl-button data-action="crearBackup" variant="success" size="small"><i data-lucide="download" class="w-4 h-4"></i> Descargar Backup Completo</sl-button>
+                            <sl-button data-action="crearBackupSoloProductos" variant="success" size="small"><i data-lucide="package" class="w-4 h-4"></i> Solo Catalogo</sl-button>
+                            <sl-button data-action="crearBackupSoloPedidos" variant="primary" size="small"><i data-lucide="file-text" class="w-4 h-4"></i> Solo Pedidos</sl-button>
+                            <sl-button data-action="triggerRestaurarFile" variant="warning" size="small"><i data-lucide="upload" class="w-4 h-4"></i> Restaurar Backup</sl-button>
+                            <input type="file" id="restaurarFile" accept=".json" style="display:none;">
                         </div>
 
                         <!-- Auto-backup Admin -->
@@ -1521,18 +1521,18 @@
                     <div class="saas-card p-6">
                         <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2"><i data-lucide="upload" class="w-5 h-5 text-gray-500"></i> Importar desde Excel/CSV</h3>
                         <div class="flex gap-3 flex-wrap">
-                            <sl-button onclick="document.getElementById('importarFile').click()" variant="primary" size="small"><i data-lucide="upload" class="w-4 h-4"></i> Importar Productos</sl-button>
-                            <input type="file" id="importarFile" accept=".xlsx,.xls,.csv" style="display:none;" onchange="importarProductosExcel(event)">
-                            <sl-button onclick="document.getElementById('importarClientesFile').click()" variant="primary" size="small"><i data-lucide="users" class="w-4 h-4"></i> Importar Clientes</sl-button>
-                            <input type="file" id="importarClientesFile" accept=".xlsx,.xls,.csv" style="display:none;" onchange="importarClientesExcel(event)">
+                            <sl-button data-action="triggerImportarFile" variant="primary" size="small"><i data-lucide="upload" class="w-4 h-4"></i> Importar Productos</sl-button>
+                            <input type="file" id="importarFile" accept=".xlsx,.xls,.csv" style="display:none;">
+                            <sl-button data-action="triggerImportarClientesFile" variant="primary" size="small"><i data-lucide="users" class="w-4 h-4"></i> Importar Clientes</sl-button>
+                            <input type="file" id="importarClientesFile" accept=".xlsx,.xls,.csv" style="display:none;">
                         </div>
                         <div class="mt-4 pt-4 border-t border-gray-100">
                             <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Plantillas de Importacion</p>
                             <div class="flex gap-3 flex-wrap">
-                                <sl-button onclick="descargarPlantillaProductosCSV()" variant="success" size="small"><i data-lucide="download" class="w-4 h-4"></i> Plantilla Productos (CSV)</sl-button>
-                                <sl-button onclick="descargarPlantillaClientesCSV()" variant="success" size="small"><i data-lucide="download" class="w-4 h-4"></i> Plantilla Clientes (CSV)</sl-button>
-                                <sl-button onclick="descargarPlantillaProductos()" variant="default" size="small"><i data-lucide="download" class="w-4 h-4"></i> JSON Productos</sl-button>
-                                <sl-button onclick="descargarPlantillaClientes()" variant="default" size="small"><i data-lucide="download" class="w-4 h-4"></i> JSON Clientes</sl-button>
+                                <sl-button data-action="descargarPlantillaProductosCSV" variant="success" size="small"><i data-lucide="download" class="w-4 h-4"></i> Plantilla Productos (CSV)</sl-button>
+                                <sl-button data-action="descargarPlantillaClientesCSV" variant="success" size="small"><i data-lucide="download" class="w-4 h-4"></i> Plantilla Clientes (CSV)</sl-button>
+                                <sl-button data-action="descargarPlantillaProductos" variant="default" size="small"><i data-lucide="download" class="w-4 h-4"></i> JSON Productos</sl-button>
+                                <sl-button data-action="descargarPlantillaClientes" variant="default" size="small"><i data-lucide="download" class="w-4 h-4"></i> JSON Clientes</sl-button>
                             </div>
                             <p class="text-xs text-gray-400 mt-2">Descarga CSV para Excel/Google Sheets, o JSON para importacion avanzada. Soporta .xlsx, .xls y .csv.</p>
                         </div>
@@ -1553,7 +1553,7 @@
                     <div class="saas-card p-6 !border-red-200">
                         <h3 class="font-bold text-red-600 mb-4 flex items-center gap-2"><i data-lucide="trash-2" class="w-5 h-5"></i> Limpieza de Datos</h3>
                         <p class="text-sm text-gray-500 mb-4 flex items-center gap-1.5"><i data-lucide="alert-triangle" class="w-4 h-4 text-yellow-500"></i> Estas acciones son irreversibles. Se creara un auto-backup antes.</p>
-                        <sl-button onclick="limpiarPedidos()" variant="danger" size="small">Borrar Todos los Pedidos</sl-button>
+                        <sl-button data-action="limpiarPedidos" variant="danger" size="small">Borrar Todos los Pedidos</sl-button>
                     </div>
                 </div>
             </section>
@@ -1568,8 +1568,8 @@
             <span class="font-medium">Cambios pendientes</span>
         </div>
         <div class="flex gap-2">
-            <sl-button variant="text" size="small" onclick="descartarCambios()" style="--sl-color-neutral-700:#9ca3af;">Descartar</sl-button>
-            <sl-button id="btnGuardarSync" variant="default" size="small" onclick="guardarTodosCambios()"><i data-lucide="save" class="w-4 h-4"></i> Guardar y Sincronizar</sl-button>
+            <sl-button variant="text" size="small" data-action="descartarCambios" style="--sl-color-neutral-700:#9ca3af;">Descartar</sl-button>
+            <sl-button id="btnGuardarSync" variant="default" size="small" data-action="guardarTodosCambios"><i data-lucide="save" class="w-4 h-4"></i> Guardar y Sincronizar</sl-button>
         </div>
     </div>
 
@@ -1592,9 +1592,9 @@
                         <div class="flex-1 space-y-2">
                             <label class="block w-full cursor-pointer bg-blue-600 text-white text-center py-2 rounded-lg text-sm font-bold hover:bg-blue-700 transition-colors">
                                 <span class="flex items-center justify-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg> Subir imagen</span>
-                                <input type="file" accept="image/jpeg,image/png,image/webp" id="productImageInput" class="hidden" onchange="previsualizarImagenProducto(event)">
+                                <input type="file" accept="image/jpeg,image/png,image/webp" id="productImageInput" class="hidden">
                             </label>
-                            <sl-button type="button" onclick="quitarImagenProducto()" id="btnQuitarImagen" variant="text" size="small" class="w-full hidden" style="--sl-color-primary-600:#ef4444; --sl-color-primary-700:#b91c1c; font-weight:700;">
+                            <sl-button type="button" data-action="quitarImagenProducto" id="btnQuitarImagen" variant="text" size="small" class="w-full hidden" style="--sl-color-primary-600:#ef4444; --sl-color-primary-700:#b91c1c; font-weight:700;">
                                 <sl-icon name="trash" slot="prefix" style="font-size:0.75rem;"></sl-icon>Quitar imagen
                             </sl-button>
                             <p class="text-[10px] text-gray-400">JPG, PNG o WebP. Se comprime automaticamente.</p>
@@ -1683,7 +1683,7 @@
                 <div id="camposVariantes" class="hidden">
                     <div class="flex items-center justify-between mb-2">
                         <p class="text-xs font-bold text-gray-500 uppercase">VARIANTES</p>
-                        <sl-button type="button" onclick="agregarFilaVariante()" variant="text" size="small" style="--sl-color-primary-600:#2563eb; --sl-color-primary-700:#1d4ed8; font-weight:700;">
+                        <sl-button type="button" data-action="agregarFilaVariante" variant="text" size="small" style="--sl-color-primary-600:#2563eb; --sl-color-primary-700:#1d4ed8; font-weight:700;">
                             <sl-icon name="plus-circle" slot="prefix" style="font-size:0.875rem;"></sl-icon>
                             Agregar variante
                         </sl-button>
@@ -1695,8 +1695,8 @@
                 <div id="presentacionesDetalladas" style="display:none;"></div>
             </div>
             <div slot="footer" class="flex justify-end gap-3">
-                <sl-button onclick="cerrarModalProducto()" variant="text" size="small">Cancelar</sl-button>
-                <sl-button id="btnGuardarProducto" onclick="guardarProductoModal()" variant="neutral" size="small">Guardar</sl-button>
+                <sl-button data-action="cerrarModalProducto" variant="text" size="small">Cancelar</sl-button>
+                <sl-button id="btnGuardarProducto" data-action="guardarProductoModal" variant="neutral" size="small">Guardar</sl-button>
             </div>
     </sl-dialog>
 
@@ -1706,7 +1706,7 @@
                 <div class="flex gap-2 mb-4">
                     <sl-input type="text" id="nuevaCategoriaId" class="flex-1" size="small" placeholder="ID (ej: limpieza)"></sl-input>
                     <sl-input type="text" id="nuevaCategoriaNombre" class="flex-1" size="small" placeholder="Nombre (ej: Limpieza)"></sl-input>
-                    <sl-button onclick="agregarCategoriaModal()" variant="neutral" size="small">+</sl-button>
+                    <sl-button data-action="agregarCategoriaModal" variant="neutral" size="small">+</sl-button>
                 </div>
                 <div id="listaCategoriasCuerpo" class="space-y-3"></div>
             </div>
@@ -1755,8 +1755,8 @@
                 </div>
             </div>
             <div slot="footer" class="flex justify-end gap-3">
-                <sl-button onclick="cerrarModalCliente()" variant="text" size="small">Cancelar</sl-button>
-                <sl-button id="btnGuardarCliente" onclick="guardarClienteModal()" variant="neutral" size="small">Guardar</sl-button>
+                <sl-button data-action="cerrarModalCliente" variant="text" size="small">Cancelar</sl-button>
+                <sl-button id="btnGuardarCliente" data-action="guardarClienteModal" variant="neutral" size="small">Guardar</sl-button>
             </div>
     </sl-dialog>
 
@@ -1773,7 +1773,7 @@
                         <sl-button id="perfilClienteEditarBtn" variant="neutral" size="small">Editar</sl-button>
                         <sl-button id="perfilClienteOcultarBtn" variant="warning" size="small">Ocultar</sl-button>
                         <sl-button id="perfilClienteEliminarBtn" variant="danger" size="small">Eliminar</sl-button>
-                        <sl-button onclick="cerrarPerfilCliente()" variant="text" size="small">✕</sl-button>
+                        <sl-button data-action="cerrarPerfilCliente" variant="text" size="small">✕</sl-button>
                     </div>
                 </div>
                 <!-- Stats cards -->
@@ -1798,9 +1798,9 @@
             </div>
             <!-- Tabs -->
             <div class="flex border-b border-gray-200">
-                <button onclick="cambiarTabPerfil('precios')" id="tabPerfil-precios" class="px-6 py-3 text-sm font-bold border-b-2 border-gray-800 text-gray-800">Precios Especiales</button>
-                <button onclick="cambiarTabPerfil('historial')" id="tabPerfil-historial" class="px-6 py-3 text-sm font-bold border-b-2 border-transparent text-gray-400 hover:text-gray-600">Historial</button>
-                <button onclick="cambiarTabPerfil('estadisticas')" id="tabPerfil-estadisticas" class="px-6 py-3 text-sm font-bold border-b-2 border-transparent text-gray-400 hover:text-gray-600">Estadisticas</button>
+                <button data-action="cambiarTabPerfil" data-arg="precios" id="tabPerfil-precios" class="px-6 py-3 text-sm font-bold border-b-2 border-gray-800 text-gray-800">Precios Especiales</button>
+                <button data-action="cambiarTabPerfil" data-arg="historial" id="tabPerfil-historial" class="px-6 py-3 text-sm font-bold border-b-2 border-transparent text-gray-400 hover:text-gray-600">Historial</button>
+                <button data-action="cambiarTabPerfil" data-arg="estadisticas" id="tabPerfil-estadisticas" class="px-6 py-3 text-sm font-bold border-b-2 border-transparent text-gray-400 hover:text-gray-600">Estadisticas</button>
             </div>
             <div class="p-6">
                 <div id="perfilTab-precios"></div>
@@ -1836,7 +1836,7 @@
                 <div>
                     <p class="text-xs font-bold text-gray-500 mb-2">PRODUCTOS</p>
                     <div id="editPedidoItems" class="space-y-2"></div>
-                    <sl-button onclick="agregarItemEditPedido()" variant="text" size="small" class="mt-3" style="--sl-color-primary-600:#2563eb; --sl-color-primary-700:#1d4ed8; font-weight:700;">
+                    <sl-button data-action="agregarItemEditPedido" variant="text" size="small" class="mt-3" style="--sl-color-primary-600:#2563eb; --sl-color-primary-700:#1d4ed8; font-weight:700;">
                         <sl-icon name="plus-circle" slot="prefix" style="font-size:0.875rem;"></sl-icon>Agregar producto
                     </sl-button>
                 </div>
@@ -1860,12 +1860,12 @@
             </div>
             <div slot="footer" class="flex justify-between w-full">
                 <div class="flex gap-2">
-                    <sl-button onclick="generarPDFRemision(pedidoEditandoId)" variant="neutral" size="small"><i data-lucide="file-text" class="w-4 h-4"></i> PDF A4</sl-button>
-                    <sl-button onclick="generarTicketTermico(pedidoEditandoId)" variant="neutral" size="small"><i data-lucide="printer" class="w-4 h-4"></i> Ticket</sl-button>
+                    <sl-button data-action="generarPDFRemisionEditing" variant="neutral" size="small"><i data-lucide="file-text" class="w-4 h-4"></i> PDF A4</sl-button>
+                    <sl-button data-action="generarTicketTermicoEditing" variant="neutral" size="small"><i data-lucide="printer" class="w-4 h-4"></i> Ticket</sl-button>
                 </div>
                 <div class="flex gap-3">
-                    <sl-button onclick="cerrarModalEditarPedido()" variant="text" size="small">Cancelar</sl-button>
-                    <sl-button id="btnGuardarEdicionPedido" onclick="guardarEdicionPedido()" variant="neutral" size="small">Guardar Cambios</sl-button>
+                    <sl-button data-action="cerrarModalEditarPedido" variant="text" size="small">Cancelar</sl-button>
+                    <sl-button id="btnGuardarEdicionPedido" data-action="guardarEdicionPedido" variant="neutral" size="small">Guardar Cambios</sl-button>
                 </div>
             </div>
     </sl-dialog>
@@ -1886,7 +1886,7 @@
                         <sl-button id="perfilProductoEditarBtn" variant="neutral" size="small">Editar</sl-button>
                         <sl-button id="perfilProductoOcultarBtn" variant="warning" size="small"></sl-button>
                         <sl-button id="perfilProductoEliminarBtn" variant="danger" size="small">Eliminar</sl-button>
-                        <sl-button onclick="cerrarPerfilProducto()" variant="text" size="small">x</sl-button>
+                        <sl-button data-action="cerrarPerfilProducto" variant="text" size="small">x</sl-button>
                     </div>
                 </div>
             </div>
@@ -1898,7 +1898,7 @@
                 <div id="perfilProductoStockSection">
                     <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Stock por Presentacion</p>
                     <div id="perfilProductoStock" class="space-y-2"></div>
-                    <sl-button onclick="guardarStockDesdePerfilProducto()" variant="neutral" size="small" class="mt-3"><i data-lucide="save" class="w-4 h-4"></i> Guardar Stock</sl-button>
+                    <sl-button data-action="guardarStockDesdePerfilProducto" variant="neutral" size="small" class="mt-3"><i data-lucide="save" class="w-4 h-4"></i> Guardar Stock</sl-button>
                 </div>
             </div>
     </sl-dialog>
@@ -1914,17 +1914,17 @@
             <p class="text-xs font-mono bg-gray-100 rounded-lg p-2 mb-4 text-gray-700" id="adminFacturaNumero"></p>
             <div class="space-y-2">
                 <div class="grid grid-cols-2 gap-2">
-                    <sl-button onclick="adminImprimirVenta('thermal')" variant="neutral" class="w-full">
+                    <sl-button data-action="adminImprimirVenta" data-arg="thermal" variant="neutral" class="w-full">
                         <i data-lucide="printer" class="w-4 h-4"></i> Ticket 58mm
                     </sl-button>
-                    <sl-button onclick="adminImprimirVenta('a4')" variant="neutral" class="w-full">
+                    <sl-button data-action="adminImprimirVenta" data-arg="a4" variant="neutral" class="w-full">
                         <i data-lucide="file-text" class="w-4 h-4"></i> Imprimir A4
                     </sl-button>
                 </div>
                 <a id="adminFacturaWhatsApp" href="#" target="_blank" class="block w-full bg-[#25D366] text-white py-3 rounded-xl font-bold text-sm text-center">
                     <span class="flex items-center justify-center gap-2"><i data-lucide="message-circle" class="w-4 h-4"></i> Enviar por WhatsApp</span>
                 </a>
-                <sl-button onclick="cerrarModalFacturaAdmin()" variant="default" class="w-full">Cerrar</sl-button>
+                <sl-button data-action="cerrarModalFacturaAdmin" variant="default" class="w-full">Cerrar</sl-button>
             </div>
         </div>
     </sl-dialog>
@@ -1932,13 +1932,13 @@
     <!-- MODAL ELEGIR FORMATO IMPRESION (re-imprimir desde ventas) -->
     <sl-dialog id="modalElegirImpresion" label="Formato de Impresion" style="--width: 20rem;">
         <div class="space-y-2">
-            <sl-button onclick="ejecutarReimpresion('thermal')" variant="neutral" class="w-full">
+            <sl-button data-action="ejecutarReimpresion" data-arg="thermal" variant="neutral" class="w-full">
                 <i data-lucide="printer" class="w-4 h-4"></i> Ticket Termico (58mm)
             </sl-button>
-            <sl-button onclick="ejecutarReimpresion('a4')" variant="neutral" class="w-full">
+            <sl-button data-action="ejecutarReimpresion" data-arg="a4" variant="neutral" class="w-full">
                 <i data-lucide="file-text" class="w-4 h-4"></i> Hoja A4
             </sl-button>
-            <sl-button onclick="cerrarModalElegirImpresion()" variant="default" class="w-full">Cancelar</sl-button>
+            <sl-button data-action="cerrarModalElegirImpresion" variant="default" class="w-full">Cancelar</sl-button>
         </div>
     </sl-dialog>
 
@@ -1953,14 +1953,14 @@
             <p class="text-xs font-mono bg-gray-100 rounded-lg p-2 mb-4 text-gray-700" id="ncNumeroDisplay"></p>
             <div class="space-y-2">
                 <div class="grid grid-cols-2 gap-2">
-                    <sl-button onclick="imprimirNC('thermal')" variant="neutral" class="w-full">
+                    <sl-button data-action="imprimirNC" data-arg="thermal" variant="neutral" class="w-full">
                         <i data-lucide="printer" class="w-4 h-4"></i> Ticket 58mm
                     </sl-button>
-                    <sl-button onclick="imprimirNC('a4')" variant="neutral" class="w-full">
+                    <sl-button data-action="imprimirNC" data-arg="a4" variant="neutral" class="w-full">
                         <i data-lucide="file-text" class="w-4 h-4"></i> Imprimir A4
                     </sl-button>
                 </div>
-                <sl-button onclick="cerrarModalNC()" variant="default" class="w-full">Cerrar</sl-button>
+                <sl-button data-action="cerrarModalNC" variant="default" class="w-full">Cerrar</sl-button>
             </div>
         </div>
     </sl-dialog>
@@ -1974,7 +1974,7 @@
         <div id="modalForenseBody" class="bg-gray-50 rounded-lg p-4">
         </div>
         <div slot="footer" class="flex justify-end">
-            <sl-button onclick="cerrarModalForense()" variant="default" size="small">Cerrar</sl-button>
+            <sl-button data-action="cerrarModalForense" variant="default" size="small">Cerrar</sl-button>
         </div>
     </sl-dialog>
 
@@ -2002,8 +2002,8 @@
             <div class="p-6 border-t border-gray-100 flex justify-between items-center">
                 <span id="mapeoPreview" class="text-sm text-gray-500"></span>
                 <div class="flex gap-3">
-                    <sl-button onclick="cerrarModalMapeo()" variant="default" size="small">Cancelar</sl-button>
-                    <sl-button onclick="confirmarImportacion()" variant="primary" size="small">Importar</sl-button>
+                    <sl-button data-action="cerrarModalMapeo" variant="default" size="small">Cancelar</sl-button>
+                    <sl-button data-action="confirmarImportacion" variant="primary" size="small">Importar</sl-button>
                 </div>
             </div>
         </div>

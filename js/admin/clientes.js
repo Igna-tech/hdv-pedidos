@@ -75,7 +75,7 @@ function mostrarClientesGestion() {
         const tr = document.createElement('tr');
         tr.className = `hover:bg-gray-50 cursor-pointer ${oculto ? 'opacity-40' : ''}`;
         tr.innerHTML = `
-            <td class="px-4 py-3" onclick="abrirPerfilCliente('${escapeHTML(c.id)}')">
+            <td class="px-4 py-3" data-action="abrirPerfilCliente" data-arg="${escapeHTML(c.id)}">
                 <p class="font-medium text-gray-800">${escapeHTML(nombre)}</p>
                 <p class="text-xs text-gray-500">${escapeHTML(c.ruc || '')} ${c.encargado ? '| ' + escapeHTML(c.encargado) : ''}</p>
             </td>
@@ -90,10 +90,10 @@ function mostrarClientesGestion() {
     if (pagEl) {
         pagEl.innerHTML = `<span>${total} clientes | Pagina ${paginaClientes} de ${totalPaginas}</span>
         <div class="flex gap-2">
-            <sl-button onclick="paginaClientes=1;mostrarClientesGestion()" variant="default" size="small" ${paginaClientes <= 1 ? 'disabled' : ''}>&lt;&lt;</sl-button>
-            <sl-button onclick="paginaClientes--;mostrarClientesGestion()" variant="default" size="small" ${paginaClientes <= 1 ? 'disabled' : ''}>&lt;</sl-button>
-            <sl-button onclick="paginaClientes++;mostrarClientesGestion()" variant="default" size="small" ${paginaClientes >= totalPaginas ? 'disabled' : ''}>&gt;</sl-button>
-            <sl-button onclick="paginaClientes=${totalPaginas};mostrarClientesGestion()" variant="default" size="small" ${paginaClientes >= totalPaginas ? 'disabled' : ''}>&gt;&gt;</sl-button>
+            <sl-button data-action="paginaClientesFirst" variant="default" size="small" ${paginaClientes <= 1 ? 'disabled' : ''}>&lt;&lt;</sl-button>
+            <sl-button data-action="paginaClientesPrev" variant="default" size="small" ${paginaClientes <= 1 ? 'disabled' : ''}>&lt;</sl-button>
+            <sl-button data-action="paginaClientesNext" variant="default" size="small" ${paginaClientes >= totalPaginas ? 'disabled' : ''}>&gt;</sl-button>
+            <sl-button data-action="paginaClientesLast" data-total="${totalPaginas}" variant="default" size="small" ${paginaClientes >= totalPaginas ? 'disabled' : ''}>&gt;&gt;</sl-button>
         </div>`;
     }
 }
@@ -127,8 +127,8 @@ async function mostrarClientesPendientes() {
                             <p class="text-xs text-gray-400">${new Date(c.fechaSolicitud).toLocaleDateString('es-PY')}</p>
                         </div>
                         <div class="flex gap-2">
-                            <sl-button onclick="aprobarClientePendiente('${c.id}')" variant="success" size="small">Aprobar</sl-button>
-                            <sl-button onclick="rechazarClientePendiente('${c.id}')" variant="danger" size="small">Rechazar</sl-button>
+                            <sl-button data-action="aprobarClientePendiente" data-arg="${c.id}" variant="success" size="small">Aprobar</sl-button>
+                            <sl-button data-action="rechazarClientePendiente" data-arg="${c.id}" variant="danger" size="small">Rechazar</sl-button>
                         </div>
                     </div>`).join('')}
             </div>
@@ -363,10 +363,10 @@ function renderizarPerfilPrecios() {
 
     let html = `<div class="flex justify-between items-center mb-4"><h4 class="font-bold text-gray-700">Precios Especiales</h4>
         <div class="flex gap-2 flex-wrap">
-            <sl-button onclick="aplicarDescuentoCategoria()" variant="neutral" size="small">% Categoria</sl-button>
-            <sl-button onclick="copiarPreciosDeCliente()" variant="neutral" size="small">Copiar de otro</sl-button>
-            <sl-button onclick="importarPreciosCSV()" variant="neutral" size="small">Importar CSV</sl-button>
-            <sl-button onclick="agregarPrecioEspecial()" variant="primary" size="small">+ Agregar</sl-button>
+            <sl-button data-action="aplicarDescuentoCategoria" variant="neutral" size="small">% Categoria</sl-button>
+            <sl-button data-action="copiarPreciosDeCliente" variant="neutral" size="small">Copiar de otro</sl-button>
+            <sl-button data-action="importarPreciosCSV" variant="neutral" size="small">Importar CSV</sl-button>
+            <sl-button data-action="agregarPrecioEspecial" variant="primary" size="small">+ Agregar</sl-button>
         </div></div>`;
 
     const precios = cliente.precios_personalizados || {};
@@ -385,7 +385,7 @@ function renderizarPerfilPrecios() {
                     <td class="px-4 py-2 text-gray-500">${escapeHTML(pe.tamano)}</td>
                     <td class="px-4 py-2 text-gray-400">${formatearGuaranies(precioBase)}</td>
                     <td class="px-4 py-2 font-bold text-blue-700">${formatearGuaranies(pe.precio)}</td>
-                    <td class="px-4 py-2 text-center"><sl-button onclick="eliminarPrecioEspecial('${escapeHTML(prodId)}','${escapeHTML(pe.tamano)}')" variant="text" size="small">x</sl-button></td>
+                    <td class="px-4 py-2 text-center"><sl-button data-action="eliminarPrecioEspecial" data-prod-id="${escapeHTML(prodId)}" data-tamano="${escapeHTML(pe.tamano)}" variant="text" size="small">x</sl-button></td>
                 </tr>`;
             });
         });
@@ -608,8 +608,8 @@ async function renderizarPerfilHistorial() {
                 <sl-option value="cobrado_sin_factura">Cobrado</sl-option>
                 <sl-option value="anulado">Anulado</sl-option>
             </sl-select></div>
-        <sl-button onclick="renderizarPerfilHistorial()" variant="neutral" size="small">Filtrar</sl-button>
-        <sl-button onclick="exportarHistorialClienteCSV()" variant="text" size="small">CSV</sl-button>
+        <sl-button data-action="renderizarPerfilHistorial" variant="neutral" size="small">Filtrar</sl-button>
+        <sl-button data-action="exportarHistorialClienteCSV" variant="text" size="small">CSV</sl-button>
     </div>`;
 
     html += `<p class="text-xs text-gray-500 mb-3">${pedidosCliente.length} pedidos | Total: ${formatearGuaranies(totalFiltrado)}</p>`;
@@ -620,7 +620,7 @@ async function renderizarPerfilHistorial() {
         html += '<div class="space-y-3">' + pedidosCliente.map(p => {
             const items = (p.items || []).map(i => `${escapeHTML(i.nombre)} x${i.cantidad}`).join(', ');
             const { clases: estadoColor, label: estadoLabel } = obtenerEstadoUI(p.estado, '700');
-            return `<div class="bg-gray-50 rounded-lg p-3 cursor-pointer hover:bg-gray-100 transition-colors" onclick="mostrarDetallePedidoCliente('${p.id}')">
+            return `<div class="bg-gray-50 rounded-lg p-3 cursor-pointer hover:bg-gray-100 transition-colors" data-action="mostrarDetallePedidoCliente" data-arg="${p.id}">
                 <div class="flex justify-between items-center mb-1">
                     <span class="text-xs text-gray-400">${new Date(p.fecha).toLocaleDateString('es-PY')} | ${escapeHTML(p.id)}</span>
                     <span class="text-xs px-2 py-0.5 rounded-full font-bold ${estadoColor}">${estadoLabel}</span>
@@ -923,7 +923,7 @@ async function cargarClientesInactivos() {
                     <p class="text-xs text-blue-600 mt-1">Promedio mensual estimado: ${formatearGuaranies(a.promedioMensual)}</p>
                 </div>
                 <div class="flex gap-2 ml-4">
-                    ${tel ? `<sl-button onclick="enviarWhatsAppReactivacion('${escapeHTML(tel)}', '${escapeHTML(nombre.replace(/'/g, ''))}')" variant="success" size="small"><i data-lucide="send" class="w-3 h-3"></i> WhatsApp</sl-button>` : ''}
+                    ${tel ? `<sl-button data-action="enviarWhatsAppReactivacion" data-tel="${escapeHTML(tel)}" data-nombre="${escapeHTML(nombre.replace(/'/g, ''))}" variant="success" size="small"><i data-lucide="send" class="w-3 h-3"></i> WhatsApp</sl-button>` : ''}
                 </div>
             </div>
         </div>`;

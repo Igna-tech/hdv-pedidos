@@ -75,25 +75,205 @@ function generarAdminEmptyState(svgIcon, titulo, subtitulo, botonTexto, botonOnc
 }
 
 // V2-A02: Whitelist dispatcher para empty-state buttons (reemplaza new Function)
+// Mapa centralizado de acciones. Cada handler recibe (btn, arg) donde:
+//   btn = elemento DOM que disparó el click
+//   arg = btn.dataset.arg (string, puede ser undefined)
+// Para args múltiples se usan dataset.arg1, dataset.arg2, etc.
 const ACTION_DISPATCH = {
-    "cambiarSeccion('productos')": () => cambiarSeccion('productos'),
-    "cambiarSeccion('clientes')": () => cambiarSeccion('clientes'),
-    "cambiarSeccion('pedidos')": () => cambiarSeccion('pedidos'),
-    "cambiarSeccion('creditos')": () => cambiarSeccion('creditos'),
-    "cambiarSeccion('stock')": () => cambiarSeccion('stock'),
-    "cambiarSeccion('dashboard')": () => cambiarSeccion('dashboard'),
-    "cambiarSeccion('ventas')": () => cambiarSeccion('ventas'),
-    "cambiarSeccion('herramientas')": () => cambiarSeccion('herramientas'),
-    "cambiarSeccion('forense')": () => cambiarSeccion('forense'),
+    // === Navegación ===
+    'cambiarSeccion':                   (_, a) => cambiarSeccion(a),
+    'toggleSidebar':                    ()     => toggleSidebar(),
+    'cerrarBusquedaGlobal':             ()     => cerrarBusquedaGlobal(),
+    'abrirBusquedaGlobal':              ()     => abrirBusquedaGlobal(),
+    'forzarActualizacionAdmin':         ()     => forzarActualizacionAdmin(),
+    'cerrarSesion':                     ()     => cerrarSesion(),
+
+    // === Dashboard / Cierre mensual ===
+    'exportarResumenMensualPDF':        ()     => exportarResumenMensualPDF(),
+    'guardarResumenMensual':            ()     => guardarResumenMensual(),
+    'previsualizarCierre':              ()     => previsualizarCierre(),
+    'exportarLibroRG90':                ()     => exportarLibroRG90(),
+    'exportarPaqueteZIP':               ()     => exportarPaqueteZIP(),
+    'exportarLibroDiario':              ()     => exportarLibroDiario(),
+    'generarResumenIVA':                ()     => generarResumenIVA(),
+
+    // === Pedidos ===
+    'filtrarPedidos':                   ()     => filtrarPedidos(),
+    'exportarExcelPedidos':             ()     => exportarExcelPedidos(),
+
+    // === Ventas ===
+    'filtrarVentas':                    ()     => typeof filtrarVentas === 'function' && filtrarVentas(),
+    'exportarVentasSemanalesCSV':       ()     => typeof exportarVentasSemanalesCSV === 'function' && exportarVentasSemanalesCSV(),
+    'adminImprimirVenta':               (_, a) => typeof adminImprimirVenta === 'function' && adminImprimirVenta(a),
+    'cerrarModalFacturaAdmin':          ()     => typeof cerrarModalFacturaAdmin === 'function' && cerrarModalFacturaAdmin(),
+    'ejecutarReimpresion':              (_, a) => typeof ejecutarReimpresion === 'function' && ejecutarReimpresion(a),
+    'cerrarModalElegirImpresion':       ()     => typeof cerrarModalElegirImpresion === 'function' && cerrarModalElegirImpresion(),
+
+    // === Devoluciones ===
+    'buscarFacturaDevolucion':          ()     => typeof buscarFacturaDevolucion === 'function' && buscarFacturaDevolucion(),
+    'cancelarFactura48hs':              ()     => typeof cancelarFactura48hs === 'function' && cancelarFactura48hs(),
+    'procesarNotaCredito':              ()     => typeof procesarNotaCredito === 'function' && procesarNotaCredito(),
+    'limpiarDevolucion':                ()     => typeof limpiarDevolucion === 'function' && limpiarDevolucion(),
+    'imprimirNC':                       (_, a) => typeof imprimirNC === 'function' && imprimirNC(a),
+    'cerrarModalNC':                    ()     => typeof cerrarModalNC === 'function' && cerrarModalNC(),
+    'reimprimirNC':                     (_, a) => typeof reimprimirNC === 'function' && reimprimirNC(a),
+
+    // === Créditos ===
+    'guardarConfigCreditos':            ()     => typeof guardarConfigCreditos === 'function' && guardarConfigCreditos(),
+    'agregarCreditoManual':             ()     => typeof agregarCreditoManual === 'function' && agregarCreditoManual(),
+    'editarMensajeRecordatorio':        ()     => typeof editarMensajeRecordatorio === 'function' && editarMensajeRecordatorio(),
+    'toggleVistaCreditos':              (_, a) => typeof toggleVistaCreditos === 'function' && toggleVistaCreditos(a),
+    'registrarPagoCredito':             (_, a) => typeof registrarPagoCredito === 'function' && registrarPagoCredito(a),
+    'enviarRecordatorioWhatsApp':       (_, a) => typeof enviarRecordatorioWhatsApp === 'function' && enviarRecordatorioWhatsApp(a),
+    'verHistorialPagos':                (_, a) => typeof verHistorialPagos === 'function' && verHistorialPagos(a),
+    'marcarPagado':                     (_, a) => typeof marcarPagado === 'function' && marcarPagado(a),
+    'editarPagosCreditoPedido':         (_, a) => typeof editarPagosCreditoPedido === 'function' && editarPagosCreditoPedido(a),
+    'eliminarCreditoPedido':            (_, a) => typeof eliminarCreditoPedido === 'function' && eliminarCreditoPedido(a),
+    'registrarPagoManual':              (_, a) => typeof registrarPagoManual === 'function' && registrarPagoManual(a),
+    'enviarRecordatorioManualWhatsApp': (_, a) => typeof enviarRecordatorioManualWhatsApp === 'function' && enviarRecordatorioManualWhatsApp(a),
+    'editarCreditoManualItem':          (_, a) => typeof editarCreditoManualItem === 'function' && editarCreditoManualItem(a),
+    'eliminarCreditoManualItem':        (_, a) => typeof eliminarCreditoManualItem === 'function' && eliminarCreditoManualItem(a),
+    'mostrarDetalleCredito':            (_, a) => typeof mostrarDetalleCredito === 'function' && mostrarDetalleCredito(a),
+
+    // === Reportes ===
+    'generarReporte':                   (_, a) => typeof generarReporte === 'function' && generarReporte(a),
+    'exportarReporteVendedorCSV':       ()     => typeof exportarReporteVendedorCSV === 'function' && exportarReporteVendedorCSV(),
+
+    // === Stock ===
+    'stockNavegar':                     (_, a) => typeof stockNavegar === 'function' && stockNavegar(a),
+    'guardarStock':                     ()     => typeof guardarStock === 'function' && guardarStock(),
+    'guardarStockDesdePerfilProducto':  ()     => typeof guardarStockDesdePerfilProducto === 'function' && guardarStockDesdePerfilProducto(),
+    'cerrarPerfilProducto':             ()     => typeof cerrarPerfilProducto === 'function' && cerrarPerfilProducto(),
+
+    // === Productos ===
+    'productosNavegar':                 (_, a) => typeof productosNavegar === 'function' && productosNavegar(a),
+    'abrirModalCategorias':             ()     => typeof abrirModalCategorias === 'function' && abrirModalCategorias(),
+    'abrirModalProducto':               ()     => typeof abrirModalProducto === 'function' && abrirModalProducto(),
+    'cerrarModalProducto':              ()     => typeof cerrarModalProducto === 'function' && cerrarModalProducto(),
+    'guardarProductoModal':             ()     => typeof guardarProductoModal === 'function' && guardarProductoModal(),
+    'quitarImagenProducto':             ()     => typeof quitarImagenProducto === 'function' && quitarImagenProducto(),
+    'agregarFilaVariante':              ()     => typeof agregarFilaVariante === 'function' && agregarFilaVariante(),
+    'agregarCategoriaModal':            ()     => typeof agregarCategoriaModal === 'function' && agregarCategoriaModal(),
+
+    // === Clientes ===
+    'abrirModalCliente':                ()     => typeof abrirModalCliente === 'function' && abrirModalCliente(),
+    'cerrarModalCliente':               ()     => typeof cerrarModalCliente === 'function' && cerrarModalCliente(),
+    'guardarClienteModal':              ()     => typeof guardarClienteModal === 'function' && guardarClienteModal(),
+    'abrirPerfilCliente':               (_, a) => typeof abrirPerfilCliente === 'function' && abrirPerfilCliente(a),
+    'cerrarPerfilCliente':              ()     => typeof cerrarPerfilCliente === 'function' && cerrarPerfilCliente(),
+    'cambiarTabPerfil':                 (_, a) => typeof cambiarTabPerfil === 'function' && cambiarTabPerfil(a),
+    'ordenarClientes':                  (_, a) => typeof ordenarClientes === 'function' && ordenarClientes(a),
+    'paginaClientesFirst':              ()     => { if (typeof paginaClientes !== 'undefined') { paginaClientes = 1; mostrarClientesGestion(); } },
+    'paginaClientesPrev':               ()     => { if (typeof paginaClientes !== 'undefined') { paginaClientes--; mostrarClientesGestion(); } },
+    'paginaClientesNext':               ()     => { if (typeof paginaClientes !== 'undefined') { paginaClientes++; mostrarClientesGestion(); } },
+    'paginaClientesLast':               (btn)  => { if (typeof paginaClientes !== 'undefined') { paginaClientes = parseInt(btn.dataset.total); mostrarClientesGestion(); } },
+    'aprobarClientePendiente':          (_, a) => typeof aprobarClientePendiente === 'function' && aprobarClientePendiente(a),
+    'rechazarClientePendiente':         (_, a) => typeof rechazarClientePendiente === 'function' && rechazarClientePendiente(a),
+    'mostrarDetallePedidoCliente':      (_, a) => typeof mostrarDetallePedidoCliente === 'function' && mostrarDetallePedidoCliente(a),
+    'renderizarPerfilHistorial':        ()     => typeof renderizarPerfilHistorial === 'function' && renderizarPerfilHistorial(),
+    'exportarHistorialClienteCSV':      ()     => typeof exportarHistorialClienteCSV === 'function' && exportarHistorialClienteCSV(),
+    'enviarWhatsAppReactivacion':       (btn)  => typeof enviarWhatsAppReactivacion === 'function' && enviarWhatsAppReactivacion(btn.dataset.tel, btn.dataset.nombre),
+    'aplicarDescuentoCategoria':        ()     => typeof aplicarDescuentoCategoria === 'function' && aplicarDescuentoCategoria(),
+    'copiarPreciosDeCliente':           ()     => typeof copiarPreciosDeCliente === 'function' && copiarPreciosDeCliente(),
+    'importarPreciosCSV':               ()     => typeof importarPreciosCSV === 'function' && importarPreciosCSV(),
+    'agregarPrecioEspecial':            ()     => typeof agregarPrecioEspecial === 'function' && agregarPrecioEspecial(),
+    'eliminarPrecioEspecial':           (btn)  => typeof eliminarPrecioEspecial === 'function' && eliminarPrecioEspecial(btn.dataset.prodId, btn.dataset.tamano),
+
+    // === Promociones ===
+    'abrirModalPromocion':              (_, a) => typeof abrirModalPromocion === 'function' && abrirModalPromocion(a),
+    'cerrarModalPromocion':             ()     => typeof cerrarModalPromocion === 'function' && cerrarModalPromocion(),
+    'guardarPromocion':                 ()     => typeof guardarPromocion === 'function' && guardarPromocion(),
+    'togglePromocion':                  (_, a) => typeof togglePromocion === 'function' && togglePromocion(a),
+    'eliminarPromocion':                (_, a) => typeof eliminarPromocion === 'function' && eliminarPromocion(a),
+
+    // === Rendiciones / Gastos / Cuentas bancarias ===
+    'cargarRendiciones':                ()     => typeof cargarRendiciones === 'function' && cargarRendiciones(),
+    'exportarRendicionPDF':             ()     => typeof exportarRendicionPDF === 'function' && exportarRendicionPDF(),
+    'agregarGastoAdmin':                ()     => typeof agregarGastoAdmin === 'function' && agregarGastoAdmin(),
+    'eliminarGastoAdmin':               (_, a) => typeof eliminarGastoAdmin === 'function' && eliminarGastoAdmin(a),
+    'abrirModalCuentaBancaria':         ()     => typeof abrirModalCuentaBancaria === 'function' && abrirModalCuentaBancaria(),
+    'cerrarModalCuentaBancaria':        ()     => typeof cerrarModalCuentaBancaria === 'function' && cerrarModalCuentaBancaria(),
+    'guardarCuentaBancaria':            ()     => typeof guardarCuentaBancaria === 'function' && guardarCuentaBancaria(),
+    'editarCuentaBancaria':             (_, a) => typeof editarCuentaBancaria === 'function' && editarCuentaBancaria(a),
+    'eliminarCuentaBancaria':           (_, a) => typeof eliminarCuentaBancaria === 'function' && eliminarCuentaBancaria(a),
+    'aprobarRendicion':                 (_, a) => typeof aprobarRendicion === 'function' && aprobarRendicion(a),
+    'marcarRendicionPagada':            (_, a) => typeof marcarRendicionPagada === 'function' && marcarRendicionPagada(a),
+
+    // === Metas ===
+    'abrirModalMeta':                   ()     => typeof abrirModalMeta === 'function' && abrirModalMeta(),
+    'cerrarModalMeta':                  ()     => typeof cerrarModalMeta === 'function' && cerrarModalMeta(),
+    'guardarMeta':                      ()     => typeof guardarMeta === 'function' && guardarMeta(),
+
+    // === Configuración empresa ===
+    'guardarConfigEmpresa':             ()     => guardarConfigEmpresa(),
+
+    // === Herramientas / Backups ===
+    'crearBackup':                      ()     => crearBackup(),
+    'crearBackupSoloProductos':         ()     => crearBackupSoloProductos(),
+    'crearBackupSoloPedidos':           ()     => crearBackupSoloPedidos(),
+    'triggerRestaurarFile':             ()     => document.getElementById('restaurarFile').click(),
+    'triggerImportarFile':              ()     => document.getElementById('importarFile').click(),
+    'triggerImportarClientesFile':      ()     => document.getElementById('importarClientesFile').click(),
+    'descargarPlantillaProductosCSV':   ()     => typeof descargarPlantillaProductosCSV === 'function' && descargarPlantillaProductosCSV(),
+    'descargarPlantillaClientesCSV':    ()     => typeof descargarPlantillaClientesCSV === 'function' && descargarPlantillaClientesCSV(),
+    'descargarPlantillaProductos':      ()     => typeof descargarPlantillaProductos === 'function' && descargarPlantillaProductos(),
+    'descargarPlantillaClientes':       ()     => typeof descargarPlantillaClientes === 'function' && descargarPlantillaClientes(),
+    'limpiarPedidos':                   ()     => limpiarPedidos(),
+    'descartarCambios':                 ()     => descartarCambios(),
+    'guardarTodosCambios':              ()     => guardarTodosCambios(),
+
+    // === Modal editar pedido ===
+    'agregarItemEditPedido':            ()     => typeof agregarItemEditPedido === 'function' && agregarItemEditPedido(),
+    'generarPDFRemisionEditing':        ()     => typeof generarPDFRemision === 'function' && generarPDFRemision(pedidoEditandoId),
+    'generarTicketTermicoEditing':      ()     => typeof generarTicketTermico === 'function' && generarTicketTermico(pedidoEditandoId),
+    'cerrarModalEditarPedido':          ()     => typeof cerrarModalEditarPedido === 'function' && cerrarModalEditarPedido(),
+    'guardarEdicionPedido':             ()     => typeof guardarEdicionPedido === 'function' && guardarEdicionPedido(),
+
+    // === Forense / Mapeo importación ===
+    'cerrarModalForense':               ()     => cerrarModalForense(),
+    'cerrarModalMapeo':                 ()     => typeof cerrarModalMapeo === 'function' && cerrarModalMapeo(),
+    'confirmarImportacion':             ()     => typeof confirmarImportacion === 'function' && confirmarImportacion(),
 };
+
 document.addEventListener('click', function(e) {
+    // Navegación por sección (sidebar)
+    const navBtn = e.target.closest('[data-section]');
+    if (navBtn) { cambiarSeccion(navBtn.getAttribute('data-section')); return; }
+
+    // Acciones generales
     const btn = e.target.closest('[data-action]');
-    if (btn) {
-        const action = btn.getAttribute('data-action');
-        if (ACTION_DISPATCH[action]) ACTION_DISPATCH[action]();
-        else console.warn('[Admin] Accion no registrada:', action);
+    if (!btn) return;
+    const action = btn.getAttribute('data-action');
+    const arg = btn.getAttribute('data-arg') ?? undefined;
+    if (ACTION_DISPATCH[action]) {
+        ACTION_DISPATCH[action](btn, arg);
+    } else {
+        console.warn('[Admin] Accion no registrada:', action);
     }
 });
+
+// Bindings para eventos que no son click (oninput, onchange)
+document.addEventListener('DOMContentLoaded', () => {
+    // oninput en sl-input usa el evento 'sl-input' de Shoelace
+    document.getElementById('globalSearchInput')
+        ?.addEventListener('sl-input', () => ejecutarBusquedaGlobalDebounced());
+    document.getElementById('buscarStock')
+        ?.addEventListener('sl-input', () => typeof filtrarStockDebounced === 'function' && filtrarStockDebounced());
+    document.getElementById('buscarProducto')
+        ?.addEventListener('sl-input', () => typeof filtrarProductosDebounced === 'function' && filtrarProductosDebounced());
+    document.getElementById('buscarCliente')
+        ?.addEventListener('sl-input', () => typeof filtrarClientesDebounced === 'function' && filtrarClientesDebounced());
+
+    // onchange en file inputs nativos
+    document.getElementById('restaurarFile')
+        ?.addEventListener('change', (e) => restaurarBackup(e));
+    document.getElementById('importarFile')
+        ?.addEventListener('change', (e) => typeof importarProductosExcel === 'function' && importarProductosExcel(e));
+    document.getElementById('importarClientesFile')
+        ?.addEventListener('change', (e) => typeof importarClientesExcel === 'function' && importarClientesExcel(e));
+    document.getElementById('productImageInput')
+        ?.addEventListener('change', (e) => typeof previsualizarImagenProducto === 'function' && previsualizarImagenProducto(e));
+}, { once: true });
 
 function generarSkeletonTabla(filas = 5, columnas = 4) {
     let html = '<div class="overflow-hidden rounded-xl border border-gray-200 bg-white">';

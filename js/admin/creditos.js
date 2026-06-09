@@ -200,12 +200,12 @@ async function cargarCreditos() {
                     <div class="bg-green-500 h-2 rounded-full" style="width:${Math.min(100, (totalPagado / p.total * 100)).toFixed(0)}%"></div>
                 </div>` : ''}
             <div class="flex gap-2 flex-wrap">
-                <sl-button onclick="registrarPagoCredito('${p.id}')" variant="success" size="small">Registrar Pago</sl-button>
-                <sl-button onclick="enviarRecordatorioWhatsApp('${p.id}')" variant="success" size="small">WhatsApp</sl-button>
-                <sl-button onclick="verHistorialPagos('${p.id}')" variant="default" size="small">Historial</sl-button>
-                ${saldo <= 0 ? `<sl-button onclick="marcarPagado('${p.id}')" variant="primary" size="small">Marcar Pagado</sl-button>` : ''}
-                <sl-button onclick="editarPagosCreditoPedido('${p.id}')" variant="warning" size="small">Editar Pagos</sl-button>
-                <sl-button onclick="eliminarCreditoPedido('${p.id}')" variant="danger" size="small">Eliminar</sl-button>
+                <sl-button data-action="registrarPagoCredito" data-arg="${p.id}" variant="success" size="small">Registrar Pago</sl-button>
+                <sl-button data-action="enviarRecordatorioWhatsApp" data-arg="${p.id}" variant="success" size="small">WhatsApp</sl-button>
+                <sl-button data-action="verHistorialPagos" data-arg="${p.id}" variant="default" size="small">Historial</sl-button>
+                ${saldo <= 0 ? `<sl-button data-action="marcarPagado" data-arg="${p.id}" variant="primary" size="small">Marcar Pagado</sl-button>` : ''}
+                <sl-button data-action="editarPagosCreditoPedido" data-arg="${p.id}" variant="warning" size="small">Editar Pagos</sl-button>
+                <sl-button data-action="eliminarCreditoPedido" data-arg="${p.id}" variant="danger" size="small">Eliminar</sl-button>
             </div>`;
         container.appendChild(div);
     }
@@ -240,10 +240,10 @@ async function cargarCreditos() {
                 <div><span class="text-gray-500">Saldo:</span> <strong class="text-red-600">${formatearGuaranies(saldo)}</strong></div>
             </div>
             <div class="flex gap-2 flex-wrap">
-                <sl-button onclick="registrarPagoManual('${c.id}')" variant="success" size="small">Registrar Pago</sl-button>
-                <sl-button onclick="enviarRecordatorioManualWhatsApp('${c.id}')" variant="success" size="small">WhatsApp</sl-button>
-                <sl-button onclick="editarCreditoManualItem('${c.id}')" variant="warning" size="small">Editar</sl-button>
-                <sl-button onclick="eliminarCreditoManualItem('${c.id}')" variant="danger" size="small">Eliminar</sl-button>
+                <sl-button data-action="registrarPagoManual" data-arg="${c.id}" variant="success" size="small">Registrar Pago</sl-button>
+                <sl-button data-action="enviarRecordatorioManualWhatsApp" data-arg="${c.id}" variant="success" size="small">WhatsApp</sl-button>
+                <sl-button data-action="editarCreditoManualItem" data-arg="${c.id}" variant="warning" size="small">Editar</sl-button>
+                <sl-button data-action="eliminarCreditoManualItem" data-arg="${c.id}" variant="danger" size="small">Eliminar</sl-button>
             </div>`;
         container.appendChild(div);
     });
@@ -788,7 +788,7 @@ async function cargarHistorialCreditos() {
                 <div><span class="text-gray-500">Pagado:</span> <strong class="text-green-600">${formatearGuaranies(c.totalPagado)}</strong></div>
                 <div><span class="text-gray-500">Saldo final:</span> <strong class="${c.monto - c.totalPagado > 0 ? 'text-red-600' : 'text-green-600'}">${formatearGuaranies(Math.max(0, c.monto - c.totalPagado))}</strong></div>
             </div>
-            <sl-button onclick="mostrarDetalleCredito('${c.id}')" variant="default" size="small">Ver Detalle</sl-button>
+            <sl-button data-action="mostrarDetalleCredito" data-arg="${c.id}" variant="default" size="small">Ver Detalle</sl-button>
         </div>
     `).join('');
 }
@@ -910,9 +910,9 @@ async function cargarPromociones() {
             </div>
             <div class="text-xs text-gray-400 mb-3">${new Date(p.fechaInicio).toLocaleDateString('es-PY')} al ${new Date(p.fechaFin).toLocaleDateString('es-PY')}</div>
             <div class="flex gap-2">
-                <sl-button onclick="abrirModalPromocion('${p.id}')" variant="primary" size="small">Editar</sl-button>
-                <sl-button onclick="togglePromocion('${p.id}')" variant="default" size="small">${p.activa ? 'Desactivar' : 'Activar'}</sl-button>
-                <sl-button onclick="eliminarPromocion('${p.id}')" variant="danger" size="small">Eliminar</sl-button>
+                <sl-button data-action="abrirModalPromocion" data-arg="${p.id}" variant="primary" size="small">Editar</sl-button>
+                <sl-button data-action="togglePromocion" data-arg="${p.id}" variant="default" size="small">${p.activa ? 'Desactivar' : 'Activar'}</sl-button>
+                <sl-button data-action="eliminarPromocion" data-arg="${p.id}" variant="danger" size="small">Eliminar</sl-button>
             </div>`;
         container.appendChild(div);
     });
@@ -1153,7 +1153,7 @@ async function cargarRendiciones() {
                 </div>
                 <div class="text-right">
                     <p class="font-bold text-red-600">- ${formatearGuaranies(g.monto)}</p>
-                    <sl-button onclick="eliminarGastoAdmin('${g.id}')" variant="text" size="small">Eliminar</sl-button>
+                    <sl-button data-action="eliminarGastoAdmin" data-arg="${g.id}" variant="text" size="small">Eliminar</sl-button>
                 </div>
             </div>
         `).join('');
@@ -1184,9 +1184,9 @@ async function cargarRendiciones() {
             const clsEstado = estadoClases[r.estado] || 'bg-gray-100 text-gray-700';
             const lblEstado = estadoLabels[r.estado] || r.estado || 'Pendiente';
             const botonesAccion = (r.estado === 'pendiente' || r.estado === 'rendido')
-                ? `<sl-button onclick="aprobarRendicion('${r.id}')" variant="primary" size="small">Aprobar</sl-button>`
+                ? `<sl-button data-action="aprobarRendicion" data-arg="${r.id}" variant="primary" size="small">Aprobar</sl-button>`
                 : r.estado === 'aprobado'
-                    ? `<sl-button onclick="marcarRendicionPagada('${r.id}')" variant="success" size="small">Marcar Pagado</sl-button>`
+                    ? `<sl-button data-action="marcarRendicionPagada" data-arg="${r.id}" variant="success" size="small">Marcar Pagado</sl-button>`
                     : '';
             return `<div class="p-4 flex justify-between items-center">
                 <div>
@@ -1366,8 +1366,8 @@ async function cargarCuentasBancariasAdmin() {
                 <p class="text-xs text-gray-400">Titular: ${c.titular} | RUC: ${c.ruc || '-'}</p>
             </div>
             <div class="flex gap-2">
-                <sl-button onclick="editarCuentaBancaria('${c.id}')" variant="text" size="small">Editar</sl-button>
-                <sl-button onclick="eliminarCuentaBancaria('${c.id}')" variant="text" size="small">Eliminar</sl-button>
+                <sl-button data-action="editarCuentaBancaria" data-arg="${c.id}" variant="text" size="small">Editar</sl-button>
+                <sl-button data-action="eliminarCuentaBancaria" data-arg="${c.id}" variant="text" size="small">Eliminar</sl-button>
             </div>
         </div>
     `).join('');

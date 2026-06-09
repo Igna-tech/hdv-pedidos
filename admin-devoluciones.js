@@ -95,7 +95,7 @@ async function seleccionarFacturaNC(facturaId) {
             <td class="px-4 py-3 text-center">
                 <sl-input type="number" id="devCant-${idx}" value="0" min="0" max="${item.cantidad}" size="small"
                     style="width:5rem; --sl-input-font-weight:700; text-align:center;"
-                    oninput="recalcularTotalNC()"></sl-input>
+                   ></sl-input>
             </td>
             <td class="px-4 py-3 text-right font-bold text-red-600" id="devMonto-${idx}">Gs. 0</td>`;
         tbody.appendChild(tr);
@@ -104,6 +104,10 @@ async function seleccionarFacturaNC(facturaId) {
     // Resetear motivo y total
     document.getElementById('devMotivo').value = '';
     document.getElementById('devTotalNC').textContent = 'Gs. 0';
+
+    // Bind oninput via delegation — sl-input custom event bubbles desde Shoelace
+    document.getElementById('devTablaItems')
+        .addEventListener('sl-input', recalcularTotalNC, { once: false });
 
     // Mostrar detalle y ocultar resultados
     document.getElementById('devDetalleFactura').classList.remove('hidden');
@@ -342,7 +346,7 @@ async function cargarHistorialNC() {
                 </div>
             </div>
             <div class="flex gap-2 mt-3">
-                <sl-button variant="neutral" size="small" onclick="reimprimirNC('${nc.id}')">
+                <sl-button variant="neutral" size="small" data-action="reimprimirNC" data-arg="${nc.id}">
                     <i data-lucide="printer" class="w-3 h-3"></i> Re-imprimir
                 </sl-button>
             </div>`;

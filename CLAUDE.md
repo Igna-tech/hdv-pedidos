@@ -233,7 +233,7 @@ Bucket `productos_img` (Supabase Storage). Compresion Canvas → WebP 800px max.
 
 ### P1 — FRONTEND & CSP (Cero tolerancia a ejecucion dinamica)
 
-- **CSP estricto** en `vercel.json`: `script-src` sin `unsafe-eval`, con `unsafe-inline` (requerido por 157+ inline handlers onclick/oninput/onchange). Whitelist explicita de CDNs. `frame-src 'none'`, `object-src 'none'`, `base-uri 'self'`. Migracion futura a `addEventListener` permitira eliminar `unsafe-inline`.
+- **CSP estricto** en `vercel.json`: `script-src` sin `unsafe-eval` ni `unsafe-inline`. Whitelist explicita de CDNs. `frame-src 'none'`, `object-src 'none'`, `base-uri 'self'`. El `unsafe-inline` permanece solo en `style-src` (requerido por Shoelace CSS-in-JS). Todos los handlers inline (178+) migrados a event delegation via `data-action`/`data-section`/`data-arg`.
 - **Tailwind CSS compilado estatico** (`npm run build:css` → `dist/tailwind.css`). PROHIBIDO re-agregar el CDN JIT (rompe CSP). Al agregar clases Tailwind nuevas, re-ejecutar build antes de deploy.
 - **SRI obligatorio** en todos los scripts externos: `integrity="sha384-..."` + `crossorigin="anonymous"`. Versiones fijadas: Supabase JS 2.99.2, Chart.js 4.4.0, Lucide 0.468.0, jsPDF 2.5.1, JSZip 3.10.1, SheetJS 0.20.3. Excluido: Google Fonts (CSS dinamico). Al actualizar libreria: `curl -sL URL | openssl dgst -sha384 -binary | openssl base64 -A`. URLs con redirect (unpkg) deben apuntar al path final.
 - **Prevencion XSS**: `escapeHTML()` obligatorio en TODA interpolacion `innerHTML`. Prohibido inline `onclick` con variables — usar `data-attributes` + `addEventListener`. Event delegation via `ACTION_DISPATCH` whitelist (sin `new Function()`).
@@ -342,7 +342,7 @@ Bucket `productos_img` (Supabase Storage). Compresion Canvas → WebP 800px max.
 | V1 | Zero Trust | 26 | Todos remediados |
 | V2 | Red Team | 9 (1C, 3A, 4M, 1B) | Todos remediados 2026-03-19 |
 | V3 | Insider Threats | 10 (2C, 3A, 3M, 2B) | Todos remediados 2026-03-19 |
-| V4 | White-Box Audit | 9 brechas residuales | B-01 MFA, B-02 CSP, B-05 Dependabot, B-06 secretos — remediados. B-03 WAF parcial (cuenta CF creada, headers Vercel listos, requiere dominio custom). Pendiente: B-04 rate limit persistente |
+| V4 | White-Box Audit | 9 brechas residuales | B-01 MFA, B-02 CSP (unsafe-inline eliminado 2026-06-09), B-05 Dependabot, B-06 secretos — remediados. B-03 WAF parcial (cuenta CF creada, headers Vercel listos, requiere dominio custom). Pendiente: B-04 rate limit persistente |
 | E2E | Flujo Datos E2E | 10 puntos ciegos | 7 reparados (vendedor badge, fraude, filtros, CSV, tipo comprobante, editado, IVA). 3 pendientes decision negocio. 2026-03-25 |
 | Fase 1 | Integridad de Datos | 14 (3C, 6M, 5B) | 12 remediados: storage blindaje, sync robustez, gastos aislamiento, auto-paginacion, debounce realtime, beforeunload. 2026-03-25 |
 

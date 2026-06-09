@@ -5,6 +5,48 @@
 // Estado global en js/core/state.js, utils en js/utils/
 // ============================================
 
+// ============================================
+// EVENT DISPATCH — reemplaza handlers inline en index.html
+// ============================================
+const _vendedorActionMap = {
+    // Header
+    'forzarActualizacion':            () => typeof forzarActualizacion === 'function' && forzarActualizacion(),
+    'toggleDarkMode':                 () => typeof toggleDarkMode === 'function' && toggleDarkMode(),
+    'cerrarSesion':                   () => typeof cerrarSesion === 'function' && cerrarSesion(),
+    // Bottom nav
+    'cambiarVistaVendedor':           (_, a) => typeof cambiarVistaVendedor === 'function' && cambiarVistaVendedor(a),
+    'mostrarModalCarrito':            () => typeof mostrarModalCarrito === 'function' && mostrarModalCarrito(),
+    // Backup modal
+    'exportarBackupVendedor':         () => typeof exportarBackupVendedor === 'function' && exportarBackupVendedor(),
+    'exportarSoloPedidos':            () => typeof exportarSoloPedidos === 'function' && exportarSoloPedidos(),
+    'compartirBackupWhatsApp':        () => typeof compartirBackupWhatsApp === 'function' && compartirBackupWhatsApp(),
+    'triggerRestaurarFileVendedor':   () => document.getElementById('restaurarFileVendedor').click(),
+    'cerrarModalBackup':              () => typeof cerrarModalBackup === 'function' && cerrarModalBackup(),
+    // Cart drawer
+    'closeCartModal':                 () => typeof closeCartModal === 'function' && closeCartModal(),
+    'procesarPedido':                 () => typeof procesarPedido === 'function' && procesarPedido(),
+    'procesarCobroInterno':           () => typeof procesarCobroInterno === 'function' && procesarCobroInterno(),
+    'procesarFacturaMock':            () => typeof procesarFacturaMock === 'function' && procesarFacturaMock(),
+    // Modal factura
+    'imprimirFactura':                () => typeof imprimirFactura === 'function' && imprimirFactura(),
+    'cerrarModalFactura':             () => typeof cerrarModalFactura === 'function' && cerrarModalFactura(),
+};
+
+document.addEventListener('click', function(e) {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    const action = btn.getAttribute('data-action');
+    const arg = btn.getAttribute('data-arg') ?? undefined;
+    if (_vendedorActionMap[action]) {
+        _vendedorActionMap[action](btn, arg);
+    }
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('restaurarFileVendedor')
+        ?.addEventListener('change', (e) => typeof restaurarBackupVendedor === 'function' && restaurarBackupVendedor(e));
+}, { once: true });
+
 // --- Estado local del controlador ---
 let categoriaActual = 'todas';
 let vistaCatalogo = 'categorias'; // 'categorias' o 'productos'

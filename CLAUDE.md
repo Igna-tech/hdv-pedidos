@@ -37,7 +37,7 @@ PWA mobile-first para vendedores de calle + panel admin de escritorio.
 ├── guard.js                → Proteccion de rutas (auth + roles + Kill Switch via RPC)
 ├── login.html / login.js   → Login con Supabase Auth + MFA TOTP, redirect por rol, alerta ?blocked=1
 │
-├── js/core/state.js        → Singleton hdvState: getters/setters globales (pedidos, catalogo, carrito)
+├── js/core/state.js        → Singleton hdvState: getters/setters globales (pedidos, catalogo, carrito). Globals window.* son proxies via Object.defineProperty — cero cambios necesarios en consumidores.
 ├── js/services/sync.js     → SyncManager: sync automatica con batch upsert, pre-flight check, backoff exponencial + jitter
 ├── js/utils/storage.js     → HDVStorage: wrapper IndexedDB blindado (persistent storage, quota monitoring, eviction detection)
 ├── js/utils/sanitizer.js   → escapeHTML() para prevencion XSS

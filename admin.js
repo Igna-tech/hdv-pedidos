@@ -201,6 +201,14 @@ function cambiarSeccion(seccionId) {
     if (seccionId === 'forense') { renderForenseFraudes(); renderForenseLogs(); }
 
     if (typeof lucide !== 'undefined') lucide.createIcons();
+
+    // Cerrar sidebar en mobile al navegar
+    if (window.innerWidth <= 1024) {
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('sidebarOverlay');
+        if (sidebar) sidebar.classList.remove('open');
+        if (overlay) overlay.classList.remove('open');
+    }
 }
 
 // ============================================
@@ -1029,18 +1037,6 @@ function toggleSidebar() {
     sidebar.classList.toggle('open');
     overlay.classList.toggle('open');
 }
-
-// Cerrar sidebar al navegar en mobile
-const _cambiarSeccionOriginal = cambiarSeccion;
-cambiarSeccion = function(seccionId) {
-    _cambiarSeccionOriginal(seccionId);
-    if (window.innerWidth <= 1024) {
-        const sidebar = document.getElementById('sidebar');
-        const overlay = document.getElementById('sidebarOverlay');
-        if (sidebar) sidebar.classList.remove('open');
-        if (overlay) overlay.classList.remove('open');
-    }
-};
 
 // ============================================
 // BUSQUEDA GLOBAL (Ctrl+K)

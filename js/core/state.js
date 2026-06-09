@@ -51,22 +51,23 @@ const hdvState = (function () {
 })();
 
 // ============================================
-// COMPATIBILIDAD: Exponer como variables globales mutables
-// Los archivos originales (admin.js, app.js, checkout.js, etc.)
-// siguen leyendo/escribiendo estas variables directamente.
-// En fases futuras se migraran a hdvState.get/set.
+// Conectar globals a hdvState via property proxies en window.
+// El getter retorna la referencia interna de hdvState, por lo que
+// mutaciones en-lugar (.push, .splice, etc.) funcionan sin llamar al setter.
+// Asignaciones directas (productosData = X) pasan por hdvState.set.
+// Ningun otro archivo necesita cambios — la API de globals no cambia.
 // ============================================
-
-// Admin globals (admin.js, admin-ventas.js, admin-devoluciones.js, admin-contabilidad.js)
-var todosLosPedidos = [];
-var productosData = { productos: [], categorias: [], clientes: [] };
-var productosFiltrados = [];
-var clientesFiltrados = [];
-
-// Vendedor globals (app.js, checkout.js)
-var productos = [];
-var categorias = [];
-var clientes = [];
-var clienteActual = null;
-var carrito = [];
+[
+    ['todosLosPedidos',    () => hdvState.getPedidos(),            v => hdvState.setPedidos(v)],
+    ['productosData',      () => hdvState.getProductosData(),      v => hdvState.setProductosData(v)],
+    ['productosFiltrados', () => hdvState.getProductosFiltrados(), v => hdvState.setProductosFiltrados(v)],
+    ['clientesFiltrados',  () => hdvState.getClientesFiltrados(),  v => hdvState.setClientesFiltrados(v)],
+    ['productos',          () => hdvState.getProductos(),          v => hdvState.setProductos(v)],
+    ['categorias',         () => hdvState.getCategorias(),         v => hdvState.setCategorias(v)],
+    ['clientes',           () => hdvState.getClientes(),           v => hdvState.setClientes(v)],
+    ['clienteActual',      () => hdvState.getClienteActual(),      v => hdvState.setClienteActual(v)],
+    ['carrito',            () => hdvState.getCarrito(),            v => hdvState.setCarrito(v)],
+].forEach(([name, get, set]) => {
+    Object.defineProperty(window, name, { get, set, configurable: true, enumerable: true });
+});
 

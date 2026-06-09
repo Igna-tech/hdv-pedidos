@@ -109,8 +109,10 @@ supabase CDN → supabase-init.js → js/utils/storage.js → login.js
 - `perfiles` (id UUID PK FK→auth.users, nombre_completo, rol CHECK('admin','vendedor'), activo)
 - `app_secrets` (key TEXT PK, value, description, created_at, updated_at) — RLS blindado: zero politicas, solo SECURITY DEFINER puede leer
 
-### Tabla legacy (no usar):
-- `catalogo` — reemplazada por tablas relacionales, pendiente de eliminacion
+- `alertas_rate_limit` (clave TEXT PK, contador INT, ventana_inicio TIMESTAMPTZ) — rate limiting persistente para alertas WhatsApp; RLS habilitado solo SELECT admin; escrita atomicamente via RPC `verificar_rate_limit_alerta` con FOR UPDATE
+
+### Tabla legacy eliminada:
+- `catalogo` — eliminada 2026-06-09 (reemplazada por tablas relacionales desde 2026-03-10)
 
 ### RPCs SECURITY DEFINER:
 - `actualizar_estado_pedido(text, text)` — valida auth.uid() + admin o dueno del pedido
@@ -300,7 +302,7 @@ Bucket `productos_img` (Supabase Storage). Compresion Canvas → WebP 800px max.
 
 ### P7 — EDGE FUNCTIONS (Perimetro de API)
 
-- JWT obligatorio via `supabase.auth.getUser()`. Rate limit 10 req/min por user (en memoria).
+- JWT obligatorio via `supabase.auth.getUser()`. Rate limit persistente en tabla `alertas_rate_limit`: max 5 alertas del mismo tipo por minuto, ventana deslizante, RPC atomica `verificar_rate_limit_alerta` con FOR UPDATE (resiste reinicios de la funcion — B-04 cerrado 2026-06-09).
 - Privilegios divididos: lecturas con RLS del cliente, escritura final con SERVICE_ROLE.
 - Anti-doble facturacion: rechaza pedidos con `sifen_cdc` existente.
 - Sanitizacion Anti-XXE: `sanitizarParaXML(texto, maxLength)` escapa `& < > " '` + trunca. `validarNumero()` con `Number.isFinite`.
@@ -342,7 +344,7 @@ Bucket `productos_img` (Supabase Storage). Compresion Canvas → WebP 800px max.
 | V1 | Zero Trust | 26 | Todos remediados |
 | V2 | Red Team | 9 (1C, 3A, 4M, 1B) | Todos remediados 2026-03-19 |
 | V3 | Insider Threats | 10 (2C, 3A, 3M, 2B) | Todos remediados 2026-03-19 |
-| V4 | White-Box Audit | 9 brechas residuales | B-01 MFA, B-02 CSP (unsafe-inline eliminado 2026-06-09), B-05 Dependabot, B-06 secretos — remediados. B-03 WAF parcial (cuenta CF creada, headers Vercel listos, requiere dominio custom). Pendiente: B-04 rate limit persistente |
+| V4 | White-Box Audit | 9 brechas residuales | B-01 MFA, B-02 CSP (unsafe-inline eliminado), B-04 rate limit persistente (tabla DB + RPC FOR UPDATE), B-05 Dependabot, B-06 secretos — todos remediados 2026-06-09. B-03 WAF parcial (cuenta CF creada, headers Vercel listos, requiere dominio custom) |
 | E2E | Flujo Datos E2E | 10 puntos ciegos | 7 reparados (vendedor badge, fraude, filtros, CSV, tipo comprobante, editado, IVA). 3 pendientes decision negocio. 2026-03-25 |
 | Fase 1 | Integridad de Datos | 14 (3C, 6M, 5B) | 12 remediados: storage blindaje, sync robustez, gastos aislamiento, auto-paginacion, debounce realtime, beforeunload. 2026-03-25 |
 

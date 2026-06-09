@@ -2,9 +2,11 @@
 // Edge Function: alertas-seguridad
 // Recibe payloads de Database Webhooks (pg_net / Dashboard)
 // Envia alertas criticas a WhatsApp via API configurable
+// B-04: Rate limiting persistente via tabla alertas_rate_limit
 // ============================================
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.99.2";
 
 // --- Tipos de alerta soportados ---
 type TipoAlerta = "fraude" | "delete_critico" | "kill_switch" | "audit_critico";
@@ -19,6 +21,39 @@ interface AlertaPayload {
 // --- Sanitizar texto para mensaje (prevenir inyeccion en templates) ---
 function sanitizar(texto: any, maxLen: number = 100): string {
     return String(texto ?? "").trim().substring(0, maxLen);
+}
+
+// --- Rate limiting persistente: max 5 alertas del mismo tipo por minuto ---
+async function estaRateLimited(tipo: TipoAlerta): Promise<boolean> {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+    if (!supabaseUrl || !serviceRoleKey) {
+        console.warn("[alertas] Rate limit omitido: variables de entorno no disponibles.");
+        return false;
+    }
+
+    try {
+        const supabase = createClient(supabaseUrl, serviceRoleKey, {
+            auth: { persistSession: false },
+        });
+
+        const { data: permitido, error } = await supabase.rpc("verificar_rate_limit_alerta", {
+            p_clave: tipo,
+            p_max: 5,
+            p_ventana_segundos: 60,
+        });
+
+        if (error) {
+            console.error("[alertas] Error verificando rate limit:", error.message);
+            return false; // ante error, permitir el envio
+        }
+
+        return !permitido; // true=permitido => no limitado; false=limitado
+    } catch (err: any) {
+        console.error("[alertas] Excepcion en rate limit:", err.message);
+        return false;
+    }
 }
 
 // --- Clasificar severidad del evento ---
@@ -188,6 +223,17 @@ serve(async (req: Request) => {
         }
 
         console.log(`[alertas] ALERTA DETECTADA tipo=${alerta.tipo}`);
+
+        // Verificar rate limit persistente antes de enviar (B-04)
+        const limitado = await estaRateLimited(alerta.tipo);
+        if (limitado) {
+            console.warn(`[alertas] Rate limit excedido para tipo=${alerta.tipo}. Alerta omitida.`);
+            return new Response(
+                JSON.stringify({ status: "rate_limited", tipo: alerta.tipo }),
+                { status: 200, headers: { "Content-Type": "application/json" } },
+            );
+        }
+
         console.log(`[alertas] Mensaje:\n${alerta.mensaje}`);
 
         // Intentar enviar a WhatsApp (no-fatal si falla)

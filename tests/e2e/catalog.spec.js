@@ -169,7 +169,7 @@ test.describe('Admin panel (mocked auth)', () => {
         page.on('pageerror', err => errors.push(err.message));
 
         await page.goto('/admin.html');
-        await page.locator('[onclick*="cambiarSeccion"]').first().waitFor({ state: 'attached', timeout: 15000 });
+        await page.locator('[data-section]').first().waitFor({ state: 'attached', timeout: 15000 });
 
         const criticalErrors = errors.filter(e =>
             !e.includes('Failed to fetch') &&
@@ -190,10 +190,10 @@ test.describe('Admin panel (mocked auth)', () => {
 
     test('la sidebar de navegacion tiene items', async ({ page }) => {
         await page.goto('/admin.html');
-        const firstNavItem = page.locator('[onclick*="cambiarSeccion"]').first();
+        const firstNavItem = page.locator('[data-section]').first();
         await expect(firstNavItem).toBeAttached({ timeout: 15000 });
 
-        const navItems = page.locator('[onclick*="cambiarSeccion"]');
+        const navItems = page.locator('[data-section]');
         const count = await navItems.count();
         expect(count).toBeGreaterThan(3);
     });

@@ -83,7 +83,8 @@ async function cargarPedidos() {
 function filtrarPedidos() { aplicarFiltrosPedidos(); }
 
 function aplicarFiltrosPedidos(resetPagina = true) {
-    const fecha = document.getElementById('filtroFecha')?.value;
+    const desde = document.getElementById('filtroFechaDesde')?.value;
+    const hasta = document.getElementById('filtroFechaHasta')?.value;
     const cliente = document.getElementById('filtroCliente')?.value;
     const vendedor = document.getElementById('filtroVendedor')?.value;
     const estado = document.getElementById('filtroEstado')?.value;
@@ -93,7 +94,14 @@ function aplicarFiltrosPedidos(resetPagina = true) {
     if (estado) {
         filtrados = filtrados.filter(p => p.estado === estado || (estado === PEDIDO_ESTADOS.PENDIENTE && p.estado === 'pendiente'));
     }
-    if (fecha) filtrados = filtrados.filter(p => new Date(p.fecha).toISOString().split('T')[0] === fecha);
+    if (desde || hasta) {
+        filtrados = filtrados.filter(p => {
+            const fechaPedido = new Date(p.fecha).toISOString().split('T')[0];
+            if (desde && fechaPedido < desde) return false;
+            if (hasta && fechaPedido > hasta) return false;
+            return true;
+        });
+    }
     if (cliente) filtrados = filtrados.filter(p => p.cliente?.id === cliente);
     if (vendedor) filtrados = filtrados.filter(p => p.vendedor_id === vendedor);
 
@@ -361,7 +369,10 @@ function exportarExcelPedidos() {
             ].join(',') + '\n';
         });
     });
-    descargarCSV(csv, 'pedidos_hdv.csv');
+    const desde = document.getElementById('filtroFechaDesde')?.value;
+    const hasta = document.getElementById('filtroFechaHasta')?.value;
+    const sufijo = (desde && hasta) ? `_${desde}_${hasta}` : (desde ? `_desde_${desde}` : '');
+    descargarCSV(csv, `pedidos_hdv${sufijo}.csv`);
 }
 
 // ============================================

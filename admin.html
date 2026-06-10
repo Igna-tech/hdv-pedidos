@@ -501,9 +501,13 @@
                 </div>
 
                 <div class="saas-card p-4 flex flex-wrap gap-4 items-end">
-                    <div class="flex-1 min-w-[150px]">
-                        <label class="block text-xs font-bold text-gray-500 mb-1">FECHA</label>
-                        <sl-input type="date" id="filtroFecha" class="w-full" size="small"></sl-input>
+                    <div class="flex flex-col gap-1 min-w-[240px]">
+                        <label class="block text-xs font-bold text-gray-500">PERÍODO</label>
+                        <div class="flex gap-2 items-center">
+                            <sl-input type="date" id="filtroFechaDesde" size="small" placeholder="Desde" class="flex-1"></sl-input>
+                            <span class="text-gray-400 text-xs">—</span>
+                            <sl-input type="date" id="filtroFechaHasta" size="small" placeholder="Hasta" class="flex-1"></sl-input>
+                        </div>
                     </div>
                     <div class="flex-1 min-w-[150px]">
                         <label class="block text-xs font-bold text-gray-500 mb-1">CLIENTE</label>

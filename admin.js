@@ -530,8 +530,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         setInterval(cargarPedidos, TIEMPOS.HEALTH_CHECK_INTERVAL_MS);
     }
 
-    const filtroFecha = document.getElementById('filtroFecha');
-    if (filtroFecha) filtroFecha.valueAsDate = new Date();
+    // Sin fecha pre-seleccionada: el filtro de estado (pendiente) es el filtro primario
 
     const hoy = new Date();
     const hace30 = new Date(hoy.getTime() - 30 * 24 * 60 * 60 * 1000);

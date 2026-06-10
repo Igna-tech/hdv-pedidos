@@ -601,6 +601,8 @@ function registrarSW() {
                         } catch(e) { console.log('[SW] statechange error ignorado'); }
                     });
                 });
+                // Suscribir push notifications tras registrar el SW
+                setTimeout(() => suscribirPushNotifications(reg), 3000);
             })
             .catch(err => console.log('[SW] Error:', err));
         try {
@@ -608,7 +610,59 @@ function registrarSW() {
                 console.log('[SW] Nuevo service worker activo');
             });
         } catch(e) {}
+        // Escuchar clicks en notificaciones push para navegar a la vista pedidos
+        navigator.serviceWorker.addEventListener('message', event => {
+            if (event.data?.type === 'PUSH_CLICK' && event.data.data?.pedido_id) {
+                cambiarVistaVendedor && cambiarVistaVendedor('pedidos');
+            }
+        });
     }
+}
+
+async function suscribirPushNotifications(reg) {
+    try {
+        if (!('PushManager' in window) || !('Notification' in window)) return;
+        if (!window.hdvUsuario?.id) return;
+        // Solo pedir permiso si no fue denegado anteriormente
+        if (Notification.permission === 'denied') return;
+
+        const existingSub = await reg.pushManager.getSubscription();
+        if (existingSub) {
+            // Ya suscripto — solo asegurar que está guardado en DB
+            await _guardarSuscripcionDB(existingSub);
+            return;
+        }
+
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') return;
+
+        const sub = await reg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: _urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+        });
+
+        await _guardarSuscripcionDB(sub);
+        console.log('[Push] Suscripción activada');
+    } catch (err) {
+        console.warn('[Push] No se pudo suscribir:', err.message);
+    }
+}
+
+async function _guardarSuscripcionDB(sub) {
+    const keys = sub.toJSON().keys || {};
+    await SupabaseService.upsertPushSubscription({
+        user_id: window.hdvUsuario.id,
+        endpoint: sub.endpoint,
+        p256dh: keys.p256dh || '',
+        auth_key: keys.auth || ''
+    });
+}
+
+function _urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const raw = atob(base64);
+    return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
 }
 
 // Filtrar pedidos (alias for admin compatibility)

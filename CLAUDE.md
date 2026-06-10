@@ -66,6 +66,7 @@ PWA mobile-first para vendedores de calle + panel admin de escritorio.
 │
 ├── supabase/functions/sifen-generar-xml/  → Edge Function: genera XML DTE SIFEN v150 con CDC Modulo 11
 ├── supabase/functions/alertas-seguridad/  → Edge Function: alertas WhatsApp ante fraudes, deletes y kill switch
+├── supabase/functions/push-notifications/ → Edge Function: push notifications (VAPID RFC 8292 + cifrado RFC 8291 aes128gcm)
 ├── supabase/migrations/                   → SQL de webhooks y triggers de alertas (pg_net)
 │
 ├── AUDITORIA_SEGURIDAD.md    → V1: 26 hallazgos Zero Trust, todos remediados
@@ -107,9 +108,10 @@ supabase CDN → supabase-init.js → js/utils/storage.js → login.js
 - `configuracion_empresa` (id INT PK default 1, ruc_empresa, razon_social, nombre_fantasia, timbrado_numero, timbrado_vencimiento, establecimiento, punto_expedicion, direccion_fiscal, telefono_empresa, email_empresa, actividad_economica) — fila unica, DELETE bloqueado
 - `reportes_mensuales` (mes TEXT PK, datos JSONB)
 - `perfiles` (id UUID PK FK→auth.users, nombre_completo, rol CHECK('admin','vendedor'), activo)
-- `app_secrets` (key TEXT PK, value, description, created_at, updated_at) — RLS blindado: zero politicas, solo SECURITY DEFINER puede leer
+- `app_secrets` (key TEXT PK, value, description, created_at, updated_at) — RLS blindado: zero politicas, solo SECURITY DEFINER puede leer. Keys: `alertas_url`, `push_notifications_url`, `push_webhook_secret` (debe configurarse manualmente)
 
 - `alertas_rate_limit` (clave TEXT PK, contador INT, ventana_inicio TIMESTAMPTZ) — rate limiting persistente para alertas WhatsApp; RLS habilitado solo SELECT admin; escrita atomicamente via RPC `verificar_rate_limit_alerta` con FOR UPDATE
+- `push_subscriptions` (id UUID PK, user_id UUID FK→auth.users CASCADE, endpoint TEXT UNIQUE, p256dh TEXT, auth_key TEXT, created_at, updated_at) — suscripciones Web Push de vendedores; RLS: vendedor solo sus propias, admin SELECT todas
 
 ### Tabla legacy eliminada:
 - `catalogo` — eliminada 2026-06-09 (reemplazada por tablas relacionales desde 2026-03-10)
@@ -289,6 +291,7 @@ Bucket `productos_img` (Supabase Storage). Compresion Canvas → WebP 800px max.
   - Edge Function `alertas-seguridad` via CallMeBot (GET con query params).
   - Triggers pg_net: `trg_alerta_fraude_pedidos_insert/update`, `trg_alerta_audit_logs`, `trg_alerta_kill_switch`.
   - `notify_alerta_seguridad()` SECURITY DEFINER con secretos leidos de tabla `app_secrets` (ver P6).
+- `notify_push_pedido_estado()` SECURITY DEFINER: trigger AFTER UPDATE OF estado ON pedidos → pg_net POST a `push-notifications` Edge Function. Activa solo si `push_notifications_url` y `push_webhook_secret` existen en `app_secrets`.
   - Env vars Edge Function: `WHATSAPP_API_URL`, `WHATSAPP_API_KEY`, `WHATSAPP_DESTINO`, `WEBHOOK_SECRET`.
   - Tolerante a fallos: siempre retorna HTTP 200 (evita reintentos infinitos).
 - **Disaster Recovery**: `DISASTER_RECOVERY.md` (RTO 2h, RPO 24h). `scripts/backup_schema.sh` para cold backup de esquema.

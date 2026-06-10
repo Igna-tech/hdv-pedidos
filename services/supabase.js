@@ -582,6 +582,39 @@ const SupabaseService = (() => {
     }
 
     // ============================================
+    // PUSH SUBSCRIPTIONS
+    // ============================================
+
+    async function upsertPushSubscription(row) {
+        try {
+            const { error } = await supabaseClient
+                .from('push_subscriptions')
+                .upsert(row, { onConflict: 'endpoint' });
+            if (error) throw error;
+            return { success: true };
+        } catch (error) {
+            console.error('[SupabaseService] upsertPushSubscription:', error);
+            _reportError('upsertPushSubscription', error);
+            return { success: false, error };
+        }
+    }
+
+    async function deletePushSubscription(endpoint) {
+        try {
+            const { error } = await supabaseClient
+                .from('push_subscriptions')
+                .delete()
+                .eq('endpoint', endpoint);
+            if (error) throw error;
+            return { success: true };
+        } catch (error) {
+            console.error('[SupabaseService] deletePushSubscription:', error);
+            _reportError('deletePushSubscription', error);
+            return { success: false, error };
+        }
+    }
+
+    // ============================================
     // REALTIME helpers
     // ============================================
 
@@ -646,6 +679,10 @@ const SupabaseService = (() => {
         // Reportes
         upsertReporteMensual,
         fetchReporteMensual,
+
+        // Push Subscriptions
+        upsertPushSubscription,
+        deletePushSubscription,
 
         // Utils
         healthCheck,

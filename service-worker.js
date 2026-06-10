@@ -1,4 +1,4 @@
-const VERSION = '66.2';
+const VERSION = '66.3';
 const CACHE_NAME = `hdv-pedidos-v${VERSION}`;
 
 const urlsToCache = [
@@ -249,6 +249,46 @@ self.addEventListener('fetch', event => {
             })
         );
     }
+});
+
+// ============================================
+// PUSH NOTIFICATIONS
+// ============================================
+
+self.addEventListener('push', event => {
+    let data = {};
+    try { data = event.data ? event.data.json() : {}; } catch(e) {}
+
+    const titulo = 'HDV Distribuciones';
+    const cuerpo = data.mensaje || 'Tienes una actualización en tus pedidos';
+    const tag = 'hdv-pedido-' + (data.pedido_id || 'update');
+
+    event.waitUntil(
+        self.registration.showNotification(titulo, {
+            body: cuerpo,
+            icon: '/icon-192.png',
+            badge: '/icon-192.png',
+            tag,
+            renotify: true,
+            data: { pedido_id: data.pedido_id, nuevo_estado: data.nuevo_estado }
+        })
+    );
+});
+
+self.addEventListener('notificationclick', event => {
+    event.notification.close();
+    event.waitUntil(
+        clients.matchAll({ type: 'window', includeUncontrolled: true }).then(windowClients => {
+            for (const client of windowClients) {
+                if (client.url.includes('/index.html') || client.url.endsWith('/')) {
+                    client.focus();
+                    client.postMessage({ type: 'PUSH_CLICK', data: event.notification.data });
+                    return;
+                }
+            }
+            return clients.openWindow('/index.html');
+        })
+    );
 });
 
 // Escuchar mensaje para forzar actualizacion

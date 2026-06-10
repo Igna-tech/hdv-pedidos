@@ -66,6 +66,10 @@ const TIEMPOS = {
     BACKOFF_MAX_MS: 300000
 };
 
+// --- VAPID Public Key (Web Push — segura en frontend por diseño) ---
+
+const VAPID_PUBLIC_KEY = 'BOBc9lMS2l3X_HDp2kAmuP5m-_mqDOt6JVzgFaZ-4cbyMj1vrsxPYzFxxu-bLxIPz0u4amT_jlRrMInwfujwT6w';
+
 // --- Spinner SVG compartido ---
 
 const SPINNER_SVG = '<svg class="w-4 h-4 animate-spin inline mr-1.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>';

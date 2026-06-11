@@ -233,6 +233,12 @@ const ACTION_DISPATCH = {
     'cerrarModalForense':               ()     => cerrarModalForense(),
     'cerrarModalMapeo':                 ()     => typeof cerrarModalMapeo === 'function' && cerrarModalMapeo(),
     'confirmarImportacion':             ()     => typeof confirmarImportacion === 'function' && confirmarImportacion(),
+
+    // === SIFEN Estado ===
+    'verDetalleSifen':    (_, a) => typeof verDetalleSifen === 'function' && verDetalleSifen(a),
+    'irAVentasSifen':     (_, a) => typeof irAVentasSifen === 'function' && irAVentasSifen(a),
+    'filtrarSifenEstado': ()     => typeof filtrarSifenEstado === 'function' && filtrarSifenEstado(),
+    'exportarSifenCSV':   ()     => typeof exportarSifenCSV === 'function' && exportarSifenCSV(),
 };
 
 document.addEventListener('click', function(e) {
@@ -263,6 +269,10 @@ document.addEventListener('DOMContentLoaded', () => {
         ?.addEventListener('sl-input', () => typeof filtrarProductosDebounced === 'function' && filtrarProductosDebounced());
     document.getElementById('buscarCliente')
         ?.addEventListener('sl-input', () => typeof filtrarClientesDebounced === 'function' && filtrarClientesDebounced());
+    document.getElementById('sifenBusqueda')
+        ?.addEventListener('sl-input', () => typeof filtrarSifenEstado === 'function' && filtrarSifenEstado());
+    document.getElementById('sifenFiltroEstado')
+        ?.addEventListener('sl-change', () => typeof filtrarSifenEstado === 'function' && filtrarSifenEstado());
 
     // onchange en file inputs nativos
     document.getElementById('restaurarFile')
@@ -343,7 +353,7 @@ function cambiarSeccion(seccionId) {
     const seccion = document.getElementById(`seccion-${seccionId}`);
     if (seccion) { seccion.classList.add('active'); seccion.style.display = 'block'; }
 
-    const btn = document.querySelector(`button[onclick="cambiarSeccion('${seccionId}')"]`);
+    const btn = document.querySelector(`button[data-section="${seccionId}"]`);
     if (btn) btn.classList.add('active');
 
     const titulos = {
@@ -354,7 +364,9 @@ function cambiarSeccion(seccionId) {
         'productos': 'Catalogo de Productos', 'clientes': 'Base de Datos de Clientes',
         'promociones': 'Motor de Promociones',
         'rendiciones': 'Rendiciones de Caja', 'metas': 'Metas y Comisiones',
-        'inactivos': 'Clientes en Riesgo', 'forense': 'Seguridad / Forense', 'herramientas': 'Sistema y Herramientas'
+        'inactivos': 'Clientes en Riesgo', 'forense': 'Seguridad / Forense',
+        'herramientas': 'Sistema y Herramientas',
+        'sifen-estado': 'Consulta de Estado DTE / SIFEN',
     };
     const titleEl = document.getElementById('currentSectionTitle');
     if (titleEl) titleEl.textContent = titulos[seccionId] || 'Panel Admin';
@@ -379,6 +391,7 @@ function cambiarSeccion(seccionId) {
     if (seccionId === 'cierre' && typeof inicializarCierreMensual === 'function') inicializarCierreMensual();
     if (seccionId === 'inactivos') cargarClientesInactivos();
     if (seccionId === 'forense') { renderForenseFraudes(); renderForenseLogs(); }
+    if (seccionId === 'sifen-estado' && typeof cargarSifenEstado === 'function') cargarSifenEstado();
 
     if (typeof lucide !== 'undefined') lucide.createIcons();
 

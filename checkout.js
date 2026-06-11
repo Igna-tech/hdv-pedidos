@@ -233,6 +233,7 @@ async function procesarFacturaMock() {
             desgloseIVA: datos.desgloseIVA,
             numFactura,
             cdc,
+            sifen_estado: 'generado_local',
             vendedor_id: window.hdvUsuario?.id || null,
             sincronizado: false
         };

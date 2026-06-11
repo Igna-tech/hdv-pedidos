@@ -352,6 +352,9 @@
             <button data-section="cierre" class="nav-item w-full flex items-center text-sm">
                 <i data-lucide="calculator" class="w-4 h-4 mr-3 text-gray-400"></i> Cierre Mensual
             </button>
+            <button data-section="sifen-estado" class="nav-item w-full flex items-center text-sm">
+                <i data-lucide="file-check-2" class="w-4 h-4 mr-3 text-gray-400"></i> Consulta DTE / SIFEN
+            </button>
 
             <div class="px-3 mt-5 mb-2 text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Seguridad</div>
             <button data-section="forense" class="nav-item w-full flex items-center text-sm">
@@ -1378,6 +1381,74 @@
                 </div>
             </section>
 
+            <!-- ======================== SECCION SIFEN ESTADO ======================== -->
+            <section id="seccion-sifen-estado" class="tab-content space-y-6">
+                <div class="max-w-6xl space-y-5">
+
+                    <!-- Banner informativo -->
+                    <div class="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 flex gap-3 items-start">
+                        <i data-lucide="info" class="w-4 h-4 text-amber-600 mt-0.5 shrink-0"></i>
+                        <div class="text-xs text-amber-800 leading-relaxed">
+                            <strong>Modo local activo.</strong> Los documentos listados tienen XML SIFEN v150 válido y CDC calculado con Módulo 11 oficial.
+                            Para completar la integración con la SET, se requiere <strong>certificado digital DNIT</strong> + envío al servidor SIFEN.
+                            Los botones "Enviar SET" están disponibles pero pendientes de activación.
+                        </div>
+                    </div>
+
+                    <!-- Resumen de contadores -->
+                    <div id="sifenResumen">
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div class="saas-card p-4 animate-pulse bg-gray-50 h-20"></div>
+                            <div class="saas-card p-4 animate-pulse bg-gray-50 h-20"></div>
+                            <div class="saas-card p-4 animate-pulse bg-gray-50 h-20"></div>
+                            <div class="saas-card p-4 animate-pulse bg-gray-50 h-20"></div>
+                        </div>
+                    </div>
+
+                    <!-- Barra de filtros -->
+                    <div class="saas-card p-4">
+                        <div class="flex flex-wrap gap-3 items-end">
+                            <div class="flex-1 min-w-[200px]">
+                                <label class="block text-xs font-bold text-gray-500 mb-1">BUSCAR</label>
+                                <sl-input id="sifenBusqueda" size="small" placeholder="N° factura, CDC, cliente, RUC..." clearable class="w-full"></sl-input>
+                            </div>
+                            <div class="min-w-[180px]">
+                                <label class="block text-xs font-bold text-gray-500 mb-1">ESTADO SET</label>
+                                <sl-select id="sifenFiltroEstado" size="small" hoist class="w-full">
+                                    <sl-option value="">Todos los estados</sl-option>
+                                    <sl-option value="generado_local">Generado (Local)</sl-option>
+                                    <sl-option value="enviado_set">Enviado a SET</sl-option>
+                                    <sl-option value="aprobado_set">Aprobado por SET</sl-option>
+                                    <sl-option value="rechazado_set">Rechazado por SET</sl-option>
+                                    <sl-option value="anulado_set">Anulado</sl-option>
+                                </sl-select>
+                            </div>
+                            <sl-button data-action="filtrarSifenEstado" variant="neutral" size="small">
+                                <i data-lucide="search" class="w-4 h-4"></i> Filtrar
+                            </sl-button>
+                            <sl-button data-action="exportarSifenCSV" variant="neutral" size="small" outline>
+                                <i data-lucide="download" class="w-4 h-4"></i> Exportar CSV
+                            </sl-button>
+                        </div>
+                    </div>
+
+                    <!-- Tabla de DTEs -->
+                    <div class="saas-card p-0 overflow-hidden">
+                        <div class="px-5 py-4 border-b border-gray-100 flex justify-between items-center">
+                            <h3 class="font-semibold text-gray-800 flex items-center gap-2">
+                                <i data-lucide="file-check-2" class="w-4 h-4 text-indigo-500"></i>
+                                Documentos Tributarios Electrónicos
+                            </h3>
+                            <span class="text-[10px] px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 font-bold">SIFEN v150</span>
+                        </div>
+                        <div id="sifenTabla" class="p-4">
+                            <div class="text-center py-8 text-gray-400 text-sm">Cargando documentos...</div>
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+
             <!-- ======================== SECCION FORENSE ======================== -->
             <section id="seccion-forense" class="tab-content space-y-6">
                 <div class="space-y-6">
@@ -2047,6 +2118,7 @@
     <script src="admin-ventas.js"></script>
     <script src="admin-devoluciones.js"></script>
     <script src="admin-contabilidad.js"></script>
+    <script src="js/admin/sifen-estado.js"></script>
     <script>lucide.createIcons();</script>
 </body>
 </html>

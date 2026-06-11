@@ -30,6 +30,7 @@ PWA mobile-first para vendedores de calle + panel admin de escritorio.
 ├── admin-ventas.js         → Facturacion: emision facturas SIFEN, reimpresion, WhatsApp
 ├── admin-devoluciones.js   → Notas de credito: devolucion parcial/total, restaura stock, impresion
 ├── admin-contabilidad.js   → Cierre mensual: libro RG90 CSV, paquete ZIP con KuDE+XML
+├── js/admin/sifen-estado.js → Consulta de Estado DTE/SIFEN: tabla de documentos, filtros, resumen por estado, detalle CDC, export CSV. Botones "Enviar SET" presentes pero deshabilitados hasta certificado digital DNIT.
 │
 ├── supabase-init.js        → Credenciales Supabase (se carga PRIMERO en todos los HTML)
 ├── services/supabase.js    → Capa de servicios (Repository Pattern): centraliza TODAS las queries
@@ -89,7 +90,7 @@ PWA mobile-first para vendedores de calle + panel admin de escritorio.
 supabase CDN → supabase-init.js → **js/utils/constants.js** → services/supabase.js → js/utils/storage.js → guard.js → supabase-config.js → js/services/sync.js → [core/state, sanitizer, **dialogs**, helpers, formatters, printer, pdf-generator, vendedor modules] → app.js → checkout.js
 
 **admin.html:**
-supabase CDN → Chart.js → supabase-init.js → **js/utils/constants.js** → services/supabase.js → js/utils/storage.js → guard.js → supabase-config.js → [core/state, sanitizer, **dialogs**, helpers, formatters, printer, pdf-generator] → admin.js → [admin modules] → admin-ventas.js → admin-devoluciones.js → admin-contabilidad.js
+supabase CDN → Chart.js → supabase-init.js → **js/utils/constants.js** → services/supabase.js → js/utils/storage.js → guard.js → supabase-config.js → [core/state, sanitizer, **dialogs**, helpers, formatters, printer, pdf-generator] → admin.js → [admin modules] → admin-ventas.js → admin-devoluciones.js → admin-contabilidad.js → js/admin/sifen-estado.js
 
 **login.html:**
 supabase CDN → supabase-init.js → js/utils/storage.js → login.js

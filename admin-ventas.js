@@ -5,6 +5,10 @@
 
 const ventasCtrl = {};
 
+let paginaVentas = 1;
+const VENTAS_POR_PAGINA = 50;
+let _ventasFiltradas = [];
+
 // ---- Helpers de badge ----
 
 function _tipoBadge(pedido) {
@@ -119,6 +123,7 @@ function filtrarVentas() {
     });
 
     ventas.sort((a, b) => new Date(b.fecha || 0) - new Date(a.fecha || 0));
+    paginaVentas = 1;
     mostrarVentas(ventas);
     actualizarEstadisticasVentas(ventas);
 }
@@ -139,15 +144,22 @@ function actualizarEstadisticasVentas(ventas) {
 }
 
 function mostrarVentas(ventas) {
+    _ventasFiltradas = ventas;
     const container = document.getElementById('ventasTabla');
     if (!container) return;
 
     if (!ventas.length) {
         container.innerHTML = '<div class="text-center py-12 text-gray-400 text-sm">No hay documentos que coincidan con los filtros.</div>';
+        _renderPaginacionVentas(0, 1);
         return;
     }
 
-    const rows = ventas.map(v => {
+    const totalPaginas = Math.max(1, Math.ceil(ventas.length / VENTAS_POR_PAGINA));
+    paginaVentas = Math.max(1, Math.min(paginaVentas, totalPaginas));
+    const inicio = (paginaVentas - 1) * VENTAS_POR_PAGINA;
+    const pagina = ventas.slice(inicio, inicio + VENTAS_POR_PAGINA);
+
+    const rows = pagina.map(v => {
         const fecha  = typeof formatearFecha === 'function' ? formatearFecha(v.fecha).substring(0, 10) : (v.fecha || '').substring(0, 10);
         const nombre = escapeHTML(v.cliente?.nombre || '—');
         const num    = escapeHTML(v.numFactura || v.sifen_numFactura || v.id?.substring(0, 18) || '—');
@@ -186,7 +198,35 @@ function mostrarVentas(ventas) {
         <tbody>${rows}</tbody>
     </table>`;
 
+    _renderPaginacionVentas(ventas.length, totalPaginas);
     if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function _renderPaginacionVentas(total, totalPaginas) {
+    const el = document.getElementById('paginacionVentas');
+    if (!el) return;
+    if (totalPaginas <= 1) { el.innerHTML = ''; return; }
+
+    const esPrimera = paginaVentas === 1;
+    const esUltima  = paginaVentas === totalPaginas;
+    const ini  = (paginaVentas - 1) * VENTAS_POR_PAGINA + 1;
+    const fin  = Math.min(paginaVentas * VENTAS_POR_PAGINA, total);
+
+    el.innerHTML = `
+        <span>${ini}–${fin} de ${total} documentos</span>
+        <div class="flex gap-1 items-center">
+            <sl-button variant="default" size="small" data-action="paginaVentasFirst" ${esPrimera ? 'disabled' : ''}>«</sl-button>
+            <sl-button variant="default" size="small" data-action="paginaVentasPrev" ${esPrimera ? 'disabled' : ''}>‹</sl-button>
+            <span class="px-2 text-xs font-medium text-gray-600">${paginaVentas} / ${totalPaginas}</span>
+            <sl-button variant="default" size="small" data-action="paginaVentasNext" data-total="${totalPaginas}" ${esUltima ? 'disabled' : ''}>›</sl-button>
+            <sl-button variant="default" size="small" data-action="paginaVentasLast" data-total="${totalPaginas}" ${esUltima ? 'disabled' : ''}>»</sl-button>
+        </div>`;
+}
+
+function _paginaVentasCambiar(nueva) {
+    const total = Math.max(1, Math.ceil(_ventasFiltradas.length / VENTAS_POR_PAGINA));
+    paginaVentas = Math.max(1, Math.min(nueva, total));
+    mostrarVentas(_ventasFiltradas);
 }
 
 // ============================================

@@ -27,7 +27,7 @@ PWA mobile-first para vendedores de calle + panel admin de escritorio.
 │
 ├── admin.html              → Panel admin (desktop) — incluye filtros vendedor/estado en seccion pedidos
 ├── admin.js                → Logica admin (dashboard, productos, clientes, stock, pedidos, creditos, promos, backups, rendiciones, metas, forense)
-├── admin-ventas.js         → Ventas: tabla rediseñada (tabla+drawer), filtros vendedor/estado/fecha/texto, detalle en drawerDetalleVenta con acciones contextuales por estado, estadisticas, KuDE, XML SIFEN, WhatsApp
+├── admin-ventas.js         → Ventas: tabla rediseñada (tabla+drawer), filtros vendedor/estado/fecha/texto, detalle en drawerDetalleVenta con acciones contextuales por estado, estadisticas, paginacion 50/pag (VENTAS_POR_PAGINA, paginaVentas, _ventasFiltradas, _renderPaginacionVentas, _paginaVentasCambiar), KuDE, XML SIFEN, WhatsApp
 ├── admin-devoluciones.js   → Legacy (seccion eliminada del sidebar). Codigo conservado para backward compat de NC- existentes. Flujo NC nuevo esta en js/admin/dtes.js
 ├── admin-contabilidad.js   → Cierre mensual: libro RG90 CSV, paquete ZIP con KuDE+XML
 ├── js/admin/sifen-estado.js → Consulta de Estado DTE/SIFEN: tabla de documentos, filtros, resumen por estado, detalle CDC, export CSV. Botones "Enviar SET" presentes pero deshabilitados hasta certificado digital DNIT.

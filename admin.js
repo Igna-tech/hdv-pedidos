@@ -104,6 +104,10 @@ const ACTION_DISPATCH = {
     // === Ventas ===
     'filtrarVentas':                    ()     => typeof filtrarVentas === 'function' && filtrarVentas(),
     'exportarVentasSemanalesCSV':       ()     => typeof exportarVentasSemanalesCSV === 'function' && exportarVentasSemanalesCSV(),
+    'paginaVentasFirst': ()    => typeof _paginaVentasCambiar === 'function' && _paginaVentasCambiar(1),
+    'paginaVentasPrev':  ()    => typeof _paginaVentasCambiar === 'function' && _paginaVentasCambiar(Math.max(1, paginaVentas - 1)),
+    'paginaVentasNext':  (btn) => typeof _paginaVentasCambiar === 'function' && _paginaVentasCambiar(Math.min(parseInt(btn.dataset.total || 1), paginaVentas + 1)),
+    'paginaVentasLast':  (btn) => typeof _paginaVentasCambiar === 'function' && _paginaVentasCambiar(parseInt(btn.dataset.total || 1)),
     'adminImprimirVenta':               (_, a) => typeof adminImprimirVenta === 'function' && adminImprimirVenta(a),
     'cerrarModalFacturaAdmin':          ()     => typeof cerrarModalFacturaAdmin === 'function' && cerrarModalFacturaAdmin(),
     'ejecutarReimpresion':              (_, a) => typeof ejecutarReimpresion === 'function' && ejecutarReimpresion(a),

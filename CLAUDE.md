@@ -27,8 +27,8 @@ PWA mobile-first para vendedores de calle + panel admin de escritorio.
 │
 ├── admin.html              → Panel admin (desktop) — incluye filtros vendedor/estado en seccion pedidos
 ├── admin.js                → Logica admin (dashboard, productos, clientes, stock, pedidos, creditos, promos, backups, rendiciones, metas, forense)
-├── admin-ventas.js         → Ventas: tabla rediseñada (tabla+drawer), filtros vendedor/estado/fecha/texto, detalle en drawerDetalleVenta con acciones contextuales por estado, estadisticas, paginacion 50/pag (VENTAS_POR_PAGINA, paginaVentas, _ventasFiltradas, _renderPaginacionVentas, _paginaVentasCambiar), KuDE, XML SIFEN, WhatsApp
-├── admin-devoluciones.js   → Legacy (seccion eliminada del sidebar). Codigo conservado para backward compat de NC- existentes. Flujo NC nuevo esta en js/admin/dtes.js
+├── admin-ventas.js         → Ventas: tabla rediseñada (tabla+drawer), filtros vendedor/estado/fecha/texto, detalle en drawerDetalleVenta con acciones contextuales por estado, estadisticas, paginacion 50/pag (VENTAS_POR_PAGINA, paginaVentas, _ventasFiltradas, _renderPaginacionVentas, _paginaVentasCambiar), WhatsApp. Botones "Ver PDF" llaman a generarKudePDF(). Funciones de impresion legacy eliminadas.
+├── admin-devoluciones.js   → Legacy (seccion eliminada del sidebar). Codigo conservado para backward compat de NC- existentes. imprimirNC/reimprimirNC delegados a generarKudePDF. Flujo NC nuevo esta en js/admin/dtes.js
 ├── admin-contabilidad.js   → Cierre mensual: libro RG90 CSV, paquete ZIP con KuDE+XML
 ├── js/admin/sifen-estado.js → Consulta de Estado DTE/SIFEN: tabla de documentos, filtros, resumen por estado, detalle CDC, export CSV. Botones "Enviar SET" presentes pero deshabilitados hasta certificado digital DNIT.
 ├── js/admin/dtes.js        → Mis DTEs: emitir FAC-/NC-/NRE- (formularios accordion sl-details), consultar tabla DTEs propios, filtros, export CSV. IVA formula SET (precio c/IVA incluido).
@@ -46,7 +46,8 @@ PWA mobile-first para vendedores de calle + panel admin de escritorio.
 ├── js/utils/dialogs.js     → Toast (sl-alert), confirm modal (sl-dialog), input modal (sl-dialog) — compartido entre vendedor y admin
 ├── js/utils/helpers.js     → Utilidades compartidas (debounce, etc.)
 ├── js/utils/formatters.js  → Formateo de moneda, fechas, etc.
-├── js/utils/printer.js     → Impresion de tickets termicos y A4
+├── js/utils/kude-generator.js → Generador KuDE PDF: generarKudePDF(pedidoId) abre blob HTML con layout fiel a e-Kuatia'i (encabezado empresa+logo, receptor, tabla items IVA, footer QR+CDC). Requiere ventas-data.js, sanitizer.js. Logo embebido como base64 via fetch(). QR via QRCode.js cargado dinamicamente.
+├── js/utils/printer.js     → Impresion de tickets de trabajo INTERNOS (vendedor app.js, admin pedidos.js). NO se usa para documentos cliente.
 ├── js/utils/pdf-generator.js → Generacion de PDFs con jsPDF
 ├── js/vendedor/ui.js       → UI del vendedor (catalogo visual, navegacion)
 ├── js/vendedor/cart.js     → Logica de carrito del vendedor
@@ -55,8 +56,8 @@ PWA mobile-first para vendedores de calle + panel admin de escritorio.
 ├── js/admin/productos.js   → Modulo admin: CRUD de productos y variantes
 ├── js/admin/clientes.js    → Modulo admin: CRUD de clientes
 ├── js/admin/creditos.js    → Modulo admin: creditos con historial, soft-delete, event log
-├── js/modules/ventas/ventas-data.js      → Datos y logica de ventas/facturacion
-├── js/modules/ventas/ventas-templates.js → Templates HTML para documentos de venta
+├── js/modules/ventas/ventas-data.js      → Datos y logica de ventas/facturacion. ventasDataObtenerEmpresa() incluye logo_url (desde window._empresaLogoUrl)
+├── js/modules/ventas/ventas-templates.js → Vaciado: templates de impresion legacy eliminados. Archivo conservado por compatibilidad de carga.
 │
 ├── src/input.css           → Entrada Tailwind + design tokens Shoelace (:root --sl-*, --hdv-*) + clases utilitarias compartidas
 ├── dist/tailwind.css       → CSS compilado y minificado (generado por npm run build:css)
@@ -91,7 +92,7 @@ PWA mobile-first para vendedores de calle + panel admin de escritorio.
 supabase CDN → supabase-init.js → **js/utils/constants.js** → services/supabase.js → js/utils/storage.js → guard.js → supabase-config.js → js/services/sync.js → [core/state, sanitizer, **dialogs**, helpers, formatters, printer, pdf-generator, vendedor modules] → app.js → checkout.js
 
 **admin.html:**
-supabase CDN → Chart.js → supabase-init.js → **js/utils/constants.js** → services/supabase.js → js/utils/storage.js → guard.js → supabase-config.js → [core/state, sanitizer, **dialogs**, helpers, formatters, printer, pdf-generator] → admin.js → [admin modules] → admin-ventas.js → admin-devoluciones.js → admin-contabilidad.js → js/admin/sifen-estado.js → js/admin/dtes.js
+supabase CDN → Chart.js → supabase-init.js → **js/utils/constants.js** → services/supabase.js → js/utils/storage.js → guard.js → supabase-config.js → [core/state, sanitizer, **dialogs**, helpers, formatters, printer, pdf-generator] → admin.js → [admin modules] → **js/utils/kude-generator.js** → admin-ventas.js → admin-devoluciones.js → admin-contabilidad.js → js/admin/sifen-estado.js → js/admin/dtes.js
 
 **login.html:**
 supabase CDN → supabase-init.js → js/utils/storage.js → login.js
@@ -107,7 +108,7 @@ supabase CDN → supabase-init.js → js/utils/storage.js → login.js
 ### Tablas operativas:
 - `pedidos` (id TEXT PK, estado, fecha TEXT, datos JSONB, creado_en, actualizado_en, vendedor_id UUID FK→auth.users DEFAULT auth.uid()) — estados: pedido_pendiente, entregado, cobrado_sin_factura, facturado_mock, nota_credito_mock, nota_remision, anulado. IDs por tipo: PED-, REC-, FAC-, NC-, NRE-
 - `configuracion` (doc_id TEXT PK, datos JSONB) — docs: pagos_credito, creditos_manuales, historial_creditos, promociones, whatsapp_plantilla, gastos_vendedor_${vendedorId}, rendiciones_${vendedorId}, cuentas_bancarias, metas_vendedor. NOTA: gastos y rendiciones particionados por vendedor_id desde Fase 1 (antes era doc_id compartido → last-write-wins)
-- `configuracion_empresa` (id INT PK default 1, ruc_empresa, razon_social, nombre_fantasia, timbrado_numero, timbrado_vencimiento, establecimiento, punto_expedicion, direccion_fiscal, telefono_empresa, email_empresa, actividad_economica) — fila unica, DELETE bloqueado
+- `configuracion_empresa` (id INT PK default 1, ruc_empresa, razon_social, nombre_fantasia, timbrado_numero, timbrado_vencimiento, establecimiento, punto_expedicion, direccion_fiscal, telefono_empresa, email_empresa, actividad_economica, logo_url TEXT) — fila unica, DELETE bloqueado. logo_url → URL publica en bucket empresa_assets
 - `reportes_mensuales` (mes TEXT PK, datos JSONB)
 - `perfiles` (id UUID PK FK→auth.users, nombre_completo, rol CHECK('admin','vendedor'), activo)
 - `app_secrets` (key TEXT PK, value, description, created_at, updated_at) — RLS blindado: zero politicas, solo SECURITY DEFINER puede leer. Keys: `alertas_url`, `push_notifications_url`, `push_webhook_secret` (debe configurarse manualmente)

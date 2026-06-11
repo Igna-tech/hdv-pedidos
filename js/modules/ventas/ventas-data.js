@@ -216,5 +216,6 @@ function ventasDataObtenerEmpresa() {
         telefono: document.getElementById('cfgEmpresaTelefono')?.value || '',
         email: document.getElementById('cfgEmpresaEmail')?.value || '',
         actividad: document.getElementById('cfgEmpresaActividad')?.value || '',
+        logo_url: window._empresaLogoUrl || '',
     };
 }

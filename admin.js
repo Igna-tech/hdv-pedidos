@@ -6,6 +6,7 @@
 let productosDataOriginal = null;
 let cambiosSinGuardar = 0;
 let stockFiltrado = [];
+window._empresaLogoUrl = '';
 
 // ============================================
 // LAZY LOAD - IntersectionObserver for catalog cards
@@ -108,10 +109,18 @@ const ACTION_DISPATCH = {
     'paginaVentasPrev':  ()    => typeof _paginaVentasCambiar === 'function' && _paginaVentasCambiar(Math.max(1, paginaVentas - 1)),
     'paginaVentasNext':  (btn) => typeof _paginaVentasCambiar === 'function' && _paginaVentasCambiar(Math.min(parseInt(btn.dataset.total || 1), paginaVentas + 1)),
     'paginaVentasLast':  (btn) => typeof _paginaVentasCambiar === 'function' && _paginaVentasCambiar(parseInt(btn.dataset.total || 1)),
-    'adminImprimirVenta':               (_, a) => typeof adminImprimirVenta === 'function' && adminImprimirVenta(a),
-    'cerrarModalFacturaAdmin':          ()     => typeof cerrarModalFacturaAdmin === 'function' && cerrarModalFacturaAdmin(),
-    'ejecutarReimpresion':              (_, a) => typeof ejecutarReimpresion === 'function' && ejecutarReimpresion(a),
-    'cerrarModalElegirImpresion':       ()     => typeof cerrarModalElegirImpresion === 'function' && cerrarModalElegirImpresion(),
+    'verKudePDF':   (_, a) => typeof generarKudePDF === 'function' && generarKudePDF(a),
+    'verKudePDFNC': ()    => { const id = document.getElementById('modalNCExito')?.dataset?.pedidoId; if (id && typeof generarKudePDF === 'function') generarKudePDF(id); },
+    'cfgEmpresaLogoSeleccionar': () => document.getElementById('cfgEmpresaLogoInput')?.click(),
+    'cfgEmpresaLogoQuitar': () => {
+        window._empresaLogoUrl = '';
+        const preview = document.getElementById('cfgEmpresaLogoPreview');
+        const placeholder = document.getElementById('cfgEmpresaLogoPlaceholder');
+        const btnQuitar = document.getElementById('btnCfgEmpresaLogoQuitar');
+        if (preview) { preview.src = ''; preview.classList.add('hidden'); }
+        if (placeholder) placeholder.classList.remove('hidden');
+        if (btnQuitar) btnQuitar.classList.add('hidden');
+    },
 
     // === Devoluciones ===
     'buscarFacturaDevolucion':          ()     => typeof buscarFacturaDevolucion === 'function' && buscarFacturaDevolucion(),
@@ -1183,6 +1192,15 @@ async function cargarConfigEmpresa() {
             const el = document.getElementById(elId);
             if (el && valor) el.value = valor;
         }
+        if (data.logo_url) {
+            window._empresaLogoUrl = data.logo_url;
+            const preview = document.getElementById('cfgEmpresaLogoPreview');
+            const placeholder = document.getElementById('cfgEmpresaLogoPlaceholder');
+            const btnQuitar = document.getElementById('btnCfgEmpresaLogoQuitar');
+            if (preview) { preview.src = data.logo_url; preview.classList.remove('hidden'); }
+            if (placeholder) placeholder.classList.add('hidden');
+            if (btnQuitar) btnQuitar.classList.remove('hidden');
+        }
         console.log('[Config Empresa] Datos cargados');
     } catch (e) {
         console.error('[Config Empresa] Error:', e);
@@ -1203,6 +1221,7 @@ async function guardarConfigEmpresa() {
         telefono_empresa: document.getElementById('cfgEmpresaTelefono')?.value.trim() || '',
         email_empresa: document.getElementById('cfgEmpresaEmail')?.value.trim() || '',
         actividad_economica: document.getElementById('cfgEmpresaActividad')?.value.trim() || '',
+        logo_url: window._empresaLogoUrl || null,
         actualizado_en: new Date().toISOString()
     };
 
@@ -1220,6 +1239,69 @@ async function guardarConfigEmpresa() {
         }
     }, 'Guardando...')();
 }
+
+// ============================================
+// LOGO EMPRESA (para KuDE)
+// ============================================
+async function subirLogoEmpresa(file) {
+    if (!file) return;
+    const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!allowed.includes(file.type)) { mostrarToast('Solo se aceptan JPEG, PNG o WebP', 'error'); return; }
+    if (file.size > 2 * 1024 * 1024) { mostrarToast('El archivo supera los 2MB', 'error'); return; }
+
+    // Comprimir via Canvas → WebP
+    const dataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = e => {
+            const img = new Image();
+            img.onload = () => {
+                const max = 400;
+                const scale = Math.min(1, max / Math.max(img.width, img.height));
+                const canvas = document.createElement('canvas');
+                canvas.width = Math.round(img.width * scale);
+                canvas.height = Math.round(img.height * scale);
+                canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+                resolve(canvas.toDataURL('image/webp', 0.85));
+            };
+            img.onerror = reject;
+            img.src = e.target.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    }).catch(() => null);
+    if (!dataUrl) { mostrarToast('Error al procesar la imagen', 'error'); return; }
+
+    // Convertir a Blob y subir
+    const res = await fetch(dataUrl);
+    const blob = await res.blob();
+    const filename = `logo_${Date.now()}.webp`;
+
+    mostrarToast('Subiendo logo...', 'info');
+    const { data, error } = await supabaseClient.storage.from('empresa_assets').upload(filename, blob, {
+        contentType: 'image/webp', upsert: false
+    });
+    if (error) { mostrarToast('Error al subir: ' + error.message, 'error'); return; }
+
+    const { data: { publicUrl } } = supabaseClient.storage.from('empresa_assets').getPublicUrl(filename);
+    window._empresaLogoUrl = publicUrl;
+
+    const preview = document.getElementById('cfgEmpresaLogoPreview');
+    const placeholder = document.getElementById('cfgEmpresaLogoPlaceholder');
+    const btnQuitar = document.getElementById('btnCfgEmpresaLogoQuitar');
+    if (preview) { preview.src = publicUrl; preview.classList.remove('hidden'); }
+    if (placeholder) placeholder.classList.add('hidden');
+    if (btnQuitar) btnQuitar.classList.remove('hidden');
+
+    mostrarToast('Logo subido. Guardá los datos fiscales para confirmar.', 'success', 5000);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const logoInput = document.getElementById('cfgEmpresaLogoInput');
+    if (logoInput) logoInput.addEventListener('change', e => {
+        if (e.target.files?.[0]) subirLogoEmpresa(e.target.files[0]);
+        e.target.value = '';
+    });
+});
 
 // ============================================
 // FORZAR ACTUALIZACION ADMIN

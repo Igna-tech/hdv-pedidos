@@ -1,6 +1,6 @@
 // ============================================
 // HDV Admin - Ventas: Controlador (rediseño tabla + drawer)
-// Requiere: ventas-data.js, ventas-templates.js, admin.js
+// Requiere: ventas-data.js, ventas-templates.js, admin.js, kude-generator.js
 // ============================================
 
 const ventasCtrl = {};
@@ -104,7 +104,6 @@ function filtrarVentas() {
         return d <= hasta;
     });
     if (tipo) {
-        // El filtro puede ser estado OR tipo_comprobante OR prefijo de ID
         ventas = ventas.filter(p => {
             const est = p.estado || '';
             const tc  = p.tipo_comprobante || '';
@@ -258,13 +257,11 @@ async function abrirDetalleVenta(pedidoId) {
     const iva    = pedido.desgloseIVA;
     const est    = pedido.estado || '';
 
-    // Header info
     const tituloEl = document.getElementById('drawerDetalleVentaTitulo');
     const subEl    = document.getElementById('drawerDetalleVentaSubtitulo');
     if (tituloEl) tituloEl.textContent = `${num}`;
     if (subEl)    subEl.textContent    = `${fecha}`;
 
-    // Items rows
     const itemsHtml = items.map(it => `
         <tr class="border-b border-gray-50 last:border-0">
             <td class="py-2 text-xs text-gray-700">${escapeHTML(it.nombre || it.descripcion || '')}</td>
@@ -329,7 +326,6 @@ async function abrirDetalleVenta(pedidoId) {
         ${ivaHtml}
         ${cdcHtml}`;
 
-    // Footer: botones context-aware
     footer.innerHTML = _renderFooterVenta(pedido);
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
@@ -347,16 +343,15 @@ function _renderFooterVenta(pedido) {
         btns.push(`<sl-button variant="primary" size="small" data-action="facturarDesdeDetalle" data-arg="${id}"><i data-lucide="receipt" class="w-4 h-4 pointer-events-none"></i> Facturar</sl-button>`);
         btns.push(`<sl-button variant="danger" size="small" data-action="anularDocumentoDesdeDetalle" data-arg="${id}">Anular</sl-button>`);
     } else if (est === 'cobrado_sin_factura') {
-        btns.push(`<sl-button variant="neutral" size="small" data-action="reimprimirDesdeDetalle" data-arg="${id}"><i data-lucide="printer" class="w-4 h-4 pointer-events-none"></i> Reimprimir</sl-button>`);
+        btns.push(`<sl-button variant="primary" size="small" data-action="verKudePDF" data-arg="${id}"><i data-lucide="file-text" class="w-4 h-4 pointer-events-none"></i> Ver PDF</sl-button>`);
         btns.push(`<sl-button variant="success" size="small" data-action="whatsappDesdeDetalle" data-arg="${id}"><i data-lucide="message-circle" class="w-4 h-4 pointer-events-none"></i> WhatsApp</sl-button>`);
         btns.push(`<sl-button variant="danger" size="small" data-action="anularDocumentoDesdeDetalle" data-arg="${id}">Anular</sl-button>`);
     } else if (est === 'facturado_mock') {
-        btns.push(`<sl-button variant="neutral" size="small" data-action="reimprimirDesdeDetalle" data-arg="${id}"><i data-lucide="printer" class="w-4 h-4 pointer-events-none"></i> Reimprimir</sl-button>`);
+        btns.push(`<sl-button variant="primary" size="small" data-action="verKudePDF" data-arg="${id}"><i data-lucide="file-text" class="w-4 h-4 pointer-events-none"></i> Ver PDF</sl-button>`);
         btns.push(`<sl-button variant="success" size="small" data-action="whatsappDesdeDetalle" data-arg="${id}"><i data-lucide="message-circle" class="w-4 h-4 pointer-events-none"></i> WhatsApp</sl-button>`);
-        btns.push(`<sl-button variant="neutral" size="small" data-action="kudeDesdeDetalle" data-arg="${id}">KuDE/XML</sl-button>`);
         btns.push(`<sl-button variant="warning" size="small" data-action="ncDesdeDetalle" data-arg="${id}"><i data-lucide="file-minus-2" class="w-4 h-4 pointer-events-none"></i> Nota Crédito</sl-button>`);
     } else if (est === 'nota_credito_mock') {
-        btns.push(`<sl-button variant="neutral" size="small" data-action="reimprimirNCDesdeDetalle" data-arg="${id}"><i data-lucide="printer" class="w-4 h-4 pointer-events-none"></i> Reimprimir NC</sl-button>`);
+        btns.push(`<sl-button variant="primary" size="small" data-action="verKudePDF" data-arg="${id}"><i data-lucide="file-text" class="w-4 h-4 pointer-events-none"></i> Ver PDF NC</sl-button>`);
     }
     // nota_remision y anulado: sin botones
     return btns.join('');
@@ -392,16 +387,7 @@ async function anularDocumentoDesdeDetalle(pedidoId) {
 
 async function reimprimirDesdeDetalle(pedidoId) {
     document.getElementById('drawerDetalleVenta')?.hide();
-    await ejecutarReimpresion_porId(pedidoId);
-}
-
-async function ejecutarReimpresion_porId(pedidoId) {
-    const pedido = await ventasDataBuscarPedido(pedidoId);
-    if (!pedido) { mostrarToast('No se encontró el documento', 'error'); return; }
-    const modal = document.getElementById('modalElegirImpresion');
-    modal.dataset.ventaId = pedidoId;
-    modal.show();
-    if (typeof lucide !== 'undefined') lucide.createIcons();
+    if (typeof generarKudePDF === 'function') await generarKudePDF(pedidoId);
 }
 
 async function whatsappDesdeDetalle(pedidoId) {
@@ -412,7 +398,7 @@ async function whatsappDesdeDetalle(pedidoId) {
 
 async function kudeDesdeDetalle(pedidoId) {
     document.getElementById('drawerDetalleVenta')?.hide();
-    ventasCtrl.imprimirKuDE(pedidoId);
+    if (typeof generarKudePDF === 'function') await generarKudePDF(pedidoId);
 }
 
 function ncDesdeDetalle(pedidoId) {
@@ -422,14 +408,11 @@ function ncDesdeDetalle(pedidoId) {
 
 async function reimprimirNCDesdeDetalle(pedidoId) {
     document.getElementById('drawerDetalleVenta')?.hide();
-    const pedido = await ventasDataBuscarPedido(pedidoId);
-    if (!pedido) { mostrarToast('No se encontró el documento', 'error'); return; }
-    const clienteInfo = ventasDataBuscarCliente(pedido.cliente?.id);
-    imprimirConFormato('a4', pedido, clienteInfo);
+    if (typeof generarKudePDF === 'function') await generarKudePDF(pedidoId);
 }
 
 // ============================================
-// FACTURAR PEDIDO (usado por facturarDesdeDetalle)
+// FACTURAR PEDIDO
 // ============================================
 
 async function facturarPedidoAdmin(pedidoId) {
@@ -451,105 +434,12 @@ async function facturarPedidoAdmin(pedidoId) {
         if (!resultado) { mostrarToast('Pedido no encontrado', 'error'); return; }
         if (resultado.error) { mostrarToast(resultado.error, 'error'); return; }
 
-        const { pedido: pedidoActualizado, numFactura, cdc } = resultado;
-
-        document.getElementById('adminFacturaNumero').textContent = `N° ${numFactura} | CDC: ${cdc}`;
-
-        const telefono = clienteInfo?.telefono || pedido.cliente?.telefono || '';
-        const textoWA  = `Factura Electronica HDV Distribuciones%0AN°: ${numFactura}%0AFecha: ${typeof tplFormatearFechaAdmin === 'function' ? tplFormatearFechaAdmin(pedido.fecha) : pedido.fecha}%0ACliente: ${pedido.cliente?.nombre}%0ARUC: ${ruc}%0ATotal: ${typeof formatearGuaranies === 'function' ? formatearGuaranies(pedido.total) : pedido.total}%0ACDC: ${cdc}%0AConsulta: https://ekuatia.set.gov.py`;
-        const telLimpio = telefono.replace(/\D/g, '');
-        document.getElementById('adminFacturaWhatsApp').href = telLimpio
-            ? `https://wa.me/595${telLimpio.replace(/^0/, '')}?text=${textoWA}`
-            : `https://wa.me/?text=${textoWA}`;
-
-        _ultimaFactura = { pedido: pedidoActualizado, clienteInfo, numFactura, cdc };
-        document.getElementById('modalFacturaAdmin').show();
+        const { pedido: pedidoActualizado, numFactura } = resultado;
+        mostrarToast(`✓ Factura ${numFactura} emitida`, 'success', 4000);
         cargarPedidos();
-        if (typeof lucide !== 'undefined') lucide.createIcons();
+        if (typeof cargarVentas === 'function') cargarVentas();
+        if (typeof generarKudePDF === 'function') await generarKudePDF(pedidoActualizado.id || pedidoId);
     }, 'Procesando con la SET...')();
-}
-
-let _ultimaFactura = null;
-
-function adminImprimirVenta(formato) {
-    if (!_ultimaFactura) return;
-    imprimirConFormato(formato, _ultimaFactura.pedido, _ultimaFactura.clienteInfo);
-}
-
-function cerrarModalFacturaAdmin() {
-    document.getElementById('modalFacturaAdmin').hide();
-}
-
-// ============================================
-// IMPRESION DUAL
-// ============================================
-
-function imprimirConFormato(formato, pedido, clienteInfo) {
-    let printEl, contentEl;
-    let pageStyle = document.getElementById('dynamicPageStyle');
-    if (!pageStyle) {
-        pageStyle = document.createElement('style');
-        pageStyle.id = 'dynamicPageStyle';
-        document.head.appendChild(pageStyle);
-    }
-
-    if (formato === 'thermal') {
-        printEl  = document.getElementById('adminPrintThermal');
-        contentEl = document.getElementById('adminPrintThermalContent');
-        contentEl.innerHTML = tplTicketThermal(pedido, clienteInfo);
-        document.body.classList.add('print-thermal');
-        document.body.classList.remove('print-a4');
-        pageStyle.textContent = '@page { margin: 0; size: 58mm auto; }';
-    } else {
-        printEl  = document.getElementById('adminPrintA4');
-        contentEl = document.getElementById('adminPrintA4Content');
-        contentEl.innerHTML = tplDocA4(pedido, clienteInfo);
-        document.body.classList.add('print-a4');
-        document.body.classList.remove('print-thermal');
-        pageStyle.textContent = '@page { margin: 10mm; size: A4; }';
-    }
-
-    printEl.classList.add('active');
-    printEl.style.display = 'block';
-
-    setTimeout(() => {
-        window.print();
-        printEl.classList.remove('active');
-        printEl.style.display = 'none';
-        document.body.classList.remove('print-thermal', 'print-a4');
-        pageStyle.textContent = '';
-    }, 300);
-}
-
-// ============================================
-// RE-IMPRIMIR (modal elegir formato)
-// ============================================
-
-ventasCtrl.abrirReimpresion = function(ventaId) {
-    const modal = document.getElementById('modalElegirImpresion');
-    modal.dataset.ventaId = ventaId;
-    modal.show();
-    if (typeof lucide !== 'undefined') lucide.createIcons();
-};
-
-function cerrarModalElegirImpresion() {
-    const modal = document.getElementById('modalElegirImpresion');
-    modal.hide();
-    delete modal.dataset.ventaId;
-    window._reimprimirNCActiva = false;
-}
-
-async function ejecutarReimpresion(formato) {
-    const modal   = document.getElementById('modalElegirImpresion');
-    const ventaId = modal.dataset.ventaId;
-    if (!ventaId) return;
-
-    const pedido = await ventasDataBuscarPedido(ventaId);
-    if (!pedido) { mostrarToast('Venta no encontrada', 'error'); return; }
-
-    const clienteInfo = ventasDataBuscarCliente(pedido.cliente?.id);
-    cerrarModalElegirImpresion();
-    imprimirConFormato(formato, pedido, clienteInfo);
 }
 
 // ============================================
@@ -575,196 +465,4 @@ async function exportarVentasSemanalesCSV() {
     }
     descargarCSV(result.csv, result.filename);
     mostrarToast(`Exportadas ${result.count} ventas de la semana`, 'success');
-}
-
-// ============================================
-// VER XML SIFEN (PRUEBA) — Edge Function
-// ============================================
-
-ventasCtrl.verXMLSifen = async function(pedidoId) {
-    mostrarToast('Generando XML SIFEN...', 'info');
-    try {
-        const result = await ventasDataGenerarXMLSifen(pedidoId);
-        try {
-            await ventasDataGuardarSifen(pedidoId, result);
-            if (typeof cargarVentas === 'function') await cargarVentas();
-        } catch (e) { console.warn('[SIFEN] Error guardando en IndexedDB:', e); }
-        _mostrarXMLSifenModal(result);
-    } catch (err) {
-        console.error('[SIFEN] Error:', err);
-        mostrarToast(err.message || 'Error de conexion al generar XML SIFEN', 'error');
-    }
-};
-
-function verXMLSifen(pedidoId) { ventasCtrl.verXMLSifen(pedidoId); }
-
-let _sifenState = { xml: '', cdc: '', soap: '' };
-
-function _mostrarXMLSifenModal(result) {
-    let modal = document.getElementById('modalXMLSifen');
-    if (modal) modal.remove();
-
-    _sifenState = { xml: result.xml || '', cdc: result.cdc || '', soap: result.soap_simulado || '' };
-
-    modal = document.createElement('div');
-    modal.id = 'modalXMLSifen';
-    modal.className = 'fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4';
-    modal.style.display = 'flex';
-    modal.innerHTML = tplXMLSifenModal(result);
-
-    document.body.appendChild(modal);
-    if (typeof lucide !== 'undefined') lucide.createIcons();
-}
-
-ventasCtrl.sifenCambiarTab = function(tab) {
-    const xmlEl  = document.getElementById('sifenContentXml');
-    const soapEl = document.getElementById('sifenContentSoap');
-    const tabXml  = document.getElementById('sifenTabXml');
-    const tabSoap = document.getElementById('sifenTabSoap');
-    if (!xmlEl || !soapEl) return;
-
-    const activeClass   = 'border-b-2 text-blue-600 bg-blue-50';
-    const inactiveClass = 'border-b-2 border-transparent text-gray-500 hover:text-gray-700';
-
-    if (tab === 'xml') {
-        xmlEl.classList.remove('hidden'); soapEl.classList.add('hidden');
-        tabXml.className  = `px-4 py-2 text-sm font-bold rounded-t-lg border-blue-600 ${activeClass}`;
-        tabSoap.className = `px-4 py-2 text-sm font-bold rounded-t-lg ${inactiveClass}`;
-    } else {
-        xmlEl.classList.add('hidden'); soapEl.classList.remove('hidden');
-        tabSoap.className = `px-4 py-2 text-sm font-bold rounded-t-lg border-amber-600 ${activeClass.replace('blue', 'amber')}`;
-        tabXml.className  = `px-4 py-2 text-sm font-bold rounded-t-lg ${inactiveClass}`;
-    }
-};
-
-function sifenCambiarTab(tab) { ventasCtrl.sifenCambiarTab(tab); }
-
-ventasCtrl.copiarXMLSifen = function() {
-    if (!_sifenState.xml) return;
-    navigator.clipboard.writeText(_sifenState.xml)
-        .then(() => mostrarToast('XML copiado al portapapeles', 'success'))
-        .catch(() => mostrarToast('Error al copiar', 'error'));
-};
-
-function copiarXMLSifen() { ventasCtrl.copiarXMLSifen(); }
-
-ventasCtrl.descargarXMLSifen = function() {
-    if (!_sifenState.xml) return;
-    const blob = new Blob([_sifenState.xml], { type: 'application/xml' });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href = url; a.download = `DTE_${_sifenState.cdc || 'sifen'}.xml`; a.click();
-    URL.revokeObjectURL(url);
-    mostrarToast('XML descargado', 'success');
-};
-
-function descargarXMLSifen() { ventasCtrl.descargarXMLSifen(); }
-
-ventasCtrl.descargarSOAPSifen = function() {
-    if (!_sifenState.soap) return;
-    const blob = new Blob([_sifenState.soap], { type: 'application/xml' });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href = url; a.download = `SOAP_${_sifenState.cdc || 'sifen'}.xml`; a.click();
-    URL.revokeObjectURL(url);
-    mostrarToast('SOAP descargado', 'success');
-};
-
-function descargarSOAPSifen() { ventasCtrl.descargarSOAPSifen(); }
-
-// ============================================
-// KuDE
-// ============================================
-
-ventasCtrl.imprimirKuDE = async function(pedidoId) {
-    const pedido = await ventasDataBuscarPedido(pedidoId);
-    if (!pedido) { mostrarToast('Pedido no encontrado', 'error'); return; }
-
-    const cdc       = pedido.sifen_cdc || pedido.cdc || '';
-    const numFactura = pedido.sifen_numFactura || pedido.numFactura || '';
-    const qrUrl     = pedido.sifen_qr_url || '';
-
-    let modal = document.getElementById('modalKuDE');
-    if (modal) modal.remove();
-
-    modal = document.createElement('div');
-    modal.id = 'modalKuDE';
-    modal.className = 'fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4';
-    modal.style.display = 'flex';
-    modal.innerHTML = tplKuDEModal(pedidoId, numFactura, cdc, pedido.cliente?.nombre || 'N/A', pedido.total, qrUrl);
-
-    document.body.appendChild(modal);
-    if (typeof lucide !== 'undefined') lucide.createIcons();
-};
-
-function imprimirKuDE(pedidoId) { ventasCtrl.imprimirKuDE(pedidoId); }
-
-ventasCtrl.ejecutarImpresionKuDE = async function(pedidoId, formato) {
-    const pedido = await ventasDataBuscarPedido(pedidoId);
-    if (!pedido) { mostrarToast('Pedido no encontrado', 'error'); return; }
-
-    const clienteInfo = ventasDataBuscarCliente(pedido.cliente?.id);
-    const modalKuDE   = document.getElementById('modalKuDE');
-    if (modalKuDE) modalKuDE.remove();
-
-    if (formato === 'thermal') {
-        imprimirConFormato('thermal', pedido, clienteInfo);
-        return;
-    }
-
-    _imprimirKuDEA4(pedido, clienteInfo);
-};
-
-function ejecutarImpresionKuDE(pedidoId, formato) { ventasCtrl.ejecutarImpresionKuDE(pedidoId, formato); }
-
-function _imprimirKuDEA4(pedido, clienteInfo) {
-    const empresa = ventasDataObtenerEmpresa();
-    const html    = tplKuDEA4(pedido, clienteInfo, empresa);
-
-    const printEl  = document.getElementById('adminPrintA4');
-    const contentEl = document.getElementById('adminPrintA4Content');
-    contentEl.innerHTML = html;
-
-    let pageStyle = document.getElementById('dynamicPageStyle');
-    if (!pageStyle) {
-        pageStyle = document.createElement('style');
-        pageStyle.id = 'dynamicPageStyle';
-        document.head.appendChild(pageStyle);
-    }
-    pageStyle.textContent = '@page { margin: 8mm; size: A4 portrait; }';
-    document.body.classList.add('print-a4');
-    document.body.classList.remove('print-thermal');
-    printEl.classList.add('active');
-    printEl.style.display = 'block';
-
-    const qrTarget = contentEl.querySelector('#kudeQRCode');
-    const qrUrl    = pedido.sifen_qr_url || '';
-
-    function generarQRyImprimir() {
-        if (qrTarget && qrUrl && typeof QRCode !== 'undefined') {
-            try {
-                new QRCode(qrTarget, { text: qrUrl, width: 100, height: 100, colorDark: '#000000', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
-            } catch (e) { console.warn('[KuDE] Error generando QR:', e); }
-        }
-        setTimeout(() => {
-            window.print();
-            printEl.classList.remove('active');
-            printEl.style.display = 'none';
-            document.body.classList.remove('print-a4');
-            pageStyle.textContent = '';
-        }, 400);
-    }
-
-    if (typeof QRCode !== 'undefined') {
-        generarQRyImprimir();
-    } else {
-        const script = document.createElement('script');
-        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
-        script.onload = generarQRyImprimir;
-        script.onerror = () => {
-            if (qrTarget) qrTarget.innerHTML = '<div style="width:100px;height:100px;border:1px solid #000;display:flex;align-items:center;justify-content:center;font-size:9px;text-align:center;">QR no<br>disponible</div>';
-            generarQRyImprimir();
-        };
-        document.head.appendChild(script);
-    }
 }

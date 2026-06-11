@@ -248,7 +248,9 @@ async function procesarNotaCredito() {
 
         // Mostrar modal exito
         document.getElementById('ncNumeroDisplay').textContent = `${numNC} | CDC: ${cdcNC}\nRef: ${facturaSeleccionadaNC.numFactura || facturaSeleccionadaNC.id}`;
-        document.getElementById('modalNCExito').show();
+        const modalNC = document.getElementById('modalNCExito');
+        modalNC.dataset.pedidoId = notaCredito.id || '';
+        modalNC.show();
 
         // Limpiar y refrescar historial
         limpiarDevolucion();
@@ -462,74 +464,12 @@ function construirA4NC(nc, clienteInfo) {
     `;
 }
 
-function imprimirNC(formato) {
-    if (!ultimaNCEmitida) return;
-    const { notaCredito, clienteInfo } = ultimaNCEmitida;
-
-    let printEl, contentEl;
-    let pageStyle = document.getElementById('dynamicPageStyle');
-    if (!pageStyle) {
-        pageStyle = document.createElement('style');
-        pageStyle.id = 'dynamicPageStyle';
-        document.head.appendChild(pageStyle);
-    }
-
-    if (formato === 'thermal') {
-        printEl = document.getElementById('adminPrintThermal');
-        contentEl = document.getElementById('adminPrintThermalContent');
-        contentEl.innerHTML = construirTicketNC(notaCredito, clienteInfo);
-        document.body.classList.add('print-thermal');
-        document.body.classList.remove('print-a4');
-        pageStyle.textContent = '@page { margin: 0; size: 58mm auto; }';
-    } else {
-        printEl = document.getElementById('adminPrintA4');
-        contentEl = document.getElementById('adminPrintA4Content');
-        contentEl.innerHTML = construirA4NC(notaCredito, clienteInfo);
-        document.body.classList.add('print-a4');
-        document.body.classList.remove('print-thermal');
-        pageStyle.textContent = '@page { margin: 10mm; size: A4; }';
-    }
-
-    printEl.classList.add('active');
-    printEl.style.display = 'block';
-
-    setTimeout(() => {
-        window.print();
-        printEl.classList.remove('active');
-        printEl.style.display = 'none';
-        document.body.classList.remove('print-thermal', 'print-a4');
-        pageStyle.textContent = '';
-    }, 300);
+function imprimirNC() {
+    if (!ultimaNCEmitida?.notaCredito?.id) return;
+    if (typeof generarKudePDF === 'function') generarKudePDF(ultimaNCEmitida.notaCredito.id);
 }
 
 // Re-imprimir NC desde historial
 async function reimprimirNC(ncId) {
-    const pedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
-    const nc = pedidos.find(p => p.id === ncId);
-    if (!nc) { mostrarToast('NC no encontrada', 'error'); return; }
-
-    const clienteInfo = productosData.clientes.find(c => c.id === nc.cliente?.id);
-    ultimaNCEmitida = { notaCredito: nc, clienteInfo, totalNC: Math.abs(nc.total || 0) };
-
-    // Mostrar modal elegir formato
-    document.getElementById('modalElegirImpresion').show();
-
-    // Sobreescribir temporalmente la funcion de ejecucion
-    window._reimprimirNCActiva = true;
-    lucide.createIcons();
+    if (typeof generarKudePDF === 'function') await generarKudePDF(ncId);
 }
-
-// Override ejecutarReimpresion para soportar NC
-const _ejecutarReimpresionOriginal = typeof ejecutarReimpresion === 'function' ? ejecutarReimpresion : null;
-
-window.ejecutarReimpresion = function(formato) {
-    if (window._reimprimirNCActiva && ultimaNCEmitida) {
-        window._reimprimirNCActiva = false;
-        cerrarModalElegirImpresion();
-        imprimirNC(formato);
-        return;
-    }
-    if (_ejecutarReimpresionOriginal) {
-        _ejecutarReimpresionOriginal(formato);
-    }
-};

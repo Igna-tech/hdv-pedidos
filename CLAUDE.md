@@ -27,10 +27,11 @@ PWA mobile-first para vendedores de calle + panel admin de escritorio.
 │
 ├── admin.html              → Panel admin (desktop) — incluye filtros vendedor/estado en seccion pedidos
 ├── admin.js                → Logica admin (dashboard, productos, clientes, stock, pedidos, creditos, promos, backups, rendiciones, metas, forense)
-├── admin-ventas.js         → Facturacion: emision facturas SIFEN, reimpresion, WhatsApp
-├── admin-devoluciones.js   → Notas de credito: devolucion parcial/total, restaura stock, impresion
+├── admin-ventas.js         → Ventas: tabla rediseñada (tabla+drawer), filtros vendedor/estado/fecha/texto, detalle en drawerDetalleVenta con acciones contextuales por estado, estadisticas, KuDE, XML SIFEN, WhatsApp
+├── admin-devoluciones.js   → Legacy (seccion eliminada del sidebar). Codigo conservado para backward compat de NC- existentes. Flujo NC nuevo esta en js/admin/dtes.js
 ├── admin-contabilidad.js   → Cierre mensual: libro RG90 CSV, paquete ZIP con KuDE+XML
 ├── js/admin/sifen-estado.js → Consulta de Estado DTE/SIFEN: tabla de documentos, filtros, resumen por estado, detalle CDC, export CSV. Botones "Enviar SET" presentes pero deshabilitados hasta certificado digital DNIT.
+├── js/admin/dtes.js        → Mis DTEs: emitir FAC-/NC-/NRE- (formularios accordion sl-details), consultar tabla DTEs propios, filtros, export CSV. IVA formula SET (precio c/IVA incluido).
 │
 ├── supabase-init.js        → Credenciales Supabase (se carga PRIMERO en todos los HTML)
 ├── services/supabase.js    → Capa de servicios (Repository Pattern): centraliza TODAS las queries
@@ -90,7 +91,7 @@ PWA mobile-first para vendedores de calle + panel admin de escritorio.
 supabase CDN → supabase-init.js → **js/utils/constants.js** → services/supabase.js → js/utils/storage.js → guard.js → supabase-config.js → js/services/sync.js → [core/state, sanitizer, **dialogs**, helpers, formatters, printer, pdf-generator, vendedor modules] → app.js → checkout.js
 
 **admin.html:**
-supabase CDN → Chart.js → supabase-init.js → **js/utils/constants.js** → services/supabase.js → js/utils/storage.js → guard.js → supabase-config.js → [core/state, sanitizer, **dialogs**, helpers, formatters, printer, pdf-generator] → admin.js → [admin modules] → admin-ventas.js → admin-devoluciones.js → admin-contabilidad.js → js/admin/sifen-estado.js
+supabase CDN → Chart.js → supabase-init.js → **js/utils/constants.js** → services/supabase.js → js/utils/storage.js → guard.js → supabase-config.js → [core/state, sanitizer, **dialogs**, helpers, formatters, printer, pdf-generator] → admin.js → [admin modules] → admin-ventas.js → admin-devoluciones.js → admin-contabilidad.js → js/admin/sifen-estado.js → js/admin/dtes.js
 
 **login.html:**
 supabase CDN → supabase-init.js → js/utils/storage.js → login.js
@@ -104,7 +105,7 @@ supabase CDN → supabase-init.js → js/utils/storage.js → login.js
 - `producto_variantes` (id UUID PK, producto_id FK→productos CASCADE, nombre_variante, precio, costo, stock, activo)
 
 ### Tablas operativas:
-- `pedidos` (id TEXT PK, estado, fecha TEXT, datos JSONB, creado_en, actualizado_en, vendedor_id UUID FK→auth.users DEFAULT auth.uid()) — estados: pedido_pendiente, entregado, cobrado_sin_factura, facturado_mock, nota_credito_mock, anulado
+- `pedidos` (id TEXT PK, estado, fecha TEXT, datos JSONB, creado_en, actualizado_en, vendedor_id UUID FK→auth.users DEFAULT auth.uid()) — estados: pedido_pendiente, entregado, cobrado_sin_factura, facturado_mock, nota_credito_mock, nota_remision, anulado. IDs por tipo: PED-, REC-, FAC-, NC-, NRE-
 - `configuracion` (doc_id TEXT PK, datos JSONB) — docs: pagos_credito, creditos_manuales, historial_creditos, promociones, whatsapp_plantilla, gastos_vendedor_${vendedorId}, rendiciones_${vendedorId}, cuentas_bancarias, metas_vendedor. NOTA: gastos y rendiciones particionados por vendedor_id desde Fase 1 (antes era doc_id compartido → last-write-wins)
 - `configuracion_empresa` (id INT PK default 1, ruc_empresa, razon_social, nombre_fantasia, timbrado_numero, timbrado_vencimiento, establecimiento, punto_expedicion, direccion_fiscal, telefono_empresa, email_empresa, actividad_economica) — fila unica, DELETE bloqueado
 - `reportes_mensuales` (mes TEXT PK, datos JSONB)
@@ -172,9 +173,11 @@ productos = [...], categorias = [...], clientes = [...]
 // Pedido (dentro de datos JSONB):
 pedido = {
   id, fecha, cliente: { id, nombre, ruc, ... }, items: [{ productoId, nombre, presentacion, precio, cantidad, subtotal }],
-  total, tipoPago, notas, estado, vendedor_id, sincronizado,
+  total, tipoPago, notas, estado, tipo_comprobante, vendedor_id, sincronizado,
   numFactura?, cdc?, facturaFecha?, sifen_xml_generado?, sifen_cdc?, sifen_qr_url?,
-  alerta_fraude?, fraude_detalle?, fraude_fecha?  // Inyectados por trigger trg_validar_precios
+  alerta_fraude?, fraude_detalle?, fraude_fecha?,  // Inyectados por trigger trg_validar_precios
+  // NC-: cdc_nc, cdc_referenciado, factura_referenciada_id, motivo_emision
+  // NRE-: receptor, transporte{motivo,responsable,km,tipo_transporte,modalidad,fecha_inicio,fecha_fin}, salida{direccion,nro,ciudad}, entrega{...}
 }
 ```
 
@@ -227,6 +230,8 @@ Migra automaticamente de localStorage a IndexedDB al primer uso. Supabase Auth s
 - Certificado .p12: env vars `CERTIFICADO_P12` + `PASS_CERT` (preparado, pendiente firma digital)
 - Formatos impresion: ticket termico 58mm, A4
 - Export contable: CSV libro RG90 + ZIP con KuDE+XML
+- **Mis DTEs** (`js/admin/dtes.js`): emision local de FAC-/NC-/NRE- con estado `sifen_estado: 'generado_local'`. No llama a Edge Function ni a SET directamente — genera el objeto pedido estructurado y lo sincroniza a Supabase. Lista unificada de DTEs emitidos con filtros y export CSV.
+- **IVA formula SET**: precio incluye IVA. IVA10 = round(precio*cant/11), IVA5 = round(precio*cant/21). Total bruto = precio × cantidad (sin sumar IVA).
 
 ## Imagenes de productos
 

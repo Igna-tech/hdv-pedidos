@@ -239,6 +239,33 @@ const ACTION_DISPATCH = {
     'irAVentasSifen':     (_, a) => typeof irAVentasSifen === 'function' && irAVentasSifen(a),
     'filtrarSifenEstado': ()     => typeof filtrarSifenEstado === 'function' && filtrarSifenEstado(),
     'exportarSifenCSV':   ()     => typeof exportarSifenCSV === 'function' && exportarSifenCSV(),
+
+    // === Ventas (nuevo sistema tabla + drawer) ===
+    'abrirDetalleVenta':            (_, a) => typeof abrirDetalleVenta === 'function' && abrirDetalleVenta(a),
+    'facturarDesdeDetalle':         (_, a) => typeof facturarDesdeDetalle === 'function' && facturarDesdeDetalle(a),
+    'editarPedidoDesdeDetalle':     (_, a) => typeof editarPedidoDesdeDetalle === 'function' && editarPedidoDesdeDetalle(a),
+    'anularDocumentoDesdeDetalle':  (_, a) => typeof anularDocumentoDesdeDetalle === 'function' && anularDocumentoDesdeDetalle(a),
+    'reimprimirDesdeDetalle':       (_, a) => typeof reimprimirDesdeDetalle === 'function' && reimprimirDesdeDetalle(a),
+    'whatsappDesdeDetalle':         (_, a) => typeof whatsappDesdeDetalle === 'function' && whatsappDesdeDetalle(a),
+    'kudeDesdeDetalle':             (_, a) => typeof kudeDesdeDetalle === 'function' && kudeDesdeDetalle(a),
+    'ncDesdeDetalle':               (_, a) => typeof ncDesdeDetalle === 'function' && ncDesdeDetalle(a),
+    'reimprimirNCDesdeDetalle':     (_, a) => typeof reimprimirNCDesdeDetalle === 'function' && reimprimirNCDesdeDetalle(a),
+
+    // === Mis DTEs ===
+    'cerrarDrawerDetalleVenta': () => document.getElementById('drawerDetalleVenta')?.hide(),
+    'seleccionarTipoDTE':   (_, a) => typeof seleccionarTipoDTE === 'function' && seleccionarTipoDTE(a),
+    'emitirDTE':            ()     => typeof emitirDTE === 'function' && emitirDTE(),
+    'cerrarDrawerDTE':      ()     => typeof cerrarDrawerDTE === 'function' && cerrarDrawerDTE(),
+    'limpiarFormDTE':       ()     => typeof limpiarFormDTE === 'function' && limpiarFormDTE(),
+    'agregarItemDTE':       ()     => typeof agregarItemDTE === 'function' && agregarItemDTE(),
+    'quitarItemDTE':        (_, a) => typeof quitarItemDTE === 'function' && quitarItemDTE(parseInt(a)),
+    'cargarDTES':           ()     => typeof cargarDTES === 'function' && cargarDTES(),
+    'filtrarDTES':          ()     => typeof filtrarDTES === 'function' && filtrarDTES(),
+    'exportarDTEScsv':      ()     => typeof exportarDTEScsv === 'function' && exportarDTEScsv(),
+    'seleccionarClienteDTE': (_, a) => typeof seleccionarClienteDTE === 'function' && seleccionarClienteDTE(a),
+    'seleccionarProductoDTE': (btn) => typeof seleccionarProductoDTE === 'function' && seleccionarProductoDTE(parseInt(btn.dataset.idx), btn.dataset.prodId, btn.dataset.varId),
+    'buscarFacturaNCRef':    ()     => typeof buscarFacturaNCRef === 'function' && buscarFacturaNCRef(),
+    'seleccionarFacturaNC':  (_, a) => typeof seleccionarFacturaNC === 'function' && seleccionarFacturaNC(a),
 };
 
 document.addEventListener('click', function(e) {
@@ -273,6 +300,20 @@ document.addEventListener('DOMContentLoaded', () => {
         ?.addEventListener('sl-input', () => typeof filtrarSifenEstado === 'function' && filtrarSifenEstado());
     document.getElementById('sifenFiltroEstado')
         ?.addEventListener('sl-change', () => typeof filtrarSifenEstado === 'function' && filtrarSifenEstado());
+    document.getElementById('dtesBusqueda')
+        ?.addEventListener('sl-input', () => typeof filtrarDTES === 'function' && filtrarDTES());
+    document.getElementById('dtesFiltroTipo')
+        ?.addEventListener('sl-change', () => typeof filtrarDTES === 'function' && filtrarDTES());
+    document.getElementById('filtroFechaVentasDesde')
+        ?.addEventListener('sl-change', () => typeof filtrarVentas === 'function' && filtrarVentas());
+    document.getElementById('filtroFechaVentasHasta')
+        ?.addEventListener('sl-change', () => typeof filtrarVentas === 'function' && filtrarVentas());
+    document.getElementById('filtroTipoVenta')
+        ?.addEventListener('sl-change', () => typeof filtrarVentas === 'function' && filtrarVentas());
+    document.getElementById('filtroVendedorVentas')
+        ?.addEventListener('sl-change', () => typeof filtrarVentas === 'function' && filtrarVentas());
+    document.getElementById('filtroTextoVentas')
+        ?.addEventListener('sl-input', () => typeof filtrarVentas === 'function' && filtrarVentas());
 
     // onchange en file inputs nativos
     document.getElementById('restaurarFile')
@@ -358,7 +399,7 @@ function cambiarSeccion(seccionId) {
 
     const titulos = {
         'dashboard': 'Dashboard', 'pedidos': 'Pedidos Entrantes', 'ventas': 'Ventas',
-        'devoluciones': 'Devoluciones (NC)', 'cierre': 'Cierre Mensual',
+        'cierre': 'Cierre Mensual',
         'creditos': 'Control de Creditos',
         'reportes': 'Analisis y Reportes', 'stock': 'Inventario',
         'productos': 'Catalogo de Productos', 'clientes': 'Base de Datos de Clientes',
@@ -367,6 +408,7 @@ function cambiarSeccion(seccionId) {
         'inactivos': 'Clientes en Riesgo', 'forense': 'Seguridad / Forense',
         'herramientas': 'Sistema y Herramientas',
         'sifen-estado': 'Consulta de Estado DTE / SIFEN',
+        'dtes': 'Mis DTEs',
     };
     const titleEl = document.getElementById('currentSectionTitle');
     if (titleEl) titleEl.textContent = titulos[seccionId] || 'Panel Admin';
@@ -387,7 +429,7 @@ function cambiarSeccion(seccionId) {
     if (seccionId === 'rendiciones') cargarRendiciones();
     if (seccionId === 'metas') cargarMetas();
     if (seccionId === 'ventas' && typeof cargarVentas === 'function') cargarVentas();
-    if (seccionId === 'devoluciones' && typeof cargarHistorialNC === 'function') cargarHistorialNC();
+    if (seccionId === 'dtes' && typeof cargarDTES === 'function') cargarDTES();
     if (seccionId === 'cierre' && typeof inicializarCierreMensual === 'function') inicializarCierreMensual();
     if (seccionId === 'inactivos') cargarClientesInactivos();
     if (seccionId === 'forense') { renderForenseFraudes(); renderForenseLogs(); }

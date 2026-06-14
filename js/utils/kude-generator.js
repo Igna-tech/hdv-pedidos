@@ -134,20 +134,36 @@ function _kudeItemsTable(pedido) {
     </tr>`).join('');
 
     const iva      = pedido.desgloseIVA || {};
-    const subExe   = iva.totalExentas   || 0;
-    const sub5     = iva.totalGravada5  || 0;
-    const sub10    = iva.totalGravada10 || 0;
-    const liqIva5  = iva.liqIva5  || 0;
-    const liqIva10 = iva.liqIva10 || 0;
-    const totalIva = iva.totalIva || (liqIva5 + liqIva10);
+    let subExe   = iva.totalExentas   || 0;
+    let sub5     = iva.totalGravada5  || 0;
+    let sub10    = iva.totalGravada10 || 0;
+    let liqIva5  = iva.liqIva5  || 0;
+    let liqIva10 = iva.liqIva10 || 0;
+    let totalIva = iva.totalIva || 0;
+
+    // Calcular desde items si desgloseIVA no está disponible
+    if (!subExe && !sub5 && !sub10 && items.length > 0) {
+        items.forEach(it => {
+            const tipo = String(it.tipo_impuesto || '10').toLowerCase();
+            const s = it.subtotal ?? ((it.precio||0) * (it.cantidad||0));
+            if (tipo === 'exenta' || tipo === '0') subExe += s;
+            else if (tipo === '5') sub5 += s;
+            else sub10 += s;
+        });
+        liqIva5  = Math.round(sub5  / 21);
+        liqIva10 = Math.round(sub10 / 11);
+        totalIva = liqIva5 + liqIva10;
+    } else if (!totalIva) {
+        totalIva = liqIva5 + liqIva10;
+    }
     const totalOpe = pedido.total || 0;
 
     const foot = `
     <tr style="font-weight:bold;background:#f8f8f8;">
         <td colspan="5" style="border:1px solid #000;padding:3px 5px;font-size:10px;font-weight:bold;">SUBTOTAL:</td>
-        <td style="border:1px solid #000;padding:3px 5px;font-size:10px;text-align:right;">${subExe>0?_kudeFmt(subExe):''}</td>
-        <td style="border:1px solid #000;padding:3px 5px;font-size:10px;text-align:right;">${sub5>0?_kudeFmt(sub5):''}</td>
-        <td style="border:1px solid #000;padding:3px 5px;font-size:10px;text-align:right;">${sub10>0?_kudeFmt(sub10):''}</td>
+        <td style="border:1px solid #000;padding:3px 5px;font-size:10px;text-align:right;">${_kudeFmt(subExe)}</td>
+        <td style="border:1px solid #000;padding:3px 5px;font-size:10px;text-align:right;">${_kudeFmt(sub5)}</td>
+        <td style="border:1px solid #000;padding:3px 5px;font-size:10px;text-align:right;">${_kudeFmt(sub10)}</td>
     </tr>
     <tr>
         <td colspan="7" style="border:1px solid #000;padding:3px 5px;font-size:10px;font-weight:bold;">TOTAL DE LA OPERACI&Oacute;N:</td>
@@ -199,7 +215,7 @@ async function generarKudePDF(pedidoId) {
     ]);
 
     const logoHtml = logoDataUrl
-        ? `<img src="${logoDataUrl}" alt="Logo" style="max-height:65px;max-width:140px;object-fit:contain;display:block;margin-bottom:4px;">`
+        ? `<img src="${logoDataUrl}" alt="Logo" style="max-height:75px;max-width:160px;object-fit:contain;display:block;margin:0 auto 5px;">`
         : '';
 
     const ncRefHtml = (pedido.tipo_comprobante === 'nota_credito_electronica' && pedido.factura_referenciada_id)
@@ -229,9 +245,9 @@ body{font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#000;background
 .page{width:190mm;margin:0 auto;}
 table.hdr{width:100%;border-collapse:collapse;border:2px solid #000;}
 table.hdr td{vertical-align:top;padding:8px 10px;}
-.td-l{width:55%;border-right:2px solid #000;}
+.td-l{width:55%;border-right:2px solid #000;text-align:center;}
 .td-r{width:45%;text-align:center;}
-.tipo-box{border:2px solid #000;padding:5px 8px;font-size:12px;font-weight:900;margin:6px 0 4px;letter-spacing:.3px;display:inline-block;width:100%;}
+.tipo-box{border:2px solid #000;padding:6px 8px;text-align:center;margin-top:6px;}
 table.rec{width:100%;border-collapse:collapse;border:2px solid #000;border-top:none;}
 table.rec td{padding:3px 8px;font-size:10px;border-bottom:1px solid #ddd;}
 table.rec .lbl{font-weight:bold;width:28%;white-space:nowrap;}
@@ -245,23 +261,26 @@ table.rec .lbl{font-weight:bold;width:28%;white-space:nowrap;}
 <table class="hdr"><tr>
   <td class="td-l">
     ${logoHtml}
-    <div style="font-size:14px;font-weight:900;line-height:1.2;margin-bottom:3px;">${escapeHTML(empresa.razonSocial||'HDV DISTRIBUCIONES E.A.S.')}</div>
+    <div style="font-size:13px;font-weight:900;line-height:1.3;margin-bottom:3px;">${escapeHTML(empresa.razonSocial||'HDV DISTRIBUCIONES E.A.S.')}</div>
     ${empresa.nombreFantasia && empresa.nombreFantasia !== empresa.razonSocial
-        ? `<div style="font-size:11px;font-weight:bold;margin-bottom:3px;">${escapeHTML(empresa.nombreFantasia)}</div>` : ''}
+        ? `<div style="font-size:10px;font-weight:bold;margin-bottom:2px;">${escapeHTML(empresa.nombreFantasia)}</div>` : ''}
     <div style="font-size:10px;line-height:1.6;">
-      ${empresa.direccion ? `<div>${escapeHTML(empresa.direccion)}</div>` : ''}
-      ${empresa.telefono  ? `<div>TELEF. ${escapeHTML(empresa.telefono)}</div>` : ''}
-      ${empresa.actividad ? `<div style="font-weight:bold;text-transform:uppercase;margin-top:2px;">${escapeHTML(empresa.actividad)}</div>` : ''}
+      ${(empresa.direccion || empresa.telefono)
+          ? `<div>${[empresa.direccion, empresa.telefono ? 'TELEF. '+empresa.telefono : ''].filter(Boolean).map(s=>escapeHTML(s)).join(' - ')}</div>`
+          : ''}
+      ${empresa.actividad ? `<div style="font-weight:bold;text-transform:uppercase;margin-top:3px;">${escapeHTML(empresa.actividad)}</div>` : ''}
     </div>
   </td>
   <td class="td-r">
-    <div style="font-size:10px;text-align:right;line-height:1.8;">
+    <div style="font-size:10px;text-align:right;line-height:1.8;margin-bottom:4px;">
       <div><strong>TIMBRADO N&deg; ${escapeHTML(empresa.timbrado||'')}</strong></div>
       ${feIni ? `<div>Fecha Inicio Vigencia: ${feIni}</div>` : ''}
-      <div>RUC ${escapeHTML(empresa.ruc||'')} - 5</div>
+      <div>RUC ${escapeHTML(empresa.ruc||'')}</div>
     </div>
-    <div class="tipo-box">${tipoLbl}</div>
-    <div style="font-size:15px;font-weight:900;letter-spacing:1px;margin-top:2px;">${escapeHTML(numDoc)}</div>
+    <div class="tipo-box">
+      <div style="font-size:12px;font-weight:900;letter-spacing:.3px;">${tipoLbl}</div>
+      <div style="font-size:13px;font-weight:900;letter-spacing:1px;margin-top:3px;">${escapeHTML(numDoc)}</div>
+    </div>
   </td>
 </tr></table>
 

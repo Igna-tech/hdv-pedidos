@@ -3,7 +3,7 @@
     "@supabase/supabase-js": "^2.99.1"
   },
   "devDependencies": {
-    "@playwright/test": "^1.58.2",
+    "@playwright/test": "^1.59.1",
     "fake-indexeddb": "^6.2.5",
     "jsdom": "^29.0.1",
     "serve": "^14.2.6",

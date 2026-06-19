@@ -386,25 +386,31 @@ async function renderizarProductosVendedor(container, busqueda) {
         for (let i = idx; i < end; i++) {
             const prod = filtrados[i];
             const card = document.createElement('div');
-            card.className = 'product-card bg-white rounded-xl p-2 shadow-sm border border-gray-100 active:scale-95 transition-transform cursor-pointer';
+            card.className = 'product-card bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-100 active:scale-95 transition-transform cursor-pointer';
             card.onclick = () => mostrarDetalleProducto(prod);
 
             const imgUrl = prod.imagen_url || prod.imagen;
             let imgContent;
             if (imgUrl) {
-                imgContent = `<div class="relative w-full h-24 rounded-lg overflow-hidden bg-gray-100">
-                    <div class="absolute inset-0 bg-gray-200 animate-pulse rounded-lg img-skeleton"></div>
-                    <img data-src="${imgUrl}" class="absolute inset-0 w-full h-full object-contain lazy-img opacity-0 transition-opacity duration-300">
+                imgContent = `<div class="relative w-full h-28 bg-slate-50">
+                    <div class="absolute inset-0 bg-slate-200 animate-pulse img-skeleton"></div>
+                    <img data-src="${imgUrl}" class="absolute inset-0 w-full h-full object-contain lazy-img opacity-0 transition-opacity duration-300 p-2">
                 </div>`;
             } else {
-                imgContent = `<div class="w-full h-24 rounded-lg bg-gray-800 flex items-center justify-center">${noImgSvg}</div>`;
+                imgContent = `<div class="w-full h-28 bg-slate-100 flex items-center justify-center">${noImgSvg}</div>`;
             }
 
             const promoBadge = typeof mostrarPromocionesEnProducto === 'function' ? await mostrarPromocionesEnProducto(prod.id) : '';
+            const presActivas = (prod.presentaciones || []).filter(p => p.activo !== false);
+            const minPrecio = presActivas.length > 0 ? Math.min(...presActivas.map(p => p.precio_base || 0)) : 0;
+            const precioHtml = minPrecio > 0 ? `<p class="text-[11px] font-bold text-indigo-600 mt-0.5">${formatearGuaranies(minPrecio)}</p>` : '';
             card.innerHTML = `
                 ${imgContent}
-                <p class="text-xs font-bold text-gray-800 leading-tight mt-1.5">${escapeHTML(prod.nombre)}</p>
-                ${promoBadge}
+                <div class="p-2.5">
+                    <p class="text-xs font-semibold text-slate-800 leading-tight">${escapeHTML(prod.nombre)}</p>
+                    ${precioHtml}
+                    ${promoBadge}
+                </div>
             `;
             grid.appendChild(card);
         }
@@ -537,39 +543,39 @@ function mostrarMatrizProducto(producto) {
     modal.className = 'fixed inset-0 bg-black/50 z-[100] flex items-end';
     modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
     modal.innerHTML = `
-        <div class="bg-gray-50 w-full rounded-t-3xl max-h-[90vh] overflow-y-auto shadow-2xl" onclick="event.stopPropagation()">
-            <div class="bg-grafito-oscuro text-white p-4 rounded-t-3xl">
-                <div class="w-12 h-1.5 bg-gray-600 rounded-full mx-auto mb-3"></div>
+        <div class="bg-white w-full rounded-t-3xl max-h-[90vh] overflow-y-auto shadow-2xl" onclick="event.stopPropagation()">
+            <div class="border-b border-slate-100 p-4 rounded-t-3xl">
+                <div class="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-3"></div>
                 <div class="flex items-center gap-3">
                     ${iconHtml}
                     <div>
-                        <h3 class="text-lg font-bold">${escapeHTML(producto.nombre)}</h3>
-                        <p class="text-xs text-gray-400">${escapeHTML(catNombre)} › ${escapeHTML(producto.subcategoria)}</p>
+                        <h3 class="text-lg font-bold text-slate-900">${escapeHTML(producto.nombre)}</h3>
+                        <p class="text-xs text-slate-400">${escapeHTML(catNombre)} › ${escapeHTML(producto.subcategoria)}</p>
                     </div>
                 </div>
-                <div class="flex items-center justify-between mt-3 bg-gray-800 rounded-xl p-3">
+                <div class="flex items-center justify-between mt-3 bg-indigo-50 rounded-xl p-3">
                     <div class="text-center">
-                        <p class="text-2xl font-bold" id="mtzTotalPares-${producto.id}">0</p>
-                        <p class="text-[10px] text-gray-400 font-bold">PARES</p>
+                        <p class="text-2xl font-bold text-indigo-700" id="mtzTotalPares-${producto.id}">0</p>
+                        <p class="text-[10px] text-indigo-400 font-bold uppercase tracking-wider">PARES</p>
                     </div>
                     <div class="text-center">
-                        <p class="text-lg font-bold text-green-400" id="mtzTotalGs-${producto.id}">Gs. 0</p>
-                        <p class="text-[10px] text-gray-400 font-bold">TOTAL</p>
+                        <p class="text-lg font-bold text-indigo-700" id="mtzTotalGs-${producto.id}">Gs. 0</p>
+                        <p class="text-[10px] text-indigo-400 font-bold uppercase tracking-wider">TOTAL</p>
                     </div>
-                    <sl-button onclick="limpiarMatriz('${producto.id}')" variant="neutral" size="small">Limpiar</sl-button>
+                    <sl-button onclick="limpiarMatriz('${producto.id}')" variant="default" size="small">Limpiar</sl-button>
                 </div>
             </div>
 
             <div class="p-4">
-                <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Toca cada talle e ingresa la cantidad</p>
+                <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Ingresá la cantidad por variante</p>
                 <div class="grid grid-cols-3 gap-3" id="matrizGrid-${producto.id}">
                     ${celdas}
                 </div>
             </div>
 
-            <div class="sticky bottom-0 bg-white border-t border-gray-200 p-4 flex gap-3">
+            <div class="sticky bottom-0 bg-white border-t border-slate-100 p-4 flex gap-3">
                 <sl-button onclick="document.getElementById('productDetailModal').remove()" variant="default" class="flex-1">Cancelar</sl-button>
-                <sl-button onclick="agregarMatrizAlCarrito('${producto.id}')" variant="neutral" class="flex-1">
+                <sl-button onclick="agregarMatrizAlCarrito('${producto.id}')" variant="primary" class="flex-1">
                     Agregar <span id="mtzBtnCount-${producto.id}">0</span> pares
                 </sl-button>
             </div>
@@ -679,33 +685,33 @@ function mostrarDetalleMasivo(producto) {
     modal.className = 'fixed inset-0 bg-black/50 z-[100] flex items-end';
     modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
     modal.innerHTML = `
-        <div class="bg-gray-50 w-full rounded-t-3xl max-h-[90vh] overflow-y-auto shadow-2xl" onclick="event.stopPropagation()">
-            <div class="bg-grafito-oscuro text-white p-4 rounded-t-3xl">
-                <div class="w-12 h-1.5 bg-gray-600 rounded-full mx-auto mb-3"></div>
+        <div class="bg-white w-full rounded-t-3xl max-h-[90vh] overflow-y-auto shadow-2xl" onclick="event.stopPropagation()">
+            <div class="border-b border-slate-100 p-4 rounded-t-3xl">
+                <div class="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-3"></div>
                 <div class="flex items-center gap-3">
-                    ${imgUrlMasivo ? `<img src="${imgUrlMasivo}" class="w-12 h-12 rounded-xl object-contain bg-white/10">` : '<i data-lucide="package" class="w-10 h-10 text-gray-400"></i>'}
+                    ${imgUrlMasivo ? `<img src="${imgUrlMasivo}" class="w-12 h-12 rounded-xl object-contain bg-slate-100 p-1">` : '<i data-lucide="package" class="w-10 h-10 text-slate-300"></i>'}
                     <div class="min-w-0 flex-1">
-                        <h3 class="text-lg font-bold leading-tight truncate">${escapeHTML(producto.nombre)}</h3>
-                        <p class="text-xs text-gray-400">${escapeHTML(catNombre)}${producto.subcategoria ? ' › ' + escapeHTML(producto.subcategoria) : ''}</p>
+                        <h3 class="text-lg font-bold text-slate-900 leading-tight truncate">${escapeHTML(producto.nombre)}</h3>
+                        <p class="text-xs text-slate-400">${escapeHTML(catNombre)}${producto.subcategoria ? ' › ' + escapeHTML(producto.subcategoria) : ''}</p>
                     </div>
                 </div>
-                <div class="flex items-center justify-between mt-3 bg-gray-800 rounded-xl p-3">
+                <div class="flex items-center justify-between mt-3 bg-indigo-50 rounded-xl p-3">
                     <div>
-                        <p class="text-xs text-gray-400 font-bold">TOTAL</p>
-                        <p class="text-lg font-bold text-green-400" id="masivoTotal-${producto.id}">Gs. 0</p>
+                        <p class="text-[10px] text-indigo-400 font-bold uppercase tracking-wider">TOTAL</p>
+                        <p class="text-lg font-bold text-indigo-700" id="masivoTotal-${producto.id}">Gs. 0</p>
                     </div>
-                    <p class="text-sm font-bold text-gray-300"><span id="masivoItems-${producto.id}">0</span> items</p>
+                    <p class="text-sm font-semibold text-slate-400"><span id="masivoItems-${producto.id}">0</span> items</p>
                 </div>
             </div>
 
             <div class="p-4">
-                <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Selecciona variantes</p>
-                <div class="bg-white rounded-xl divide-y divide-gray-100 shadow-sm">${presHTML}</div>
+                <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Seleccioná variantes</p>
+                <div class="bg-white rounded-xl divide-y divide-slate-100 shadow-sm border border-slate-100">${presHTML}</div>
             </div>
 
-            <div class="sticky bottom-0 bg-white border-t border-gray-200 p-4 flex gap-3">
+            <div class="sticky bottom-0 bg-white border-t border-slate-100 p-4 flex gap-3">
                 <sl-button onclick="document.getElementById('productDetailModal').remove()" variant="default" class="flex-1">Cancelar</sl-button>
-                <sl-button onclick="agregarMasivoAlCarrito('${producto.id}')" variant="neutral" class="flex-1">Agregar al carrito</sl-button>
+                <sl-button onclick="agregarMasivoAlCarrito('${producto.id}')" variant="primary" class="flex-1">Agregar al carrito</sl-button>
             </div>
         </div>`;
     document.body.appendChild(modal);

@@ -92,12 +92,12 @@
 
 /* Header icon buttons */
 .header-icon-btn {
-  font-size: 1rem;
-  color: #d1d5db;
+  font-size: 1.1rem;
+  color: #64748b;
 }
 .header-icon-btn-danger {
-  font-size: 1rem;
-  color: #f87171;
+  font-size: 1.1rem;
+  color: #ef4444;
 }
 
 /* ============================================

@@ -306,11 +306,11 @@ function cambiarVistaVendedor(vista) {
 
     // Reset all tabs
     [btnLista, btnPedidos, btnCaja].forEach(btn => {
-        if (btn) btn.className = 'flex flex-col items-center gap-1 text-gray-400 transition-colors';
+        if (btn) btn.className = 'flex flex-col items-center gap-1 text-slate-400 transition-colors';
     });
 
     if (vista === 'lista') {
-        btnLista.className = 'flex flex-col items-center gap-1 text-gray-900 transition-colors';
+        btnLista.className = 'flex flex-col items-center gap-1 text-indigo-600 transition-colors';
         searchBox.style.display = '';
         catFilters.style.display = '';
         // Resetear a vista de categorias
@@ -320,12 +320,12 @@ function cambiarVistaVendedor(vista) {
         document.getElementById('searchInput').value = '';
         mostrarProductos();
     } else if (vista === 'pedidos') {
-        btnPedidos.className = 'flex flex-col items-center gap-1 text-gray-900 transition-colors';
+        btnPedidos.className = 'flex flex-col items-center gap-1 text-indigo-600 transition-colors';
         catFilters.style.display = 'none';
         searchBox.style.display = 'none';
         mostrarMisPedidos();
     } else if (vista === 'caja') {
-        if (btnCaja) btnCaja.className = 'flex flex-col items-center gap-1 text-gray-900 transition-colors';
+        if (btnCaja) btnCaja.className = 'flex flex-col items-center gap-1 text-indigo-600 transition-colors';
         catFilters.style.display = 'none';
         searchBox.style.display = 'none';
         mostrarMiCaja();

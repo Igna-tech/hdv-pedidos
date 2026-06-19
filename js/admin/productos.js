@@ -251,7 +251,10 @@ function filtrarProductos() {
     const estadoFiltro = document.getElementById('filtroEstadoProducto')?.value || '';
     const mostrarOcultos = document.getElementById('mostrarOcultosProductos')?.checked || false;
     productosFiltrados = productosData.productos.filter(p => {
-        const match = p.nombre.toLowerCase().includes(filtro) || p.id.toLowerCase().includes(filtro);
+        const match = !filtro || p.nombre.toLowerCase().includes(filtro)
+            || p.id.toLowerCase().includes(filtro)
+            || (p.subcategoria || '').toLowerCase().includes(filtro)
+            || ((productosData.categorias.find(c => c.id === p.categoria)?.nombre || '').toLowerCase().includes(filtro));
         const visible = mostrarOcultos || !p.oculto;
         const catMatch = !catFiltro || p.categoria === catFiltro;
         const estMatch = !estadoFiltro || (p.estado || 'disponible') === estadoFiltro;
@@ -449,9 +452,11 @@ function renderizarCategoriasGestion(container) {
             const count = productosData.productos.filter(p => p.categoria === cat.id).length;
             const prods = productosData.productos.filter(p => p.categoria === cat.id && (p.imagen_url || p.imagen));
             const img = prods.length > 0 ? (prods[0].imagen_url || prods[0].imagen) : '';
+            const inactiva = cat.estado && cat.estado !== 'activo';
             return `<div data-action="nav-categoria" data-id="${cat.id}"
-                class="catalog-card" ${img ? `data-bg="${img}"` : ''}>
+                class="catalog-card${inactiva ? ' opacity-50 grayscale' : ''}" ${img ? `data-bg="${img}"` : ''}>
                 ${!img ? '<div class="catalog-card-noimg"><i data-lucide="folder-open" class="w-10 h-10 text-gray-400"></i></div>' : ''}
+                ${inactiva ? '<span class="catalog-card-badge" style="background:#ef4444;color:#fff;top:8px;left:8px;right:auto;">INACTIVA</span>' : ''}
                 <div class="catalog-card-label">
                     <div>${escapeHTML(cat.nombre)}</div>
                     <div class="card-sub">${count} productos</div>
@@ -498,6 +503,7 @@ function renderizarProductosGestionGrid(container, prods) {
     const inicio = (paginaProductos - 1) * productosPorPagina;
     const paginados = prods.slice(inicio, inicio + productosPorPagina);
 
+    const busquedaActiva = (document.getElementById('buscarProducto')?.value || '').trim();
     container.innerHTML = `<div class="catalog-grid">
         ${paginados.map(prod => {
             const estado = prod.estado || 'disponible';
@@ -505,12 +511,20 @@ function renderizarProductosGestionGrid(container, prods) {
             const oculto = prod.oculto || false;
             const img = prod.imagen_url || prod.imagen || '';
             const precio = prod.presentaciones && prod.presentaciones.length > 0 ? (prod.presentaciones[0].precio_base || 0) : 0;
+            const tieneMargenBajo = prod.presentaciones.some(p => {
+                const pr = p.precio_base || 0; const co = p.costo || 0;
+                return pr > 0 && co > 0 && ((pr - co) / pr) < MARGEN_MINIMO_PCT;
+            });
+            const catNombre = busquedaActiva
+                ? (productosData.categorias.find(c => c.id === prod.categoria)?.nombre || prod.categoria)
+                : '';
             return `<div data-action="abrir-perfil" data-id="${prod.id}" class="catalog-card ${oculto ? 'oculto' : ''}" ${img ? `data-bg="${img}"` : ''}>
                 ${!img ? '<div class="catalog-card-noimg"><svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg></div>' : ''}
                 <span class="catalog-card-badge" style="${estadoBg}">${estado}</span>
+                ${tieneMargenBajo ? '<span class="catalog-card-badge" style="background:#f59e0b;color:#fff;top:28px;">⚠ Margen</span>' : ''}
                 <div class="catalog-card-label">
                     <div>${escapeHTML(prod.nombre)}</div>
-                    <div class="card-sub">${precio > 0 ? formatearGuaranies(precio) : prod.presentaciones.length + ' pres.'}</div>
+                    <div class="card-sub">${catNombre ? escapeHTML(catNombre) + ' · ' : ''}${precio > 0 ? formatearGuaranies(precio) : prod.presentaciones.length + ' pres.'}</div>
                 </div>
             </div>`;
         }).join('')}
@@ -568,7 +582,7 @@ function abrirPerfilProducto(prodId) {
             <div class="flex gap-4 text-right">
                 ${costo > 0 ? `<span class="text-gray-500">Costo: <strong>${formatearGuaranies(costo)}</strong></span>` : ''}
                 <span class="text-gray-800">Precio: <strong>${formatearGuaranies(precio)}</strong></span>
-                ${margen !== null ? `<span class="${margen > 30 ? 'text-green-600' : margen > 15 ? 'text-yellow-600' : 'text-red-600'} font-bold">${margen}%</span>` : ''}
+                ${margen !== null ? `<span class="${margen > 30 ? 'text-green-600' : margen > 15 ? 'text-yellow-600' : 'text-red-600'} font-bold">${margen}%</span>${margen < (MARGEN_MINIMO_PCT * 100) ? ' <span class="text-[10px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded ml-1">MARGEN BAJO</span>' : ''}` : ''}
             </div>
         </div>`;
     }).join('');
@@ -1048,15 +1062,26 @@ function renderizarListaCategorias() {
     if (!container) return;
     container.innerHTML = '';
     (productosData.categorias || []).forEach(cat => {
+        const activa = !cat.estado || cat.estado === 'activo';
+        const numProds = productosData.productos.filter(p => p.categoria === cat.id).length;
         const div = document.createElement('div');
-        div.className = 'bg-gray-50 rounded-xl p-4';
+        div.className = `rounded-xl p-4 border transition-all ${activa ? 'bg-gray-50 border-gray-200' : 'bg-red-50 border-red-200 opacity-70'}`;
         div.innerHTML = `
             <div class="flex justify-between items-center mb-2">
-                <div>
-                    <span class="font-bold text-gray-800">${escapeHTML(cat.nombre)}</span>
-                    <span class="text-xs text-gray-400 ml-2">(${escapeHTML(cat.id)})</span>
+                <div class="flex items-center gap-2 flex-1 min-w-0">
+                    <span id="cat-nombre-${escapeHTML(cat.id)}" class="font-bold text-gray-800 truncate">${escapeHTML(cat.nombre)}</span>
+                    <span class="text-xs text-gray-400 shrink-0">(${escapeHTML(cat.id)})</span>
+                    <button onclick="editarNombreCategoria('${escapeHTML(cat.id)}')" class="text-gray-400 hover:text-indigo-600 transition-colors shrink-0" title="Renombrar">
+                        <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                    </button>
+                    ${!activa ? '<span class="text-[10px] font-bold bg-red-200 text-red-700 px-1.5 py-0.5 rounded">INACTIVA</span>' : ''}
                 </div>
-                <sl-button onclick="eliminarCategoria('${cat.id}')" variant="text" size="small">Eliminar</sl-button>
+                <div class="flex items-center gap-3 shrink-0">
+                    <span class="text-xs text-gray-400">${numProds} prod.</span>
+                    <sl-switch size="small" ${activa ? 'checked' : ''} title="${activa ? 'Desactivar categoría' : 'Activar categoría'}"
+                        onsl-change="toggleEstadoCategoria('${escapeHTML(cat.id)}', this.checked)"></sl-switch>
+                    <sl-button onclick="eliminarCategoria('${escapeHTML(cat.id)}')" variant="text" size="small">Eliminar</sl-button>
+                </div>
             </div>
             <div class="flex flex-wrap gap-2 mb-2">
                 ${(cat.subcategorias || []).map(s => `
@@ -1070,6 +1095,56 @@ function renderizarListaCategorias() {
             </div>`;
         container.appendChild(div);
     });
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function editarNombreCategoria(catId) {
+    const cat = productosData.categorias.find(c => c.id === catId);
+    if (!cat) return;
+    const span = document.getElementById(`cat-nombre-${catId}`);
+    if (!span) return;
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = cat.nombre;
+    input.className = 'border border-indigo-400 rounded-lg px-2 py-0.5 text-sm font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-400 w-40';
+    span.replaceWith(input);
+    input.focus();
+    input.select();
+
+    let guardado = false;
+    const guardar = () => {
+        if (guardado) return;
+        guardado = true;
+        const nuevoNombre = input.value.trim();
+        if (!nuevoNombre) { mostrarToast('El nombre no puede estar vacío', 'error'); renderizarListaCategorias(); return; }
+        if (nuevoNombre === cat.nombre) { renderizarListaCategorias(); return; }
+        cat.nombre = nuevoNombre;
+        registrarCambio();
+        renderizarListaCategorias();
+        mostrarExito('Nombre actualizado — guardá y sincronizá para aplicar');
+    };
+    input.addEventListener('blur', guardar);
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); guardar(); }
+        if (e.key === 'Escape') { guardado = true; renderizarListaCategorias(); }
+    });
+}
+
+function toggleEstadoCategoria(catId, checked) {
+    const cat = productosData.categorias.find(c => c.id === catId);
+    if (!cat) return;
+    const nuevoEstado = checked ? 'activo' : 'inactivo';
+    if (nuevoEstado === 'inactivo') {
+        const numProds = productosData.productos.filter(p => p.categoria === catId).length;
+        if (numProds > 0 && !confirm(`¿Desactivar esta categoría? ${numProds} producto(s) dejarán de verse en la app del vendedor.`)) {
+            renderizarListaCategorias(); return;
+        }
+    }
+    cat.estado = nuevoEstado;
+    registrarCambio();
+    renderizarListaCategorias();
+    mostrarExito(`Categoría ${nuevoEstado === 'activo' ? 'activada' : 'desactivada'} — guardá y sincronizá para aplicar`);
 }
 
 function agregarCategoriaModal() {

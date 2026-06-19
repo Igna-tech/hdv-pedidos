@@ -624,6 +624,7 @@ function abrirPerfilProducto(prodId) {
 
     // Botones de accion
     document.getElementById('perfilProductoEditarBtn').onclick = () => { cerrarPerfilProducto(); editarProducto(prodId); };
+    document.getElementById('perfilProductoClonarBtn').onclick = () => { cerrarPerfilProducto(); clonarProducto(prodId); };
     const ocultarBtn = document.getElementById('perfilProductoOcultarBtn');
     ocultarBtn.textContent = oculto ? 'Mostrar' : 'Ocultar';
     ocultarBtn.onclick = () => { toggleOcultarProducto(prodId); cerrarPerfilProducto(); };
@@ -664,6 +665,65 @@ function abrirPerfilProducto(prodId) {
 function cerrarPerfilProducto() {
     document.getElementById('modalPerfilProducto').hide();
 }
+
+function clonarProducto(prodId) {
+    const original = productosData.productos.find(p => p.id === prodId);
+    if (!original) return;
+    const ultimoId = Math.max(...productosData.productos.map(p => parseInt(p.id.replace(/\D/g, '')) || 0), 0);
+    const nuevoId = `P${String(ultimoId + 1).padStart(3, '0')}`;
+    const clon = JSON.parse(JSON.stringify(original));
+    clon.id = nuevoId;
+    clon.nombre = `Copia de ${original.nombre}`;
+    clon.imagen_url = '';
+    clon.imagen = '';
+    // Limpiar variante_id en presentaciones para que se creen como nuevas
+    (clon.presentaciones || []).forEach(p => { delete p.variante_id; });
+    productosData.productos.push(clon);
+    productosFiltrados.push(clon);
+    registrarCambio();
+    mostrarProductosGestion();
+    mostrarExito(`Producto clonado como "${clon.nombre}". Podés editarlo ahora.`);
+    setTimeout(() => editarProducto(nuevoId), 400);
+}
+
+// ============================================
+// DRAG & DROP — Zona de imagen en modal crear/editar
+// ============================================
+(function _initImageDragDrop() {
+    document.addEventListener('DOMContentLoaded', () => {
+        const zone = document.getElementById('productImagePreview');
+        if (!zone) return;
+        zone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            zone.style.borderColor = '#6366f1';
+            zone.style.background = '#eef2ff';
+        });
+        zone.addEventListener('dragleave', () => {
+            zone.style.borderColor = '';
+            zone.style.background = '';
+        });
+        zone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            zone.style.borderColor = '';
+            zone.style.background = '';
+            const file = e.dataTransfer?.files?.[0];
+            if (!file || !file.type.startsWith('image/')) {
+                mostrarToast('Solo se aceptan imágenes (JPG, PNG, WebP)', 'error');
+                return;
+            }
+            archivoImagenProducto = file;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                zone.innerHTML = `<img src="${ev.target.result}" class="w-full h-full object-cover">`;
+                const btnQuitar = document.getElementById('btnQuitarImagen');
+                if (btnQuitar) btnQuitar.classList.remove('hidden');
+            };
+            reader.readAsDataURL(file);
+        });
+        // Clic en el área también abre el file picker
+        zone.addEventListener('click', () => document.getElementById('productImageInput')?.click());
+    });
+})()
 
 function guardarStockDesdePerfilProducto() {
     guardarStock();
@@ -725,37 +785,26 @@ function toggleModoVariantes() {
 
 function agregarFilaVariante(datos) {
     const container = document.getElementById('listaVariantes');
-    const idx = container.children.length;
     const d = datos || { nombre: '', precio: '', costo: '', stock: '', activo: true };
     const fila = document.createElement('div');
-    fila.className = 'bg-white border border-gray-200 rounded-lg p-3 space-y-2 variante-fila';
+    fila.className = 'variante-fila flex items-center gap-2 px-2 py-1.5 bg-white hover:bg-gray-50 transition-colors';
     fila.innerHTML = `
-        <div class="flex items-center justify-between gap-2">
-            <input type="text" placeholder="Nombre (ej: 1 Litro, Talle 40)" value="${d.nombre}" class="flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-sm var-nombre" required>
-            <div class="flex items-center gap-2 shrink-0">
-                <label class="relative inline-flex items-center cursor-pointer" title="Activo/Inactivo">
-                    <input type="checkbox" class="sr-only peer var-activo" ${d.activo ? 'checked' : ''}>
-                    <div class="w-8 h-4.5 bg-gray-300 rounded-full peer peer-checked:bg-green-500 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:after:translate-x-3.5" style="height:18px"></div>
-                </label>
-                <sl-button type="button" onclick="this.closest('.variante-fila').remove()" variant="text" size="small" title="Eliminar">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
-                </sl-button>
-            </div>
-        </div>
-        <div class="grid grid-cols-3 gap-2">
-            <div>
-                <label class="block text-[10px] font-bold text-gray-400">PRECIO</label>
-                <input type="number" placeholder="0" value="${d.precio}" class="w-full border border-gray-300 rounded px-2 py-1 text-sm var-precio">
-            </div>
-            <div>
-                <label class="block text-[10px] font-bold text-gray-400">COSTO</label>
-                <input type="number" placeholder="0" value="${d.costo}" class="w-full border border-gray-300 rounded px-2 py-1 text-sm var-costo">
-            </div>
-            <div>
-                <label class="block text-[10px] font-bold text-gray-400">STOCK</label>
-                <input type="number" placeholder="0" value="${d.stock}" class="w-full border border-gray-300 rounded px-2 py-1 text-sm var-stock">
-            </div>
-        </div>`;
+        <input type="text" placeholder="1L, 500ml, Talle 40..." value="${escapeHTML(String(d.nombre))}"
+               class="flex-1 min-w-0 border border-gray-200 rounded px-2 py-1 text-sm var-nombre focus:ring-1 focus:ring-indigo-300 focus:outline-none">
+        <input type="number" placeholder="0" value="${d.precio || ''}"
+               class="w-24 border border-gray-200 rounded px-2 py-1 text-sm var-precio text-right focus:ring-1 focus:ring-indigo-300 focus:outline-none">
+        <input type="number" placeholder="0" value="${d.costo || ''}"
+               class="w-20 border border-gray-200 rounded px-2 py-1 text-sm var-costo text-right focus:ring-1 focus:ring-indigo-300 focus:outline-none">
+        <input type="number" placeholder="0" value="${d.stock || ''}"
+               class="w-16 border border-gray-200 rounded px-2 py-1 text-sm var-stock text-right focus:ring-1 focus:ring-indigo-300 focus:outline-none">
+        <label class="w-8 flex items-center justify-center cursor-pointer shrink-0" title="Activo/Inactivo">
+            <input type="checkbox" class="sr-only peer var-activo" ${d.activo !== false ? 'checked' : ''}>
+            <div class="relative w-7 h-4 bg-gray-300 rounded-full peer peer-checked:bg-green-500 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:after:translate-x-3"></div>
+        </label>
+        <button type="button" onclick="this.closest('.variante-fila').remove()"
+                class="w-6 text-gray-300 hover:text-red-500 transition-colors shrink-0" title="Eliminar fila">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+        </button>`;
     container.appendChild(fila);
 }
 

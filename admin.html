@@ -1735,7 +1735,7 @@
                     <label class="block text-xs font-bold text-gray-500 mb-1">IMAGEN</label>
                     <input type="hidden" id="nuevoProductoImagen" value="">
                     <div class="flex gap-3 items-start">
-                        <div id="productImagePreview" class="w-24 h-24 rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center bg-gray-50 shrink-0 overflow-hidden">
+                        <div id="productImagePreview" class="w-24 h-24 rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center bg-gray-50 shrink-0 overflow-hidden cursor-pointer" title="Arrastrá una imagen aquí o hacé clic para subir">
                             <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
                         </div>
                         <div class="flex-1 space-y-2">
@@ -1834,10 +1834,19 @@
                         <p class="text-xs font-bold text-gray-500 uppercase">VARIANTES</p>
                         <sl-button type="button" data-action="agregarFilaVariante" variant="text" size="small" style="--sl-color-primary-600:#2563eb; --sl-color-primary-700:#1d4ed8; font-weight:700;">
                             <sl-icon name="plus-circle" slot="prefix" style="font-size:0.875rem;"></sl-icon>
-                            Agregar variante
+                            Agregar
                         </sl-button>
                     </div>
-                    <div id="listaVariantes" class="space-y-2 max-h-60 overflow-y-auto"></div>
+                    <!-- Encabezado de la tabla de variantes -->
+                    <div class="flex items-center gap-2 px-1 mb-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                        <span class="flex-1 min-w-0">Nombre / Medida</span>
+                        <span class="w-24 text-right">Precio</span>
+                        <span class="w-20 text-right">Costo</span>
+                        <span class="w-16 text-right">Stock</span>
+                        <span class="w-8 text-center">Act.</span>
+                        <span class="w-6"></span>
+                    </div>
+                    <div id="listaVariantes" class="max-h-56 overflow-y-auto divide-y divide-gray-100 border border-gray-100 rounded-lg"></div>
                 </div>
 
                 <!-- Presentaciones detalladas (modo edicion legacy) -->
@@ -2031,8 +2040,9 @@
                             <span id="perfilProductoEstadoBadge" class="inline-block mt-1 px-2 py-0.5 rounded-full text-xs font-bold"></span>
                         </div>
                     </div>
-                    <div class="flex gap-2">
+                    <div class="flex gap-2 flex-wrap">
                         <sl-button id="perfilProductoEditarBtn" variant="neutral" size="small">Editar</sl-button>
+                        <sl-button id="perfilProductoClonarBtn" variant="neutral" size="small" title="Duplicar este producto"><i data-lucide="copy" class="w-3.5 h-3.5"></i></sl-button>
                         <sl-button id="perfilProductoOcultarBtn" variant="warning" size="small"></sl-button>
                         <sl-button id="perfilProductoEliminarBtn" variant="danger" size="small">Eliminar</sl-button>
                         <sl-button data-action="cerrarPerfilProducto" variant="text" size="small">x</sl-button>

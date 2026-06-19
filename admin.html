@@ -773,6 +773,9 @@
                         <sl-select id="filtroCategoria" size="small" hoist placeholder="Todas las categorias">
                             <sl-option value="">Todas las categorias</sl-option>
                         </sl-select>
+                        <sl-select id="filtroSubcategoriaProducto" size="small" hoist placeholder="Todas las subcats" disabled>
+                            <sl-option value="">Todas las subcats</sl-option>
+                        </sl-select>
                         <sl-select id="filtroEstadoProducto" size="small" hoist placeholder="Todos los estados">
                             <sl-option value="">Todos los estados</sl-option>
                             <sl-option value="disponible">Disponible</sl-option>
@@ -787,6 +790,7 @@
                             <sl-option value="menos-vendidos">Menos vendidos</sl-option>
                         </sl-select>
                         <sl-switch id="mostrarOcultosProductos">Ocultos</sl-switch>
+                        <sl-switch id="filtroStockBajo">Stock bajo</sl-switch>
                         <sl-button data-action="abrirModalCategorias" variant="primary" size="small">Categorias</sl-button>
                         <sl-button data-action="abrirModalProducto" variant="neutral" size="small">+ Nuevo</sl-button>
                     </div>

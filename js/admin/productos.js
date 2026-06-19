@@ -248,8 +248,10 @@ function guardarStock() { guardarTodosCambios(); }
 function filtrarProductos() {
     const filtro = document.getElementById('buscarProducto')?.value.toLowerCase() || '';
     const catFiltro = document.getElementById('filtroCategoria')?.value || '';
+    const subcatFiltro = document.getElementById('filtroSubcategoriaProducto')?.value || '';
     const estadoFiltro = document.getElementById('filtroEstadoProducto')?.value || '';
     const mostrarOcultos = document.getElementById('mostrarOcultosProductos')?.checked || false;
+    const soloStockBajo = document.getElementById('filtroStockBajo')?.checked || false;
     productosFiltrados = productosData.productos.filter(p => {
         const match = !filtro || p.nombre.toLowerCase().includes(filtro)
             || p.id.toLowerCase().includes(filtro)
@@ -257,12 +259,13 @@ function filtrarProductos() {
             || ((productosData.categorias.find(c => c.id === p.categoria)?.nombre || '').toLowerCase().includes(filtro));
         const visible = mostrarOcultos || !p.oculto;
         const catMatch = !catFiltro || p.categoria === catFiltro;
+        const subcatMatch = !subcatFiltro || (p.subcategoria || '') === subcatFiltro;
         const estMatch = !estadoFiltro || (p.estado || 'disponible') === estadoFiltro;
-        return match && visible && catMatch && estMatch;
+        const stockMatch = !soloStockBajo || (p.presentaciones || []).some(v => (v.stock || 0) <= STOCK_BAJO_UMBRAL);
+        return match && visible && catMatch && subcatMatch && estMatch && stockMatch;
     });
     paginaProductos = 1;
-    // Resetear navegacion si se aplica un filtro global
-    const hayFiltro = filtro || catFiltro || estadoFiltro;
+    const hayFiltro = filtro || catFiltro || subcatFiltro || estadoFiltro || soloStockBajo;
     if (hayFiltro) { prodNavNivel = 'categorias'; prodNavCatId = null; prodNavSubId = null; }
     mostrarProductosGestion();
 }
@@ -274,6 +277,29 @@ function poblarFiltroCategorias() {
     (productosData.categorias || []).forEach(c => {
         sel.innerHTML += `<sl-option value="${escapeHTML(c.id)}">${escapeHTML(c.nombre)}</sl-option>`;
     });
+}
+
+function poblarFiltroSubcategorias(catId) {
+    const sel = document.getElementById('filtroSubcategoriaProducto');
+    if (!sel) return;
+    if (!catId) {
+        sel.innerHTML = '<sl-option value="">Todas las subcats</sl-option>';
+        sel.value = '';
+        sel.disabled = true;
+        return;
+    }
+    const cat = (productosData.categorias || []).find(c => c.id === catId);
+    const subs = cat?.subcategorias || [];
+    if (subs.length === 0) {
+        sel.innerHTML = '<sl-option value="">Sin subcategorias</sl-option>';
+        sel.value = '';
+        sel.disabled = true;
+        return;
+    }
+    sel.innerHTML = '<sl-option value="">Todas las subcats</sl-option>'
+        + subs.map(s => `<sl-option value="${escapeHTML(s)}">${escapeHTML(s)}</sl-option>`).join('');
+    sel.value = '';
+    sel.disabled = false;
 }
 
 function ordenarProductos(campo) {
@@ -322,12 +348,14 @@ async function mostrarProductosGestion() {
 
     const busqueda = document.getElementById('buscarProducto')?.value.toLowerCase() || '';
     const catFiltro = document.getElementById('filtroCategoria')?.value || '';
+    const subcatFiltro = document.getElementById('filtroSubcategoriaProducto')?.value || '';
     const estadoFiltro = document.getElementById('filtroEstadoProducto')?.value || '';
     const ordenFiltro = document.getElementById('filtroOrdenProductos')?.value || '';
     const mostrarOcultos = document.getElementById('mostrarOcultosProductos')?.checked || false;
+    const soloStockBajo = document.getElementById('filtroStockBajo')?.checked || false;
 
-    // Si hay filtros activos de busqueda/categoria/estado, mostrar grid de productos directamente
-    const hayFiltro = busqueda || catFiltro || estadoFiltro;
+    // Si hay filtros activos, mostrar grid de productos directamente
+    const hayFiltro = busqueda || catFiltro || subcatFiltro || estadoFiltro || soloStockBajo;
 
     if (hayFiltro) {
         let prods = productosFiltrados;
@@ -515,6 +543,8 @@ function renderizarProductosGestionGrid(container, prods) {
                 const pr = p.precio_base || 0; const co = p.costo || 0;
                 return pr > 0 && co > 0 && ((pr - co) / pr) < MARGEN_MINIMO_PCT;
             });
+            const tieneStockBajo = (prod.presentaciones || []).some(v => (v.stock || 0) <= STOCK_BAJO_UMBRAL);
+            const stockBadgeTop = tieneMargenBajo ? 48 : 28;
             const catNombre = busquedaActiva
                 ? (productosData.categorias.find(c => c.id === prod.categoria)?.nombre || prod.categoria)
                 : '';
@@ -522,6 +552,7 @@ function renderizarProductosGestionGrid(container, prods) {
                 ${!img ? '<div class="catalog-card-noimg"><svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg></div>' : ''}
                 <span class="catalog-card-badge" style="${estadoBg}">${estado}</span>
                 ${tieneMargenBajo ? '<span class="catalog-card-badge" style="background:#f59e0b;color:#fff;top:28px;">⚠ Margen</span>' : ''}
+                ${tieneStockBajo ? `<span class="catalog-card-badge" style="background:#dc2626;color:#fff;top:${stockBadgeTop}px;">⚠ Stock</span>` : ''}
                 <div class="catalog-card-label">
                     <div>${escapeHTML(prod.nombre)}</div>
                     <div class="card-sub">${catNombre ? escapeHTML(catNombre) + ' · ' : ''}${precio > 0 ? formatearGuaranies(precio) : prod.presentaciones.length + ' pres.'}</div>
@@ -1576,10 +1607,15 @@ const filtrarProductosDebounced = debounce(filtrarProductos, 300);
 // ============================================
 (function _initProductosShoelaceListeners() {
     document.getElementById('filtroStock')?.addEventListener('sl-change', () => aplicarFiltroStock());
-    document.getElementById('filtroCategoria')?.addEventListener('sl-change', () => filtrarProductos());
+    document.getElementById('filtroCategoria')?.addEventListener('sl-change', (e) => {
+        poblarFiltroSubcategorias(e.target.value);
+        filtrarProductos();
+    });
+    document.getElementById('filtroSubcategoriaProducto')?.addEventListener('sl-change', () => filtrarProductos());
     document.getElementById('filtroEstadoProducto')?.addEventListener('sl-change', () => filtrarProductos());
     document.getElementById('filtroOrdenProductos')?.addEventListener('sl-change', () => filtrarProductos());
     document.getElementById('mostrarOcultosProductos')?.addEventListener('sl-change', () => filtrarProductos());
+    document.getElementById('filtroStockBajo')?.addEventListener('sl-change', () => filtrarProductos());
     document.getElementById('toggleVariantes')?.addEventListener('sl-change', () => toggleModoVariantes());
     document.getElementById('nuevoProductoCategoria')?.addEventListener('sl-change', () => actualizarSubcategoriasModal());
 })();

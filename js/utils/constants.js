@@ -73,6 +73,7 @@ const VAPID_PUBLIC_KEY = 'BH5CuWpewMiYTI6BUmz5SK2Kj3DC3CvOS8opcT9kE4qu44aCgn7D9s
 // --- Umbrales de negocio ---
 
 const MARGEN_MINIMO_PCT = 0.20; // 20% — por debajo de esto se muestra alerta de margen bajo
+const STOCK_BAJO_UMBRAL = 5;   // unidades — por debajo de esto se considera stock bajo
 
 // --- Spinner SVG compartido ---
 

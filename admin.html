@@ -197,6 +197,15 @@
             font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 999px;
         }
         .catalog-card.oculto { opacity: 0.5; }
+        /* Checkbox overlay para selección masiva */
+        .card-checkbox-overlay {
+            position: absolute; top: 8px; left: 8px; z-index: 2;
+            width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;
+            background: rgba(0,0,0,0.35); border-radius: 8px; opacity: 0;
+            transition: opacity 0.15s ease; cursor: pointer;
+        }
+        .catalog-card:hover .card-checkbox-overlay,
+        .catalog-card.ring-2 .card-checkbox-overlay { opacity: 1; }
         .catalog-card-noimg {
             display: flex; align-items: center; justify-content: center;
             font-size: 48px; position: absolute; inset: 0; z-index: 0;
@@ -791,6 +800,8 @@
                         </sl-select>
                         <sl-switch id="mostrarOcultosProductos">Ocultos</sl-switch>
                         <sl-switch id="filtroStockBajo">Stock bajo</sl-switch>
+                        <sl-button data-action="seleccionar-todo-productos" variant="neutral" size="small" outline><i data-lucide="check-square" class="w-3.5 h-3.5"></i></sl-button>
+                        <sl-button data-action="exportarProductosCSV" variant="neutral" size="small" outline><i data-lucide="download" class="w-3.5 h-3.5"></i> CSV</sl-button>
                         <sl-button data-action="abrirModalCategorias" variant="primary" size="small">Categorias</sl-button>
                         <sl-button data-action="abrirModalProducto" variant="neutral" size="small">+ Nuevo</sl-button>
                     </div>
@@ -2075,6 +2086,18 @@
     <!-- Iframe oculto para impresion -->
     <iframe id="printFrame" style="display:none;"></iframe>
 
+    <!-- Barra de Acciones Masivas (productos) -->
+    <div id="barraAccionesMasivas" class="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 hidden">
+        <div class="bg-gray-900 text-white rounded-2xl shadow-2xl flex items-center gap-2 px-4 py-2.5 text-sm flex-wrap justify-center">
+            <span id="contSeleccion" class="font-bold text-indigo-300 mr-1 whitespace-nowrap">0 seleccionados</span>
+            <sl-button size="small" data-action="masivo-ocultar" style="--sl-color-neutral-600:#6b7280;--sl-color-neutral-700:#4b5563;--sl-color-neutral-0:#fff;">Ocultar</sl-button>
+            <sl-button size="small" data-action="masivo-mostrar" style="--sl-color-neutral-600:#6b7280;--sl-color-neutral-700:#4b5563;--sl-color-neutral-0:#fff;">Mostrar</sl-button>
+            <sl-button size="small" data-action="masivo-cambiar-cat" variant="primary">Cambiar cat.</sl-button>
+            <sl-button size="small" data-action="masivo-eliminar" variant="danger">Eliminar</sl-button>
+            <sl-button size="small" data-action="limpiar-seleccion-productos" style="--sl-color-neutral-600:#374151;--sl-color-neutral-700:#1f2937;--sl-color-neutral-0:#9ca3af;" title="Limpiar selección">✕</sl-button>
+        </div>
+    </div>
+
     <!-- Modal Mapeo de Columnas para Importacion -->
     <div id="modalMapeoImport" class="fixed inset-0 bg-black/50 z-[9999] hidden items-center justify-center p-4" style="display:none;">
         <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-auto">
@@ -2087,7 +2110,7 @@
                 <span id="mapeoPreview" class="text-sm text-gray-500"></span>
                 <div class="flex gap-3">
                     <sl-button data-action="cerrarModalMapeo" variant="default" size="small">Cancelar</sl-button>
-                    <sl-button data-action="confirmarImportacion" variant="primary" size="small">Importar</sl-button>
+                    <sl-button data-action="previsualizarImportacion" variant="primary" size="small">Previsualizar</sl-button>
                 </div>
             </div>
         </div>

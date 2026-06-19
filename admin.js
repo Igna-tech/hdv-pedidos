@@ -245,7 +245,17 @@ const ACTION_DISPATCH = {
     // === Forense / Mapeo importación ===
     'cerrarModalForense':               ()     => cerrarModalForense(),
     'cerrarModalMapeo':                 ()     => typeof cerrarModalMapeo === 'function' && cerrarModalMapeo(),
+    'previsualizarImportacion':         ()     => typeof previsualizarImportacion === 'function' && previsualizarImportacion(),
     'confirmarImportacion':             ()     => typeof confirmarImportacion === 'function' && confirmarImportacion(),
+
+    // === Gestión masiva de productos (Etapa 3) ===
+    'masivo-ocultar':                   ()     => typeof masivoCambiarVisibilidad === 'function' && masivoCambiarVisibilidad(true),
+    'masivo-mostrar':                   ()     => typeof masivoCambiarVisibilidad === 'function' && masivoCambiarVisibilidad(false),
+    'masivo-cambiar-cat':               ()     => typeof masivoCambiarCategoria === 'function' && masivoCambiarCategoria(),
+    'masivo-eliminar':                  ()     => typeof masivoEliminar === 'function' && masivoEliminar(),
+    'limpiar-seleccion-productos':      ()     => typeof limpiarSeleccionProductos === 'function' && limpiarSeleccionProductos(),
+    'seleccionar-todo-productos':       ()     => typeof seleccionarTodosProductos === 'function' && seleccionarTodosProductos(),
+    'exportarProductosCSV':             ()     => typeof exportarProductosCSV === 'function' && exportarProductosCSV(),
 
     // === SIFEN Estado ===
     'verDetalleSifen':    (_, a) => typeof verDetalleSifen === 'function' && verDetalleSifen(a),

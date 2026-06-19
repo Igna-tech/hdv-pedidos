@@ -16,6 +16,8 @@ let prodNavSubId = null;
 let archivoImagenProducto = null;
 let _importData = null;
 let _importType = null;
+let _seleccionProductos = new Set();
+let _previewImportData = null; // datos parseados pendientes de aplicar
 
 // ============================================
 // STOCK
@@ -399,6 +401,27 @@ async function mostrarProductosGestion() {
 // ============================================
 
 const _productosActionMap = {
+    'toggle-seleccion': (id) => {
+        if (!id) return;
+        if (_seleccionProductos.has(id)) {
+            _seleccionProductos.delete(id);
+        } else {
+            _seleccionProductos.add(id);
+        }
+        // Actualizar sólo el checkbox y el ring sin re-renderizar todo
+        const grid = document.getElementById('productosGridContainer');
+        const overlay = grid?.querySelector(`.card-checkbox-overlay[data-id="${CSS.escape(id)}"]`);
+        if (overlay) {
+            const cb = overlay.querySelector('input[type="checkbox"]');
+            if (cb) cb.checked = _seleccionProductos.has(id);
+            const card = overlay.closest('.catalog-card');
+            if (card) {
+                card.classList.toggle('ring-2', _seleccionProductos.has(id));
+                card.classList.toggle('ring-indigo-500', _seleccionProductos.has(id));
+            }
+        }
+        _actualizarBarraMasiva();
+    },
     'nav-categoria': (id) => {
         prodNavCatId = id;
         prodNavNivel = 'subcategorias';
@@ -548,7 +571,11 @@ function renderizarProductosGestionGrid(container, prods) {
             const catNombre = busquedaActiva
                 ? (productosData.categorias.find(c => c.id === prod.categoria)?.nombre || prod.categoria)
                 : '';
-            return `<div data-action="abrir-perfil" data-id="${prod.id}" class="catalog-card ${oculto ? 'oculto' : ''}" ${img ? `data-bg="${img}"` : ''}>
+            const isSelected = _seleccionProductos.has(prod.id);
+            return `<div data-action="abrir-perfil" data-id="${prod.id}" class="catalog-card ${oculto ? 'oculto' : ''}${isSelected ? ' ring-2 ring-indigo-500' : ''}" ${img ? `data-bg="${img}"` : ''}>
+                <div class="card-checkbox-overlay" data-action="toggle-seleccion" data-id="${prod.id}" title="Seleccionar">
+                    <input type="checkbox" class="pointer-events-none w-4 h-4 accent-indigo-600" ${isSelected ? 'checked' : ''}>
+                </div>
                 ${!img ? '<div class="catalog-card-noimg"><svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg></div>' : ''}
                 <span class="catalog-card-badge" style="${estadoBg}">${estado}</span>
                 ${tieneMargenBajo ? '<span class="catalog-card-badge" style="background:#f59e0b;color:#fff;top:28px;">⚠ Margen</span>' : ''}
@@ -1299,6 +1326,96 @@ function cerrarModalMapeo() {
     modal.classList.add('hidden');
     _importData = null;
     _importType = null;
+    _previewImportData = null;
+    const prev = document.getElementById('importPreviewPanel');
+    if (prev) prev.remove();
+}
+
+function previsualizarImportacion() {
+    if (!_importData || !_importType) return;
+    if (_importType !== 'productos') { confirmarImportacion(); return; }
+
+    const rows = _importData;
+    const getCol = (key) => parseInt(document.getElementById('map_' + key)?.value ?? -1);
+    const colNombre = getCol('nombre');
+    if (colNombre < 0) { mostrarToast('Debes mapear al menos el campo Nombre', 'error'); return; }
+
+    const colCat = getCol('categoria'), colSub = getCol('subcategoria');
+    const colPres = getCol('presentacion'), colPrecio = getCol('precio');
+    const colCosto = getCol('costo'), colStock = getCol('stock');
+
+    let nuevos = 0, actualizados = 0;
+    const preview = [];
+    rows.slice(1, 8).forEach(cols => {
+        const nombre = String(cols[colNombre] || '').trim();
+        if (!nombre) return;
+        const existente = productosData.productos.find(p => p.nombre.toLowerCase() === nombre.toLowerCase());
+        const tipo = existente ? 'actualizar' : 'nuevo';
+        if (existente) actualizados++; else nuevos++;
+        preview.push({
+            nombre,
+            categoria: colCat >= 0 ? String(cols[colCat] || '') : '',
+            presentacion: colPres >= 0 ? String(cols[colPres] || 'Unidad') : 'Unidad',
+            precio: colPrecio >= 0 ? (parseInt(cols[colPrecio]) || 0) : 0,
+            tipo
+        });
+    });
+    // Contar totales reales
+    rows.slice(1).forEach(cols => {
+        const nombre = String(cols[colNombre] || '').trim();
+        if (!nombre) return;
+        const existente = productosData.productos.find(p => p.nombre.toLowerCase() === nombre.toLowerCase());
+        if (existente) actualizados++; else nuevos++;
+    });
+    // Corrección: preview ya contó primeras filas, restar
+    actualizados = Math.max(0, actualizados - preview.filter(r => r.tipo === 'actualizar').length);
+    nuevos = Math.max(0, nuevos - preview.filter(r => r.tipo === 'nuevo').length);
+    // Sumar totales de las primeras filas nuevamente
+    actualizados += preview.filter(r => r.tipo === 'actualizar').length;
+    nuevos += preview.filter(r => r.tipo === 'nuevo').length;
+
+    // Mostrar panel de preview en el modal
+    let panel = document.getElementById('importPreviewPanel');
+    if (!panel) {
+        panel = document.createElement('div');
+        panel.id = 'importPreviewPanel';
+        const contenido = document.getElementById('mapeoContenido');
+        contenido.after(panel);
+    }
+    panel.className = 'px-6 pb-4 space-y-3';
+    panel.innerHTML = `
+        <div class="flex gap-3 text-sm">
+            <span class="flex-1 bg-green-50 border border-green-200 text-green-800 rounded-lg px-3 py-2 text-center font-bold">${nuevos} nuevos</span>
+            <span class="flex-1 bg-blue-50 border border-blue-200 text-blue-800 rounded-lg px-3 py-2 text-center font-bold">${actualizados} actualizados</span>
+        </div>
+        <p class="text-xs font-bold text-gray-500 uppercase tracking-wider">Vista previa (primeras filas)</p>
+        <div class="overflow-x-auto rounded-lg border border-gray-200">
+            <table class="w-full text-xs">
+                <thead class="bg-gray-50"><tr class="text-left">
+                    <th class="px-2 py-1.5 font-bold text-gray-600"></th>
+                    <th class="px-2 py-1.5 font-bold text-gray-600">Nombre</th>
+                    <th class="px-2 py-1.5 font-bold text-gray-600">Categoría</th>
+                    <th class="px-2 py-1.5 font-bold text-gray-600">Presentación</th>
+                    <th class="px-2 py-1.5 font-bold text-gray-600 text-right">Precio</th>
+                </tr></thead>
+                <tbody>
+                    ${preview.map(r => `<tr class="border-t border-gray-100">
+                        <td class="px-2 py-1.5"><span class="text-[10px] font-bold px-1.5 py-0.5 rounded ${r.tipo === 'nuevo' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}">${r.tipo === 'nuevo' ? 'NUEVO' : 'ACT'}</span></td>
+                        <td class="px-2 py-1.5 text-gray-800 font-medium">${escapeHTML(r.nombre)}</td>
+                        <td class="px-2 py-1.5 text-gray-500">${escapeHTML(r.categoria)}</td>
+                        <td class="px-2 py-1.5 text-gray-500">${escapeHTML(r.presentacion)}</td>
+                        <td class="px-2 py-1.5 text-gray-800 text-right">${r.precio > 0 ? formatearGuaranies(r.precio) : '—'}</td>
+                    </tr>`).join('')}
+                </tbody>
+            </table>
+        </div>
+        <div class="flex gap-3 justify-end pt-1">
+            <sl-button data-action="cerrarModalMapeo" variant="default" size="small">Cancelar</sl-button>
+            <sl-button data-action="confirmarImportacion" variant="primary" size="small">Aplicar ${nuevos + actualizados} registros</sl-button>
+        </div>`;
+    // Ocultar los botones del footer original del modal
+    const footer = document.querySelector('#modalMapeoImport .border-t .flex.gap-3');
+    if (footer) footer.style.display = 'none';
 }
 
 function confirmarImportacion() {
@@ -1594,6 +1711,121 @@ function descargarPlantillaClientes() {
         ]
     };
     descargarJSON(plantilla, 'plantilla_clientes.json');
+}
+
+// ============================================
+// GESTION MASIVA DE PRODUCTOS (Etapa 3)
+// ============================================
+
+function _actualizarBarraMasiva() {
+    const barra = document.getElementById('barraAccionesMasivas');
+    const cont = document.getElementById('contSeleccion');
+    if (!barra) return;
+    const n = _seleccionProductos.size;
+    if (n === 0) {
+        barra.classList.add('hidden');
+    } else {
+        barra.classList.remove('hidden');
+        if (cont) cont.textContent = `${n} seleccionado${n > 1 ? 's' : ''}`;
+    }
+}
+
+function masivoCambiarVisibilidad(ocultar) {
+    const ids = [..._seleccionProductos];
+    if (ids.length === 0) return;
+    ids.forEach(id => {
+        const p = productosData.productos.find(x => x.id === id);
+        if (p) p.oculto = ocultar;
+    });
+    registrarCambio();
+    _seleccionProductos.clear();
+    _actualizarBarraMasiva();
+    mostrarProductosGestion();
+    mostrarExito(`${ids.length} producto(s) ${ocultar ? 'ocultado(s)' : 'mostrado(s)'} — guarda para aplicar`);
+}
+
+async function masivoCambiarCategoria() {
+    const ids = [..._seleccionProductos];
+    if (ids.length === 0) return;
+    const opciones = (productosData.categorias || []).map(c => ({ value: c.id, label: c.nombre }));
+    const resultado = await mostrarInputModal({
+        titulo: `Cambiar categoría — ${ids.length} producto(s)`,
+        campos: [{ id: 'categoria', label: 'Nueva categoría', tipo: 'select', opciones, requerido: true }]
+    });
+    if (!resultado) return;
+    ids.forEach(id => {
+        const p = productosData.productos.find(x => x.id === id);
+        if (p) { p.categoria = resultado.categoria; p.subcategoria = ''; }
+    });
+    registrarCambio();
+    _seleccionProductos.clear();
+    _actualizarBarraMasiva();
+    mostrarProductosGestion();
+    mostrarExito(`Categoría actualizada en ${ids.length} producto(s) — guarda para aplicar`);
+}
+
+async function masivoEliminar() {
+    const ids = [..._seleccionProductos];
+    if (ids.length === 0) return;
+    const ok = await mostrarConfirmModal(
+        `¿Eliminar ${ids.length} producto(s) permanentemente? Esta acción no se puede deshacer.`,
+        { confirmLabel: 'Eliminar todo', cancelLabel: 'Cancelar' }
+    );
+    if (!ok) return;
+    productosData.productos = productosData.productos.filter(p => !ids.includes(p.id));
+    productosFiltrados = productosFiltrados.filter(p => !ids.includes(p.id));
+    registrarCambio();
+    _seleccionProductos.clear();
+    _actualizarBarraMasiva();
+    mostrarProductosGestion();
+    mostrarExito(`${ids.length} producto(s) eliminado(s) — guarda para aplicar`);
+}
+
+function limpiarSeleccionProductos() {
+    _seleccionProductos.clear();
+    _actualizarBarraMasiva();
+    // Actualizar checkboxes sin re-renderizar
+    const grid = document.getElementById('productosGridContainer');
+    grid?.querySelectorAll('.card-checkbox-overlay input[type="checkbox"]').forEach(cb => { cb.checked = false; });
+    grid?.querySelectorAll('.catalog-card.ring-2').forEach(c => { c.classList.remove('ring-2', 'ring-indigo-500'); });
+}
+
+function seleccionarTodosProductos() {
+    const grid = document.getElementById('productosGridContainer');
+    const cards = [...(grid?.querySelectorAll('.catalog-card[data-action="abrir-perfil"]') || [])];
+    const todosSeleccionados = cards.every(c => _seleccionProductos.has(c.dataset.id));
+    if (todosSeleccionados && cards.length > 0) {
+        _seleccionProductos.clear();
+    } else {
+        cards.forEach(c => _seleccionProductos.add(c.dataset.id));
+    }
+    _actualizarBarraMasiva();
+    mostrarProductosGestion();
+}
+
+function exportarProductosCSV() {
+    const bom = '﻿';
+    const header = 'nombre,categoria,subcategoria,presentacion,precio,costo,stock,estado,oculto';
+    const rows = [];
+    (productosData.productos || []).forEach(p => {
+        const catNombre = (productosData.categorias.find(c => c.id === p.categoria)?.nombre || p.categoria || '');
+        (p.presentaciones || [{ tamano: 'Unidad', precio_base: 0, costo: 0, stock: 0 }]).forEach(v => {
+            rows.push([
+                p.nombre, catNombre, p.subcategoria || '', v.tamano || 'Unidad',
+                v.precio_base || 0, v.costo || 0, v.stock || 0,
+                p.estado || 'disponible', p.oculto ? 'si' : 'no'
+            ].map(val => `"${String(val).replace(/"/g, '""')}"`).join(','));
+        });
+    });
+    const csv = bom + header + '\n' + rows.join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `catalogo_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    mostrarExito(`${rows.length} filas exportadas`);
 }
 
 // ============================================

@@ -68,7 +68,7 @@ const TIEMPOS = {
 
 // --- VAPID Public Key (Web Push — segura en frontend por diseño) ---
 
-const VAPID_PUBLIC_KEY = 'BOBc9lMS2l3X_HDp2kAmuP5m-_mqDOt6JVzgFaZ-4cbyMj1vrsxPYzFxxu-bLxIPz0u4amT_jlRrMInwfujwT6w';
+const VAPID_PUBLIC_KEY = 'BH5CuWpewMiYTI6BUmz5SK2Kj3DC3CvOS8opcT9kE4qu44aCgn7D9s5X6CIdc2xxgB6RKUWcPhZcIUP8nu2LlII';
 
 // --- Spinner SVG compartido ---
 

@@ -49,8 +49,9 @@ PWA mobile-first para vendedores de calle + panel admin de escritorio.
 ├── js/utils/kude-generator.js → Generador KuDE PDF: generarKudePDF(pedidoId) abre blob HTML con layout fiel a e-Kuatia'i (encabezado empresa+logo, receptor, tabla items IVA, footer QR+CDC). Requiere ventas-data.js, sanitizer.js. Logo embebido como base64 via fetch(). QR via QRCode.js cargado dinamicamente.
 ├── js/utils/printer.js     → Impresion de tickets de trabajo INTERNOS (vendedor app.js, admin pedidos.js). NO se usa para documentos cliente.
 ├── js/utils/pdf-generator.js → Generacion de PDFs con jsPDF
-├── js/vendedor/ui.js       → UI del vendedor (catalogo visual, navegacion)
+├── js/vendedor/ui.js       → UI del vendedor (catalogo visual, navegacion, historial cliente, Mi Caja). mostrarHistorialCliente(clienteId), cerrarHistorialCliente(), mostrarMiCaja() [toggle Hoy/Semana via _vistaCajaModo], _renderResumenHoy(), _renderResumenSemana(), setCajaModo(modo).
 ├── js/vendedor/cart.js     → Logica de carrito del vendedor
+├── js/vendedor/cobros.js   → Cobros en campo: abrirCobrosCliente(clienteId), cerrarCobrosDrawer(), registrarPagoCobro(pedidoId), cobrarTodoEfectivo(clienteId). Bottom sheet con aging de deuda, sync atomico hdv_pagos_credito.
 ├── js/admin/pedidos.js     → Modulo admin: pedidos con filtros vendedor/estado, badges fraude/tipo/editado, desglose IVA, CSV enriquecido
 ├── js/admin/dashboard.js   → Modulo admin: dashboard con Chart.js
 ├── js/admin/productos.js   → Modulo admin: CRUD de productos y variantes
@@ -89,7 +90,7 @@ PWA mobile-first para vendedores de calle + panel admin de escritorio.
 ## Orden de carga de scripts
 
 **index.html (vendedor):**
-supabase CDN → supabase-init.js → **js/utils/constants.js** → services/supabase.js → js/utils/storage.js → guard.js → supabase-config.js → js/services/sync.js → [core/state, sanitizer, **dialogs**, helpers, formatters, printer, pdf-generator, vendedor modules] → app.js → checkout.js
+supabase CDN → supabase-init.js → **js/utils/constants.js** → services/supabase.js → js/utils/storage.js → guard.js → supabase-config.js → js/services/sync.js → [core/state, sanitizer, **dialogs**, helpers, formatters, printer, pdf-generator, vendedor/ui.js, vendedor/cart.js, **vendedor/cobros.js**] → app.js → checkout.js
 
 **admin.html:**
 supabase CDN → Chart.js → supabase-init.js → **js/utils/constants.js** → services/supabase.js → js/utils/storage.js → guard.js → supabase-config.js → [core/state, sanitizer, **dialogs**, helpers, formatters, printer, pdf-generator] → admin.js → [admin modules] → **js/utils/kude-generator.js** → admin-ventas.js → admin-devoluciones.js → admin-contabilidad.js → js/admin/sifen-estado.js → js/admin/dtes.js

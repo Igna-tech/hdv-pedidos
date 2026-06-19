@@ -30,6 +30,22 @@ const _vendedorActionMap = {
     // Modal factura
     'imprimirFactura':                () => typeof imprimirFactura === 'function' && imprimirFactura(),
     'cerrarModalFactura':             () => typeof cerrarModalFactura === 'function' && cerrarModalFactura(),
+    // Pedidos — acciones de tarjeta
+    'imprimirTicketVendedor':         (_, id) => typeof imprimirTicketVendedor === 'function' && imprimirTicketVendedor(id),
+    'generarPDFVendedor':             (_, id) => typeof generarPDFVendedor === 'function' && generarPDFVendedor(id),
+    'compartirPedidoWA':              (_, id) => typeof enviarPedidoWhatsApp === 'function' && enviarPedidoWhatsApp(id),
+    // Historial cliente
+    'mostrarHistorialCliente':        (_, id) => typeof mostrarHistorialCliente === 'function' && mostrarHistorialCliente(id),
+    'cerrarHistorialCliente':         () => typeof cerrarHistorialCliente === 'function' && cerrarHistorialCliente(),
+    'repetirUltimoPedido':            (_, id) => typeof repetirUltimoPedido === 'function' && repetirUltimoPedido(id),
+    // Mi Caja
+    'setCajaModo':                    (_, modo) => typeof setCajaModo === 'function' && setCajaModo(modo),
+    'enviarCierreWA':                 (btn) => { try { const d = JSON.parse(btn.getAttribute('data-arg') || '{}'); typeof enviarCierreWhatsApp === 'function' && enviarCierreWhatsApp(d); } catch(_){} },
+    // Cobros en campo
+    'abrirCobrosCliente':             (_, id) => typeof abrirCobrosCliente === 'function' && abrirCobrosCliente(id),
+    'cerrarCobrosDrawer':             () => typeof cerrarCobrosDrawer === 'function' && cerrarCobrosDrawer(),
+    'registrarPagoCobro':             (_, id) => typeof registrarPagoCobro === 'function' && registrarPagoCobro(id),
+    'cobrarTodoEfectivo':             (_, id) => typeof cobrarTodoEfectivo === 'function' && cobrarTodoEfectivo(id),
 };
 
 document.addEventListener('click', function(e) {
@@ -923,23 +939,133 @@ async function generarPDFVendedor(pedidoId) {
     if (generarPDFPedido(pedido)) mostrarExito('PDF generado');
 }
 
-async function enviarPedidoWhatsApp(pedidoId) {
+// --- WhatsApp helpers ---
+
+function _formatearTelefonoWA(tel) {
+    if (!tel) return '';
+    const limpio = tel.replace(/\D/g, '').replace(/^0/, '');
+    if (limpio.length < 7) return '';
+    return '595' + limpio;
+}
+
+// Genera el texto de mensaje WhatsApp segun el tipo de template.
+// datos para 'pedido_confirmado'/'detalle_completo': objeto pedido
+// datos para 'recibo_cobro': { pedidoId, monto, metodo, fecha, saldoRestante }
+// datos para 'resumen_dia': { vendedor, fecha, pedidos, contado, credito, cobros, gastos, metaPct, aRendir }
+function _templateWA(tipo, datos) {
+    const empresa = 'HDV Distribuciones';
+    const fecha = new Date(datos.fecha || Date.now()).toLocaleDateString('es-PY');
+    const SEP = '─'.repeat(22);
+
+    if (tipo === 'pedido_confirmado') {
+        const items = (datos.items || []).map(i =>
+            `• ${i.nombre} (${i.presentacion}) ×${i.cantidad} — ${formatearGuaranies(i.subtotal)}`
+        ).join('\n');
+        const notas = datos.notas ? `\n📝 Notas: ${datos.notas}` : '';
+        return `🏪 *${empresa}*\n📋 Pedido N° ${datos.id} registrado ✅\n👤 ${datos.cliente?.nombre || ''}\n\n📦 *Detalle:*\n${items}\n\n💰 *Total: ${formatearGuaranies(datos.total)}*\n💳 Pago: ${datos.tipoPago || 'contado'}${notas}\n— ${empresa}`;
+    }
+
+    if (tipo === 'detalle_completo') {
+        const items = (datos.items || []).map(i =>
+            `• ${i.nombre} ×${i.cantidad} = ${formatearGuaranies(i.subtotal)}`
+        ).join('\n');
+        return `📋 *Pedido ${datos.id}*\n👤 ${datos.cliente?.nombre || ''}\n📅 ${fecha}\n\n${items}\n\n💰 *Total: ${formatearGuaranies(datos.total)}*`;
+    }
+
+    if (tipo === 'recibo_cobro') {
+        const saldoLinea = (datos.saldoRestante > 0)
+            ? `⏳ Saldo restante: ${formatearGuaranies(datos.saldoRestante)}`
+            : `✅ Saldo cancelado`;
+        return `✅ *Pago confirmado — ${empresa}*\n📋 Pedido: ${datos.pedidoId}\n💰 Cobrado: ${formatearGuaranies(datos.monto)}\n💳 Forma: ${datos.metodo || 'efectivo'}\n📅 ${fecha}\n${saldoLinea}`;
+    }
+
+    if (tipo === 'resumen_dia') {
+        const icon = datos.metaPct >= 100 ? '🟢' : datos.metaPct >= 80 ? '🟡' : '🔴';
+        return `📊 *Cierre de jornada — ${datos.vendedor}*\n📅 ${fecha}\n${SEP}\n📦 Pedidos: ${datos.pedidos}\n💰 Contado: ${formatearGuaranies(datos.contado)}\n🔄 Crédito: ${formatearGuaranies(datos.credito)}\n💵 Cobros: ${formatearGuaranies(datos.cobros)}\n📉 Gastos: ${formatearGuaranies(datos.gastos)}\n${SEP}\n${icon} Meta: ${datos.metaPct}%\n✅ A rendir: ${formatearGuaranies(datos.aRendir)}`;
+    }
+
+    return '';
+}
+
+async function enviarPedidoWhatsApp(pedidoId, tipo) {
     const pedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
     const pedido = pedidos.find(p => p.id === pedidoId);
     if (!pedido) return;
 
-    let msg = `*HDV Distribuciones - Pedido*\n`;
-    msg += `N°: ${pedido.id}\n`;
-    msg += `Fecha: ${new Date(pedido.fecha).toLocaleDateString('es-PY')}\n`;
-    msg += `Cliente: ${pedido.cliente?.nombre || 'N/A'}\n\n`;
-    msg += `*Detalle:*\n`;
-    (pedido.items || []).forEach(i => {
-        msg += `• ${i.nombre} (${i.presentacion}) x${i.cantidad} = ${formatearGuaranies(i.subtotal)}\n`;
-    });
-    msg += `\n*TOTAL: ${formatearGuaranies(pedido.total)}*\n`;
-    msg += `Pago: ${pedido.tipoPago || 'contado'}`;
-    if (pedido.notas) msg += `\nNotas: ${pedido.notas}`;
+    const msg = _templateWA(tipo || 'pedido_confirmado', pedido);
+    if (!msg) return;
 
-    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+    const tel = _formatearTelefonoWA(pedido.cliente?.telefono);
+    const url = `https://wa.me/${tel}?text=${encodeURIComponent(msg)}`;
+    window.open(url, '_blank');
     mostrarExito('Abriendo WhatsApp...');
+}
+
+function enviarCierreWhatsApp(datos) {
+    const msg = _templateWA('resumen_dia', { ...datos, fecha: new Date().toISOString() });
+    if (!msg) return;
+    // Número del jefe desde configuracion empresa (si está disponible) o sin número
+    const telJefe = _formatearTelefonoWA(window._empresaConfig?.telefono_empresa || '');
+    window.open(`https://wa.me/${telJefe}?text=${encodeURIComponent(msg)}`, '_blank');
+    mostrarExito('Enviando cierre al jefe...');
+}
+
+// ============================================
+// HISTORIAL — REPETIR PEDIDO
+// ============================================
+async function repetirUltimoPedido(pedidoId) {
+    if (!clienteActual) {
+        mostrarToast('Selecciona un cliente primero', 'warning');
+        return;
+    }
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
+    const pedido = pedidos.find(p => p.id === pedidoId);
+    if (!pedido || !pedido.items?.length) return;
+
+    const confirmar = await mostrarConfirmModal(
+        `¿Agregar los ${pedido.items.length} producto(s) del pedido ${pedido.id} al carrito?`,
+        { confirmLabel: 'Sí, agregar', cancelLabel: 'Cancelar' }
+    );
+    if (!confirmar) return;
+
+    let agregados = 0;
+    const noEncontrados = [];
+
+    pedido.items.forEach(item => {
+        const prod = productos.find(p => p.id === item.productoId);
+        if (!prod) { noEncontrados.push(item.nombre); return; }
+        const pres = (prod.presentaciones || []).find(p => p.tamano === item.presentacion);
+        if (!pres) { noEncontrados.push(item.nombre); return; }
+
+        const precio = obtenerPrecio(item.productoId, pres);
+        const existente = carrito.findIndex(c => c.productoId === item.productoId && c.presentacion === item.presentacion);
+        if (existente >= 0) {
+            carrito[existente].cantidad += item.cantidad;
+            carrito[existente].subtotal = carrito[existente].cantidad * carrito[existente].precio;
+        } else {
+            carrito.push({
+                productoId: item.productoId,
+                nombre: prod.nombre,
+                presentacion: item.presentacion,
+                precio,
+                cantidad: item.cantidad,
+                subtotal: precio * item.cantidad,
+                precioEspecial: precio !== pres.precio_base,
+                tipo_impuesto: prod.tipo_impuesto || '10'
+            });
+        }
+        agregados++;
+    });
+
+    actualizarContadorCarrito();
+    guardarCarrito();
+
+    cerrarHistorialCliente();
+    setTimeout(() => mostrarModalCarrito(), 350);
+
+    if (noEncontrados.length > 0) {
+        mostrarToast(`${agregados} productos agregados. No encontrados: ${noEncontrados.join(', ')}`, 'warning');
+    } else {
+        mostrarExito(`${agregados} productos agregados al carrito`);
+    }
 }

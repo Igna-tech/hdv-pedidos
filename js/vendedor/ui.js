@@ -158,6 +158,21 @@ async function mostrarInfoCliente(cliente) {
         elDeuda.className = 'flex items-center gap-1 text-green-600';
     }
 
+    // Botones de accion del panel cliente
+    const btnHistorial = document.getElementById('btnVerHistorial');
+    if (btnHistorial) btnHistorial.setAttribute('data-arg', cliente.id);
+    const btnCobrar = document.getElementById('btnCobrarCliente');
+    if (btnCobrar) {
+        btnCobrar.setAttribute('data-arg', cliente.id);
+        if (deudaTotal > 0) {
+            btnCobrar.classList.remove('hidden');
+            const span = document.getElementById('btnCobrarMonto');
+            if (span) span.textContent = `Cobrar ${formatearGuaranies(deudaTotal)}`;
+        } else {
+            btnCobrar.classList.add('hidden');
+        }
+    }
+
     // Top 3 productos
     const conteo = {};
     pedidosCliente.forEach(p => (p.items || []).forEach(i => {
@@ -873,9 +888,9 @@ function crearTarjetaPedidoVendedor(p) {
             <span class="font-bold text-gray-900">${formatearGuaranies(p.total)}</span>
         </div>
         <div class="flex gap-2 mt-3 pt-2 border-t border-gray-50">
-            <sl-button onclick="imprimirTicketVendedor('${p.id}')" variant="default" size="small" class="flex-1"><i data-lucide="printer" class="w-3 h-3"></i> Ticket</sl-button>
-            <sl-button onclick="generarPDFVendedor('${p.id}')" variant="default" size="small" class="flex-1"><i data-lucide="file-text" class="w-3 h-3"></i> PDF</sl-button>
-            <sl-button onclick="enviarPedidoWhatsApp('${p.id}')" variant="success" size="small" class="flex-1"><i data-lucide="send" class="w-3 h-3"></i> WhatsApp</sl-button>
+            <sl-button data-action="imprimirTicketVendedor" data-arg="${p.id}" variant="default" size="small" class="flex-1"><i data-lucide="printer" class="w-3 h-3"></i> Ticket</sl-button>
+            <sl-button data-action="generarPDFVendedor" data-arg="${p.id}" variant="default" size="small" class="flex-1"><i data-lucide="file-text" class="w-3 h-3"></i> PDF</sl-button>
+            <sl-button data-action="compartirPedidoWA" data-arg="${p.id}" variant="success" size="small" class="flex-1"><i data-lucide="send" class="w-3 h-3"></i> WhatsApp</sl-button>
         </div>
     `;
     return div;
@@ -929,6 +944,131 @@ async function mostrarMisPedidos() {
 }
 
 // Toast, confirm, and input modals are in js/utils/dialogs.js (shared)
+
+// ============================================
+// HISTORIAL COMPLETO DEL CLIENTE
+// ============================================
+async function mostrarHistorialCliente(clienteId) {
+    const cliente = clientes.find(c => c.id === clienteId);
+    if (!cliente) return;
+
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
+    const allPagos = (await HDVStorage.getItem('hdv_pagos_credito', { clone: false })) || [];
+
+    const pedidosCliente = pedidos
+        .filter(p => p.cliente?.id === clienteId)
+        .sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+
+    const totalPedidos = pedidosCliente.length;
+    const ticketPromedio = totalPedidos > 0
+        ? Math.round(pedidosCliente.reduce((s, p) => s + (p.total || 0), 0) / totalPedidos)
+        : 0;
+
+    let frecuenciaDias = 0;
+    if (pedidosCliente.length > 1) {
+        const fechas = pedidosCliente.map(p => new Date(p.fecha));
+        let totalDiff = 0;
+        for (let i = 0; i < fechas.length - 1; i++) totalDiff += (fechas[i] - fechas[i + 1]) / 86400000;
+        frecuenciaDias = Math.round(totalDiff / (fechas.length - 1));
+    }
+
+    const creditos = pedidosCliente.filter(p => p.tipoPago === 'credito');
+    let deudaTotal = 0;
+    creditos.forEach(p => {
+        const pagosP = allPagos.filter(pg => pg.pedidoId === p.id).reduce((s, pg) => s + (pg.monto || 0), 0);
+        deudaTotal += Math.max(0, (p.total || 0) - pagosP);
+    });
+
+    const ultimoPedido = pedidosCliente[0];
+    const frecuenciaStr = frecuenciaDias > 0 ? `c/${frecuenciaDias}d` : (totalPedidos === 1 ? '1 pedido' : '—');
+    const deudaHtml = deudaTotal > 0
+        ? `<span class="text-red-600 font-bold text-base">${formatearGuaranies(deudaTotal)}</span>`
+        : `<span class="text-green-600 font-bold text-base">Al día</span>`;
+
+    const listaPedidos = pedidosCliente.map(p => {
+        const { clases: colorEst, label: labelEst } = obtenerEstadoUI(p.estado, '700');
+        const fechaStr = new Date(p.fecha).toLocaleDateString('es-PY');
+        const itemsHtml = (p.items || []).map(i =>
+            `<div class="flex justify-between text-[11px] py-0.5 text-gray-600">
+                <span>${escapeHTML(i.nombre)} ×${i.cantidad}</span>
+                <span class="font-medium text-gray-800">${formatearGuaranies(i.subtotal)}</span>
+            </div>`
+        ).join('');
+        return `<div class="bg-white border border-slate-100 rounded-xl p-3 mb-2 shadow-sm">
+            <div class="flex justify-between items-start mb-2">
+                <div>
+                    <p class="text-[10px] font-mono text-gray-400">${escapeHTML(p.id)}</p>
+                    <p class="text-xs text-gray-500">${fechaStr}</p>
+                </div>
+                <div class="text-right">
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${colorEst}">${labelEst}</span>
+                    <p class="font-bold text-gray-800 mt-0.5">${formatearGuaranies(p.total)}</p>
+                </div>
+            </div>
+            <div class="border-t border-slate-50 pt-2 mb-2">${itemsHtml}</div>
+            <div class="flex gap-2">
+                <sl-button data-action="repetirUltimoPedido" data-arg="${p.id}" variant="default" size="small" class="flex-1">Pedir igual</sl-button>
+                <sl-button data-action="compartirPedidoWA" data-arg="${p.id}" variant="success" size="small" class="flex-1">WhatsApp</sl-button>
+            </div>
+        </div>`;
+    }).join('');
+
+    const emptyState = totalPedidos === 0
+        ? `<div class="empty-state"><p>Sin pedidos registrados</p><p class="empty-sub">Los pedidos de este cliente aparecerán aquí</p></div>`
+        : '';
+
+    let modal = document.getElementById('modalHistorialCliente');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'modalHistorialCliente';
+        modal.style.cssText = 'position:fixed;inset:0;z-index:150;display:flex;flex-direction:column;background:white;transform:translateY(100%);transition:transform 0.35s cubic-bezier(0.32,0.72,0,1);';
+        document.body.appendChild(modal);
+    }
+
+    modal.innerHTML = `
+        <div class="flex items-center gap-3 px-4 pt-safe pt-4 pb-3 border-b border-slate-100 bg-white sticky top-0 z-10">
+            <button data-action="cerrarHistorialCliente" class="text-gray-400 hover:text-gray-600 p-1 -ml-1">
+                <i data-lucide="arrow-left" class="w-5 h-5"></i>
+            </button>
+            <div class="flex-1">
+                <p class="font-bold text-gray-800 text-sm">${escapeHTML(cliente.razon_social || cliente.nombre)}</p>
+                <p class="text-[11px] text-gray-400">Historial de pedidos</p>
+            </div>
+        </div>
+        <div class="grid grid-cols-3 bg-slate-50 border-b border-slate-100">
+            <div class="text-center py-3">
+                <p class="text-xl font-bold text-indigo-600">${totalPedidos}</p>
+                <p class="text-[10px] text-gray-400 uppercase tracking-wider">pedidos</p>
+            </div>
+            <div class="text-center py-3 border-x border-slate-200">
+                <p class="text-xl font-bold text-indigo-600">${frecuenciaStr}</p>
+                <p class="text-[10px] text-gray-400 uppercase tracking-wider">frecuencia</p>
+            </div>
+            <div class="text-center py-3">
+                ${deudaHtml}
+                <p class="text-[10px] text-gray-400 uppercase tracking-wider">deuda</p>
+            </div>
+        </div>
+        ${ultimoPedido ? `<div class="px-4 py-3 border-b border-slate-100">
+            <sl-button data-action="repetirUltimoPedido" data-arg="${ultimoPedido.id}" variant="primary" class="w-full">
+                Repetir último pedido (${(ultimoPedido.items || []).length} productos)
+            </sl-button>
+        </div>` : ''}
+        <div class="flex-1 overflow-y-auto px-4 pt-4 pb-24">
+            <p class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-3">Todos los pedidos (${totalPedidos})</p>
+            ${listaPedidos}
+            ${emptyState}
+        </div>
+    `;
+
+    modal.style.transform = 'translateY(0)';
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function cerrarHistorialCliente() {
+    const modal = document.getElementById('modalHistorialCliente');
+    if (modal) modal.style.transform = 'translateY(100%)';
+}
 
 // ============================================
 // DARK MODE
@@ -1150,8 +1290,142 @@ async function mostrarRutaHoy() {
 // ============================================
 // MI CAJA UI
 // ============================================
+let _vistaCajaModo = 'hoy'; // 'hoy' | 'semana'
+
+function setCajaModo(modo) {
+    _vistaCajaModo = modo;
+    mostrarMiCaja();
+}
+
+function _toggleCajaHTML() {
+    return `<div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-bold text-gray-800">Mi Caja</h3>
+        <div class="flex bg-slate-100 rounded-lg p-1 gap-1">
+            <button data-action="setCajaModo" data-arg="hoy" class="px-3 py-1.5 rounded-md text-xs font-bold transition-all ${_vistaCajaModo === 'hoy' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}">Hoy</button>
+            <button data-action="setCajaModo" data-arg="semana" class="px-3 py-1.5 rounded-md text-xs font-bold transition-all ${_vistaCajaModo === 'semana' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}">Esta semana</button>
+        </div>
+    </div>`;
+}
+
 async function mostrarMiCaja() {
     const container = document.getElementById('productsContainer');
+    if (_vistaCajaModo === 'hoy') {
+        await _renderResumenHoy(container);
+    } else {
+        await _renderResumenSemana(container);
+    }
+}
+
+async function _renderResumenHoy(container) {
+    const vendedorId = window.hdvUsuario?.id || null;
+    const vendedorNombre = window.hdvUsuario?.nombre || 'Vendedor';
+    const hoy = new Date().toISOString().split('T')[0];
+
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
+    const gastos = (await HDVStorage.getItem('hdv_gastos', { clone: false })) || [];
+    const allPagos = (await HDVStorage.getItem('hdv_pagos_credito', { clone: false })) || [];
+    const metas = (await HDVStorage.getItem('hdv_metas', { clone: false })) || {};
+
+    const pedidosHoy = pedidos.filter(p => p.fecha?.startsWith(hoy) && p.vendedor_id === vendedorId);
+    const contadoHoy = pedidosHoy
+        .filter(p => p.tipoPago === 'contado' && _esEstadoContadoVendedor(p.estado))
+        .reduce((s, p) => s + (p.total || 0), 0);
+    const creditoHoy = pedidosHoy
+        .filter(p => p.tipoPago === 'credito')
+        .reduce((s, p) => s + (p.total || 0), 0);
+    const cobrosHoy = allPagos
+        .filter(pg => pg.fecha?.startsWith(hoy) && pg.vendedor_id === vendedorId)
+        .reduce((s, pg) => s + (pg.monto || 0), 0);
+    const gastosHoy = gastos
+        .filter(g => g.fecha?.startsWith(hoy) && g.vendedor_id === vendedorId)
+        .reduce((s, g) => s + (g.monto || 0), 0);
+    const totalVendido = contadoHoy + creditoHoy;
+    const netoRendir = contadoHoy + cobrosHoy - gastosHoy;
+
+    const metaDiaria = metas.diaria || 0;
+    const metaPct = metaDiaria > 0 ? Math.min(200, Math.round((totalVendido / metaDiaria) * 100)) : 0;
+    const metaColor = metaPct >= 100 ? 'bg-green-500' : metaPct >= 70 ? 'bg-amber-400' : 'bg-red-400';
+    const metaIcono = metaPct >= 100 ? '🟢' : metaPct >= 70 ? '🟡' : '🔴';
+
+    const fechaLarga = new Date().toLocaleDateString('es-PY', { weekday: 'long', day: 'numeric', month: 'long' });
+
+    const listaPedidosHoy = pedidosHoy.length > 0
+        ? pedidosHoy.sort((a, b) => new Date(b.fecha) - new Date(a.fecha)).map(p => {
+            const { clases: colorEst, label: labelEst } = obtenerEstadoUI(p.estado, '700');
+            const hora = new Date(p.fecha).toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit' });
+            return `<div class="flex items-center justify-between py-2 border-b border-slate-50 last:border-0">
+                <div class="flex items-center gap-2">
+                    <span class="text-[10px] text-gray-400 w-10 shrink-0">${hora}</span>
+                    <span class="text-sm font-medium text-gray-700 truncate max-w-[120px]">${escapeHTML(p.cliente?.nombre || 'N/A')}</span>
+                </div>
+                <div class="flex items-center gap-2 shrink-0">
+                    <span class="px-1.5 py-0.5 rounded text-[9px] font-bold ${colorEst}">${labelEst}</span>
+                    <span class="text-sm font-bold text-gray-800">${formatearGuaranies(p.total)}</span>
+                </div>
+            </div>`;
+        }).join('')
+        : `<p class="text-sm text-gray-400 text-center py-4">Sin pedidos por ahora</p>`;
+
+    container.innerHTML = _toggleCajaHTML() + `
+        <p class="text-xs text-gray-400 -mt-2 mb-4 capitalize">${fechaLarga}</p>
+
+        ${metaDiaria > 0 ? `<div class="bg-white rounded-xl p-4 shadow-sm border border-slate-100 mb-3">
+            <div class="flex justify-between items-center mb-2">
+                <p class="text-xs font-bold text-gray-500 uppercase tracking-wider">Meta del día</p>
+                <span class="text-xs font-bold ${metaPct >= 100 ? 'text-green-600' : 'text-gray-600'}">${metaIcono} ${metaPct}%</span>
+            </div>
+            <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                <div class="${metaColor} h-2 rounded-full transition-all duration-700" style="width:${Math.min(100, metaPct)}%"></div>
+            </div>
+            <div class="flex justify-between text-[10px] text-gray-400 mt-1">
+                <span>${formatearGuaranies(totalVendido)}</span>
+                <span>meta: ${formatearGuaranies(metaDiaria)}</span>
+            </div>
+        </div>` : ''}
+
+        <div class="grid grid-cols-2 gap-2 mb-3">
+            <div class="bg-indigo-50 rounded-xl p-3 text-center">
+                <p class="text-xl font-bold text-indigo-600">${pedidosHoy.length}</p>
+                <p class="text-[10px] text-gray-500 font-bold uppercase">PEDIDOS</p>
+            </div>
+            <div class="bg-green-50 rounded-xl p-3 text-center">
+                <p class="text-base font-bold text-green-700">${formatearGuaranies(contadoHoy)}</p>
+                <p class="text-[10px] text-gray-500 font-bold uppercase">CONTADO</p>
+            </div>
+            <div class="bg-amber-50 rounded-xl p-3 text-center">
+                <p class="text-base font-bold text-amber-700">${formatearGuaranies(cobrosHoy)}</p>
+                <p class="text-[10px] text-gray-500 font-bold uppercase">COBROS</p>
+            </div>
+            <div class="bg-red-50 rounded-xl p-3 text-center">
+                <p class="text-base font-bold text-red-600">${formatearGuaranies(gastosHoy)}</p>
+                <p class="text-[10px] text-gray-500 font-bold uppercase">GASTOS</p>
+            </div>
+        </div>
+
+        <div class="bg-blue-50 border border-blue-100 rounded-xl p-4 mb-3 flex justify-between items-center">
+            <div>
+                <p class="text-xs font-bold text-blue-700 uppercase tracking-wider">A rendir hoy</p>
+                <p class="text-2xl font-bold text-blue-800">${formatearGuaranies(netoRendir)}</p>
+            </div>
+            <i data-lucide="wallet" class="w-8 h-8 text-blue-300"></i>
+        </div>
+
+        <sl-button data-action="enviarCierreWA" data-arg="${JSON.stringify({ vendedor: vendedorNombre, contado: contadoHoy, credito: creditoHoy, cobros: cobrosHoy, gastos: gastosHoy, pedidos: pedidosHoy.length, metaPct, aRendir: netoRendir })}" variant="default" class="w-full mb-3 sl-btn-whatsapp" style="--sl-color-neutral-600:#25D366;--sl-color-neutral-700:#1da851;">
+            <i data-lucide="message-circle" class="w-4 h-4 mr-1"></i> Enviar cierre al jefe
+        </sl-button>
+
+        <div class="bg-white rounded-xl p-4 shadow-sm border border-slate-100 mb-3">
+            <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Pedidos de hoy (${pedidosHoy.length})</p>
+            ${listaPedidosHoy}
+        </div>
+
+        <sl-button onclick="agregarGastoVendedor()" variant="danger" size="small" class="w-full mb-3">+ Registrar Gasto</sl-button>
+        <sl-button onclick="mostrarConfiguracion()" variant="default" class="w-full">Configuracion y Backups</sl-button>
+    `;
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+async function _renderResumenSemana(container) {
     const semana = obtenerSemanaActualVendedor();
     const { inicio, fin } = obtenerRangoSemanaVendedor(semana);
 
@@ -1187,8 +1461,7 @@ async function mostrarMiCaja() {
     const fechaInicio = inicio.toLocaleDateString('es-PY', { day: '2-digit', month: 'short' });
     const fechaFin = fin.toLocaleDateString('es-PY', { day: '2-digit', month: 'short' });
 
-    container.innerHTML = `
-        <h3 class="text-lg font-bold text-gray-800 mb-4">Mi Caja</h3>
+    container.innerHTML = _toggleCajaHTML() + `
 
         ${metaWidget}
 

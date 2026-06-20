@@ -257,6 +257,14 @@ const ACTION_DISPATCH = {
     'seleccionar-todo-productos':       ()     => typeof seleccionarTodosProductos === 'function' && seleccionarTodosProductos(),
     'exportarProductosCSV':             ()     => typeof exportarProductosCSV === 'function' && exportarProductosCSV(),
 
+    // === Precios y márgenes (Etapa 5) ===
+    'masivo-ajustar-precios':           ()     => typeof masivoAjustarPrecios === 'function' && masivoAjustarPrecios(),
+    'verMargenesCatalogo':              ()     => typeof verMargenesCatalogo === 'function' && verMargenesCatalogo(),
+    'cerrarModalMargenes':              ()     => typeof cerrarModalMargenes === 'function' && cerrarModalMargenes(),
+    'abrirHistorialPrecios':            ()     => typeof abrirHistorialPrecios === 'function' && abrirHistorialPrecios(),
+    'cerrarModalHistorialPrecios':      ()     => typeof cerrarModalHistorialPrecios === 'function' && cerrarModalHistorialPrecios(),
+    'limpiarHistorialPrecios':          ()     => typeof limpiarHistorialPrecios === 'function' && limpiarHistorialPrecios(),
+
     // === SIFEN Estado ===
     'verDetalleSifen':    (_, a) => typeof verDetalleSifen === 'function' && verDetalleSifen(a),
     'irAVentasSifen':     (_, a) => typeof irAVentasSifen === 'function' && irAVentasSifen(a),

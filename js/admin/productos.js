@@ -1878,6 +1878,262 @@ function exportarProductosCSV() {
 }
 
 // ============================================
+// PRECIOS Y MARGENES (Etapa 5)
+// ============================================
+
+async function masivoAjustarPrecios() {
+    const ids = [..._seleccionProductos];
+    if (ids.length === 0) {
+        mostrarToast('Seleccioná al menos un producto', 'warning');
+        return;
+    }
+    const resultado = await mostrarInputModal({
+        titulo: `Ajustar precios — ${ids.length} producto(s)`,
+        campos: [
+            {
+                id: 'tipo', label: 'Tipo de ajuste', tipo: 'select',
+                opciones: [
+                    { value: 'incrementar', label: 'Incrementar (+%)' },
+                    { value: 'reducir',     label: 'Reducir (−%)' }
+                ],
+                valor: 'incrementar'
+            },
+            { id: 'porcentaje', label: 'Porcentaje (%)', tipo: 'number', valor: 10, min: 1, max: 99, requerido: true },
+            {
+                id: 'redondear', label: 'Redondear resultado', tipo: 'select',
+                opciones: [
+                    { value: '100',  label: 'Al 100 Gs más cercano (recomendado)' },
+                    { value: '1000', label: 'Al 1000 Gs más cercano' },
+                    { value: '1',    label: 'Sin redondeo' }
+                ],
+                valor: '100'
+            }
+        ]
+    });
+    if (!resultado) return;
+
+    const pct = parseFloat(resultado.porcentaje);
+    if (!pct || pct <= 0 || pct >= 100) { mostrarToast('Porcentaje inválido', 'error'); return; }
+
+    const multiplier = resultado.tipo === 'incrementar' ? (1 + pct / 100) : (1 - pct / 100);
+    const redondeo = parseInt(resultado.redondear) || 100;
+
+    const historial = [];
+    const ahora = new Date().toISOString();
+
+    ids.forEach(id => {
+        const prod = productosData.productos.find(p => p.id === id);
+        if (!prod) return;
+        (prod.presentaciones || []).forEach(v => {
+            const precioAntes = v.precio_base || 0;
+            if (precioAntes <= 0) return;
+            const precioRaw = precioAntes * multiplier;
+            const precioNuevo = Math.round(precioRaw / redondeo) * redondeo;
+            if (precioNuevo === precioAntes) return;
+            const costoRef = v.costo || 0;
+            historial.push({
+                id: crypto.randomUUID(),
+                fecha: ahora,
+                productoId: prod.id,
+                nombre: prod.nombre,
+                variante: v.tamano || 'Unidad',
+                precioAntes,
+                precioNuevo,
+                costoRef,
+                margenAntes: costoRef > 0 ? Math.round(((precioAntes - costoRef) / precioAntes) * 100) : null,
+                margenNuevo: costoRef > 0 ? Math.round(((precioNuevo - costoRef) / precioNuevo) * 100) : null
+            });
+            v.precio_base = precioNuevo;
+        });
+    });
+
+    if (historial.length === 0) { mostrarToast('Sin cambios (los precios ya tenían ese redondeo)', 'neutral'); return; }
+
+    // Guardar en historial (máx 500 entradas)
+    const prevHistorial = (await HDVStorage.getItem('hdv_historial_precios')) || [];
+    const nuevoHistorial = [...historial, ...prevHistorial].slice(0, 500);
+    await HDVStorage.setItem('hdv_historial_precios', nuevoHistorial);
+
+    registrarCambio();
+    _seleccionProductos.clear();
+    _actualizarBarraMasiva();
+    mostrarProductosGestion();
+    const signo = resultado.tipo === 'incrementar' ? '+' : '−';
+    mostrarExito(`${signo}${pct}% aplicado a ${historial.length} variante(s). Guarda para aplicar.`);
+}
+
+async function verMargenesCatalogo() {
+    const modal = document.getElementById('modalMargenes');
+    const body = document.getElementById('modalMargenesBody');
+    if (!modal || !body) return;
+
+    const cats = productosData.categorias || [];
+    const prods = productosData.productos || [];
+
+    // Calcular stats por categoría
+    const stats = cats.map(cat => {
+        const prodsCat = prods.filter(p => p.categoria === cat.id);
+        const margenes = [];
+        prodsCat.forEach(p => {
+            (p.presentaciones || []).forEach(v => {
+                const pr = v.precio_base || 0;
+                const co = v.costo || 0;
+                if (pr > 0 && co > 0) margenes.push(Math.round(((pr - co) / pr) * 100));
+            });
+        });
+        const conMargenBajo = prodsCat.filter(p =>
+            (p.presentaciones || []).some(v => {
+                const pr = v.precio_base || 0; const co = v.costo || 0;
+                return pr > 0 && co > 0 && ((pr - co) / pr) < MARGEN_MINIMO_PCT;
+            })
+        ).length;
+        return {
+            nombre: cat.nombre,
+            id: cat.id,
+            numProds: prodsCat.length,
+            conMargenBajo,
+            margenMin: margenes.length ? Math.min(...margenes) : null,
+            margenProm: margenes.length ? Math.round(margenes.reduce((a, b) => a + b, 0) / margenes.length) : null,
+            margenMax: margenes.length ? Math.max(...margenes) : null,
+            sinCosto: prodsCat.reduce((acc, p) => acc + (p.presentaciones || []).filter(v => !v.costo || v.costo <= 0).length, 0)
+        };
+    }).filter(s => s.numProds > 0).sort((a, b) => (a.margenProm ?? 999) - (b.margenProm ?? 999));
+
+    const totalProds = prods.length;
+    const todosConCosto = prods.filter(p => (p.presentaciones || []).every(v => (v.costo || 0) > 0));
+    const promedioGeneral = (() => {
+        const m = [];
+        prods.forEach(p => (p.presentaciones || []).forEach(v => {
+            const pr = v.precio_base || 0; const co = v.costo || 0;
+            if (pr > 0 && co > 0) m.push((pr - co) / pr * 100);
+        }));
+        return m.length ? Math.round(m.reduce((a, b) => a + b, 0) / m.length) : null;
+    })();
+    const totalMargenBajo = stats.reduce((s, c) => s + c.conMargenBajo, 0);
+
+    const margenColor = (pct) => {
+        if (pct === null) return 'text-gray-400';
+        if (pct >= 30) return 'text-green-600 font-bold';
+        if (pct >= 15) return 'text-yellow-600 font-bold';
+        return 'text-red-600 font-bold';
+    };
+
+    body.innerHTML = `
+        <!-- Resumen global -->
+        <div class="grid grid-cols-3 gap-3 mb-2">
+            <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-3 text-center">
+                <p class="text-2xl font-bold text-indigo-700">${promedioGeneral !== null ? promedioGeneral + '%' : '—'}</p>
+                <p class="text-xs text-indigo-500 font-bold mt-0.5">MARGEN PROMEDIO</p>
+            </div>
+            <div class="bg-amber-50 border border-amber-100 rounded-xl p-3 text-center">
+                <p class="text-2xl font-bold text-amber-700">${totalMargenBajo}</p>
+                <p class="text-xs text-amber-500 font-bold mt-0.5">PRODUCTOS MARGEN BAJO</p>
+            </div>
+            <div class="bg-gray-50 border border-gray-100 rounded-xl p-3 text-center">
+                <p class="text-2xl font-bold text-gray-700">${totalProds - todosConCosto.length}</p>
+                <p class="text-xs text-gray-500 font-bold mt-0.5">SIN COSTO CARGADO</p>
+            </div>
+        </div>
+        <!-- Tabla por categoría -->
+        <div class="overflow-x-auto rounded-xl border border-gray-200">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-50 text-xs text-gray-500 font-bold uppercase tracking-wider">
+                    <tr>
+                        <th class="text-left px-3 py-2">Categoría</th>
+                        <th class="px-3 py-2 text-right">Productos</th>
+                        <th class="px-3 py-2 text-right">Margen mín</th>
+                        <th class="px-3 py-2 text-right">Margen prom</th>
+                        <th class="px-3 py-2 text-right">Margen máx</th>
+                        <th class="px-3 py-2 text-right">Alerta</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    ${stats.map(s => `<tr class="hover:bg-gray-50 ${s.conMargenBajo > 0 && s.conMargenBajo / s.numProds >= 0.5 ? 'bg-red-50/40' : ''}">
+                        <td class="px-3 py-2 font-medium text-gray-800">${escapeHTML(s.nombre)}</td>
+                        <td class="px-3 py-2 text-right text-gray-600">${s.numProds}</td>
+                        <td class="px-3 py-2 text-right ${margenColor(s.margenMin)}">${s.margenMin !== null ? s.margenMin + '%' : '—'}</td>
+                        <td class="px-3 py-2 text-right ${margenColor(s.margenProm)}">${s.margenProm !== null ? s.margenProm + '%' : '—'}</td>
+                        <td class="px-3 py-2 text-right ${margenColor(s.margenMax)}">${s.margenMax !== null ? s.margenMax + '%' : '—'}</td>
+                        <td class="px-3 py-2 text-right">${s.conMargenBajo > 0 ? `<span class="text-xs font-bold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded">${s.conMargenBajo} ⚠</span>` : '<span class="text-gray-300">—</span>'}</td>
+                    </tr>`).join('')}
+                </tbody>
+            </table>
+        </div>
+        <p class="text-xs text-gray-400 mt-1">Ordenado de menor a mayor margen promedio. Solo incluye variantes con costo cargado.</p>`;
+
+    modal.show();
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function cerrarModalMargenes() {
+    document.getElementById('modalMargenes')?.hide();
+}
+
+async function abrirHistorialPrecios() {
+    const modal = document.getElementById('modalHistorialPrecios');
+    const body = document.getElementById('modalHistorialPreciosBody');
+    if (!modal || !body) return;
+
+    const historial = (await HDVStorage.getItem('hdv_historial_precios')) || [];
+
+    if (historial.length === 0) {
+        body.innerHTML = '<p class="text-sm text-gray-400 text-center py-8">No hay cambios registrados todavía. Los cambios de precio hechos con "Precio %" se guardan aquí.</p>';
+        modal.show();
+        return;
+    }
+
+    const signo = (antes, despues) => antes < despues ? '↑' : '↓';
+    const signoColor = (antes, despues) => antes < despues ? 'text-green-600' : 'text-red-600';
+
+    body.innerHTML = `
+        <p class="text-xs text-gray-400">${historial.length} registro(s) — últimos 500 cambios</p>
+        <div class="overflow-x-auto rounded-xl border border-gray-200 max-h-96 overflow-y-auto">
+            <table class="w-full text-xs">
+                <thead class="bg-gray-50 sticky top-0 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                    <tr>
+                        <th class="text-left px-3 py-2">Fecha</th>
+                        <th class="text-left px-3 py-2">Producto</th>
+                        <th class="px-3 py-2">Variante</th>
+                        <th class="px-3 py-2 text-right">Precio antes</th>
+                        <th class="px-3 py-2 text-right">Precio nuevo</th>
+                        <th class="px-3 py-2 text-right">Margen</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    ${historial.map(h => `<tr class="hover:bg-gray-50">
+                        <td class="px-3 py-2 text-gray-400 whitespace-nowrap">${new Date(h.fecha).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short' })}</td>
+                        <td class="px-3 py-2 font-medium text-gray-800 max-w-[140px] truncate" title="${escapeHTML(h.nombre)}">${escapeHTML(h.nombre)}</td>
+                        <td class="px-3 py-2 text-gray-500 text-center">${escapeHTML(h.variante)}</td>
+                        <td class="px-3 py-2 text-right text-gray-500">${formatearGuaranies(h.precioAntes)}</td>
+                        <td class="px-3 py-2 text-right font-bold ${signoColor(h.precioAntes, h.precioNuevo)}">
+                            ${signo(h.precioAntes, h.precioNuevo)} ${formatearGuaranies(h.precioNuevo)}
+                        </td>
+                        <td class="px-3 py-2 text-right">
+                            ${h.margenAntes !== null ? `<span class="text-gray-400">${h.margenAntes}%</span> → <span class="${h.margenNuevo >= 20 ? 'text-green-600' : 'text-red-600'} font-bold">${h.margenNuevo}%</span>` : '—'}
+                        </td>
+                    </tr>`).join('')}
+                </tbody>
+            </table>
+        </div>`;
+
+    modal.show();
+}
+
+async function limpiarHistorialPrecios() {
+    const ok = await mostrarConfirmModal('¿Borrar todo el historial de cambios de precio?', {
+        confirmLabel: 'Borrar', cancelLabel: 'Cancelar'
+    });
+    if (!ok) return;
+    await HDVStorage.setItem('hdv_historial_precios', []);
+    document.getElementById('modalHistorialPrecios')?.hide();
+    mostrarExito('Historial borrado');
+}
+
+function cerrarModalHistorialPrecios() {
+    document.getElementById('modalHistorialPrecios')?.hide();
+}
+
+// ============================================
 // DEBOUNCED SEARCH WRAPPERS (300ms)
 // ============================================
 const filtrarStockDebounced = debounce(filtrarStock, 300);

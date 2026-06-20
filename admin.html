@@ -803,9 +803,18 @@
                         <sl-button data-action="seleccionar-todo-productos" variant="neutral" size="small" outline><i data-lucide="check-square" class="w-3.5 h-3.5"></i></sl-button>
                         <sl-button data-action="exportarProductosCSV" variant="neutral" size="small" outline><i data-lucide="download" class="w-3.5 h-3.5"></i> CSV</sl-button>
                         <sl-button data-action="verMargenesCatalogo" variant="neutral" size="small" outline title="Vista de márgenes por categoría"><i data-lucide="trending-up" class="w-3.5 h-3.5"></i> Márgenes</sl-button>
+                        <sl-button data-action="abrirEstadisticasCatalogo" variant="neutral" size="small" outline title="Estadísticas del catálogo"><i data-lucide="bar-chart-2" class="w-3.5 h-3.5"></i> Stats</sl-button>
                         <sl-button data-action="abrirModalCategorias" variant="primary" size="small">Categorias</sl-button>
                         <sl-button data-action="abrirModalProducto" variant="neutral" size="small">+ Nuevo</sl-button>
                     </div>
+                </div>
+                <!-- Banner de stock crítico (auto-visible cuando hay productos críticos) -->
+                <div id="alertaStockCritico" class="hidden bg-red-50 border border-red-200 rounded-xl px-4 py-2.5 flex items-center justify-between gap-3">
+                    <div class="flex items-center gap-2 text-sm text-red-700">
+                        <i data-lucide="alert-triangle" class="w-4 h-4 shrink-0"></i>
+                        <span id="alertaStockCriticoTexto"></span>
+                    </div>
+                    <sl-button data-action="activarFiltroStockBajo" variant="danger" size="small" outline>Ver productos</sl-button>
                 </div>
                 <div id="productosGridContainer"></div>
                 <div id="paginacionProductos" class="flex items-center justify-between text-sm text-gray-500"></div>
@@ -2096,6 +2105,24 @@
 
     <!-- Iframe oculto para impresion -->
     <iframe id="printFrame" style="display:none;"></iframe>
+
+    <!-- MODAL ESTADÍSTICAS DE CATÁLOGO -->
+    <sl-dialog id="modalEstadisticasCatalogo" style="--width:60rem;">
+        <span slot="label" class="flex items-center gap-2">
+            <i data-lucide="bar-chart-2" class="w-5 h-5 text-indigo-500"></i> Estadísticas del Catálogo
+        </span>
+        <!-- Selector de período -->
+        <div class="flex gap-2 mb-4 flex-wrap">
+            <sl-button size="small" data-action="cambiarPeriodoStats" data-arg="7"   id="statsPeriodo7"   variant="neutral" outline>Última semana</sl-button>
+            <sl-button size="small" data-action="cambiarPeriodoStats" data-arg="30"  id="statsPeriodo30"  variant="primary">Último mes</sl-button>
+            <sl-button size="small" data-action="cambiarPeriodoStats" data-arg="90"  id="statsPeriodo90"  variant="neutral" outline>3 meses</sl-button>
+            <sl-button size="small" data-action="cambiarPeriodoStats" data-arg="365" id="statsPeriodo365" variant="neutral" outline>Todo el año</sl-button>
+        </div>
+        <div id="modalStatsBody" class="space-y-6"></div>
+        <div slot="footer">
+            <sl-button data-action="cerrarEstadisticasCatalogo" variant="default" size="small">Cerrar</sl-button>
+        </div>
+    </sl-dialog>
 
     <!-- MODAL MARGENES POR CATEGORIA -->
     <sl-dialog id="modalMargenes" style="--width:56rem;">

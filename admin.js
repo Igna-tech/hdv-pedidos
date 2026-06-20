@@ -257,6 +257,12 @@ const ACTION_DISPATCH = {
     'seleccionar-todo-productos':       ()     => typeof seleccionarTodosProductos === 'function' && seleccionarTodosProductos(),
     'exportarProductosCSV':             ()     => typeof exportarProductosCSV === 'function' && exportarProductosCSV(),
 
+    // === Estadísticas de catálogo (Etapa 6) ===
+    'abrirEstadisticasCatalogo':        ()     => typeof abrirEstadisticasCatalogo === 'function' && abrirEstadisticasCatalogo(),
+    'cerrarEstadisticasCatalogo':       ()     => typeof cerrarEstadisticasCatalogo === 'function' && cerrarEstadisticasCatalogo(),
+    'cambiarPeriodoStats':              (_, a) => typeof cambiarPeriodoStats === 'function' && cambiarPeriodoStats(a),
+    'activarFiltroStockBajo':           ()     => typeof activarFiltroStockBajo === 'function' && activarFiltroStockBajo(),
+
     // === Precios y márgenes (Etapa 5) ===
     'masivo-ajustar-precios':           ()     => typeof masivoAjustarPrecios === 'function' && masivoAjustarPrecios(),
     'verMargenesCatalogo':              ()     => typeof verMargenesCatalogo === 'function' && verMargenesCatalogo(),

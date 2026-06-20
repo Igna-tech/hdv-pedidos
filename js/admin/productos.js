@@ -394,6 +394,7 @@ async function mostrarProductosGestion() {
     }
 
     actualizarBreadcrumbProductos();
+    _actualizarAlertaStock();
 }
 
 // ============================================
@@ -2131,6 +2132,240 @@ async function limpiarHistorialPrecios() {
 
 function cerrarModalHistorialPrecios() {
     document.getElementById('modalHistorialPrecios')?.hide();
+}
+
+// ============================================
+// ESTADISTICAS DE CATALOGO (Etapa 6)
+// ============================================
+
+let _statsPeriodoActual = 30;
+
+async function abrirEstadisticasCatalogo(dias) {
+    const d = parseInt(dias) || _statsPeriodoActual;
+    _statsPeriodoActual = d;
+    const modal = document.getElementById('modalEstadisticasCatalogo');
+    if (!modal) return;
+    // Resaltar botón activo del período
+    [7, 30, 90, 365].forEach(p => {
+        const btn = document.getElementById(`statsPeriodo${p}`);
+        if (btn) { btn.variant = p === d ? 'primary' : 'neutral'; btn.outline = p !== d; }
+    });
+    await _renderEstadisticas(d);
+    modal.show();
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+async function cambiarPeriodoStats(dias) {
+    _statsPeriodoActual = parseInt(dias) || 30;
+    [7, 30, 90, 365].forEach(p => {
+        const btn = document.getElementById(`statsPeriodo${p}`);
+        if (btn) { btn.variant = p === _statsPeriodoActual ? 'primary' : 'neutral'; btn.outline = p !== _statsPeriodoActual; }
+    });
+    await _renderEstadisticas(_statsPeriodoActual);
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+async function _renderEstadisticas(dias) {
+    const body = document.getElementById('modalStatsBody');
+    if (!body) return;
+    body.innerHTML = `<div class="flex items-center justify-center py-8"><div class="animate-spin w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full"></div><span class="ml-3 text-sm text-gray-500">Calculando...</span></div>`;
+
+    const ahora = Date.now();
+    const desde = ahora - dias * 86400000;
+    const pedidos = ((await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [])
+        .filter(p => p.estado !== 'anulado' && new Date(p.fecha).getTime() >= desde);
+
+    // --- Conteo de unidades por producto+presentación ---
+    const conteoUnidades = {}; // key: productoId
+    const conteoVariante = {}; // key: productoId+':'+presentacion
+    const ingresosPorProducto = {};
+    pedidos.forEach(p => {
+        (p.items || []).forEach(it => {
+            const qty = it.cantidad || 1;
+            conteoUnidades[it.productoId] = (conteoUnidades[it.productoId] || 0) + qty;
+            const vKey = `${it.productoId}:${it.presentacion || ''}`;
+            conteoVariante[vKey] = (conteoVariante[vKey] || 0) + qty;
+            ingresosPorProducto[it.productoId] = (ingresosPorProducto[it.productoId] || 0) + (it.subtotal || it.precio * qty || 0);
+        });
+    });
+
+    const productos = productosData.productos || [];
+    const categorias = productosData.categorias || [];
+
+    // --- Top / bottom vendidos ---
+    const prodIdsConVentas = new Set(Object.keys(conteoUnidades));
+    const vendidos = productos
+        .map(p => ({ ...p, unidades: conteoUnidades[p.id] || 0, ingresos: ingresosPorProducto[p.id] || 0 }))
+        .filter(p => !p.oculto);
+    const top10 = [...vendidos].sort((a, b) => b.unidades - a.unidades).slice(0, 10);
+    const sinMovimiento = vendidos.filter(p => !prodIdsConVentas.has(p.id));
+
+    // --- Stock crítico ---
+    const stockCritico = productos.filter(p =>
+        !p.oculto && (p.presentaciones || []).some(v => (v.stock || 0) <= STOCK_BAJO_UMBRAL)
+    ).map(p => {
+        const varCriticas = (p.presentaciones || []).filter(v => (v.stock || 0) <= STOCK_BAJO_UMBRAL);
+        return { ...p, varCriticas };
+    }).sort((a, b) => Math.min(...a.varCriticas.map(v => v.stock || 0)) - Math.min(...b.varCriticas.map(v => v.stock || 0)));
+
+    // --- Rentabilidad por categoría ---
+    const rentCat = categorias.map(cat => {
+        const prodsCat = productos.filter(p => p.categoria === cat.id && !p.oculto);
+        let unidades = 0, ingresos = 0, costoEstimado = 0;
+        prodsCat.forEach(p => {
+            const u = conteoUnidades[p.id] || 0;
+            unidades += u;
+            ingresos += ingresosPorProducto[p.id] || 0;
+            // Costo estimado: promedio de costos de variantes × unidades
+            if (u > 0) {
+                const varCostos = (p.presentaciones || []).map(v => v.costo || 0).filter(c => c > 0);
+                const costoPromedio = varCostos.length ? varCostos.reduce((a, b) => a + b, 0) / varCostos.length : 0;
+                costoEstimado += costoPromedio * u;
+            }
+        });
+        const ganancia = ingresos - costoEstimado;
+        const margenProm = ingresos > 0 ? Math.round((ganancia / ingresos) * 100) : null;
+        return { nombre: cat.nombre, id: cat.id, numProds: prodsCat.length, unidades, ingresos, costoEstimado, ganancia, margenProm };
+    }).filter(c => c.numProds > 0).sort((a, b) => b.ingresos - a.ingresos);
+
+    const periodoLabel = dias === 7 ? 'última semana' : dias === 30 ? 'último mes' : dias === 90 ? 'últimos 3 meses' : 'último año';
+    const totalUnidades = top10.reduce((s, p) => s + p.unidades, 0) + sinMovimiento.length;
+    const totalIngresos = rentCat.reduce((s, c) => s + c.ingresos, 0);
+
+    body.innerHTML = `
+        <!-- Resumen rápido -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-3 text-center">
+                <p class="text-xl font-bold text-indigo-700">${pedidos.length}</p>
+                <p class="text-[10px] font-bold text-indigo-500 uppercase">Pedidos en período</p>
+            </div>
+            <div class="bg-green-50 border border-green-100 rounded-xl p-3 text-center">
+                <p class="text-xl font-bold text-green-700">${formatearGuaranies(totalIngresos)}</p>
+                <p class="text-[10px] font-bold text-green-500 uppercase">Ingresos estimados</p>
+            </div>
+            <div class="bg-amber-50 border border-amber-100 rounded-xl p-3 text-center">
+                <p class="text-xl font-bold text-amber-700">${sinMovimiento.length}</p>
+                <p class="text-[10px] font-bold text-amber-500 uppercase">Sin ventas en período</p>
+            </div>
+            <div class="bg-red-50 border border-red-100 rounded-xl p-3 text-center">
+                <p class="text-xl font-bold text-red-700">${stockCritico.length}</p>
+                <p class="text-[10px] font-bold text-red-500 uppercase">Stock crítico</p>
+            </div>
+        </div>
+
+        <!-- Ranking de ventas -->
+        <div>
+            <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">🏆 Más vendidos — ${periodoLabel}</p>
+            ${top10.filter(p => p.unidades > 0).length === 0
+                ? '<p class="text-sm text-gray-400 py-3 text-center">No hay ventas registradas en este período.</p>'
+                : `<div class="overflow-x-auto rounded-xl border border-gray-200">
+                    <table class="w-full text-sm">
+                        <thead class="bg-gray-50 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                            <tr>
+                                <th class="text-left px-3 py-2">#</th>
+                                <th class="text-left px-3 py-2">Producto</th>
+                                <th class="px-3 py-2 text-right">Unidades</th>
+                                <th class="px-3 py-2 text-right">Ingresos</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            ${top10.filter(p => p.unidades > 0).map((p, i) => `<tr class="hover:bg-gray-50">
+                                <td class="px-3 py-1.5 text-gray-400 font-bold">${i + 1}</td>
+                                <td class="px-3 py-1.5 font-medium text-gray-800">${escapeHTML(p.nombre)}</td>
+                                <td class="px-3 py-1.5 text-right font-bold text-indigo-600">${p.unidades}</td>
+                                <td class="px-3 py-1.5 text-right text-gray-600">${formatearGuaranies(p.ingresos)}</td>
+                            </tr>`).join('')}
+                        </tbody>
+                    </table>
+                </div>`}
+        </div>
+
+        <!-- Sin movimiento -->
+        ${sinMovimiento.length > 0 ? `<div>
+            <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">⚠ Sin ventas en ${periodoLabel} (${sinMovimiento.length} productos)</p>
+            <div class="flex flex-wrap gap-2">
+                ${sinMovimiento.slice(0, 20).map(p => `<span class="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-lg">${escapeHTML(p.nombre)}</span>`).join('')}
+                ${sinMovimiento.length > 20 ? `<span class="text-xs text-gray-400">+${sinMovimiento.length - 20} más</span>` : ''}
+            </div>
+        </div>` : ''}
+
+        <!-- Stock crítico -->
+        ${stockCritico.length > 0 ? `<div>
+            <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">🔴 Stock crítico (≤ ${STOCK_BAJO_UMBRAL} unidades)</p>
+            <div class="overflow-x-auto rounded-xl border border-gray-200">
+                <table class="w-full text-sm">
+                    <thead class="bg-gray-50 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                        <tr>
+                            <th class="text-left px-3 py-2">Producto</th>
+                            <th class="text-left px-3 py-2">Variantes críticas</th>
+                            <th class="px-3 py-2 text-right">Stock mín</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        ${stockCritico.slice(0, 15).map(p => `<tr class="hover:bg-gray-50">
+                            <td class="px-3 py-1.5 font-medium text-gray-800">${escapeHTML(p.nombre)}</td>
+                            <td class="px-3 py-1.5 text-gray-500">${p.varCriticas.map(v => escapeHTML(v.tamano || 'Unidad')).join(', ')}</td>
+                            <td class="px-3 py-1.5 text-right font-bold ${Math.min(...p.varCriticas.map(v => v.stock || 0)) <= 0 ? 'text-red-600' : 'text-amber-600'}">${Math.min(...p.varCriticas.map(v => v.stock || 0))}</td>
+                        </tr>`).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>` : '<div class="bg-green-50 border border-green-200 rounded-xl p-3 text-sm text-green-700 text-center">✓ Sin productos en stock crítico</div>'}
+
+        <!-- Rentabilidad por categoría -->
+        <div>
+            <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">💰 Rentabilidad por categoría — ${periodoLabel}</p>
+            <div class="overflow-x-auto rounded-xl border border-gray-200">
+                <table class="w-full text-sm">
+                    <thead class="bg-gray-50 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                        <tr>
+                            <th class="text-left px-3 py-2">Categoría</th>
+                            <th class="px-3 py-2 text-right">Unidades</th>
+                            <th class="px-3 py-2 text-right">Ingresos</th>
+                            <th class="px-3 py-2 text-right">Costo est.</th>
+                            <th class="px-3 py-2 text-right">Ganancia est.</th>
+                            <th class="px-3 py-2 text-right">Margen</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        ${rentCat.map(c => `<tr class="hover:bg-gray-50">
+                            <td class="px-3 py-1.5 font-medium text-gray-800">${escapeHTML(c.nombre)}</td>
+                            <td class="px-3 py-1.5 text-right text-gray-600">${c.unidades}</td>
+                            <td class="px-3 py-1.5 text-right font-medium text-gray-800">${formatearGuaranies(c.ingresos)}</td>
+                            <td class="px-3 py-1.5 text-right text-gray-500">${c.costoEstimado > 0 ? formatearGuaranies(Math.round(c.costoEstimado)) : '—'}</td>
+                            <td class="px-3 py-1.5 text-right font-bold ${c.ganancia >= 0 ? 'text-green-600' : 'text-red-600'}">${c.costoEstimado > 0 ? formatearGuaranies(Math.round(c.ganancia)) : '—'}</td>
+                            <td class="px-3 py-1.5 text-right font-bold ${c.margenProm === null ? 'text-gray-300' : c.margenProm >= 20 ? 'text-green-600' : 'text-red-600'}">${c.margenProm !== null ? c.margenProm + '%' : '—'}</td>
+                        </tr>`).join('')}
+                        ${rentCat.length === 0 ? '<tr><td colspan="6" class="px-3 py-4 text-center text-gray-400 text-sm">Sin ventas en este período</td></tr>' : ''}
+                    </tbody>
+                </table>
+            </div>
+            <p class="text-xs text-gray-400 mt-1">Costo y ganancia son estimaciones basadas en costos actuales del catálogo.</p>
+        </div>`;
+}
+
+function cerrarEstadisticasCatalogo() {
+    document.getElementById('modalEstadisticasCatalogo')?.hide();
+}
+
+function activarFiltroStockBajo() {
+    const sw = document.getElementById('filtroStockBajo');
+    if (sw) { sw.checked = true; sw.dispatchEvent(new CustomEvent('sl-change')); }
+}
+
+function _actualizarAlertaStock() {
+    const banner = document.getElementById('alertaStockCritico');
+    const texto = document.getElementById('alertaStockCriticoTexto');
+    if (!banner || !texto) return;
+    const n = (productosData.productos || []).filter(p =>
+        !p.oculto && (p.presentaciones || []).some(v => (v.stock || 0) <= STOCK_BAJO_UMBRAL)
+    ).length;
+    if (n > 0) {
+        texto.textContent = `${n} producto${n > 1 ? 's' : ''} con stock crítico (≤ ${STOCK_BAJO_UMBRAL} unidades)`;
+        banner.classList.remove('hidden');
+    } else {
+        banner.classList.add('hidden');
+    }
 }
 
 // ============================================

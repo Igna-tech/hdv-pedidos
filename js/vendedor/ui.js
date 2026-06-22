@@ -64,16 +64,24 @@ function _renderClienteResults(query) {
     const pie = document.getElementById('clienteDropdownPie');
     if (!dropdown) return;
     const q = (query || '').toLowerCase().trim();
-    if (!q) { dropdown.classList.add('hidden'); return; }
-    let lista = clientes.filter(c =>
-        (c.razon_social || c.nombre || '').toLowerCase().includes(q) ||
-        (c.ruc || '').toLowerCase().includes(q)
-    );
+
+    // Sin query: mostrar todos; con query: filtrar por nombre/RUC
+    let lista = q
+        ? clientes.filter(c =>
+            (c.razon_social || c.nombre || '').toLowerCase().includes(q) ||
+            (c.ruc || '').toLowerCase().includes(q)
+          )
+        : [...clientes];
+
     if (typeof zonaActiva !== 'undefined' && zonaActiva) {
         lista = lista.filter(c => c.zona && c.zona.trim() === zonaActiva);
     }
+
     if (lista.length === 0) {
-        listado.innerHTML = `<div class="px-4 py-6 text-center text-sm text-slate-400">Sin resultados para "<strong>${escapeHTML(query)}</strong>"</div>`;
+        const msg = q
+            ? `Sin resultados para "<strong>${escapeHTML(query)}</strong>"`
+            : (zonaActiva ? `No hay clientes en <strong>${escapeHTML(zonaActiva)}</strong>` : 'No hay clientes cargados');
+        listado.innerHTML = `<div class="px-4 py-6 text-center text-sm text-slate-400">${msg}</div>`;
         pie.classList.add('hidden');
     } else {
         listado.innerHTML = lista.map(c => {
@@ -91,7 +99,13 @@ function _renderClienteResults(query) {
                 </div>
             </div>`;
         }).join('');
-        if (lista.length > 5) {
+        if (!q) {
+            const label = zonaActiva
+                ? `${lista.length} cliente${lista.length !== 1 ? 's' : ''} en ${escapeHTML(zonaActiva)}`
+                : `${lista.length} clientes disponibles`;
+            pie.textContent = label;
+            pie.classList.remove('hidden');
+        } else if (lista.length > 5) {
             pie.textContent = lista.length + ' resultados · seguí escribiendo para filtrar';
             pie.classList.remove('hidden');
         } else {
@@ -145,6 +159,11 @@ function _actualizarZonaBtn(zona) {
     if (label) label.textContent = zona || 'Todas';
     if (clearBtn) clearBtn.classList.toggle('hidden', !zona);
     if (input) input.placeholder = zona ? 'Buscar en ' + zona + '...' : 'Buscar cliente...';
+    // Si el dropdown de clientes está visible, actualizarlo con la nueva zona
+    const dropdown = document.getElementById('clienteDropdown');
+    if (dropdown && !dropdown.classList.contains('hidden') && input) {
+        _renderClienteResults(input.value);
+    }
     if (picker) picker.classList.add('hidden');
 }
 
@@ -192,7 +211,7 @@ function _initClienteSearch() {
     if (!input) return;
     const debounced = (typeof debounce === 'function') ? debounce(q => _renderClienteResults(q), 200) : q => _renderClienteResults(q);
     input.addEventListener('input', e => debounced(e.target.value));
-    input.addEventListener('focus', () => { if (input.value.trim()) _renderClienteResults(input.value); });
+    input.addEventListener('focus', () => _renderClienteResults(input.value));
     document.addEventListener('click', e => {
         const wrapper = document.getElementById('clienteSearchWrapper');
         if (wrapper && !wrapper.contains(e.target)) {

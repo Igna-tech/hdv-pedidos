@@ -219,6 +219,11 @@ function _initClienteSearch() {
             const picker = document.getElementById('zonaPickerDropdown');
             if (picker) picker.classList.add('hidden');
         }
+        // Cerrar filtro de pedidos al hacer click fuera
+        const pedidosDD = document.getElementById('pedidosFiltroDropdown');
+        if (pedidosDD && !e.target.closest('[data-action="togglePedidosFiltroDropdown"]') && !pedidosDD.contains(e.target)) {
+            pedidosDD.classList.add('hidden');
+        }
     }, true);
 }
 
@@ -1019,27 +1024,230 @@ function eliminarTarjetaPedidoDOM(pedidoId) {
     setTimeout(() => card.remove(), TIEMPOS.DEBOUNCE_BUSQUEDA_MS);
 }
 
+// --- Estado de la vista Mis Pedidos ---
+let _pedidosFiltro = 'semana'; // 'hoy' | 'ayer' | 'semana' | 'todo'
+let _pedidosPagina = 1;
+const _PEDIDOS_POR_PAGINA = 50;
+
+function _labelFiltroPedidos(f) {
+    return { hoy: 'Hoy', ayer: 'Ayer', semana: 'Esta semana', todo: 'Todos' }[f] || f;
+}
+
+function _filtrarPedidosPorPeriodo(pedidos, filtro) {
+    const hoy = new Date().toISOString().split('T')[0];
+    const ayer = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+    const lunes = new Date();
+    const dow = lunes.getDay();
+    lunes.setDate(lunes.getDate() - (dow === 0 ? 6 : dow - 1));
+    const inicioSemana = lunes.toISOString().split('T')[0];
+    switch (filtro) {
+        case 'hoy':    return pedidos.filter(p => (p.fecha || '').startsWith(hoy));
+        case 'ayer':   return pedidos.filter(p => (p.fecha || '').startsWith(ayer));
+        case 'semana': return pedidos.filter(p => (p.fecha || '').slice(0, 10) >= inicioSemana);
+        default:       return pedidos;
+    }
+}
+
+function _setPedidosFiltro(filtro) {
+    _pedidosFiltro = filtro;
+    _pedidosPagina = 1;
+    mostrarMisPedidos();
+}
+
+function _setPedidosPagina(n) {
+    _pedidosPagina = parseInt(n) || 1;
+    mostrarMisPedidos();
+}
+
+function _togglePedidosFiltroDropdown() {
+    const dd = document.getElementById('pedidosFiltroDropdown');
+    if (dd) dd.classList.toggle('hidden');
+}
+
 async function mostrarMisPedidos() {
     const container = document.getElementById('productsContainer');
-    const pedidos = (await HDVStorage.getItem('hdv_pedidos')) || [];
+    const todos = (await HDVStorage.getItem('hdv_pedidos')) || [];
+    const ordenados = [...todos].sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+    const filtrados = _filtrarPedidosPorPeriodo(ordenados, _pedidosFiltro);
 
-    let misPedidos = pedidos.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+    const total = filtrados.length;
+    const totalPags = Math.max(1, Math.ceil(total / _PEDIDOS_POR_PAGINA));
+    _pedidosPagina = Math.min(_pedidosPagina, totalPags);
+    const desde = (_pedidosPagina - 1) * _PEDIDOS_POR_PAGINA;
+    const pagina = filtrados.slice(desde, desde + _PEDIDOS_POR_PAGINA);
 
-    if (misPedidos.length === 0) {
-        container.innerHTML = generarEmptyState(SVG_EMPTY_ORDERS, 'No hay pedidos registrados', 'Los pedidos que realices apareceran aqui', 'Ir al catalogo', "cambiarVistaVendedor('lista')");
-        return;
+    const opcionesFiltro = ['hoy', 'ayer', 'semana', 'todo'].map(f => `
+        <button data-action="setPedidosFiltro" data-arg="${f}"
+            class="w-full text-left px-4 py-2.5 text-sm font-semibold transition-colors ${_pedidosFiltro === f ? 'text-indigo-600 bg-indigo-50' : 'text-slate-700 hover:bg-slate-50'}">
+            ${_labelFiltroPedidos(f)}
+        </button>`).join('');
+
+    let paginacionHtml = '';
+    if (totalPags > 1) {
+        const btns = [];
+        for (let i = 1; i <= totalPags; i++) {
+            btns.push(`<button data-action="setPedidosPagina" data-arg="${i}"
+                class="w-8 h-8 rounded-lg text-xs font-bold ${i === _pedidosPagina ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}">
+                ${i}</button>`);
+        }
+        paginacionHtml = `<div class="flex items-center justify-center gap-1 mt-4 pb-2">
+            ${_pedidosPagina > 1 ? `<button data-action="setPedidosPagina" data-arg="${_pedidosPagina - 1}" class="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 text-sm font-bold">←</button>` : ''}
+            ${btns.join('')}
+            ${_pedidosPagina < totalPags ? `<button data-action="setPedidosPagina" data-arg="${_pedidosPagina + 1}" class="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 text-sm font-bold">→</button>` : ''}
+        </div>`;
     }
 
-    container.innerHTML = '<h3 class="text-lg font-bold text-gray-800 mb-4">Mis Pedidos</h3>';
+    const subtitulo = total === 0 ? 'Sin pedidos' : `${desde + 1}–${Math.min(desde + _PEDIDOS_POR_PAGINA, total)} de ${total}`;
 
-    misPedidos.forEach(p => {
-        const div = crearTarjetaPedidoVendedor(p);
-        container.appendChild(div);
-    });
-    lucide.createIcons();
+    container.innerHTML = `
+        <div class="flex items-start justify-between mb-4">
+            <div>
+                <h3 class="text-lg font-bold text-gray-800">Mis Pedidos</h3>
+                <p class="text-xs text-gray-400">${subtitulo}</p>
+            </div>
+            <div class="relative">
+                <button data-action="togglePedidosFiltroDropdown"
+                    class="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg px-3 py-1.5 text-sm font-semibold text-slate-700 transition-colors">
+                    <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
+                    <span>${_labelFiltroPedidos(_pedidosFiltro)}</span>
+                    <i data-lucide="chevron-down" class="w-3 h-3"></i>
+                </button>
+                <div id="pedidosFiltroDropdown"
+                    class="hidden absolute right-0 top-full mt-1 bg-white rounded-xl border border-slate-200 overflow-hidden z-50 min-w-[150px]"
+                    style="box-shadow:0 8px 24px rgba(0,0,0,0.12);">
+                    ${opcionesFiltro}
+                </div>
+            </div>
+        </div>
+        <div id="pedidosListaContainer"></div>
+        ${paginacionHtml}
+    `;
+
+    const listaEl = document.getElementById('pedidosListaContainer');
+    if (total === 0) {
+        const msg = { hoy: 'Sin pedidos hoy', ayer: 'Sin pedidos ayer', semana: 'Sin pedidos esta semana', todo: 'No hay pedidos registrados' }[_pedidosFiltro] || 'Sin pedidos';
+        listaEl.innerHTML = generarEmptyState(SVG_EMPTY_ORDERS, msg, 'Los pedidos que realices apareceran aqui', 'Ir al catalogo', "cambiarVistaVendedor('lista')");
+    } else {
+        pagina.forEach(p => listaEl.appendChild(crearTarjetaPedidoVendedor(p)));
+    }
+    if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 // Toast, confirm, and input modals are in js/utils/dialogs.js (shared)
+
+// ============================================
+// CREDITOS PENDIENTES UI
+// ============================================
+
+function _agingCreditoBadge(fechaPedido) {
+    const dias = Math.floor((Date.now() - new Date(fechaPedido)) / 86400000);
+    if (dias <= 14)  return { texto: `${dias}d`,         clase: 'bg-green-100 text-green-700' };
+    if (dias <= 30)  return { texto: `${dias}d ⚠`,       clase: 'bg-yellow-100 text-yellow-700' };
+    if (dias <= 60)  return { texto: `${dias}d 🔴`,       clase: 'bg-red-100 text-red-700' };
+    return            { texto: `${dias}d`,                clase: 'bg-red-200 text-red-900 font-black' };
+}
+
+async function _actualizarBadgeCreditos() {
+    const badge = document.getElementById('sidebarCreditosBadge');
+    if (!badge) return;
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
+    const pagos   = (await HDVStorage.getItem('hdv_pagos_credito', { clone: false })) || [];
+    const excluir = new Set(['anulado', 'nota_credito_mock']);
+    const deudores = new Set();
+    pedidos.filter(p => p.tipoPago === 'credito' && !excluir.has(p.estado)).forEach(p => {
+        const pagado = pagos.filter(pg => pg.pedidoId === p.id).reduce((s, pg) => s + (pg.monto || 0), 0);
+        if (Math.max(0, (p.total || 0) - pagado) > 0 && p.cliente?.id) deudores.add(p.cliente.id);
+    });
+    const n = deudores.size;
+    if (n > 0) {
+        badge.textContent = n > 9 ? '9+' : String(n);
+        badge.style.display = 'flex';
+    } else {
+        badge.style.display = 'none';
+    }
+}
+
+async function mostrarCreditos() {
+    const container = document.getElementById('productsContainer');
+    container.innerHTML = '<p class="text-center text-slate-400 py-8 text-sm">Cargando...</p>';
+
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
+    const pagos   = (await HDVStorage.getItem('hdv_pagos_credito', { clone: false })) || [];
+    const excluir = new Set(['anulado', 'nota_credito_mock']);
+
+    const clientesMap = {};
+    pedidos.filter(p => p.tipoPago === 'credito' && !excluir.has(p.estado)).forEach(p => {
+        const pagado = pagos.filter(pg => pg.pedidoId === p.id).reduce((s, pg) => s + (pg.monto || 0), 0);
+        const saldo  = Math.max(0, (p.total || 0) - pagado);
+        if (saldo <= 0 || !p.cliente?.id) return;
+        const cid = p.cliente.id;
+        if (!clientesMap[cid]) {
+            const cli = (typeof clientes !== 'undefined' ? clientes : []).find(c => c.id === cid);
+            clientesMap[cid] = {
+                id: cid,
+                nombre: p.cliente.nombre || 'Sin nombre',
+                zona: cli?.zona || '',
+                pedidos: [],
+                deudaTotal: 0,
+                fechaMasAntigua: p.fecha
+            };
+        }
+        clientesMap[cid].pedidos.push(p);
+        clientesMap[cid].deudaTotal += saldo;
+        if (p.fecha < clientesMap[cid].fechaMasAntigua) clientesMap[cid].fechaMasAntigua = p.fecha;
+    });
+
+    const deudores = Object.values(clientesMap).sort((a, b) => a.fechaMasAntigua.localeCompare(b.fechaMasAntigua));
+
+    if (deudores.length === 0) {
+        container.innerHTML = `
+            <h3 class="text-lg font-bold text-gray-800 mb-4">Créditos Pendientes</h3>
+            <div class="text-center py-12">
+                <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <i data-lucide="check-circle" class="w-8 h-8 text-green-500"></i>
+                </div>
+                <p class="font-bold text-gray-700">Todo al día</p>
+                <p class="text-sm text-gray-400 mt-1">No hay créditos pendientes de cobro</p>
+            </div>`;
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+        return;
+    }
+
+    const deudaGlobal = deudores.reduce((s, c) => s + c.deudaTotal, 0);
+
+    const cards = deudores.map(c => {
+        const aging = _agingCreditoBadge(c.fechaMasAntigua);
+        const nF = c.pedidos.length;
+        return `<div class="bg-white rounded-xl border border-slate-100 shadow-sm p-4 mb-3">
+            <div class="flex items-start justify-between mb-2">
+                <div class="flex-1 min-w-0 mr-2">
+                    <p class="font-bold text-gray-800 text-sm truncate">${escapeHTML(c.nombre)}</p>
+                    <p class="text-xs text-slate-400 mt-0.5">${escapeHTML(c.zona)}${c.zona ? ' · ' : ''}${nF} factura${nF !== 1 ? 's' : ''} pendiente${nF !== 1 ? 's' : ''}</p>
+                </div>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${aging.clase}">${aging.texto}</span>
+            </div>
+            <div class="flex items-center justify-between mt-1">
+                <p class="text-lg font-bold text-red-600">${formatearGuaranies(c.deudaTotal)}</p>
+                <sl-button data-action="abrirCobrosCliente" data-arg="${escapeHTML(c.id)}" variant="primary" size="small">
+                    Cobrar
+                </sl-button>
+            </div>
+        </div>`;
+    }).join('');
+
+    container.innerHTML = `
+        <h3 class="text-lg font-bold text-gray-800 mb-3">Créditos Pendientes</h3>
+        <div class="bg-red-50 border border-red-100 rounded-xl px-4 py-3 mb-4 flex items-center justify-between">
+            <div>
+                <p class="text-xs font-bold text-red-700 uppercase tracking-wider mb-0.5">${deudores.length} cliente${deudores.length !== 1 ? 's' : ''} con deuda</p>
+                <p class="text-2xl font-bold text-red-600">${formatearGuaranies(deudaGlobal)}</p>
+            </div>
+            <i data-lucide="alert-circle" class="w-8 h-8 text-red-300 shrink-0"></i>
+        </div>
+        ${cards}
+    `;
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
 
 // ============================================
 // HISTORIAL COMPLETO DEL CLIENTE
@@ -1387,9 +1595,19 @@ async function mostrarRutaHoy() {
 // MI CAJA UI
 // ============================================
 let _vistaCajaModo = 'hoy'; // 'hoy' | 'semana'
+let _diasExpanded = new Set();
 
 function setCajaModo(modo) {
     _vistaCajaModo = modo;
+    mostrarMiCaja();
+}
+
+function _toggleDiaJornada(fechaStr) {
+    if (_diasExpanded.has(fechaStr)) {
+        _diasExpanded.delete(fechaStr);
+    } else {
+        _diasExpanded.add(fechaStr);
+    }
     mostrarMiCaja();
 }
 
@@ -1515,8 +1733,8 @@ async function _renderResumenHoy(container) {
             ${listaPedidosHoy}
         </div>
 
-        <sl-button onclick="agregarGastoVendedor()" variant="danger" size="small" class="w-full mb-3">+ Registrar Gasto</sl-button>
-        <sl-button onclick="mostrarConfiguracion()" variant="default" class="w-full">Configuracion y Backups</sl-button>
+        <sl-button data-action="agregarGastoVendedor" variant="danger" size="small" class="w-full mb-3">+ Registrar Gasto</sl-button>
+        <sl-button data-action="mostrarConfiguracion" variant="default" class="w-full">Configuracion y Backups</sl-button>
     `;
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
@@ -1524,108 +1742,161 @@ async function _renderResumenHoy(container) {
 async function _renderResumenSemana(container) {
     const semana = obtenerSemanaActualVendedor();
     const { inicio, fin } = obtenerRangoSemanaVendedor(semana);
-
-    const pedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
-    const gastos = (await HDVStorage.getItem('hdv_gastos', { clone: false })) || [];
-    const cuentas = (await HDVStorage.getItem('hdv_cuentas_bancarias', { clone: false })) || [];
-    const rendiciones = (await HDVStorage.getItem('hdv_rendiciones', { clone: false })) || [];
-
     const vendedorId = window.hdvUsuario?.id || null;
+
+    const pedidos     = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
+    const allPagos    = (await HDVStorage.getItem('hdv_pagos_credito', { clone: false })) || [];
+    const gastos      = (await HDVStorage.getItem('hdv_gastos', { clone: false })) || [];
+    const rendiciones = (await HDVStorage.getItem('hdv_rendiciones', { clone: false })) || [];
 
     const pedidosSemana = pedidos.filter(p => {
         const f = new Date(p.fecha);
         return f >= inicio && f <= fin && p.vendedor_id === vendedorId;
     });
-    const totalContado = pedidosSemana
-        .filter(p => p.tipoPago === 'contado' && _esEstadoContadoVendedor(p.estado))
-        .reduce((s, p) => s + (p.total || 0), 0);
-    const totalCredito = pedidosSemana
-        .filter(p => p.tipoPago === 'credito')
-        .reduce((s, p) => s + (p.total || 0), 0);
-
+    const pagosSemana = allPagos.filter(pg => {
+        if (pg.vendedor_id && pg.vendedor_id !== vendedorId) return false;
+        const f = new Date(pg.fecha);
+        return f >= inicio && f <= fin;
+    });
     const gastosSemana = gastos.filter(g => {
         const f = new Date(g.fecha);
         return f >= inicio && f <= fin && g.vendedor_id === vendedorId;
     });
-    const totalGastos = gastosSemana.reduce((s, g) => s + (g.monto || 0), 0);
-    const aRendir = totalContado - totalGastos;
 
-    const metaWidget = await generarWidgetMeta();
+    const totalContado = pedidosSemana.filter(p => p.tipoPago === 'contado' && _esEstadoContadoVendedor(p.estado)).reduce((s, p) => s + (p.total || 0), 0);
+    const totalCredito = pedidosSemana.filter(p => p.tipoPago === 'credito').reduce((s, p) => s + (p.total || 0), 0);
+    const totalCobros  = pagosSemana.reduce((s, pg) => s + (pg.monto || 0), 0);
+    const totalGastos  = gastosSemana.reduce((s, g) => s + (g.monto || 0), 0);
+    const aRendir      = totalContado + totalCobros - totalGastos;
+    const rendSemana   = rendiciones.find(r => r.semana === semana && r.vendedor_id === vendedorId);
 
-    const rendSemana = rendiciones.find(r => r.semana === semana && r.vendedor_id === vendedorId);
+    // Generar días de la semana desde lunes hasta hoy
+    const dias = [];
+    const cur = new Date(inicio);
+    const hoyD = new Date();
+    hoyD.setHours(23, 59, 59, 999);
+    while (cur <= hoyD && cur <= fin) {
+        dias.push(cur.toISOString().split('T')[0]);
+        cur.setDate(cur.getDate() + 1);
+    }
+
+    const hoyStr  = new Date().toISOString().split('T')[0];
+    const ayerStr = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+
+    const diasConActividad = dias.filter(d => {
+        const pD  = pedidosSemana.some(p => (p.fecha || '').startsWith(d));
+        const pgD = pagosSemana.some(pg => (pg.fecha || '').startsWith(d));
+        return pD || pgD;
+    }).reverse();
+
+    const timelineHtml = diasConActividad.map(d => {
+        const pDia  = pedidosSemana.filter(p => (p.fecha || '').startsWith(d)).sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+        const pgDia = pagosSemana.filter(pg => (pg.fecha || '').startsWith(d));
+        const gDia  = gastosSemana.filter(g => (g.fecha || '').startsWith(d));
+
+        const contDia   = pDia.filter(p => p.tipoPago === 'contado' && _esEstadoContadoVendedor(p.estado)).reduce((s, p) => s + (p.total || 0), 0);
+        const credDia   = pDia.filter(p => p.tipoPago === 'credito').reduce((s, p) => s + (p.total || 0), 0);
+        const cobrosDia = pgDia.reduce((s, pg) => s + (pg.monto || 0), 0);
+        const gastosDia = gDia.reduce((s, g) => s + (g.monto || 0), 0);
+        const totalDia  = contDia + credDia;
+
+        const fechaObj = new Date(d + 'T12:00:00');
+        const dLabel   = d === hoyStr ? 'Hoy' : d === ayerStr ? 'Ayer'
+            : fechaObj.toLocaleDateString('es-PY', { weekday: 'long', day: 'numeric', month: 'short' });
+
+        const expanded = _diasExpanded.has(d);
+
+        const detalleItems = [
+            ...pDia.map(p => {
+                const hora = new Date(p.fecha).toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit' });
+                const tipo = p.tipoPago === 'credito' ? '💳' : '💵';
+                return `<div class="flex items-center justify-between py-1.5 border-b border-slate-50 last:border-0">
+                    <div class="flex items-center gap-2">
+                        <span class="text-[10px] text-gray-400 w-10 shrink-0">${hora}</span>
+                        <span class="text-[10px]">${tipo}</span>
+                        <span class="text-xs font-medium text-gray-700 truncate max-w-[120px]">${escapeHTML(p.cliente?.nombre || 'N/A')}</span>
+                    </div>
+                    <span class="text-xs font-bold text-gray-800 shrink-0">${formatearGuaranies(p.total)}</span>
+                </div>`;
+            }),
+            ...pgDia.map(pg => {
+                const hora = new Date(pg.fecha).toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit' });
+                return `<div class="flex items-center justify-between py-1.5 border-b border-slate-50 last:border-0">
+                    <div class="flex items-center gap-2">
+                        <span class="text-[10px] text-gray-400 w-10 shrink-0">${hora}</span>
+                        <span class="text-[10px]">🤝</span>
+                        <span class="text-xs font-medium text-green-700 truncate max-w-[120px]">Cobro — ${escapeHTML(pg.clienteNombre || '')}</span>
+                    </div>
+                    <span class="text-xs font-bold text-green-700 shrink-0">+${formatearGuaranies(pg.monto)}</span>
+                </div>`;
+            })
+        ].join('');
+
+        const colCount = [contDia, credDia, cobrosDia, gastosDia].filter(v => v > 0).length || 2;
+
+        return `<div class="bg-white rounded-xl border border-slate-100 shadow-sm mb-2 overflow-hidden">
+            <button data-action="toggleDiaJornada" data-arg="${d}"
+                class="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-slate-50 transition-colors">
+                <div>
+                    <p class="text-xs font-bold text-gray-800 capitalize">${escapeHTML(dLabel)}</p>
+                    <p class="text-[10px] text-slate-400 mt-0.5">
+                        ${pDia.length} pedido${pDia.length !== 1 ? 's' : ''}${cobrosDia > 0 ? ` · ${pgDia.length} cobro${pgDia.length !== 1 ? 's' : ''}` : ''}
+                    </p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <p class="text-sm font-bold text-gray-800">${formatearGuaranies(totalDia)}</p>
+                    <i data-lucide="${expanded ? 'chevron-up' : 'chevron-down'}" class="w-4 h-4 text-slate-400"></i>
+                </div>
+            </button>
+            ${expanded ? `
+            <div class="border-t border-slate-50 px-4 pt-1 pb-3">
+                <div class="grid grid-cols-${Math.min(colCount, 4)} gap-1.5 mb-3 mt-2">
+                    ${contDia > 0 ? `<div class="bg-green-50 rounded-lg p-2 text-center"><p class="text-xs font-bold text-green-700">${formatearGuaranies(contDia)}</p><p class="text-[9px] text-gray-400">CONTADO</p></div>` : ''}
+                    ${credDia > 0 ? `<div class="bg-yellow-50 rounded-lg p-2 text-center"><p class="text-xs font-bold text-yellow-700">${formatearGuaranies(credDia)}</p><p class="text-[9px] text-gray-400">CRÉDITO</p></div>` : ''}
+                    ${cobrosDia > 0 ? `<div class="bg-indigo-50 rounded-lg p-2 text-center"><p class="text-xs font-bold text-indigo-700">${formatearGuaranies(cobrosDia)}</p><p class="text-[9px] text-gray-400">COBROS</p></div>` : ''}
+                    ${gastosDia > 0 ? `<div class="bg-red-50 rounded-lg p-2 text-center"><p class="text-xs font-bold text-red-600">${formatearGuaranies(gastosDia)}</p><p class="text-[9px] text-gray-400">GASTOS</p></div>` : ''}
+                </div>
+                <div>${detalleItems}</div>
+            </div>` : ''}
+        </div>`;
+    }).join('');
 
     const fechaInicio = inicio.toLocaleDateString('es-PY', { day: '2-digit', month: 'short' });
-    const fechaFin = fin.toLocaleDateString('es-PY', { day: '2-digit', month: 'short' });
+    const fechaFin    = fin.toLocaleDateString('es-PY', { day: '2-digit', month: 'short' });
 
     container.innerHTML = _toggleCajaHTML() + `
-
-        ${metaWidget}
-
-        <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100 mb-3">
-            <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Semana: ${fechaInicio} - ${fechaFin}</p>
-            ${rendSemana ? (() => {
-                const _e = rendSemana.estado || 'pendiente';
-                const _cls = _e === 'pagado' ? 'bg-green-100 text-green-700' : _e === 'aprobado' ? 'bg-blue-100 text-blue-700' : 'bg-yellow-100 text-yellow-700';
-                const _lbl = _e === 'pagado' ? 'PAGADO' : _e === 'aprobado' ? 'APROBADO' : 'PENDIENTE';
-                return `<span class="text-xs px-2 py-0.5 rounded-full ${_cls} font-bold">${_lbl}</span>`;
-            })() : ''}
-            <div class="grid grid-cols-2 gap-3 mt-3">
-                <div class="bg-green-50 rounded-lg p-3 text-center">
-                    <p class="text-lg font-bold text-green-700">${formatearGuaranies(totalContado)}</p>
-                    <p class="text-[10px] text-gray-500 font-bold">CONTADO</p>
-                </div>
-                <div class="bg-yellow-50 rounded-lg p-3 text-center">
-                    <p class="text-lg font-bold text-yellow-700">${formatearGuaranies(totalCredito)}</p>
-                    <p class="text-[10px] text-gray-500 font-bold">CREDITO</p>
-                </div>
-                <div class="bg-red-50 rounded-lg p-3 text-center">
-                    <p class="text-lg font-bold text-red-700">${formatearGuaranies(totalGastos)}</p>
-                    <p class="text-[10px] text-gray-500 font-bold">GASTOS</p>
-                </div>
-                <div class="bg-blue-50 rounded-lg p-3 text-center">
-                    <p class="text-lg font-bold text-blue-800">${formatearGuaranies(aRendir)}</p>
-                    <p class="text-[10px] text-gray-500 font-bold">A RENDIR</p>
-                </div>
+        <div class="grid grid-cols-4 gap-1.5 mb-3">
+            <div class="bg-green-50 rounded-xl p-2.5 text-center">
+                <p class="text-sm font-bold text-green-700">${formatearGuaranies(totalContado)}</p>
+                <p class="text-[9px] text-gray-400 font-bold">CONTADO</p>
+            </div>
+            <div class="bg-yellow-50 rounded-xl p-2.5 text-center">
+                <p class="text-sm font-bold text-yellow-700">${formatearGuaranies(totalCredito)}</p>
+                <p class="text-[9px] text-gray-400 font-bold">CRÉDITO</p>
+            </div>
+            <div class="bg-indigo-50 rounded-xl p-2.5 text-center">
+                <p class="text-sm font-bold text-indigo-700">${formatearGuaranies(totalCobros)}</p>
+                <p class="text-[9px] text-gray-400 font-bold">COBROS</p>
+            </div>
+            <div class="bg-blue-50 rounded-xl p-2.5 text-center">
+                <p class="text-sm font-bold text-blue-700">${formatearGuaranies(aRendir)}</p>
+                <p class="text-[9px] text-gray-400 font-bold">A RENDIR</p>
             </div>
         </div>
 
-        <div class="flex gap-2 mb-3">
-            <sl-button onclick="agregarGastoVendedor()" variant="danger" size="small" class="flex-1">+ Agregar Gasto</sl-button>
-            ${!rendSemana ? `<sl-button onclick="cerrarSemanaVendedor('${semana}')" variant="primary" size="small" class="flex-1">Cerrar Semana</sl-button>` : ''}
+        <div class="flex justify-between items-center mb-2">
+            <p class="text-xs font-bold text-gray-500 uppercase tracking-wider">Semana ${fechaInicio} – ${fechaFin}</p>
+            ${rendSemana ? `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${rendSemana.estado === 'pagado' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}">${rendSemana.estado === 'pagado' ? 'PAGADO' : 'PENDIENTE'}</span>` : ''}
         </div>
 
-        ${gastosSemana.length > 0 ? `
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 mb-3 overflow-hidden">
-            <p class="text-xs font-bold text-gray-500 uppercase tracking-wider p-3 bg-gray-50">Gastos de la Semana</p>
-            ${gastosSemana.map(g => `
-                <div class="p-3 border-t border-gray-100 flex justify-between items-center">
-                    <div>
-                        <p class="text-sm font-bold text-gray-800">${escapeHTML(g.concepto)}</p>
-                        <p class="text-xs text-gray-400">${new Date(g.fecha).toLocaleDateString('es-PY')}</p>
-                    </div>
-                    <div class="text-right">
-                        <p class="text-sm font-bold text-red-600">- ${formatearGuaranies(g.monto)}</p>
-                        <sl-button onclick="eliminarGastoVendedor('${g.id}')" variant="text" size="small">Eliminar</sl-button>
-                    </div>
-                </div>
-            `).join('')}
-        </div>` : ''}
+        ${timelineHtml || '<p class="text-sm text-slate-400 text-center py-8">Sin actividad esta semana</p>'}
 
-        ${cuentas.length > 0 ? `
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 mb-3 overflow-hidden">
-            <p class="text-xs font-bold text-gray-500 uppercase tracking-wider p-3 bg-gray-50">Cuentas Bancarias de la Empresa</p>
-            ${cuentas.map(c => `
-                <div class="p-3 border-t border-gray-100">
-                    <p class="text-sm font-bold text-gray-800">${escapeHTML(c.banco)}</p>
-                    <p class="text-xs text-gray-600">${c.tipo === 'ahorro' ? 'Caja de Ahorro' : 'Cta. Corriente'} | ${c.moneda === 'USD' ? 'USD' : 'Gs.'}</p>
-                    <p class="text-xs text-gray-500">Nro: <strong>${escapeHTML(c.numero)}</strong></p>
-                    <p class="text-xs text-gray-400">Titular: ${escapeHTML(c.titular)}${c.ruc ? ' | RUC: ' + escapeHTML(c.ruc) : ''}</p>
-                </div>
-            `).join('')}
-        </div>` : ''}
-
-        <sl-button onclick="mostrarConfiguracion()" variant="default" class="w-full" style="margin-top:0.5rem;">Configuracion y Backups</sl-button>
+        <div class="flex gap-2 mt-3">
+            <sl-button data-action="agregarGastoVendedor" variant="danger" size="small" class="flex-1">+ Gasto</sl-button>
+            ${!rendSemana ? `<sl-button data-action="cerrarSemanaVendedor" data-arg="${semana}" variant="primary" size="small" class="flex-1">Cerrar Semana</sl-button>` : ''}
+        </div>
     `;
+    if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 // ============================================

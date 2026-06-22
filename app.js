@@ -67,11 +67,24 @@ const _vendedorActionMap = {
         if (avatarEl) avatarEl.textContent = nombre.charAt(0).toUpperCase();
         if (nombreEl) nombreEl.textContent = nombre;
         if (emailEl) emailEl.textContent = email;
+        if (typeof _actualizarBadgeCreditos === 'function') _actualizarBadgeCreditos();
         sidebar.show();
     },
     'cerrarSidebar':                  () => { const s = document.getElementById('sidebarMenu'); if (s) s.hide(); },
     // Configuracion — zona de peligro
     'limpiarTodosDatos':              () => typeof limpiarTodosDatos === 'function' && limpiarTodosDatos(),
+    // Mis Pedidos — filtros y paginacion
+    'setPedidosFiltro':               (_, f) => typeof _setPedidosFiltro === 'function' && _setPedidosFiltro(f),
+    'setPedidosPagina':               (_, n) => typeof _setPedidosPagina === 'function' && _setPedidosPagina(n),
+    'togglePedidosFiltroDropdown':    () => typeof _togglePedidosFiltroDropdown === 'function' && _togglePedidosFiltroDropdown(),
+    // Creditos
+    'mostrarCreditos':                () => typeof mostrarCreditos === 'function' && mostrarCreditos(),
+    // Mi Jornada — timeline
+    'toggleDiaJornada':               (_, d) => typeof _toggleDiaJornada === 'function' && _toggleDiaJornada(d),
+    'agregarGastoVendedor':           () => typeof agregarGastoVendedor === 'function' && agregarGastoVendedor(),
+    'cerrarSemanaVendedor':           (_, s) => typeof cerrarSemanaVendedor === 'function' && cerrarSemanaVendedor(s),
+    'eliminarGastoVendedor':          (_, id) => typeof eliminarGastoVendedor === 'function' && eliminarGastoVendedor(id),
+    'mostrarConfiguracion':           () => typeof mostrarConfiguracion === 'function' && mostrarConfiguracion(),
 };
 
 document.addEventListener('click', function(e) {
@@ -341,6 +354,10 @@ function cambiarVistaVendedor(vista) {
         catFilters.style.display = 'none';
         searchBox.style.display = 'none';
         mostrarMiCaja();
+    } else if (vista === 'creditos') {
+        catFilters.style.display = 'none';
+        searchBox.style.display = 'none';
+        mostrarCreditos();
     } else if (vista === 'config') {
         catFilters.style.display = 'none';
         searchBox.style.display = 'none';

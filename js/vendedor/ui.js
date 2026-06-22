@@ -327,6 +327,7 @@ function crearFiltrosCategorias() {
 
 function filtrarCategoria(catId) {
     categoriaActual = catId;
+    _subcatSeleccionada = null;
     if (catId === 'todas') {
         categoriaSeleccionada = null;
         vistaCatalogo = 'categorias';
@@ -346,6 +347,7 @@ function filtrarCategoria(catId) {
 
 function volverACategorias() {
     categoriaSeleccionada = null;
+    _subcatSeleccionada = null;
     vistaCatalogo = 'categorias';
     mostrarProductos();
 }
@@ -442,107 +444,323 @@ async function renderizarCategoriasVendedor(container) {
 }
 
 async function renderizarProductosVendedor(container, busqueda) {
+    // --- Filtrado ---
     let filtrados = productos;
-
     const catFiltro = categoriaActual !== 'todas' ? categoriaActual : categoriaSeleccionada;
-    if (catFiltro) {
-        filtrados = filtrados.filter(p => p.categoria === catFiltro);
-    }
-    if (busqueda) {
-        filtrados = filtrados.filter(p => p.nombre.toLowerCase().includes(busqueda));
-    }
-
+    if (catFiltro) filtrados = filtrados.filter(p => p.categoria === catFiltro);
+    if (_subcatSeleccionada) filtrados = filtrados.filter(p => p.subcategoria === _subcatSeleccionada);
+    if (busqueda) filtrados = filtrados.filter(p => p.nombre.toLowerCase().includes(busqueda));
     if (categoriaSeleccionada && !busqueda && categoriaActual === 'todas') {
-        filtrados = filtrados.filter(p => {
-            const estado = p.estado || 'disponible';
-            if (estado === 'discontinuado' || estado === 'agotado') return false;
-            return true;
-        });
+        filtrados = filtrados.filter(p => { const e = p.estado || 'disponible'; return e !== 'discontinuado' && e !== 'agotado'; });
     }
 
+    // --- Pre-computo última cantidad pedida (una sola lectura async) ---
+    const ultimasQtys = {};
+    if (clienteActual) {
+        try {
+            const hist = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
+            hist.filter(p => p.cliente?.id === clienteActual.id)
+                .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
+                .forEach(pedido => {
+                    (pedido.items || []).forEach(item => {
+                        if (!ultimasQtys[item.productoId]) ultimasQtys[item.productoId] = item.cantidad;
+                    });
+                });
+        } catch (_e) { /* silencioso */ }
+    }
+
+    // --- Empty state ---
     if (filtrados.length === 0) {
         const catNombre = categorias.find(c => c.id === catFiltro)?.nombre || '';
         container.innerHTML = generarEmptyState(SVG_EMPTY_SEARCH, 'No se encontraron productos',
-            busqueda ? 'Intenta con otro termino de busqueda' : `No hay productos disponibles en ${escapeHTML(catNombre)}`);
+            busqueda ? 'Intentá con otro término' : `No hay productos en ${escapeHTML(_subcatSeleccionada || catNombre)}`);
         if (categoriaSeleccionada) {
-            container.innerHTML += `<div class="text-center mt-2"><sl-button onclick="volverACategorias()" variant="neutral">Volver a Categorias</sl-button></div>`;
+            const btn = document.createElement('div');
+            btn.className = 'text-center mt-2';
+            const sl = document.createElement('sl-button');
+            sl.variant = 'neutral'; sl.textContent = 'Volver a Categorías';
+            sl.onclick = () => volverACategorias();
+            btn.appendChild(sl);
+            container.appendChild(btn);
         }
         return;
     }
 
     container.innerHTML = '';
 
+    // --- Barra superior (dentro de categoría) ---
     if (categoriaSeleccionada && categoriaActual === 'todas') {
-        const catNombre = categorias.find(c => c.id === categoriaSeleccionada)?.nombre || '';
+        const cat = categorias.find(c => c.id === categoriaSeleccionada);
+        const catNombre = cat?.nombre || '';
+        const subcats = (cat?.subcategorias || []).filter(s => s);
+
+        // Back bar con toggle vista
         const backBar = document.createElement('div');
-        backBar.className = 'flex items-center gap-3 mb-3';
-        backBar.innerHTML = `
-            <sl-button onclick="volverACategorias()" variant="default" size="small">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-                Categorias
-            </sl-button>
-            <span class="text-sm font-bold text-gray-800">${catNombre}</span>
-            <span class="text-xs text-gray-400">${filtrados.length} producto${filtrados.length !== 1 ? 's' : ''}</span>`;
+        backBar.className = 'flex items-center gap-2 mb-2';
+
+        const backBtn = document.createElement('sl-button');
+        backBtn.variant = 'default'; backBtn.size = 'small';
+        backBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" slot="prefix"><path d="m15 18-6-6 6-6"/></svg>Categorías`;
+        backBtn.onclick = () => volverACategorias();
+
+        const titleSpan = document.createElement('span');
+        titleSpan.className = 'text-sm font-bold text-white flex-1 truncate';
+        titleSpan.textContent = catNombre;
+
+        const countSpan = document.createElement('span');
+        countSpan.className = 'text-xs text-slate-400 shrink-0';
+        countSpan.textContent = `${filtrados.length} prod.`;
+
+        const toggleBtn = document.createElement('button');
+        toggleBtn.className = 'p-1.5 rounded-lg bg-white/10 text-slate-300 hover:bg-white/20 transition-colors shrink-0';
+        const isGrid = _vistaProductos === 'grid';
+        toggleBtn.innerHTML = isGrid
+            ? `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>`
+            : `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>`;
+        toggleBtn.onclick = () => _toggleVistaCatalogo();
+
+        backBar.appendChild(backBtn);
+        backBar.appendChild(titleSpan);
+        backBar.appendChild(countSpan);
+        backBar.appendChild(toggleBtn);
         container.appendChild(backBar);
+
+        // Chips de subcategoría
+        if (subcats.length > 0) {
+            const chipsDiv = document.createElement('div');
+            chipsDiv.className = 'subcat-chips mb-3';
+
+            const chipTodas = document.createElement('button');
+            chipTodas.className = 'subcat-chip' + (_subcatSeleccionada === null ? ' active' : '');
+            chipTodas.textContent = 'Todas';
+            chipTodas.onclick = () => _setSubcat(null);
+            chipsDiv.appendChild(chipTodas);
+
+            subcats.forEach(s => {
+                const chip = document.createElement('button');
+                chip.className = 'subcat-chip' + (_subcatSeleccionada === s ? ' active' : '');
+                chip.textContent = s;
+                chip.onclick = () => _setSubcat(s);
+                chipsDiv.appendChild(chip);
+            });
+            container.appendChild(chipsDiv);
+        }
     }
 
-    const grid = document.createElement('div');
-    grid.className = 'grid grid-cols-2 gap-2';
-    container.appendChild(grid);
+    // --- Render grid o lista ---
+    const noImgSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>`;
 
-    const noImgSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>`;
+    const wrapper = document.createElement('div');
+    wrapper.className = _vistaProductos === 'list' ? 'vpc-list' : 'vendor-prod-grid';
+    container.appendChild(wrapper);
 
-    // CRIT-02: Renderizado chunked con requestAnimationFrame
-    // Renderiza lotes de 40 productos por frame para no bloquear el main thread
     const CHUNK_SIZE = 40;
     let idx = 0;
 
-    async function renderChunk() {
+    function crearCardGrid(prod) {
+        const presActivas = (prod.presentaciones || []).filter(p => p.activo !== false);
+        const imgUrl = prod.imagen_url || prod.imagen;
+
+        // Precio (con soporte precio personalizado)
+        let precioMin = presActivas.length > 0 ? Math.min(...presActivas.map(p => p.precio_base || 0)) : 0;
+        let precioCustomMin = null;
+        if (clienteActual?.precios_personalizados?.[prod.id]) {
+            const cps = clienteActual.precios_personalizados[prod.id];
+            presActivas.forEach(pres => {
+                const cp = cps.find(x => x.tamano === pres.tamano);
+                if (cp && (precioCustomMin === null || cp.precio < precioCustomMin)) precioCustomMin = cp.precio;
+            });
+        }
+
+        const card = document.createElement('div');
+        card.className = 'vpc';
+        card.dataset.prodId = prod.id;
+        card.onclick = () => mostrarDetalleProducto(prod);
+
+        // Imagen
+        if (imgUrl) {
+            const img = document.createElement('img');
+            img.className = 'vpc-img lazy-img opacity-0';
+            img.dataset.src = imgUrl;
+            img.alt = prod.nombre;
+            img.onerror = () => { img.style.display = 'none'; };
+            card.appendChild(img);
+        } else {
+            const ni = document.createElement('div');
+            ni.className = 'vpc-noimg';
+            ni.innerHTML = noImgSvg;
+            card.appendChild(ni);
+        }
+
+        // Badge cantidad (top-left)
+        const badge = document.createElement('div');
+        badge.className = 'vpc-badge';
+        card.appendChild(badge);
+
+        // Controles +/- (top-right)
+        const ctrl = document.createElement('div');
+        ctrl.className = 'vpc-ctrl';
+
+        const minusBtn = document.createElement('button');
+        minusBtn.className = 'vpc-btn vpc-minus';
+        minusBtn.innerHTML = '&#x2212;';
+        minusBtn.style.display = 'none';
+        minusBtn.onclick = (e) => { e.stopPropagation(); _quickRemoveProd(prod); };
+
+        const qtyNum = document.createElement('span');
+        qtyNum.className = 'vpc-qty-num';
+
+        const plusBtn = document.createElement('button');
+        plusBtn.className = 'vpc-btn vpc-plus';
+        plusBtn.innerHTML = '+';
+        plusBtn.onclick = (e) => { e.stopPropagation(); _quickAddProd(prod); };
+
+        ctrl.appendChild(minusBtn);
+        ctrl.appendChild(qtyNum);
+        ctrl.appendChild(plusBtn);
+        card.appendChild(ctrl);
+
+        // Info bottom
+        const info = document.createElement('div');
+        info.className = 'vpc-info';
+
+        const nombre = document.createElement('div');
+        nombre.className = 'vpc-nombre';
+        nombre.textContent = prod.nombre;
+        info.appendChild(nombre);
+
+        if (precioCustomMin !== null && precioCustomMin !== precioMin) {
+            const pRow = document.createElement('div');
+            pRow.className = 'vpc-precio vpc-precio-custom';
+            pRow.innerHTML = `${formatearGuaranies(precioCustomMin)}<span class="vpc-precio-base">${formatearGuaranies(precioMin)}</span>`;
+            info.appendChild(pRow);
+        } else if (precioMin > 0) {
+            const pEl = document.createElement('div');
+            pEl.className = 'vpc-precio';
+            pEl.textContent = formatearGuaranies(precioMin);
+            info.appendChild(pEl);
+        }
+
+        const ultQty = ultimasQtys[prod.id];
+        if (ultQty) {
+            const ultEl = document.createElement('div');
+            ultEl.className = 'vpc-ultima';
+            ultEl.textContent = `Última: ${ultQty} ud${ultQty !== 1 ? 's' : ''}`;
+            info.appendChild(ultEl);
+        }
+
+        card.appendChild(info);
+        return card;
+    }
+
+    function crearItemLista(prod) {
+        const presActivas = (prod.presentaciones || []).filter(p => p.activo !== false);
+        const imgUrl = prod.imagen_url || prod.imagen;
+
+        let precioMin = presActivas.length > 0 ? Math.min(...presActivas.map(p => p.precio_base || 0)) : 0;
+        let precioCustomMin = null;
+        if (clienteActual?.precios_personalizados?.[prod.id]) {
+            const cps = clienteActual.precios_personalizados[prod.id];
+            presActivas.forEach(pres => {
+                const cp = cps.find(x => x.tamano === pres.tamano);
+                if (cp && (precioCustomMin === null || cp.precio < precioCustomMin)) precioCustomMin = cp.precio;
+            });
+        }
+
+        const row = document.createElement('div');
+        row.className = 'vpc-list-item';
+        row.dataset.prodId = prod.id;
+        row.onclick = () => mostrarDetalleProducto(prod);
+
+        // Thumb
+        if (imgUrl) {
+            const img = document.createElement('img');
+            img.className = 'vpc-list-thumb lazy-img opacity-0';
+            img.dataset.src = imgUrl;
+            img.alt = prod.nombre;
+            row.appendChild(img);
+        } else {
+            const ni = document.createElement('div');
+            ni.className = 'vpc-list-noimg';
+            ni.innerHTML = noImgSvg;
+            row.appendChild(ni);
+        }
+
+        // Meta
+        const meta = document.createElement('div');
+        meta.className = 'vpc-list-meta';
+
+        const nombre = document.createElement('div');
+        nombre.className = 'vpc-list-nombre';
+        nombre.textContent = prod.nombre;
+        meta.appendChild(nombre);
+
+        if (precioCustomMin !== null && precioCustomMin !== precioMin) {
+            const pRow = document.createElement('div');
+            pRow.className = 'vpc-list-precio vpc-list-precio-custom';
+            pRow.innerHTML = `${formatearGuaranies(precioCustomMin)}<span class="vpc-list-precio-base">${formatearGuaranies(precioMin)}</span>`;
+            meta.appendChild(pRow);
+        } else if (precioMin > 0) {
+            const pEl = document.createElement('div');
+            pEl.className = 'vpc-list-precio';
+            pEl.textContent = formatearGuaranies(precioMin);
+            meta.appendChild(pEl);
+        }
+
+        const ultQty = ultimasQtys[prod.id];
+        if (ultQty) {
+            const ultEl = document.createElement('div');
+            ultEl.className = 'vpc-list-ultima';
+            ultEl.textContent = `Última: ${ultQty} ud${ultQty !== 1 ? 's' : ''}`;
+            meta.appendChild(ultEl);
+        }
+
+        row.appendChild(meta);
+
+        // Controles lista
+        const ctrl = document.createElement('div');
+        ctrl.className = 'vpc-list-ctrl';
+
+        const minusBtn = document.createElement('button');
+        minusBtn.className = 'vpc-list-btn vpc-minus';
+        minusBtn.innerHTML = '&#x2212;';
+        minusBtn.style.display = 'none';
+        minusBtn.onclick = (e) => { e.stopPropagation(); _quickRemoveProd(prod); };
+
+        const qtyEl = document.createElement('span');
+        qtyEl.className = 'vpc-list-qty';
+        qtyEl.textContent = '0';
+        qtyEl.style.display = 'none';
+
+        const plusBtn = document.createElement('button');
+        plusBtn.className = 'vpc-list-btn vpc-plus';
+        plusBtn.innerHTML = '+';
+        plusBtn.onclick = (e) => { e.stopPropagation(); _quickAddProd(prod); };
+
+        ctrl.appendChild(minusBtn);
+        ctrl.appendChild(qtyEl);
+        ctrl.appendChild(plusBtn);
+        row.appendChild(ctrl);
+
+        return row;
+    }
+
+    function renderChunk() {
         const end = Math.min(idx + CHUNK_SIZE, filtrados.length);
+        const isList = _vistaProductos === 'list';
         for (let i = idx; i < end; i++) {
-            const prod = filtrados[i];
-            const card = document.createElement('div');
-            card.className = 'product-card bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-100 active:scale-95 transition-transform cursor-pointer';
-            card.onclick = () => mostrarDetalleProducto(prod);
-
-            const imgUrl = prod.imagen_url || prod.imagen;
-            let imgContent;
-            if (imgUrl) {
-                imgContent = `<div class="relative w-full h-28 bg-slate-50">
-                    <div class="absolute inset-0 bg-slate-200 animate-pulse img-skeleton"></div>
-                    <img data-src="${imgUrl}" class="absolute inset-0 w-full h-full object-contain lazy-img opacity-0 transition-opacity duration-300 p-2">
-                </div>`;
-            } else {
-                imgContent = `<div class="w-full h-28 bg-slate-100 flex items-center justify-center">${noImgSvg}</div>`;
-            }
-
-            const promoBadge = typeof mostrarPromocionesEnProducto === 'function' ? await mostrarPromocionesEnProducto(prod.id) : '';
-            const presActivas = (prod.presentaciones || []).filter(p => p.activo !== false);
-            const minPrecio = presActivas.length > 0 ? Math.min(...presActivas.map(p => p.precio_base || 0)) : 0;
-            const precioHtml = minPrecio > 0 ? `<p class="text-[11px] font-bold text-indigo-600 mt-0.5">${formatearGuaranies(minPrecio)}</p>` : '';
-            card.innerHTML = `
-                ${imgContent}
-                <div class="p-2.5">
-                    <p class="text-xs font-semibold text-slate-800 leading-tight">${escapeHTML(prod.nombre)}</p>
-                    ${precioHtml}
-                    ${promoBadge}
-                </div>
-            `;
-            grid.appendChild(card);
+            wrapper.appendChild(isList ? crearItemLista(filtrados[i]) : crearCardGrid(filtrados[i]));
         }
         idx = end;
         if (idx < filtrados.length) {
             requestAnimationFrame(renderChunk);
         } else {
-            // Ultimo chunk: activar lazy load e iconos solo sobre los nodos renderizados
-            if (typeof lucide !== 'undefined') lucide.createIcons({ node: grid });
-            initLazyLoadImages(grid);
+            initLazyLoadImages(wrapper);
+            _actualizarBadgesCarritoEnCatalogo();
         }
     }
 
-    if (filtrados.length > 0) {
-        requestAnimationFrame(renderChunk);
-    }
+    requestAnimationFrame(renderChunk);
 }
 
 // ============================================
@@ -615,6 +833,83 @@ function initLazyLoadImages(containerEl) {
             observer.observe(img);
         }
     });
+}
+
+// ============================================
+// CATALOG HELPERS — quick add/remove, badges, subcat, toggle vista
+// ============================================
+
+function _quickAddProd(prod) {
+    if (!clienteActual) { mostrarToast('Seleccioná un cliente primero', 'warning'); return; }
+    const presActivas = (prod.presentaciones || []).filter(p => p.activo !== false);
+    if (presActivas.length === 1) {
+        const pres = presActivas[0];
+        const precio = typeof obtenerPrecio === 'function' ? obtenerPrecio(prod.id, pres) : pres.precio_base;
+        const existente = carrito.findIndex(item => item.productoId === prod.id && item.presentacion === pres.tamano);
+        if (existente >= 0) {
+            carrito[existente].cantidad++;
+            carrito[existente].subtotal = carrito[existente].cantidad * carrito[existente].precio;
+        } else {
+            carrito.push({ productoId: prod.id, nombre: prod.nombre, presentacion: pres.tamano,
+                precio, cantidad: 1, subtotal: precio,
+                precioEspecial: precio !== pres.precio_base, tipo_impuesto: prod.tipo_impuesto || '10' });
+        }
+        if (typeof actualizarContadorCarrito === 'function') actualizarContadorCarrito();
+        if (typeof guardarCarrito === 'function') guardarCarrito();
+    } else {
+        mostrarDetalleProducto(prod);
+    }
+}
+
+function _quickRemoveProd(prod) {
+    const existente = carrito.findLastIndex ? carrito.findLastIndex(item => item.productoId === prod.id)
+        : [...carrito].reverse().findIndex(item => item.productoId === prod.id);
+    const realIdx = carrito.findIndex ? carrito.findIndex(item => item.productoId === prod.id) : -1;
+    const idx = realIdx;
+    if (idx < 0) return;
+    if (carrito[idx].cantidad > 1) {
+        carrito[idx].cantidad--;
+        carrito[idx].subtotal = carrito[idx].cantidad * carrito[idx].precio;
+    } else {
+        carrito.splice(idx, 1);
+    }
+    if (typeof actualizarContadorCarrito === 'function') actualizarContadorCarrito();
+    if (typeof guardarCarrito === 'function') guardarCarrito();
+}
+
+function _actualizarBadgesCarritoEnCatalogo() {
+    const qtyMap = {};
+    (carrito || []).forEach(item => { qtyMap[item.productoId] = (qtyMap[item.productoId] || 0) + item.cantidad; });
+
+    // Grid cards
+    document.querySelectorAll('.vpc[data-prod-id]').forEach(card => {
+        const qty = qtyMap[card.dataset.prodId] || 0;
+        const badge = card.querySelector('.vpc-badge');
+        const minus = card.querySelector('.vpc-minus');
+        const qtyNum = card.querySelector('.vpc-qty-num');
+        if (badge) { badge.textContent = qty; badge.style.display = qty > 0 ? 'flex' : 'none'; }
+        if (minus) minus.style.display = qty > 0 ? 'flex' : 'none';
+        if (qtyNum) { qtyNum.textContent = qty; qtyNum.style.display = qty > 0 ? 'flex' : 'none'; }
+    });
+
+    // List items
+    document.querySelectorAll('.vpc-list-item[data-prod-id]').forEach(row => {
+        const qty = qtyMap[row.dataset.prodId] || 0;
+        const minus = row.querySelector('.vpc-minus');
+        const qtyEl = row.querySelector('.vpc-list-qty');
+        if (minus) minus.style.display = qty > 0 ? 'flex' : 'none';
+        if (qtyEl) { qtyEl.textContent = qty; qtyEl.style.display = qty > 0 ? 'flex' : 'none'; }
+    });
+}
+
+function _setSubcat(s) {
+    _subcatSeleccionada = s;
+    if (typeof mostrarProductos === 'function') mostrarProductos();
+}
+
+function _toggleVistaCatalogo() {
+    _vistaProductos = _vistaProductos === 'grid' ? 'list' : 'grid';
+    if (typeof mostrarProductos === 'function') mostrarProductos();
 }
 
 // ============================================
@@ -1025,6 +1320,10 @@ function eliminarTarjetaPedidoDOM(pedidoId) {
 }
 
 // --- Estado de la vista Mis Pedidos ---
+// Catalog state
+let _subcatSeleccionada = null;
+let _vistaProductos = 'grid'; // 'grid' | 'list'
+
 let _pedidosFiltro = 'semana'; // 'hoy' | 'ayer' | 'semana' | 'todo'
 let _pedidosPagina = 1;
 const _PEDIDOS_POR_PAGINA = 50;

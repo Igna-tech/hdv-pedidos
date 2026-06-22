@@ -72,6 +72,7 @@ function actualizarContadorCarrito() {
     const totalItems = carrito.reduce((sum, item) => sum + item.cantidad, 0);
     badge.textContent = totalItems;
     badge.style.display = totalItems > 0 ? 'flex' : 'none';
+    if (typeof _actualizarBadgesCarritoEnCatalogo === 'function') _actualizarBadgesCarritoEnCatalogo();
 }
 
 async function guardarCarrito() {

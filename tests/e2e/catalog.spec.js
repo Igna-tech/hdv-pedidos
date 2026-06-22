@@ -148,12 +148,12 @@ test.describe('Catalogo vendedor (mocked auth)', () => {
         expect(text).toBe('0');
     });
 
-    test('boton de tabs existe y es clickeable', async ({ page }) => {
+    test('sidebar menu existe y se puede abrir', async ({ page }) => {
         await page.goto('/index.html');
         await page.waitForTimeout(3000);
 
-        const btnPedidos = page.locator('#btn-tab-pedidos');
-        await expect(btnPedidos).toBeAttached();
+        const sidebar = page.locator('#sidebarMenu');
+        await expect(sidebar).toBeAttached();
     });
 });
 

@@ -75,12 +75,19 @@
         .cart-qty-btn::part(base) { min-width: 44px; min-height: 44px; }
         /* sl-button layout, toast base, empty-state — in src/input.css (shared) */
 
-        /* Toast container positioning (vendedor: bottom-center) */
+        /* Toast container positioning (vendedor: bottom-center, sobre el FAB) */
         #toastContainer {
-            position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
+            position: fixed; bottom: 96px; left: 50%; transform: translateX(-50%);
             z-index: 9999; display: flex; flex-direction: column-reverse; gap: 8px;
             pointer-events: none; width: 90%; max-width: 400px;
         }
+
+        /* Sidebar menu drawer */
+        #sidebarMenu::part(body) { padding: 0; display: flex; flex-direction: column; overflow-y: auto; }
+        #sidebarMenu::part(panel) { border-radius: 0 20px 20px 0; }
+        .sidebar-nav-item { display: flex; align-items: center; gap: 12px; width: 100%; padding: 11px 16px; border-radius: 10px; text-align: left; font-size: 14px; font-weight: 600; color: #64748b; transition: background-color 0.15s, color 0.15s; cursor: pointer; background: none; border: none; }
+        .sidebar-nav-item:hover { background-color: #f8fafc; color: #1e293b; }
+        .sidebar-nav-active { color: #4f46e5 !important; background-color: #eef2ff !important; }
 
         /* Catalog category grid (vendor) */
         .vendor-catalog-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
@@ -139,15 +146,18 @@
 
     <header class="bg-white border-b border-slate-200 px-4 pt-3 pb-2 sticky top-0 z-50 shadow-sm">
         <div class="flex justify-between items-center mb-3">
-            <div class="flex items-center gap-3">
-                <svg width="40" height="40" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+            <div class="flex items-center gap-2">
+                <button data-action="abrirSidebar" class="header-icon-btn p-1.5 -ml-1.5 rounded-lg hover:bg-slate-100 transition-colors" aria-label="Menu">
+                    <i data-lucide="menu" class="w-5 h-5"></i>
+                </button>
+                <svg width="36" height="36" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
                     <rect width="100" height="100" rx="16" fill="#111827"/>
                     <rect x="4" y="4" width="92" height="92" rx="12" fill="none" stroke="#DC2626" stroke-width="2.5"/>
                     <text x="50" y="52" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="38" fill="#DC2626" text-anchor="middle" dominant-baseline="central" letter-spacing="2">HDV</text>
                     <text x="50" y="78" font-family="Arial, sans-serif" font-weight="700" font-size="9.5" fill="#FFFFFF" text-anchor="middle" letter-spacing="4">DISTRIBUCIONES</text>
                 </svg>
                 <div>
-                    <h1 class="text-base font-bold text-slate-900 leading-tight">HDV Pedidos</h1>
+                    <h1 class="text-sm font-bold text-slate-900 leading-tight">HDV Pedidos</h1>
                     <div id="status-badge" class="text-[10px] uppercase tracking-wider font-semibold text-slate-400 flex items-center">
                         <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full mr-1.5"></span> En linea
                     </div>
@@ -156,7 +166,6 @@
             <div class="flex gap-0.5">
                 <sl-icon-button name="arrow-clockwise" label="Forzar actualizacion" data-action="forzarActualizacion" class="header-icon-btn"></sl-icon-button>
                 <sl-icon-button name="moon" label="Cambiar modo oscuro" data-action="toggleDarkMode" class="dark-mode-toggle header-icon-btn"></sl-icon-button>
-                <sl-icon-button name="box-arrow-right" label="Cerrar sesion" data-action="cerrarSesion" class="header-icon-btn-danger"></sl-icon-button>
             </div>
         </div>
 
@@ -250,27 +259,14 @@
         </div>
     </main>
 
-    <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-4 py-3 flex justify-between items-center z-50 shadow-[0_-4px_10px_rgba(0,0,0,0.04)]" role="navigation" aria-label="Navegacion principal">
-        <button data-action="cambiarVistaVendedor" data-arg="lista" id="btn-tab-lista" class="flex flex-col items-center gap-1 text-indigo-600 transition-colors">
-            <i data-lucide="home" class="w-5 h-5"></i>
-            <span class="text-[10px] font-bold">Inicio</span>
-        </button>
-
-        <button data-action="mostrarModalCarrito" id="viewCartBtn" aria-label="Ver carrito de compras" class="relative -mt-12 bg-indigo-600 text-white p-4 rounded-full shadow-xl border-4 border-slate-100 disabled:opacity-50 disabled:bg-slate-400 hover:bg-indigo-700 transition-colors">
+    <!-- FAB Carrito (floating, centrado en bottom) -->
+    <div class="fixed bottom-0 left-0 right-0 flex justify-center pb-5 z-40 pointer-events-none">
+        <button data-action="mostrarModalCarrito" id="viewCartBtn" aria-label="Ver carrito de compras"
+            class="pointer-events-auto relative bg-indigo-600 text-white p-4 rounded-full shadow-2xl border-4 border-white disabled:opacity-50 disabled:bg-slate-400 hover:bg-indigo-700 active:scale-95 transition-all">
             <i data-lucide="shopping-cart" class="w-6 h-6"></i>
             <span id="cartItems" class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center border-2 border-white">0</span>
         </button>
-
-        <button data-action="cambiarVistaVendedor" data-arg="pedidos" id="btn-tab-pedidos" class="flex flex-col items-center gap-1 text-slate-400 transition-colors">
-            <i data-lucide="file-text" class="w-5 h-5"></i>
-            <span class="text-[10px] font-bold">Pedidos</span>
-        </button>
-
-        <button data-action="cambiarVistaVendedor" data-arg="caja" id="btn-tab-caja" class="flex flex-col items-center gap-1 text-slate-400 transition-colors">
-            <i data-lucide="wallet" class="w-5 h-5"></i>
-            <span class="text-[10px] font-bold">Mi Caja</span>
-        </button>
-    </nav>
+    </div>
 
     <!-- MODAL BACKUP VENDEDOR -->
     <sl-dialog id="backupModal" label="Copia de Seguridad" style="--width: 28rem;">
@@ -361,6 +357,45 @@
                 </sl-button>
                 <sl-button data-action="closeCartModal" variant="text" size="small" class="w-full text-slate-400">← Volver al catálogo</sl-button>
             </div>
+        </div>
+    </sl-drawer>
+
+    <!-- SIDEBAR MENU -->
+    <sl-drawer id="sidebarMenu" placement="start" style="--size: 17rem;" no-header>
+        <!-- Perfil del vendedor -->
+        <div class="bg-gradient-to-br from-slate-800 to-slate-900 px-5 py-6">
+            <div id="sidebarAvatar" class="w-11 h-11 rounded-full bg-indigo-500 flex items-center justify-center text-white text-lg font-black mb-3">V</div>
+            <p id="sidebarNombre" class="text-white font-bold text-sm leading-snug">Vendedor</p>
+            <p id="sidebarEmail" class="text-slate-400 text-xs mt-0.5 truncate"></p>
+        </div>
+
+        <!-- Nav principal -->
+        <nav class="flex-1 px-3 py-3 space-y-0.5">
+            <button data-action="cambiarVistaVendedor" data-arg="lista" data-section="lista" class="sidebar-nav-item sidebar-nav-active">
+                <i data-lucide="home" class="w-4 h-4 shrink-0"></i>
+                <span>Catálogo</span>
+            </button>
+            <button data-action="cambiarVistaVendedor" data-arg="pedidos" data-section="pedidos" class="sidebar-nav-item">
+                <i data-lucide="file-text" class="w-4 h-4 shrink-0"></i>
+                <span>Mis Pedidos</span>
+            </button>
+            <button data-action="cambiarVistaVendedor" data-arg="jornada" data-section="jornada" class="sidebar-nav-item">
+                <i data-lucide="bar-chart-2" class="w-4 h-4 shrink-0"></i>
+                <span>Mi Jornada</span>
+            </button>
+            <div class="border-t border-slate-100 my-2 mx-1"></div>
+            <button data-action="cambiarVistaVendedor" data-arg="config" data-section="config" class="sidebar-nav-item">
+                <i data-lucide="settings" class="w-4 h-4 shrink-0"></i>
+                <span>Configuración</span>
+            </button>
+        </nav>
+
+        <!-- Footer cerrar sesion -->
+        <div class="px-3 pb-5 pt-2 border-t border-slate-100 mt-auto">
+            <button data-action="cerrarSesion" class="sidebar-nav-item" style="color:#ef4444;">
+                <i data-lucide="log-out" class="w-4 h-4 shrink-0"></i>
+                <span>Cerrar sesión</span>
+            </button>
         </div>
     </sl-drawer>
 

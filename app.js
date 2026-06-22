@@ -52,6 +52,23 @@ const _vendedorActionMap = {
     'seleccionarClienteId':           (_, id) => typeof _seleccionarCliente === 'function' && _seleccionarCliente(id),
     'toggleZonaPicker':               () => typeof _toggleZonaPicker === 'function' && _toggleZonaPicker(),
     'elegirZonaFiltro':               (_, zona) => { zonaActiva = zona || null; if (typeof _actualizarZonaBtn === 'function') _actualizarZonaBtn(zonaActiva); },
+    // Sidebar menu
+    'abrirSidebar':                   () => {
+        const sidebar = document.getElementById('sidebarMenu');
+        if (!sidebar) return;
+        const nombre = window.hdvUsuario?.nombre || window.hdvUsuario?.email || 'Vendedor';
+        const email = window.hdvUsuario?.email || '';
+        const avatarEl = document.getElementById('sidebarAvatar');
+        const nombreEl = document.getElementById('sidebarNombre');
+        const emailEl = document.getElementById('sidebarEmail');
+        if (avatarEl) avatarEl.textContent = nombre.charAt(0).toUpperCase();
+        if (nombreEl) nombreEl.textContent = nombre;
+        if (emailEl) emailEl.textContent = email;
+        sidebar.show();
+    },
+    'cerrarSidebar':                  () => { const s = document.getElementById('sidebarMenu'); if (s) s.hide(); },
+    // Configuracion — zona de peligro
+    'limpiarTodosDatos':              () => typeof limpiarTodosDatos === 'function' && limpiarTodosDatos(),
 };
 
 document.addEventListener('click', function(e) {
@@ -149,8 +166,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                         mostrarToast(`Pedido actualizado: ${nuevoEstado === PEDIDO_ESTADOS.ENTREGADO ? 'Entregado' : nuevoEstado === PEDIDO_ESTADOS.ANULADO ? 'Anulado' : nuevoEstado}`, 'info');
                     }
                 }
-                // Actualizar widget de caja si esta visible
-                if (vistaActual === 'caja' && typeof mostrarMiCaja === 'function') {
+                // Actualizar widget de jornada si esta visible
+                if (vistaActual === 'jornada' && typeof mostrarMiCaja === 'function') {
                     mostrarMiCaja();
                 }
             },
@@ -292,38 +309,39 @@ function configurarEventos() {
 function cambiarVistaVendedor(vista) {
     vistaActual = vista;
 
-    const btnLista = document.getElementById('btn-tab-lista');
-    const btnPedidos = document.getElementById('btn-tab-pedidos');
-    const btnCaja = document.getElementById('btn-tab-caja');
-    const container = document.getElementById('productsContainer');
     const catFilters = document.getElementById('categoryFilters');
     const searchBox = document.getElementById('searchContainer');
 
-    // Reset all tabs
-    [btnLista, btnPedidos, btnCaja].forEach(btn => {
-        if (btn) btn.className = 'flex flex-col items-center gap-1 text-slate-400 transition-colors';
+    // Cerrar sidebar
+    const sidebar = document.getElementById('sidebarMenu');
+    if (sidebar) sidebar.hide();
+
+    // Actualizar estado activo en el sidebar
+    document.querySelectorAll('.sidebar-nav-item').forEach(btn => {
+        btn.classList.remove('sidebar-nav-active');
+        if (btn.dataset.section === vista) btn.classList.add('sidebar-nav-active');
     });
 
     if (vista === 'lista') {
-        btnLista.className = 'flex flex-col items-center gap-1 text-indigo-600 transition-colors';
         searchBox.style.display = '';
         catFilters.style.display = '';
-        // Resetear a vista de categorias
         vistaCatalogo = 'categorias';
         categoriaSeleccionada = null;
         categoriaActual = 'todas';
         document.getElementById('searchInput').value = '';
         mostrarProductos();
     } else if (vista === 'pedidos') {
-        btnPedidos.className = 'flex flex-col items-center gap-1 text-indigo-600 transition-colors';
         catFilters.style.display = 'none';
         searchBox.style.display = 'none';
         mostrarMisPedidos();
-    } else if (vista === 'caja') {
-        if (btnCaja) btnCaja.className = 'flex flex-col items-center gap-1 text-indigo-600 transition-colors';
+    } else if (vista === 'jornada') {
         catFilters.style.display = 'none';
         searchBox.style.display = 'none';
         mostrarMiCaja();
+    } else if (vista === 'config') {
+        catFilters.style.display = 'none';
+        searchBox.style.display = 'none';
+        mostrarConfiguracion();
     }
 }
 

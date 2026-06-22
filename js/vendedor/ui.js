@@ -349,14 +349,6 @@ async function mostrarProductos() {
 async function renderizarCategoriasVendedor(container) {
     container.innerHTML = '';
 
-    // Widget de meta al inicio
-    const metaHtml = typeof generarWidgetMeta === 'function' ? await generarWidgetMeta() : '';
-    if (metaHtml) {
-        const metaDiv = document.createElement('div');
-        metaDiv.innerHTML = metaHtml;
-        container.appendChild(metaDiv);
-    }
-
     // Productos frecuentes del cliente actual
     if (clienteActual) {
         const frecuentes = typeof obtenerProductosFrecuentes === 'function' ? await obtenerProductosFrecuentes(clienteActual.id, 6) : [];
@@ -1271,7 +1263,7 @@ async function mostrarConfiguracion() {
 
         <div class="bg-white rounded-xl p-4 shadow-sm border border-red-200 mb-3">
             <p class="text-xs font-bold text-red-500 uppercase tracking-wider mb-3">Zona de Peligro</p>
-            <sl-button onclick="limpiarTodosDatos()" variant="danger" class="w-full">Borrar Todos Mis Pedidos</sl-button>
+            <sl-button data-action="limpiarTodosDatos" variant="danger" class="w-full">Borrar Todos Mis Pedidos</sl-button>
         </div>
 
         <p class="text-center text-xs text-gray-400 mt-4">HDV Pedidos v3.0 - 2026</p>

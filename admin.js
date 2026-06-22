@@ -1224,6 +1224,7 @@ async function cargarConfigEmpresa() {
             if (preview) { preview.src = data.logo_url; preview.classList.remove('hidden'); }
             if (placeholder) placeholder.classList.add('hidden');
             if (btnQuitar) btnQuitar.classList.remove('hidden');
+            _aplicarLogoHeaders(data.logo_url);
         }
         console.log('[Config Empresa] Datos cargados');
     } catch (e) {
@@ -1265,8 +1266,18 @@ async function guardarConfigEmpresa() {
 }
 
 // ============================================
-// LOGO EMPRESA (para KuDE)
+// LOGO EMPRESA (para KuDE y headers)
 // ============================================
+function _aplicarLogoHeaders(url) {
+    if (!url) return;
+    [['adminSidebarLogo', 'adminSidebarLogoSvg'], ['adminHeaderLogo', 'adminHeaderLogoSvg']].forEach(([imgId, svgId]) => {
+        const img = document.getElementById(imgId);
+        const svg = document.getElementById(svgId);
+        if (img) { img.src = url; img.classList.remove('hidden'); }
+        if (svg) svg.classList.add('hidden');
+    });
+}
+
 async function subirLogoEmpresa(file) {
     if (!file) return;
     const allowed = ['image/jpeg', 'image/png', 'image/webp'];
@@ -1315,6 +1326,7 @@ async function subirLogoEmpresa(file) {
     if (preview) { preview.src = publicUrl; preview.classList.remove('hidden'); }
     if (placeholder) placeholder.classList.add('hidden');
     if (btnQuitar) btnQuitar.classList.remove('hidden');
+    _aplicarLogoHeaders(publicUrl);
 
     mostrarToast('Logo subido. Guardá los datos fiscales para confirmar.', 'success', 5000);
 }

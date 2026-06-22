@@ -115,8 +115,22 @@ window._hdvAppReady = false;
 // ============================================
 // INICIALIZACION
 // ============================================
+async function _cargarLogoVendedor() {
+    try {
+        const { data } = await SupabaseService.fetchConfigEmpresa();
+        if (data?.logo_url) {
+            window._empresaLogoUrl = data.logo_url;
+            const img = document.getElementById('vendorHeaderLogo');
+            const svg = document.getElementById('vendorHeaderLogoSvg');
+            if (img) { img.src = data.logo_url; img.classList.remove('hidden'); }
+            if (svg) svg.classList.add('hidden');
+        }
+    } catch (_e) { /* silencioso si no hay logo configurado */ }
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
     await cargarDatos();
+    _cargarLogoVendedor();
     configurarEventos();
     cargarCarritoGuardado();
     registrarSW();

@@ -1,297 +1,409 @@
 // ============================================
 // HDV Admin — Asistente de Inteligencia de Negocios
-// Chat IA para análisis de rendimiento del negocio.
-// Requiere: supabase-init.js, admin-ventas.js, admin.js
+// Pre-carga todos los datos al iniciar sesión.
+// Requiere: supabase-init.js, services/supabase.js
 // ============================================
 
 (function () {
-    // ── Estado del chat ────────────────────────────────────────────────────
-    let _historial = [];
-    let _cargando  = false;
-    let _iniciado  = false;
+
+    // ── Estado del módulo ──────────────────────────────────────────────────
+    let _historial    = [];
+    let _cargando     = false;
+    let _iniciado     = false;
+    let _cache        = null;   // datos pre-cargados
+    let _cargandoDatos = false;
 
     const SUGERENCIAS = [
-        '¿Cómo fueron las ventas esta semana?',
-        '¿Quién vendió más este mes?',
+        '¿Cómo fueron las ventas este mes?',
+        '¿Quién vendió más?',
         'Top 5 productos más vendidos',
-        '¿Qué clientes tienen más deuda?',
-        'Comparame los vendedores',
+        '¿Qué clientes deben más dinero?',
+        'Comparame este mes con el anterior',
         '¿Cómo vamos contra las metas?',
-        'Productos sin movimiento reciente',
-        'Dame un resumen ejecutivo',
+        '¿Cuánto se cobró en créditos?',
+        'Dame un resumen ejecutivo del negocio',
     ];
 
-    // ── Helpers de formato ─────────────────────────────────────────────────
+    // ── Formato de números ─────────────────────────────────────────────────
     function _fmt(n) {
         return 'Gs. ' + Math.round(n || 0).toLocaleString('es-PY');
     }
-
-    function _fmtCorto(n) {
+    function _fmtM(n) {
         const v = Math.round(n || 0);
         if (v >= 1_000_000) return 'Gs. ' + (v / 1_000_000).toFixed(1) + 'M';
         if (v >= 1_000)     return 'Gs. ' + (v / 1_000).toFixed(0) + 'k';
         return 'Gs. ' + v;
     }
+    function _dias(fecha) {
+        return Math.floor((Date.now() - new Date(fecha || 0).getTime()) / 86_400_000);
+    }
 
-    // ── Context Builder ────────────────────────────────────────────────────
-    async function _construirContexto() {
+    // ── Pre-carga de datos desde Supabase ──────────────────────────────────
+    async function precargarDatosIA() {
+        if (_cargandoDatos) return;
+        _cargandoDatos = true;
         try {
-            const ahora   = new Date();
-            const inicio30 = new Date(ahora.getTime() - 30 * 24 * 60 * 60 * 1000);
-            const inicioMes = new Date(ahora.getFullYear(), ahora.getMonth(), 1);
-            const inicioMesAnt = new Date(ahora.getFullYear(), ahora.getMonth() - 1, 1);
-            const finMesAnt    = new Date(ahora.getFullYear(), ahora.getMonth(), 0);
-
-            // Pedidos desde admin-ventas.js (global todosLosPedidos)
-            const todos = (typeof todosLosPedidos !== 'undefined' ? todosLosPedidos : null) || [];
-
-            const estadosVenta = ['entregado', 'cobrado_sin_factura', 'facturado_mock'];
-            const pedidosMes   = todos.filter(p => {
-                const f = new Date(p.fecha || p.creado_en || 0);
-                return f >= inicioMes && estadosVenta.includes(p.estado);
-            });
-            const pedidosMesAnt = todos.filter(p => {
-                const f = new Date(p.fecha || p.creado_en || 0);
-                return f >= inicioMesAnt && f <= finMesAnt && estadosVenta.includes(p.estado);
-            });
-            const pendientes = todos.filter(p => p.estado === 'pedido_pendiente');
-
-            const totalMes    = pedidosMes.reduce((s, p) => s + (p.datos?.total || p.total || 0), 0);
-            const totalMesAnt = pedidosMesAnt.reduce((s, p) => s + (p.datos?.total || p.total || 0), 0);
-            const ticketProm  = pedidosMes.length ? totalMes / pedidosMes.length : 0;
-            const totalPend   = pendientes.reduce((s, p) => s + (p.datos?.total || p.total || 0), 0);
-
-            let comparativa = null;
-            if (totalMesAnt > 0) {
-                const diff = ((totalMes - totalMesAnt) / totalMesAnt * 100).toFixed(1);
-                comparativa = diff >= 0 ? `+${diff}%` : `${diff}%`;
-            }
-
-            const periodoLabel = `${inicioMes.toLocaleDateString('es-PY', { month: 'long', year: 'numeric' })} (mes actual)`;
-
-            // Ventas por vendedor
-            const mapaVend = typeof _vendedoresMap !== 'undefined' ? _vendedoresMap : {};
-            const vendMap  = {};
-            pedidosMes.forEach(p => {
-                const vid  = p.vendedor_id || 'desconocido';
-                const nom  = mapaVend[vid] || vid.substring(0, 8) + '...';
-                const tot  = p.datos?.total || p.total || 0;
-                if (!vendMap[vid]) vendMap[vid] = { nombre: nom, total: 0, cantidad: 0 };
-                vendMap[vid].total    += tot;
-                vendMap[vid].cantidad += 1;
+            // 1. Pedidos (todos, hasta 5000)
+            const { data: pedidosRaw } = await SupabaseService.fetchPedidos(5000, 0);
+            const pedidos = (pedidosRaw || []).map(p => {
+                // Normalizar: algunos campos vienen en .datos JSONB, otros al nivel raíz
+                const d = p.datos || {};
+                return {
+                    id:          p.id,
+                    estado:      p.estado || d.estado,
+                    fecha:       p.fecha   || d.fecha || p.creado_en,
+                    vendedor_id: p.vendedor_id || d.vendedor_id,
+                    total:       d.total    || p.total    || 0,
+                    tipoPago:    d.tipoPago || p.tipoPago || '',
+                    cliente:     d.cliente  || p.cliente  || {},
+                    items:       d.items    || p.items    || [],
+                    creado_en:   p.creado_en,
+                };
             });
 
-            // Metas
-            let metas = null;
+            // 2. Vendedores
+            let vendMap = {};
             try {
-                metas = await HDVStorage.getItem('hdv_metas', { clone: false });
+                const { data: perfiles } = await supabaseClient
+                    .from('perfiles')
+                    .select('id, nombre_completo')
+                    .eq('rol', 'vendedor');
+                (perfiles || []).forEach(p => { vendMap[p.id] = p.nombre_completo; });
             } catch (_) {}
 
-            const vendedoresArr = Object.values(vendMap)
-                .sort((a, b) => b.total - a.total)
-                .map(v => {
-                    const obj = {
-                        nombre:     v.nombre,
-                        total_fmt:  _fmt(v.total),
-                        cantidad:   v.cantidad,
-                        ticket_fmt: _fmt(v.total / v.cantidad),
-                    };
-                    if (metas && metas[Object.keys(vendMap).find(k => mapaVend[k] === v.nombre)]) {
-                        const meta = metas[Object.keys(vendMap).find(k => mapaVend[k] === v.nombre)];
-                        obj.meta_pct = meta.objetivo > 0
-                            ? Math.round((v.total / meta.objetivo) * 100) : null;
-                    }
-                    return obj;
-                });
-
-            // Top productos (últimos 30 días)
-            const pedidos30 = todos.filter(p => {
-                const f = new Date(p.fecha || p.creado_en || 0);
-                return f >= inicio30 && estadosVenta.includes(p.estado);
-            });
-            const prodMap = {};
-            pedidos30.forEach(p => {
-                (p.datos?.items || p.items || []).forEach(it => {
-                    const key = `${it.productoId}|${it.nombre}`;
-                    if (!prodMap[key]) prodMap[key] = { nombre: it.nombre, unidades: 0, total: 0 };
-                    prodMap[key].unidades += (it.cantidad || 0);
-                    prodMap[key].total    += (it.subtotal || 0);
-                });
-            });
-            const topProductos = Object.values(prodMap)
-                .sort((a, b) => b.total - a.total)
-                .slice(0, 10)
-                .map(p => ({ nombre: p.nombre, unidades: p.unidades, total_fmt: _fmtCorto(p.total) }));
-
-            // Clientes deudores (créditos)
-            let deudores = [];
+            // 3. Créditos manuales
+            let creditosManuales = [];
             try {
-                const creditos = await HDVStorage.getItem('hdv_creditos_manuales', { clone: false }) || {};
-                const pagos    = await HDVStorage.getItem('hdv_pagos_credito',     { clone: false }) || {};
+                const { data: cfgC } = await SupabaseService.fetchConfig('creditos_manuales');
+                creditosManuales = Array.isArray(cfgC?.datos) ? cfgC.datos : [];
+            } catch (_) {}
 
-                const clientesMap = {};
-                if (typeof productosData !== 'undefined' && productosData?.clientes) {
+            // 4. Pagos de crédito (de pedidos)
+            let pagosCredito = [];
+            try {
+                const { data: cfgP } = await SupabaseService.fetchConfig('pagos_credito');
+                pagosCredito = Array.isArray(cfgP?.datos) ? cfgP.datos : [];
+            } catch (_) {}
+
+            // 5. Metas
+            let metas = [];
+            try {
+                const { data: cfgM } = await SupabaseService.fetchConfig('metas_vendedor');
+                metas = Array.isArray(cfgM?.datos) ? cfgM.datos : [];
+            } catch (_) {}
+
+            // 6. Clientes (de productosData si está disponible)
+            let clientesMap = {};
+            try {
+                if (typeof productosData !== 'undefined' && Array.isArray(productosData.clientes)) {
                     productosData.clientes.forEach(c => { clientesMap[c.id] = c.nombre; });
                 }
-
-                deudores = Object.entries(creditos)
-                    .map(([cid, arr]) => {
-                        const deuda = (Array.isArray(arr) ? arr : []).reduce((s, cr) => {
-                            if (cr.estado === 'activo' || !cr.estado) return s + (cr.monto || 0);
-                            return s;
-                        }, 0);
-                        const pagado = (pagos[cid] || []).reduce((s, pg) => s + (pg.monto || 0), 0);
-                        return {
-                            nombre:    clientesMap[cid] || cid,
-                            deuda_neta: Math.max(0, deuda - pagado),
-                            deuda_fmt:  _fmt(Math.max(0, deuda - pagado)),
-                        };
-                    })
-                    .filter(d => d.deuda_neta > 0)
-                    .sort((a, b) => b.deuda_neta - a.deuda_neta)
-                    .slice(0, 10);
             } catch (_) {}
 
-            // Alertas automáticas
-            const alertas = [];
-            if (totalMesAnt > 0 && totalMes < totalMesAnt * 0.8) {
-                alertas.push(`Caída de ventas del ${Math.round((1 - totalMes / totalMesAnt) * 100)}% vs el mes anterior.`);
-            }
-            if (pendientes.length > 10) {
-                alertas.push(`${pendientes.length} pedidos pendientes sin procesar por ${_fmtCorto(totalPend)}.`);
-            }
-            if (deudores.length > 0 && deudores[0].deuda_neta > 1_000_000) {
-                alertas.push(`Cliente con mayor deuda: ${deudores[0].nombre} — ${deudores[0].deuda_fmt}.`);
+            _cache = { pedidos, vendMap, creditosManuales, pagosCredito, metas, clientesMap, ts: Date.now() };
+
+            // Sincronizar _vendedoresMap global de admin-ventas si existe
+            if (typeof _vendedoresMap !== 'undefined') {
+                Object.assign(vendMap, _vendedoresMap);
             }
 
-            return {
-                periodo: periodoLabel,
-                resumen: {
-                    total_fmt:           _fmt(totalMes),
-                    cantidad:            pedidosMes.length,
-                    ticket_fmt:          _fmt(ticketProm),
-                    pendientes_cantidad: pendientes.length,
-                    pendientes_fmt:      _fmt(totalPend),
-                    comparativa,
-                },
-                vendedores:       vendedoresArr,
-                top_productos:    topProductos,
-                clientes_deudores: deudores,
-                alertas,
-            };
+            console.log(`[AI] Datos pre-cargados: ${pedidos.length} pedidos, ${creditosManuales.length} créditos manuales, ${pagosCredito.length} pagos`);
         } catch (e) {
-            console.warn('[ai-assistant] Error construyendo contexto:', e);
-            return {};
+            console.warn('[AI] Error en precarga:', e);
+        } finally {
+            _cargandoDatos = false;
         }
+    }
+
+    // ── Context Builder ────────────────────────────────────────────────────
+    function _construirContexto() {
+        if (!_cache) return {};
+
+        const { pedidos, vendMap, creditosManuales, pagosCredito, metas, clientesMap } = _cache;
+        const ahora = new Date();
+        const mesActual  = ahora.toISOString().slice(0, 7);
+        const mesAnterior = new Date(ahora.getFullYear(), ahora.getMonth() - 1, 1).toISOString().slice(0, 7);
+
+        const estadosVenta = ['entregado', 'cobrado_sin_factura', 'facturado_mock'];
+
+        // Pedidos del mes actual (vendidos)
+        const pedMes = pedidos.filter(p =>
+            (p.fecha || '').startsWith(mesActual) && estadosVenta.includes(p.estado)
+        );
+        // Pedidos del mes anterior
+        const pedMesAnt = pedidos.filter(p =>
+            (p.fecha || '').startsWith(mesAnterior) && estadosVenta.includes(p.estado)
+        );
+        // Pendientes
+        const pedPend = pedidos.filter(p => p.estado === 'pedido_pendiente');
+
+        const totalMes    = pedMes.reduce((s, p) => s + p.total, 0);
+        const totalMesAnt = pedMesAnt.reduce((s, p) => s + p.total, 0);
+        const ticketProm  = pedMes.length ? totalMes / pedMes.length : 0;
+        const totalPend   = pedPend.reduce((s, p) => s + p.total, 0);
+
+        let comparativa = null;
+        if (totalMesAnt > 0) {
+            const diff = ((totalMes - totalMesAnt) / totalMesAnt * 100).toFixed(1);
+            comparativa = (diff >= 0 ? '+' : '') + diff + '%';
+        }
+
+        // ── Ventas por vendedor ────────────────────────────────────────────
+        const vendAcc = {};
+        pedMes.forEach(p => {
+            const vid = p.vendedor_id || 'desconocido';
+            if (!vendAcc[vid]) vendAcc[vid] = { nombre: vendMap[vid] || 'Vendedor ' + vid.slice(0, 6), total: 0, cantidad: 0 };
+            vendAcc[vid].total    += p.total;
+            vendAcc[vid].cantidad += 1;
+        });
+
+        // Metas del mes actual por vendedor
+        const metasMes = metas.filter(m => m.mes === mesActual && m.activa);
+        const metaMap  = {};
+        metasMes.forEach(m => { metaMap[m.vendedor_id] = m; });
+
+        const vendedores = Object.entries(vendAcc)
+            .sort((a, b) => b[1].total - a[1].total)
+            .map(([vid, v]) => {
+                const obj = {
+                    nombre:     v.nombre,
+                    total_fmt:  _fmt(v.total),
+                    cantidad:   v.cantidad,
+                    ticket_fmt: _fmt(v.total / v.cantidad),
+                };
+                if (metaMap[vid]) {
+                    obj.meta_objetivo = _fmt(metaMap[vid].monto);
+                    obj.meta_pct = metaMap[vid].monto > 0
+                        ? Math.round((v.total / metaMap[vid].monto) * 100) : null;
+                }
+                return obj;
+            });
+
+        // ── Top productos (últimos 30 días) ────────────────────────────────
+        const hace30 = new Date(ahora.getTime() - 30 * 86_400_000);
+        const prodAcc = {};
+        pedidos
+            .filter(p => new Date(p.fecha || p.creado_en || 0) >= hace30 && estadosVenta.includes(p.estado))
+            .forEach(p => {
+                (p.items || []).forEach(it => {
+                    const k = it.nombre || it.productoId;
+                    if (!prodAcc[k]) prodAcc[k] = { nombre: k, unidades: 0, total: 0 };
+                    prodAcc[k].unidades += (it.cantidad || 0);
+                    prodAcc[k].total    += (it.subtotal || 0);
+                });
+            });
+        const topProductos = Object.values(prodAcc)
+            .sort((a, b) => b.total - a.total)
+            .slice(0, 10)
+            .map(p => ({ nombre: p.nombre, unidades: p.unidades, total_fmt: _fmtM(p.total) }));
+
+        // ── Créditos: deuda por cliente ────────────────────────────────────
+        const deudaMap = {};
+
+        // Créditos de pedidos
+        pedidos
+            .filter(p => p.tipoPago === 'credito' && p.estado !== 'anulado' && p.estado !== 'pagado')
+            .forEach(p => {
+                const pagado = pagosCredito
+                    .filter(pg => pg.pedidoId === p.id)
+                    .reduce((s, pg) => s + (pg.monto || 0), 0);
+                const saldo = p.total - pagado;
+                if (saldo <= 0) return;
+                const cid = p.cliente?.id || 'sin-cliente';
+                const nom = p.cliente?.nombre || clientesMap[cid] || cid;
+                if (!deudaMap[cid]) deudaMap[cid] = { nombre: nom, deuda: 0, diasMax: 0, tipo: 'pedido' };
+                deudaMap[cid].deuda   += saldo;
+                deudaMap[cid].diasMax  = Math.max(deudaMap[cid].diasMax, _dias(p.fecha));
+            });
+
+        // Créditos manuales
+        creditosManuales
+            .filter(c => !c.eliminado && !c.pagado)
+            .forEach(c => {
+                const pagado = (c.pagos || []).reduce((s, pg) => s + (pg.monto || 0), 0);
+                const saldo  = (c.monto || 0) - pagado;
+                if (saldo <= 0) return;
+                const cid = c.clienteId || 'manual';
+                const nom = clientesMap[cid] || c.nombre || c.cliente || 'Crédito manual';
+                if (!deudaMap[cid]) deudaMap[cid] = { nombre: nom, deuda: 0, diasMax: 0, tipo: 'manual' };
+                deudaMap[cid].deuda   += saldo;
+                deudaMap[cid].diasMax  = Math.max(deudaMap[cid].diasMax, _dias(c.fecha));
+            });
+
+        const deudores = Object.values(deudaMap)
+            .filter(d => d.deuda > 0)
+            .sort((a, b) => b.deuda - a.deuda)
+            .slice(0, 15)
+            .map(d => ({
+                nombre:    d.nombre,
+                deuda_fmt: _fmt(d.deuda),
+                dias:      d.diasMax,
+                tipo:      d.tipo,
+            }));
+
+        const totalDeuda = Object.values(deudaMap).reduce((s, d) => s + d.deuda, 0);
+
+        // ── Metas resumen ──────────────────────────────────────────────────
+        const metasResumen = metasMes.map(m => {
+            const vid = m.vendedor_id;
+            const realMes = (vendAcc[vid]?.total || 0);
+            return {
+                vendedor:       vendMap[vid] || 'Vendedor',
+                objetivo_fmt:   _fmt(m.monto),
+                real_fmt:       _fmt(realMes),
+                pct:            m.monto > 0 ? Math.round((realMes / m.monto) * 100) : 0,
+                comision_fmt:   _fmt(realMes * ((m.comision || 0) / 100)),
+            };
+        });
+
+        // ── Alertas automáticas ────────────────────────────────────────────
+        const alertas = [];
+        if (totalMesAnt > 0 && totalMes < totalMesAnt * 0.85) {
+            const caida = Math.round((1 - totalMes / totalMesAnt) * 100);
+            alertas.push(`Caída de ventas del ${caida}% respecto al mes anterior.`);
+        }
+        if (pedPend.length >= 10) {
+            alertas.push(`${pedPend.length} pedidos pendientes acumulados por ${_fmtM(totalPend)}.`);
+        }
+        if (deudores.length > 0 && deudores[0].deuda > 500_000) {
+            alertas.push(`Mayor deudor: ${deudores[0].nombre} — ${deudores[0].deuda_fmt} (${deudores[0].dias} días).`);
+        }
+        metasResumen.forEach(m => {
+            if (m.pct < 50 && ahora.getDate() >= 15) {
+                alertas.push(`${m.vendedor} lleva solo el ${m.pct}% de su meta a mitad de mes.`);
+            }
+        });
+
+        const periodoLabel = ahora.toLocaleDateString('es-PY', { month: 'long', year: 'numeric' });
+
+        return {
+            periodo: periodoLabel,
+            resumen: {
+                total_fmt:           _fmt(totalMes),
+                cantidad:            pedMes.length,
+                ticket_fmt:          _fmt(ticketProm),
+                pendientes_cantidad: pedPend.length,
+                pendientes_fmt:      _fmt(totalPend),
+                comparativa,
+                mes_anterior_fmt:    totalMesAnt > 0 ? _fmt(totalMesAnt) : null,
+            },
+            vendedores,
+            top_productos: topProductos,
+            clientes_deudores: deudores,
+            total_deuda_fmt:   _fmt(totalDeuda),
+            metas: metasResumen,
+            alertas,
+        };
     }
 
     // ── Renderizado de mensajes ────────────────────────────────────────────
     function _mdToHtml(texto) {
-        return texto
-            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        return escapeHTML(texto)
             .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
             .replace(/\*(.+?)\*/g, '<em>$1</em>')
             .replace(/^### (.+)$/gm, '<p class="font-semibold text-gray-800 mt-2 mb-0.5">$1</p>')
             .replace(/^## (.+)$/gm, '<p class="font-bold text-gray-900 mt-2">$1</p>')
-            .replace(/^- (.+)$/gm, '<li class="ml-3">• $1</li>')
-            .replace(/(<li.*<\/li>\n?)+/g, m => `<ul class="space-y-0.5 my-1">${m}</ul>`)
-            .replace(/\n{2,}/g, '</p><p class="mt-1">')
+            .replace(/^- (.+)$/gm, '<li class="ml-3 list-disc">$1</li>')
+            .replace(/(<li[\s\S]*?<\/li>\n?)+/g, m => `<ul class="space-y-0.5 my-1 ml-2">${m}</ul>`)
+            .replace(/\n{2,}/g, '</p><p class="mt-1.5">')
             .replace(/\n/g, '<br>');
     }
 
     function _agregarMensaje(rol, contenido) {
-        const contenedor = document.getElementById('aiChatMessages');
-        if (!contenedor) return;
-
+        const cont = document.getElementById('aiChatMessages');
+        if (!cont) return;
         const isUser = rol === 'user';
         const div = document.createElement('div');
-        div.className = `flex ${isUser ? 'justify-end' : 'justify-start'} gap-2`;
+        div.className = `flex ${isUser ? 'justify-end' : 'justify-start'} gap-2 items-end`;
 
-        if (!isUser) {
+        if (isUser) {
             div.innerHTML = `
-                <div class="w-6 h-6 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shrink-0 mt-0.5">
-                    <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-                    </svg>
-                </div>
-                <div class="max-w-[85%] rounded-2xl rounded-tl-sm bg-white border border-gray-100 shadow-sm px-3.5 py-2.5 text-sm text-gray-700 leading-relaxed ai-msg-content">
-                    ${_mdToHtml(contenido)}
+                <div style="max-width:85%; background:#4f46e5; color:#fff; border-radius:16px 16px 4px 16px;"
+                    class="px-3 py-2 text-sm leading-relaxed">
+                    ${escapeHTML(contenido).replace(/\n/g, '<br>')}
                 </div>`;
         } else {
             div.innerHTML = `
-                <div class="max-w-[85%] rounded-2xl rounded-tr-sm bg-indigo-600 px-3.5 py-2.5 text-sm text-white leading-relaxed">
-                    ${escapeHTML(contenido).replace(/\n/g, '<br>')}
+                <div style="width:24px;height:24px;border-radius:8px;background:linear-gradient(135deg,#6366f1,#9333ea);flex-shrink:0;"
+                    class="flex items-center justify-center mb-0.5">
+                    <svg style="width:12px;height:12px;color:#fff;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    </svg>
+                </div>
+                <div style="max-width:85%;background:#fff;border:1px solid #e5e7eb;border-radius:4px 16px 16px 16px;"
+                    class="shadow-sm px-3.5 py-2.5 text-sm text-gray-700 leading-relaxed">
+                    <p>${_mdToHtml(contenido)}</p>
                 </div>`;
         }
 
-        contenedor.appendChild(div);
-        contenedor.scrollTop = contenedor.scrollHeight;
+        cont.appendChild(div);
+        cont.scrollTop = cont.scrollHeight;
     }
 
     function _mostrarTyping() {
-        const contenedor = document.getElementById('aiChatMessages');
-        if (!contenedor) return;
+        const cont = document.getElementById('aiChatMessages');
+        if (!cont) return;
         const div = document.createElement('div');
-        div.id = 'aiTypingIndicator';
-        div.className = 'flex justify-start gap-2';
+        div.id = 'aiTypingDot';
+        div.className = 'flex justify-start gap-2 items-end';
         div.innerHTML = `
-            <div class="w-6 h-6 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shrink-0 mt-0.5">
-                <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+            <div style="width:24px;height:24px;border-radius:8px;background:linear-gradient(135deg,#6366f1,#9333ea);"
+                class="flex items-center justify-center shrink-0">
+                <svg style="width:12px;height:12px;color:#fff;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                 </svg>
             </div>
-            <div class="rounded-2xl rounded-tl-sm bg-white border border-gray-100 shadow-sm px-4 py-3 flex gap-1 items-center">
-                <span class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style="animation-delay:0ms"></span>
-                <span class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style="animation-delay:150ms"></span>
-                <span class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style="animation-delay:300ms"></span>
+            <div style="background:#fff;border:1px solid #e5e7eb;border-radius:4px 16px 16px 16px;"
+                class="shadow-sm px-4 py-3 flex gap-1 items-center">
+                <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay:0ms"></span>
+                <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay:150ms"></span>
+                <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay:300ms"></span>
             </div>`;
-        contenedor.appendChild(div);
-        contenedor.scrollTop = contenedor.scrollHeight;
+        cont.appendChild(div);
+        cont.scrollTop = cont.scrollHeight;
     }
 
-    function _quitarTyping() {
-        document.getElementById('aiTypingIndicator')?.remove();
-    }
+    function _quitarTyping() { document.getElementById('aiTypingDot')?.remove(); }
 
     function _mostrarSugerencias() {
         const div = document.getElementById('aiChatSugerencias');
         if (!div) return;
-        div.innerHTML = `<p class="text-[10px] text-gray-400 font-semibold uppercase tracking-wide mb-2">Preguntas frecuentes</p>
-            <div class="flex flex-wrap gap-1.5">
-                ${SUGERENCIAS.map(s =>
-                    `<button class="ai-sugerencia text-[11px] bg-gray-100 hover:bg-indigo-50 hover:text-indigo-700 text-gray-600 px-2.5 py-1 rounded-full transition-colors border border-transparent hover:border-indigo-200"
-                        data-sugerencia="${escapeHTML(s)}">${escapeHTML(s)}</button>`
-                ).join('')}
+        div.innerHTML = `
+            <p style="font-size:10px;color:#9ca3af;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:6px;">Preguntas frecuentes</p>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;">
+                ${SUGERENCIAS.map(s => `
+                    <button class="ai-sug" data-sug="${escapeHTML(s)}"
+                        style="font-size:11px;background:#f3f4f6;color:#4b5563;padding:4px 10px;border-radius:999px;border:1px solid transparent;cursor:pointer;transition:all .15s;"
+                        onmouseover="this.style.background='#eef2ff';this.style.color='#4338ca';this.style.borderColor='#c7d2fe';"
+                        onmouseout="this.style.background='#f3f4f6';this.style.color='#4b5563';this.style.borderColor='transparent';">
+                        ${escapeHTML(s)}
+                    </button>`).join('')}
             </div>`;
         div.classList.remove('hidden');
-    }
-
-    function _ocultarSugerencias() {
-        document.getElementById('aiChatSugerencias')?.classList.add('hidden');
     }
 
     // ── Enviar mensaje ─────────────────────────────────────────────────────
     async function enviarMensajeIA(textoForzado) {
         if (_cargando) return;
-
-        const input = document.getElementById('aiChatInput');
+        const input    = document.getElementById('aiChatInput');
         const pregunta = (textoForzado || input?.value || '').trim();
         if (!pregunta) return;
-
-        if (input) input.value = '';
-        _actualizarBotonEnviar(false);
-        _ocultarSugerencias();
+        if (input) { input.value = ''; input.style.height = 'auto'; }
+        document.getElementById('aiChatSugerencias')?.classList.add('hidden');
         _agregarMensaje('user', pregunta);
         _historial.push({ role: 'user', content: pregunta });
-
         _cargando = true;
+        document.getElementById('aiChatSend').disabled = true;
         _mostrarTyping();
 
         try {
+            // Refrescar caché si tiene más de 5 minutos
+            if (!_cache || (Date.now() - _cache.ts) > 300_000) await precargarDatosIA();
+
             const { data: { session } } = await supabaseClient.auth.getSession();
             if (!session) throw new Error('Sesión expirada.');
 
-            const contexto = await _construirContexto();
+            const contexto = _construirContexto();
 
             const res = await fetch(`${SUPABASE_URL}/functions/v1/ai-assistant`, {
                 method: 'POST',
@@ -302,13 +414,12 @@
                 },
                 body: JSON.stringify({
                     pregunta,
-                    historial: _historial.slice(0, -1),
+                    historial: _historial.slice(0, -1).slice(-10),
                     contexto,
                 }),
             });
 
             const data = await res.json();
-
             _quitarTyping();
 
             if (data.error) {
@@ -319,45 +430,43 @@
             }
         } catch (e) {
             _quitarTyping();
-            _agregarMensaje('assistant', '⚠️ No pude conectar con el asistente. Verificá tu conexión e intentá de nuevo.');
+            _agregarMensaje('assistant', '⚠️ No pude conectar. Verificá tu conexión e intentá de nuevo.');
             console.error('[ai-assistant]', e);
         } finally {
             _cargando = false;
-            _actualizarBotonEnviar(true);
+            document.getElementById('aiChatSend').disabled = false;
         }
     }
 
-    // ── Análisis proactivo al abrir ────────────────────────────────────────
+    // ── Análisis proactivo ─────────────────────────────────────────────────
     async function _analisisProactivo() {
-        const ctx = await _construirContexto();
-        if (!ctx.alertas?.length && !ctx.resumen) return;
+        if (!_cache) await precargarDatosIA();
+        const ctx = _construirContexto();
+        if (!ctx.resumen) return;
 
-        let intro = '¡Hola! Analicé los datos del negocio. ';
+        let msg = '¡Hola! Analicé los datos del negocio.\n\n';
+        msg += `**Ventas de ${ctx.periodo}:** ${ctx.resumen.total_fmt} (${ctx.resumen.cantidad} pedidos`;
+        if (ctx.resumen.comparativa) msg += `, **${ctx.resumen.comparativa}** vs el mes anterior`;
+        msg += `). Ticket promedio: ${ctx.resumen.ticket_fmt}.\n\n`;
 
         if (ctx.alertas?.length) {
-            intro += `Detecté **${ctx.alertas.length} alerta(s)**:\n`;
-            ctx.alertas.forEach(a => { intro += `- ${a}\n`; });
-            intro += '\n';
-        } else {
-            intro += 'Todo parece estar en orden. ';
+            msg += `**${ctx.alertas.length} alerta(s) detectada(s):**\n`;
+            ctx.alertas.forEach(a => { msg += `- ${a}\n`; });
+            msg += '\n';
         }
 
-        if (ctx.resumen) {
-            intro += `**Ventas del mes:** ${ctx.resumen.total_fmt} (${ctx.resumen.cantidad} pedidos`;
-            if (ctx.resumen.comparativa) intro += `, ${ctx.resumen.comparativa} vs el mes anterior`;
-            intro += ').\n\nPodés preguntarme lo que necesites.';
+        if (ctx.clientes_deudores?.length) {
+            msg += `**Deuda total en créditos:** ${ctx.total_deuda_fmt} (${ctx.clientes_deudores.length} cliente(s)).\n\n`;
         }
 
-        _agregarMensaje('assistant', intro);
-        _historial.push({ role: 'assistant', content: intro });
+        msg += 'Podés preguntarme lo que necesites sobre ventas, créditos, metas o productos.';
+        _agregarMensaje('assistant', msg);
+        _historial.push({ role: 'assistant', content: msg });
     }
 
     // ── Abrir / cerrar / resetear ──────────────────────────────────────────
     function abrirChatIA() {
-        const drawer = document.getElementById('aiChatDrawer');
-        if (!drawer) return;
-        drawer.show();
-
+        document.getElementById('aiChatDrawer')?.show();
         if (!_iniciado) {
             _iniciado = true;
             _mostrarSugerencias();
@@ -365,76 +474,52 @@
         }
     }
 
-    function cerrarChatIA() {
-        document.getElementById('aiChatDrawer')?.hide();
-    }
+    function cerrarChatIA() { document.getElementById('aiChatDrawer')?.hide(); }
 
     function nuevaConversacionIA() {
         _historial = [];
-        const contenedor = document.getElementById('aiChatMessages');
-        if (contenedor) contenedor.innerHTML = '';
+        const cont = document.getElementById('aiChatMessages');
+        if (cont) cont.innerHTML = '';
         _mostrarSugerencias();
         _analisisProactivo();
     }
 
-    // ── Helpers UI ─────────────────────────────────────────────────────────
-    function _actualizarBotonEnviar(habilitado) {
-        const btn = document.getElementById('aiChatSend');
-        if (btn) btn.disabled = !habilitado;
-    }
-
-    function _autoResize(textarea) {
-        textarea.style.height = 'auto';
-        textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
-    }
-
     // ── Init: adjuntar listeners ───────────────────────────────────────────
     function _init() {
-        const drawer  = document.getElementById('aiChatDrawer');
         const input   = document.getElementById('aiChatInput');
         const sendBtn = document.getElementById('aiChatSend');
-        const nuevoBtn = document.getElementById('aiChatNuevoBtn');
-        const cerrarBtn = document.getElementById('aiChatCerrarBtn');
-
-        if (!drawer) return;
 
         if (input) {
-            input.addEventListener('input', () => _autoResize(input));
-            input.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    enviarMensajeIA();
-                }
+            input.addEventListener('input', () => {
+                input.style.height = 'auto';
+                input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+            });
+            input.addEventListener('keydown', e => {
+                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviarMensajeIA(); }
             });
         }
+        if (sendBtn) sendBtn.addEventListener('click', () => enviarMensajeIA());
 
-        if (sendBtn) {
-            sendBtn.addEventListener('click', () => enviarMensajeIA());
-        }
+        document.getElementById('aiChatNuevoBtn')?.addEventListener('click', () => nuevaConversacionIA());
+        document.getElementById('aiChatCerrarBtn')?.addEventListener('click', () => cerrarChatIA());
 
-        if (nuevoBtn) {
-            nuevoBtn.addEventListener('click', () => nuevaConversacionIA());
-        }
+        // Chips de sugerencias
+        document.getElementById('aiChatSugerencias')?.addEventListener('click', e => {
+            const chip = e.target.closest('.ai-sug');
+            if (chip) enviarMensajeIA(chip.dataset.sug);
+        });
 
-        if (cerrarBtn) {
-            cerrarBtn.addEventListener('click', () => cerrarChatIA());
-        }
-
-        // Chips de sugerencias (delegación desde contenedor)
-        const sugerDiv = document.getElementById('aiChatSugerencias');
-        if (sugerDiv) {
-            sugerDiv.addEventListener('click', (e) => {
-                const chip = e.target.closest('.ai-sugerencia');
-                if (chip) enviarMensajeIA(chip.dataset.sugerencia);
-            });
-        }
+        // Pre-cargar datos en background al cargar el módulo
+        setTimeout(precargarDatosIA, 2000);
     }
 
     // ── Exponer globales ───────────────────────────────────────────────────
-    window.abrirChatIA   = abrirChatIA;
-    window.cerrarChatIA  = cerrarChatIA;
+    window.abrirChatIA         = abrirChatIA;
+    window.cerrarChatIA        = cerrarChatIA;
     window.nuevaConversacionIA = nuevaConversacionIA;
     window.enviarMensajeIA     = enviarMensajeIA;
+    window.precargarDatosIA    = precargarDatosIA;
 
     document.addEventListener('DOMContentLoaded', _init);
+
 })();

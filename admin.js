@@ -86,6 +86,7 @@ const ACTION_DISPATCH = {
     'toggleSidebar':                    ()     => toggleSidebar(),
     'cerrarBusquedaGlobal':             ()     => cerrarBusquedaGlobal(),
     'abrirBusquedaGlobal':              ()     => abrirBusquedaGlobal(),
+    'abrirChatIA':                      ()     => typeof abrirChatIA === 'function' && abrirChatIA(),
     'forzarActualizacionAdmin':         ()     => forzarActualizacionAdmin(),
     'cerrarSesion':                     ()     => cerrarSesion(),
 

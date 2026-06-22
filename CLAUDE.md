@@ -49,7 +49,7 @@ PWA mobile-first para vendedores de calle + panel admin de escritorio.
 ├── js/utils/kude-generator.js → Generador KuDE PDF: generarKudePDF(pedidoId) abre blob HTML con layout fiel a e-Kuatia'i (encabezado empresa+logo, receptor, tabla items IVA, footer QR+CDC). Requiere ventas-data.js, sanitizer.js. Logo embebido como base64 via fetch(). QR via QRCode.js cargado dinamicamente.
 ├── js/utils/printer.js     → Impresion de tickets de trabajo INTERNOS (vendedor app.js, admin pedidos.js). NO se usa para documentos cliente.
 ├── js/utils/pdf-generator.js → Generacion de PDFs con jsPDF
-├── js/vendedor/ui.js       → UI del vendedor (catalogo visual, navegacion, historial cliente, Mi Caja). mostrarHistorialCliente(clienteId), cerrarHistorialCliente(), mostrarMiCaja() [toggle Hoy/Semana via _vistaCajaModo], _renderResumenHoy(), _renderResumenSemana(), setCajaModo(modo).
+├── js/vendedor/ui.js       → UI del vendedor (catalogo visual, sidebar nav, historial cliente, Mi Jornada). mostrarHistorialCliente(clienteId), cerrarHistorialCliente(), mostrarMiCaja() [vista Mi Jornada — toggle Hoy/Semana via _vistaCajaModo], _renderResumenHoy(), _renderResumenSemana(), setCajaModo(modo), mostrarConfiguracion().
 ├── js/vendedor/cart.js     → Logica de carrito del vendedor
 ├── js/vendedor/cobros.js   → Cobros en campo: abrirCobrosCliente(clienteId), cerrarCobrosDrawer(), registrarPagoCobro(pedidoId), cobrarTodoEfectivo(clienteId). Bottom sheet con aging de deuda, sync atomico hdv_pagos_credito.
 ├── js/admin/pedidos.js     → Modulo admin: pedidos con filtros vendedor/estado, badges fraude/tipo/editado, desglose IVA, CSV enriquecido
@@ -393,7 +393,7 @@ Bucket `productos_img` (Supabase Storage). Compresion Canvas → WebP 800px max.
 - `mostrarInputModal(opciones)` — sl-dialog dinamico con campos (text, number, select, select-search, textarea), retorna Promise<datos|null>
 
 **Componentes intencionalmente nativos (NO migrar a Shoelace):**
-- **Bottom nav tabs** (index.html, 4 botones): tab bar mobile con FAB cart elevado. sl-button lucha contra el layout custom de navegacion fija.
+- **FAB carrito** (index.html): div fixed centrado en bottom con pointer-events-none, button `#viewCartBtn` con pointer-events-auto. No usar nav bar — el bottom nav de 4 tabs fue eliminado.
 - **Sidebar nav items** (admin.html, 16 botones): nav items con CSS hover/active custom. sl-menu es para dropdowns, no para navegacion persistente.
 - **Product cards** (ui.js): 100+ cards con lazy-load, IntersectionObserver, chunked rendering. sl-card agrega Shadow DOM que complica queries y pesa mas.
 - **Status badges en pedidos** (pedidos.js): 6+ estados con colores Tailwind custom. sl-badge solo tiene 5 variantes predefinidas — insuficiente granularidad.

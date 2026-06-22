@@ -81,6 +81,7 @@ async function abrirCobrosCliente(clienteId) {
     const filasPedidos = pedidosCredito.map(p => {
         const saldo = _calcularSaldoPedido(p, allPagos);
         const totalPagado = (p.total || 0) - saldo;
+        const pct = p.total > 0 ? Math.min(100, Math.round((totalPagado / p.total) * 100)) : 0;
         const aging = _badgeAging(p.fecha);
         const fechaStr = new Date(p.fecha).toLocaleDateString('es-PY');
         return `<div class="bg-white border border-slate-100 rounded-xl p-3 mb-2 shadow-sm">
@@ -92,12 +93,18 @@ async function abrirCobrosCliente(clienteId) {
                 </div>
                 <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${aging.clase}">${aging.texto}</span>
             </div>
-            ${totalPagado > 0 ? `<div class="flex justify-between text-[11px] text-gray-500 mb-1">
-                <span>Ya pagó:</span><span class="text-green-600 font-medium">${formatearGuaranies(totalPagado)}</span>
-            </div>` : ''}
+            <div class="mb-2">
+                <div class="flex justify-between text-[10px] text-gray-400 mb-1">
+                    <span>${totalPagado > 0 ? `Pagado: ${formatearGuaranies(totalPagado)}` : 'Sin pagos'}</span>
+                    <span class="font-bold ${pct >= 100 ? 'text-green-600' : pct > 0 ? 'text-amber-600' : 'text-gray-400'}">${pct}%</span>
+                </div>
+                <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                    <div class="h-2 rounded-full transition-all duration-500 ${pct >= 100 ? 'bg-green-500' : pct >= 50 ? 'bg-amber-400' : 'bg-red-400'}" style="width:${pct}%"></div>
+                </div>
+            </div>
             <div class="flex justify-between text-[11px] font-bold mb-3">
-                <span class="text-gray-700">Saldo pendiente:</span>
-                <span class="text-red-600 text-sm">${formatearGuaranies(saldo)}</span>
+                <span class="text-gray-500">Saldo pendiente:</span>
+                <span class="text-red-600 text-sm font-bold">${formatearGuaranies(saldo)}</span>
             </div>
             <sl-button data-action="registrarPagoCobro" data-arg="${p.id}" variant="primary" size="small" class="w-full">
                 Registrar pago
@@ -108,6 +115,7 @@ async function abrirCobrosCliente(clienteId) {
     const filasManuales = manualesCliente.map(c => {
         const saldo = _saldoCreditoManual(c);
         const totalPagado = (c.monto || 0) - saldo;
+        const pct = c.monto > 0 ? Math.min(100, Math.round((totalPagado / c.monto) * 100)) : 0;
         const aging = _badgeAging(c.fecha);
         const fechaStr = new Date(c.fecha).toLocaleDateString('es-PY');
         return `<div class="bg-purple-50 border border-purple-100 rounded-xl p-3 mb-2">
@@ -120,12 +128,18 @@ async function abrirCobrosCliente(clienteId) {
                 </div>
                 <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${aging.clase}">${aging.texto}</span>
             </div>
-            ${totalPagado > 0 ? `<div class="flex justify-between text-[11px] text-gray-500 mb-1">
-                <span>Ya pagó:</span><span class="text-green-600 font-medium">${formatearGuaranies(totalPagado)}</span>
-            </div>` : ''}
+            <div class="mb-2">
+                <div class="flex justify-between text-[10px] text-gray-400 mb-1">
+                    <span>${totalPagado > 0 ? `Pagado: ${formatearGuaranies(totalPagado)}` : 'Sin pagos'}</span>
+                    <span class="font-bold ${pct >= 100 ? 'text-green-600' : pct > 0 ? 'text-amber-600' : 'text-gray-400'}">${pct}%</span>
+                </div>
+                <div class="w-full bg-purple-100 rounded-full h-2 overflow-hidden">
+                    <div class="h-2 rounded-full transition-all duration-500 ${pct >= 100 ? 'bg-green-500' : pct >= 50 ? 'bg-amber-400' : 'bg-purple-400'}" style="width:${pct}%"></div>
+                </div>
+            </div>
             <div class="flex justify-between text-[11px] font-bold mb-3">
-                <span class="text-gray-700">Saldo pendiente:</span>
-                <span class="text-red-600 text-sm">${formatearGuaranies(saldo)}</span>
+                <span class="text-gray-500">Saldo pendiente:</span>
+                <span class="text-red-600 text-sm font-bold">${formatearGuaranies(saldo)}</span>
             </div>
             <sl-button data-action="registrarPagoManualVendedor" data-arg="${c.id}" variant="primary" size="small" class="w-full">
                 Registrar pago

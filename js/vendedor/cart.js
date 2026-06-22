@@ -104,11 +104,6 @@ function cambiarCantidadCarrito(idx, delta) {
 }
 
 function agregarMatrizAlCarrito(productoId) {
-    if (!clienteActual) {
-        mostrarToast('Selecciona un cliente primero', 'error');
-        return;
-    }
-
     const producto = productos.find(p => p.id === productoId);
     if (!producto) return;
 
@@ -156,11 +151,6 @@ function agregarMatrizAlCarrito(productoId) {
 }
 
 function agregarMasivoAlCarrito(productoId) {
-    if (!clienteActual) {
-        mostrarToast('Selecciona un cliente primero', 'error');
-        return;
-    }
-
     const producto = productos.find(p => p.id === productoId);
     if (!producto) return;
 

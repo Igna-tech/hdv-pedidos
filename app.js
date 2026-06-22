@@ -1042,10 +1042,6 @@ function enviarCierreWhatsApp(datos) {
 // HISTORIAL — REPETIR PEDIDO
 // ============================================
 async function repetirUltimoPedido(pedidoId) {
-    if (!clienteActual) {
-        mostrarToast('Selecciona un cliente primero', 'warning');
-        return;
-    }
     const pedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
     const pedido = pedidos.find(p => p.id === pedidoId);
     if (!pedido || !pedido.items?.length) return;

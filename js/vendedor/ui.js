@@ -137,20 +137,53 @@ function _limpiarClienteSeleccionado() {
     mostrarInfoCliente(null);
 }
 
-function _actualizarZonaBanner(zona) {
-    const banner = document.getElementById('zonaBanner');
+function _actualizarZonaBtn(zona) {
+    const label = document.getElementById('zonaFilterLabel');
+    const clearBtn = document.getElementById('zonaFilterClear');
     const input = document.getElementById('clienteSearchInput');
-    if (!banner) return;
-    if (!zona) {
-        banner.classList.add('hidden');
-        if (input) input.placeholder = 'Buscar cliente...';
-        return;
+    const picker = document.getElementById('zonaPickerDropdown');
+    if (label) label.textContent = zona || 'Todas';
+    if (clearBtn) clearBtn.classList.toggle('hidden', !zona);
+    if (input) input.placeholder = zona ? 'Buscar en ' + zona + '...' : 'Buscar cliente...';
+    if (picker) picker.classList.add('hidden');
+}
+
+function _renderZonaPicker() {
+    const listado = document.getElementById('zonaPickerListado');
+    if (!listado) return;
+    const zonas = typeof obtenerZonasUnicas === 'function' ? obtenerZonasUnicas() : [];
+    const totalClientes = (typeof clientes !== 'undefined' ? clientes : []).length;
+    let html = `<div class="flex items-center justify-between px-4 py-2.5 cursor-pointer hover:bg-slate-50 ${!zonaActiva ? 'text-indigo-600 font-semibold bg-indigo-50' : 'text-slate-700'}"
+        data-action="elegirZonaFiltro" data-arg="">
+        <span class="text-sm">Todas las zonas</span>
+        <span class="text-xs text-slate-400 ml-3">${totalClientes}</span>
+    </div>`;
+    zonas.forEach(z => {
+        const active = zonaActiva === z.zona;
+        html += `<div class="flex items-center justify-between px-4 py-2.5 cursor-pointer hover:bg-slate-50 border-t border-slate-50 ${active ? 'text-indigo-600 font-semibold bg-indigo-50' : 'text-slate-700'}"
+            data-action="elegirZonaFiltro" data-arg="${escapeHTML(z.zona)}">
+            <span class="text-sm">${escapeHTML(z.zona)}</span>
+            <span class="text-xs text-slate-400 ml-3">${z.cantidad}</span>
+        </div>`;
+    });
+    listado.innerHTML = html;
+}
+
+function _toggleZonaPicker() {
+    const picker = document.getElementById('zonaPickerDropdown');
+    const clienteDropdown = document.getElementById('clienteDropdown');
+    if (!picker) return;
+    if (picker.classList.contains('hidden')) {
+        _renderZonaPicker();
+        picker.classList.remove('hidden');
+        if (clienteDropdown) clienteDropdown.classList.add('hidden');
+    } else {
+        picker.classList.add('hidden');
     }
-    const cantidad = (typeof clientes !== 'undefined' ? clientes : []).filter(c => c.zona && c.zona.trim() === zona).length;
-    document.getElementById('zonaActivaNombre').textContent = zona;
-    document.getElementById('zonaActivaCount').textContent = '· ' + cantidad + ' cliente' + (cantidad !== 1 ? 's' : '');
-    banner.classList.remove('hidden');
-    if (input) input.placeholder = 'Buscar en ' + zona + '...';
+}
+
+function poblarZonePills() {
+    _actualizarZonaBtn(typeof zonaActiva !== 'undefined' ? zonaActiva : null);
 }
 
 function _initClienteSearch() {
@@ -162,31 +195,12 @@ function _initClienteSearch() {
     input.addEventListener('focus', () => { if (input.value.trim()) _renderClienteResults(input.value); });
     document.addEventListener('click', e => {
         const wrapper = document.getElementById('clienteSearchWrapper');
-        if (wrapper && !wrapper.contains(e.target) && dropdown) dropdown.classList.add('hidden');
+        if (wrapper && !wrapper.contains(e.target)) {
+            if (dropdown) dropdown.classList.add('hidden');
+            const picker = document.getElementById('zonaPickerDropdown');
+            if (picker) picker.classList.add('hidden');
+        }
     }, true);
-}
-
-function poblarZonePills() {
-    const container = document.getElementById('zonePills');
-    if (!container) return;
-    const zonas = typeof obtenerZonasUnicas === 'function' ? obtenerZonasUnicas() : [];
-    if (zonas.length === 0) { container.innerHTML = ''; _actualizarZonaBanner(zonaActiva); return; }
-
-    let html = `<sl-tag size="medium" pill class="zone-pill shrink-0 cursor-pointer${!zonaActiva ? ' zone-pill-active' : ''}" data-zona="" style="scroll-snap-align:start;">Todas <sl-badge pill variant="neutral" style="margin-left:4px;font-size:10px;">${zonas.reduce((s, z) => s + z.cantidad, 0)}</sl-badge></sl-tag>`;
-    zonas.forEach(z => {
-        const active = zonaActiva === z.zona;
-        html += `<sl-tag size="medium" pill class="zone-pill shrink-0 cursor-pointer${active ? ' zone-pill-active' : ''}" data-zona="${escapeHTML(z.zona)}" style="scroll-snap-align:start;">${escapeHTML(z.zona)}${!active ? ` <sl-badge pill variant="neutral" style="margin-left:4px;font-size:10px;">${z.cantidad}</sl-badge>` : ''}</sl-tag>`;
-    });
-    container.innerHTML = html;
-
-    container.querySelectorAll('.zone-pill').forEach(pill => {
-        pill.addEventListener('click', () => {
-            zonaActiva = pill.dataset.zona || null;
-            poblarZonePills();
-            if (typeof actualizarIndicadorZona === 'function') actualizarIndicadorZona(zonaActiva);
-        });
-    });
-    _actualizarZonaBanner(zonaActiva);
 }
 
 async function mostrarInfoCliente(cliente) {

@@ -50,6 +50,8 @@ const _vendedorActionMap = {
     'limpiarZona':                    () => typeof resetearFiltroZona === 'function' && resetearFiltroZona(),
     'limpiarClienteSeleccionado':     () => typeof _limpiarClienteSeleccionado === 'function' && _limpiarClienteSeleccionado(),
     'seleccionarClienteId':           (_, id) => typeof _seleccionarCliente === 'function' && _seleccionarCliente(id),
+    'toggleZonaPicker':               () => typeof _toggleZonaPicker === 'function' && _toggleZonaPicker(),
+    'elegirZonaFiltro':               (_, zona) => { zonaActiva = zona || null; if (typeof _actualizarZonaBtn === 'function') _actualizarZonaBtn(zonaActiva); },
 };
 
 document.addEventListener('click', function(e) {

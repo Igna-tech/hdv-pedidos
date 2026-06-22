@@ -46,6 +46,10 @@ const _vendedorActionMap = {
     'cerrarCobrosDrawer':             () => typeof cerrarCobrosDrawer === 'function' && cerrarCobrosDrawer(),
     'registrarPagoCobro':             (_, id) => typeof registrarPagoCobro === 'function' && registrarPagoCobro(id),
     'cobrarTodoEfectivo':             (_, id) => typeof cobrarTodoEfectivo === 'function' && cobrarTodoEfectivo(id),
+    // Smart client search
+    'limpiarZona':                    () => typeof resetearFiltroZona === 'function' && resetearFiltroZona(),
+    'limpiarClienteSeleccionado':     () => typeof _limpiarClienteSeleccionado === 'function' && _limpiarClienteSeleccionado(),
+    'seleccionarClienteId':           (_, id) => typeof _seleccionarCliente === 'function' && _seleccionarCliente(id),
 };
 
 document.addEventListener('click', function(e) {
@@ -265,35 +269,8 @@ function configurarEventos() {
     const mostrarProductosDebounced = debounce(() => mostrarProductos(), 300);
     searchInput.addEventListener('input', mostrarProductosDebounced);
 
-    // sl-select: evento sl-change para seleccion de cliente
-    const clienteSelect = document.getElementById('clienteSelect');
-    clienteSelect.addEventListener('sl-change', async (e) => {
-        const id = e.target.value;
-        if (id) {
-            const nuevoCliente = clientes.find(c => c.id === id);
-            if (clienteActual && clienteActual.id !== id && carrito.length > 0) {
-                const ok = await mostrarConfirmModal('Cambiar de cliente vaciara el carrito actual. ¿Continuar?', { destructivo: true });
-                if (!ok) {
-                    e.target.value = clienteActual.id;
-                    return;
-                }
-                carrito = [];
-                actualizarContadorCarrito();
-                guardarCarrito();
-            }
-            clienteActual = nuevoCliente;
-            mostrarInfoCliente(clienteActual);
-            mostrarProductos();
-        } else {
-            clienteActual = null;
-            mostrarInfoCliente(null);
-        }
-    });
-    // sl-clear: cuando el usuario presiona X en el select
-    clienteSelect.addEventListener('sl-clear', () => {
-        clienteActual = null;
-        mostrarInfoCliente(null);
-    });
+    // Smart client search
+    if (typeof _initClienteSearch === 'function') _initClienteSearch();
 
     // Zone pills
     poblarZonePills();
@@ -380,16 +357,7 @@ function resetearFiltroZona() {
 }
 
 function seleccionarClienteDesdeRuta(clienteId) {
-    const select = document.getElementById('clienteSelect');
-    if (select) {
-        select.value = clienteId;
-        // Trigger the client selection logic directly
-        const nuevoCliente = clientes.find(c => c.id === clienteId);
-        if (nuevoCliente) {
-            clienteActual = nuevoCliente;
-            mostrarInfoCliente(clienteActual);
-        }
-    }
+    if (typeof _seleccionarCliente === 'function') _seleccionarCliente(clienteId);
     cambiarVistaVendedor('lista');
 }
 

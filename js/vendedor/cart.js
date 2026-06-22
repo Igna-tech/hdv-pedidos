@@ -81,14 +81,10 @@ async function guardarCarrito() {
 }
 
 async function cargarCarritoGuardado() {
-    const selectEl = document.getElementById('clienteSelect');
-    if (selectEl.value) {
-        clienteActual = clientes.find(c => c.id === selectEl.value);
-        if (clienteActual) {
-            const saved = await HDVStorage.getItem(`hdv_carrito_${clienteActual.id}`);
-            if (saved) carrito = saved;
-            actualizarContadorCarrito();
-        }
+    if (clienteActual) {
+        const saved = await HDVStorage.getItem(`hdv_carrito_${clienteActual.id}`);
+        if (saved) carrito = saved;
+        actualizarContadorCarrito();
     }
 }
 

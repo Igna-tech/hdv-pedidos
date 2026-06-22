@@ -56,66 +56,137 @@ function generarSkeletonProductos(count = 6) {
 // ============================================
 // CLIENTES UI
 // ============================================
-function poblarClientes(filtro) {
-    const select = document.getElementById('clienteSelect');
-    const valorActual = select.value;
-    select.innerHTML = '';
-    const q = (filtro || '').toLowerCase().trim();
-    let lista = q ? clientes.filter(c =>
+function poblarClientes() { /* no-op — replaced by smart search */ }
+
+function _renderClienteResults(query) {
+    const dropdown = document.getElementById('clienteDropdown');
+    const listado = document.getElementById('clienteDropdownListado');
+    const pie = document.getElementById('clienteDropdownPie');
+    if (!dropdown) return;
+    const q = (query || '').toLowerCase().trim();
+    if (!q) { dropdown.classList.add('hidden'); return; }
+    let lista = clientes.filter(c =>
         (c.razon_social || c.nombre || '').toLowerCase().includes(q) ||
-        (c.ruc || '').toLowerCase().includes(q) ||
-        (c.id || '').toLowerCase().includes(q)
-    ) : clientes;
-    // Filtrar por zona activa si hay una seleccionada
+        (c.ruc || '').toLowerCase().includes(q)
+    );
     if (typeof zonaActiva !== 'undefined' && zonaActiva) {
         lista = lista.filter(c => c.zona && c.zona.trim() === zonaActiva);
     }
-    lista.forEach(c => {
-        const nombre = escapeHTML(c.razon_social || c.nombre || c.id);
-        const ruc = c.ruc ? escapeHTML(c.ruc) : '';
-        const zona = c.zona ? escapeHTML(c.zona) : '';
-        const opt = document.createElement('sl-option');
-        opt.value = c.id;
-        opt.textContent = nombre;
-        // Keywords para busqueda: nombre + ruc + zona
-        const keywords = [c.razon_social, c.nombre, c.ruc, c.zona, c.id].filter(Boolean).join(' ');
-        opt.setAttribute('data-keywords', keywords);
-        // Contenido rico
-        let suffix = '';
-        if (ruc) suffix += `<small style="color:#9ca3af;margin-left:8px;">${ruc}</small>`;
-        if (zona) suffix += `<sl-badge variant="neutral" pill style="margin-left:6px;font-size:10px;">${zona}</sl-badge>`;
-        if (suffix) opt.innerHTML = `${nombre}${suffix}`;
-        select.appendChild(opt);
-    });
-    if (valorActual && !filtro) select.value = valorActual;
+    if (lista.length === 0) {
+        listado.innerHTML = `<div class="px-4 py-6 text-center text-sm text-slate-400">Sin resultados para "<strong>${escapeHTML(query)}</strong>"</div>`;
+        pie.classList.add('hidden');
+    } else {
+        listado.innerHTML = lista.map(c => {
+            const nombre = escapeHTML(c.razon_social || c.nombre || c.id);
+            const inicial = (c.razon_social || c.nombre || '?').charAt(0).toUpperCase();
+            const ruc = c.ruc ? escapeHTML(c.ruc) : '';
+            const zona = c.zona ? escapeHTML(c.zona) : '';
+            const sub = [ruc ? 'RUC ' + ruc : '', zona].filter(Boolean).join(' · ');
+            return `<div class="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-slate-50 active:bg-slate-100 border-b border-slate-100 last:border-0"
+                data-action="seleccionarClienteId" data-arg="${escapeHTML(c.id)}">
+                <div class="w-8 h-8 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-sm font-bold shrink-0 pointer-events-none">${inicial}</div>
+                <div class="flex-1 min-w-0 pointer-events-none">
+                    <p class="text-sm font-semibold text-gray-800 truncate">${nombre}</p>
+                    ${sub ? `<p class="text-xs text-slate-400 truncate">${sub}</p>` : ''}
+                </div>
+            </div>`;
+        }).join('');
+        if (lista.length > 5) {
+            pie.textContent = lista.length + ' resultados · seguí escribiendo para filtrar';
+            pie.classList.remove('hidden');
+        } else {
+            pie.classList.add('hidden');
+        }
+    }
+    dropdown.classList.remove('hidden');
+}
+
+async function _seleccionarCliente(clienteId) {
+    const cliente = clientes.find(c => c.id === clienteId);
+    if (!cliente) return;
+    if (typeof clienteActual !== 'undefined' && clienteActual && clienteActual.id !== clienteId &&
+        typeof carrito !== 'undefined' && carrito.length > 0) {
+        const ok = await mostrarConfirmModal('Cambiar de cliente vaciara el carrito actual. ¿Continuar?', { destructivo: true });
+        if (!ok) return;
+        carrito = [];
+        if (typeof actualizarContadorCarrito === 'function') actualizarContadorCarrito();
+        if (typeof guardarCarrito === 'function') guardarCarrito();
+    }
+    clienteActual = cliente;
+    const nombre = cliente.razon_social || cliente.nombre || '';
+    const avatar = document.getElementById('clienteChipAvatar');
+    const chipNombre = document.getElementById('clienteChipNombre');
+    const chipZona = document.getElementById('clienteChipZona');
+    if (avatar) avatar.textContent = nombre.charAt(0).toUpperCase() || '?';
+    if (chipNombre) chipNombre.textContent = nombre;
+    if (chipZona) chipZona.textContent = cliente.zona || '';
+    document.getElementById('clienteSearchBox').classList.add('hidden');
+    document.getElementById('clienteSelectedChip').classList.remove('hidden');
+    document.getElementById('clienteDropdown').classList.add('hidden');
+    document.getElementById('clienteSearchInput').value = '';
+    mostrarInfoCliente(clienteActual);
+    if (typeof mostrarProductos === 'function') mostrarProductos();
+}
+
+function _limpiarClienteSeleccionado() {
+    clienteActual = null;
+    document.getElementById('clienteSearchBox').classList.remove('hidden');
+    document.getElementById('clienteSelectedChip').classList.add('hidden');
+    document.getElementById('clienteDropdown').classList.add('hidden');
+    document.getElementById('clienteSearchInput').value = '';
+    mostrarInfoCliente(null);
+}
+
+function _actualizarZonaBanner(zona) {
+    const banner = document.getElementById('zonaBanner');
+    const input = document.getElementById('clienteSearchInput');
+    if (!banner) return;
+    if (!zona) {
+        banner.classList.add('hidden');
+        if (input) input.placeholder = 'Buscar cliente...';
+        return;
+    }
+    const cantidad = (typeof clientes !== 'undefined' ? clientes : []).filter(c => c.zona && c.zona.trim() === zona).length;
+    document.getElementById('zonaActivaNombre').textContent = zona;
+    document.getElementById('zonaActivaCount').textContent = '· ' + cantidad + ' cliente' + (cantidad !== 1 ? 's' : '');
+    banner.classList.remove('hidden');
+    if (input) input.placeholder = 'Buscar en ' + zona + '...';
+}
+
+function _initClienteSearch() {
+    const input = document.getElementById('clienteSearchInput');
+    const dropdown = document.getElementById('clienteDropdown');
+    if (!input) return;
+    const debounced = (typeof debounce === 'function') ? debounce(q => _renderClienteResults(q), 200) : q => _renderClienteResults(q);
+    input.addEventListener('input', e => debounced(e.target.value));
+    input.addEventListener('focus', () => { if (input.value.trim()) _renderClienteResults(input.value); });
+    document.addEventListener('click', e => {
+        const wrapper = document.getElementById('clienteSearchWrapper');
+        if (wrapper && !wrapper.contains(e.target) && dropdown) dropdown.classList.add('hidden');
+    }, true);
 }
 
 function poblarZonePills() {
     const container = document.getElementById('zonePills');
     if (!container) return;
     const zonas = typeof obtenerZonasUnicas === 'function' ? obtenerZonasUnicas() : [];
-    if (zonas.length === 0) { container.innerHTML = ''; return; }
+    if (zonas.length === 0) { container.innerHTML = ''; _actualizarZonaBanner(zonaActiva); return; }
 
-    let html = `<sl-tag size="medium" pill class="zone-pill shrink-0 cursor-pointer${!zonaActiva ? ' zone-pill-active' : ''}" data-zona="" style="scroll-snap-align:start;">Todas</sl-tag>`;
+    let html = `<sl-tag size="medium" pill class="zone-pill shrink-0 cursor-pointer${!zonaActiva ? ' zone-pill-active' : ''}" data-zona="" style="scroll-snap-align:start;">Todas <sl-badge pill variant="neutral" style="margin-left:4px;font-size:10px;">${zonas.reduce((s, z) => s + z.cantidad, 0)}</sl-badge></sl-tag>`;
     zonas.forEach(z => {
         const active = zonaActiva === z.zona;
-        html += `<sl-tag size="medium" pill class="zone-pill shrink-0 cursor-pointer${active ? ' zone-pill-active' : ''}" data-zona="${escapeHTML(z.zona)}" style="scroll-snap-align:start;">${escapeHTML(z.zona)} <sl-badge pill variant="neutral" style="margin-left:4px;font-size:10px;">${z.cantidad}</sl-badge></sl-tag>`;
+        html += `<sl-tag size="medium" pill class="zone-pill shrink-0 cursor-pointer${active ? ' zone-pill-active' : ''}" data-zona="${escapeHTML(z.zona)}" style="scroll-snap-align:start;">${escapeHTML(z.zona)}${!active ? ` <sl-badge pill variant="neutral" style="margin-left:4px;font-size:10px;">${z.cantidad}</sl-badge>` : ''}</sl-tag>`;
     });
     container.innerHTML = html;
 
     container.querySelectorAll('.zone-pill').forEach(pill => {
         pill.addEventListener('click', () => {
-            const zona = pill.dataset.zona;
-            if (zona) {
-                zonaActiva = zona;
-            } else {
-                zonaActiva = null;
-            }
-            poblarClientes();
+            zonaActiva = pill.dataset.zona || null;
             poblarZonePills();
             if (typeof actualizarIndicadorZona === 'function') actualizarIndicadorZona(zonaActiva);
         });
     });
+    _actualizarZonaBanner(zonaActiva);
 }
 
 async function mostrarInfoCliente(cliente) {

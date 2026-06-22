@@ -120,6 +120,9 @@ async function procesarPedido() {
 // ============================================
 // FLUJO 2: Cobrar (Recibo Interno)
 // ============================================
+
+let _ultimoRecibo = null;
+
 async function procesarCobroInterno() {
     if (!validarCarritoYCliente()) return;
 
@@ -166,34 +169,66 @@ async function procesarCobroInterno() {
             }).catch(err => console.error('[Checkout] Error sync cobro:', err));
         }
 
-        // Armar ticket de impresion
-        const fechaStr = formatearFecha(pedido.fecha);
-        document.getElementById('printReciboMeta').innerHTML =
-            `<p>Fecha: ${fechaStr}</p>
-             <p>Cliente: ${escapeHTML(datos.cliente.nombre)}</p>
-             ${datos.cliente.ruc ? `<p>RUC: ${escapeHTML(datos.cliente.ruc)}</p>` : ''}
-             <p>Pago: ${datos.tipoPago === 'credito' ? 'Credito' : 'Contado'}</p>`;
-
-        document.getElementById('printReciboItems').innerHTML = generarHTMLItems(datos.items);
-
-        document.getElementById('printReciboTotal').innerHTML = `<p>TOTAL: ${formatearGuaranies(datos.total)}</p>`;
-
-        // Activar para impresion
-        const printEl = document.getElementById('printReciboInterno');
-        printEl.classList.add('active');
-        printEl.style.display = 'block';
-
+        _ultimoRecibo = pedido;
         limpiarDespuesDeVenta();
-
-        // Imprimir
-        setTimeout(() => {
-            window.print();
-            printEl.classList.remove('active');
-            printEl.style.display = 'none';
-        }, 300);
-
-        mostrarToast('Cobro registrado', 'success');
+        _mostrarModalRecibo(pedido);
     }, 'Procesando...')();
+}
+
+function _templateReciboWA(pedido) {
+    const fecha = new Date(pedido.fecha).toLocaleDateString('es-PY');
+    const SEP = '─'.repeat(22);
+    const items = (pedido.items || []).map(i =>
+        `• ${i.nombre} (${i.presentacion}) ×${i.cantidad} — ${formatearGuaranies(i.subtotal)}`
+    ).join('\n');
+    const pago = pedido.tipoPago === 'credito' ? 'Crédito' : 'Al contado';
+    const notas = pedido.notas ? `\n📝 ${pedido.notas}` : '';
+    return `🏪 *HDV Distribuciones*\n📋 *${pedido.id}*\n📅 ${fecha}\n${SEP}\n👤 ${pedido.cliente?.nombre || ''}\n\n📦 *Detalle:*\n${items}\n${SEP}\n💰 *Total: ${formatearGuaranies(pedido.total)}*\n💳 ${pago}${notas}`;
+}
+
+function _mostrarModalRecibo(pedido) {
+    const pago = pedido.tipoPago === 'credito' ? 'Crédito' : 'Al contado';
+    const fecha = new Date(pedido.fecha).toLocaleDateString('es-PY', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+    const elNum = document.getElementById('reciboNumeroDisplay');
+    const elCliente = document.getElementById('reciboClienteDisplay');
+    const elPago = document.getElementById('reciboPagoDisplay');
+    const elTotal = document.getElementById('reciboTotalDisplay');
+    const elWA = document.getElementById('reciboWhatsAppLink');
+
+    if (elNum) elNum.textContent = pedido.id;
+    if (elCliente) elCliente.textContent = pedido.cliente?.nombre || '';
+    if (elPago) elPago.textContent = `${pago} · ${fecha}`;
+    if (elTotal) elTotal.textContent = formatearGuaranies(pedido.total);
+
+    if (elWA) {
+        const msg = _templateReciboWA(pedido);
+        const tel = typeof _formatearTelefonoWA === 'function' ? _formatearTelefonoWA(pedido.cliente?.telefono) : '';
+        elWA.href = `https://wa.me/${tel}?text=${encodeURIComponent(msg)}`;
+    }
+
+    const modal = document.getElementById('modalReciboExito');
+    if (modal) {
+        modal.show();
+        if (typeof lucide !== 'undefined') setTimeout(() => lucide.createIcons(), 50);
+    }
+}
+
+function generarPDFRecibo() {
+    if (!_ultimoRecibo) { mostrarToast('Sin recibo activo', 'warning'); return; }
+    if (typeof generarPDFPedido === 'function') {
+        const ok = generarPDFPedido(_ultimoRecibo, {
+            titulo: 'Recibo de Venta',
+            filename: `recibo_${_ultimoRecibo.id}.pdf`
+        });
+        if (ok) mostrarExito('PDF generado');
+    }
+}
+
+function cerrarModalRecibo() {
+    const modal = document.getElementById('modalReciboExito');
+    if (modal) modal.hide();
+    _ultimoRecibo = null;
 }
 
 // ============================================

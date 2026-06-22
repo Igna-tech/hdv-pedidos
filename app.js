@@ -30,6 +30,9 @@ const _vendedorActionMap = {
     // Modal factura
     'imprimirFactura':                () => typeof imprimirFactura === 'function' && imprimirFactura(),
     'cerrarModalFactura':             () => typeof cerrarModalFactura === 'function' && cerrarModalFactura(),
+    // Modal recibo
+    'generarPDFRecibo':               () => typeof generarPDFRecibo === 'function' && generarPDFRecibo(),
+    'cerrarModalRecibo':              () => typeof cerrarModalRecibo === 'function' && cerrarModalRecibo(),
     // Pedidos — acciones de tarjeta
     'imprimirTicketVendedor':         (_, id) => typeof imprimirTicketVendedor === 'function' && imprimirTicketVendedor(id),
     'generarPDFVendedor':             (_, id) => typeof generarPDFVendedor === 'function' && generarPDFVendedor(id),

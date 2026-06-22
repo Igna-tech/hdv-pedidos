@@ -352,9 +352,6 @@
                 <sl-button id="btnCobro" data-action="procesarCobroInterno" variant="warning" size="large" class="w-full">
                     <sl-icon name="receipt" slot="prefix"></sl-icon> Cobrar con Recibo
                 </sl-button>
-                <sl-button id="btnFactura" data-action="procesarFacturaMock" variant="success" size="large" class="w-full">
-                    <sl-icon name="file-earmark-check" slot="prefix"></sl-icon> Emitir Factura
-                </sl-button>
                 <sl-button data-action="closeCartModal" variant="text" size="small" class="w-full text-slate-400">← Volver al catálogo</sl-button>
             </div>
         </div>
@@ -416,6 +413,36 @@
                     <span class="flex items-center justify-center gap-2"><i data-lucide="message-circle" class="w-4 h-4"></i> Enviar por WhatsApp</span>
                 </a>
                 <sl-button data-action="cerrarModalFactura" variant="default" class="w-full">Nueva Venta</sl-button>
+            </div>
+        </div>
+    </sl-dialog>
+
+    <!-- MODAL RECIBO EXITO -->
+    <sl-dialog id="modalReciboExito" no-header style="--width: 22rem;">
+        <div class="text-center">
+            <div class="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <i data-lucide="check-circle" class="w-8 h-8 text-emerald-600"></i>
+            </div>
+            <h3 class="text-lg font-bold text-gray-900 mb-1">Recibo registrado</h3>
+            <p class="text-xs font-mono bg-slate-100 rounded-lg px-3 py-1.5 mb-3 text-slate-600 inline-block" id="reciboNumeroDisplay"></p>
+            <div class="bg-slate-50 rounded-xl px-4 py-3 mb-4 text-left">
+                <p class="text-sm font-bold text-gray-800 truncate" id="reciboClienteDisplay"></p>
+                <div class="flex items-center justify-between mt-1">
+                    <span class="text-xs text-slate-500" id="reciboPagoDisplay"></span>
+                    <span class="text-sm font-bold text-indigo-600" id="reciboTotalDisplay"></span>
+                </div>
+            </div>
+            <div class="space-y-2">
+                <sl-button data-action="generarPDFRecibo" variant="primary" class="w-full">
+                    <i data-lucide="file-text" class="w-4 h-4" slot="prefix"></i> Descargar PDF
+                </sl-button>
+                <a id="reciboWhatsAppLink" href="#" target="_blank"
+                   class="block w-full bg-[#25D366] hover:bg-[#1ebe5d] text-white py-3 rounded-xl font-bold text-sm text-center transition-colors">
+                    <span class="flex items-center justify-center gap-2">
+                        <i data-lucide="message-circle" class="w-4 h-4"></i> Enviar por WhatsApp
+                    </span>
+                </a>
+                <sl-button data-action="cerrarModalRecibo" variant="default" class="w-full">Nueva Venta</sl-button>
             </div>
         </div>
     </sl-dialog>

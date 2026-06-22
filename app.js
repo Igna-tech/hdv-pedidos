@@ -11,7 +11,6 @@
 const _vendedorActionMap = {
     // Header
     'forzarActualizacion':            () => typeof forzarActualizacion === 'function' && forzarActualizacion(),
-    'toggleDarkMode':                 () => typeof toggleDarkMode === 'function' && toggleDarkMode(),
     'cerrarSesion':                   () => typeof cerrarSesion === 'function' && cerrarSesion(),
     // Bottom nav
     'cambiarVistaVendedor':           (_, a) => typeof cambiarVistaVendedor === 'function' && cambiarVistaVendedor(a),

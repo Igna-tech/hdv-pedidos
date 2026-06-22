@@ -1395,22 +1395,8 @@ function cerrarHistorialCliente() {
     if (modal) modal.style.transform = 'translateY(100%)';
 }
 
-// ============================================
-// DARK MODE
-// ============================================
-async function toggleDarkMode() {
-    document.body.classList.toggle('dark-mode');
-    await HDVStorage.setItem('hdv_darkmode', document.body.classList.contains('dark-mode'));
-}
-
-// Cargar dark mode guardado
-(async () => {
-    await HDVStorage.ready();
-    const darkMode = await HDVStorage.getItem('hdv_darkmode', { clone: false });
-    if (darkMode === true || darkMode === 'true') {
-        document.body.classList.add('dark-mode');
-    }
-})();
+// Dark mode permanente en app vendedor
+document.body.classList.add('dark-mode');
 
 // ============================================
 // MODAL CLIENTE NUEVO DESDE VENDEDOR

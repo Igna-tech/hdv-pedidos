@@ -27,11 +27,6 @@ function obtenerEmoji(producto) {
 // CARRITO
 // ============================================
 function agregarAlCarrito(productoId, presIdx) {
-    if (!clienteActual) {
-        mostrarToast('Selecciona un cliente primero', 'warning');
-        return;
-    }
-
     const producto = productos.find(p => p.id === productoId);
     if (!producto) return;
 
@@ -76,9 +71,8 @@ function actualizarContadorCarrito() {
 }
 
 async function guardarCarrito() {
-    if (clienteActual) {
-        await HDVStorage.setItem(`hdv_carrito_${clienteActual.id}`, carrito);
-    }
+    const key = clienteActual ? `hdv_carrito_${clienteActual.id}` : 'hdv_carrito_temporal';
+    await HDVStorage.setItem(key, carrito);
 }
 
 async function cargarCarritoGuardado() {

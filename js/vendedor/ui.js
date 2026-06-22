@@ -840,7 +840,6 @@ function initLazyLoadImages(containerEl) {
 // ============================================
 
 function _quickAddProd(prod) {
-    if (!clienteActual) { mostrarToast('Seleccioná un cliente primero', 'warning'); return; }
     const presActivas = (prod.presentaciones || []).filter(p => p.activo !== false);
     if (presActivas.length === 1) {
         const pres = presActivas[0];

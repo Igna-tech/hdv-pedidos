@@ -328,6 +328,7 @@ function cambiarVistaVendedor(vista) {
 
     const catFilters = document.getElementById('categoryFilters');
     const searchBox = document.getElementById('searchContainer');
+    const clienteSearch = document.getElementById('clienteSearchWrapper');
 
     // Cerrar sidebar
     const sidebar = document.getElementById('sidebarMenu');
@@ -340,6 +341,7 @@ function cambiarVistaVendedor(vista) {
     });
 
     if (vista === 'lista') {
+        if (clienteSearch) clienteSearch.style.display = '';
         searchBox.style.display = '';
         catFilters.style.display = '';
         vistaCatalogo = 'categorias';
@@ -348,18 +350,22 @@ function cambiarVistaVendedor(vista) {
         document.getElementById('searchInput').value = '';
         mostrarProductos();
     } else if (vista === 'pedidos') {
+        if (clienteSearch) clienteSearch.style.display = 'none';
         catFilters.style.display = 'none';
         searchBox.style.display = 'none';
         mostrarMisPedidos();
     } else if (vista === 'jornada') {
+        if (clienteSearch) clienteSearch.style.display = 'none';
         catFilters.style.display = 'none';
         searchBox.style.display = 'none';
         mostrarMiCaja();
     } else if (vista === 'creditos') {
+        if (clienteSearch) clienteSearch.style.display = 'none';
         catFilters.style.display = 'none';
         searchBox.style.display = 'none';
         mostrarCreditos();
     } else if (vista === 'config') {
+        if (clienteSearch) clienteSearch.style.display = 'none';
         catFilters.style.display = 'none';
         searchBox.style.display = 'none';
         mostrarConfiguracion();

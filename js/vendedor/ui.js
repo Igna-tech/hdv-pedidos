@@ -1150,14 +1150,21 @@ function _agingCreditoBadge(fechaPedido) {
 async function _actualizarBadgeCreditos() {
     const badge = document.getElementById('sidebarCreditosBadge');
     if (!badge) return;
-    const pedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
-    const pagos   = (await HDVStorage.getItem('hdv_pagos_credito', { clone: false })) || [];
+    const pedidos         = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
+    const pagos           = (await HDVStorage.getItem('hdv_pagos_credito', { clone: false })) || [];
+    const creditosManuales = (await HDVStorage.getItem('hdv_creditos_manuales', { clone: false })) || [];
     const excluir = new Set(['anulado', 'nota_credito_mock']);
     const deudores = new Set();
+
     pedidos.filter(p => p.tipoPago === 'credito' && !excluir.has(p.estado)).forEach(p => {
         const pagado = pagos.filter(pg => pg.pedidoId === p.id).reduce((s, pg) => s + (pg.monto || 0), 0);
         if (Math.max(0, (p.total || 0) - pagado) > 0 && p.cliente?.id) deudores.add(p.cliente.id);
     });
+    creditosManuales.filter(c => !c.eliminado && !c.pagado).forEach(c => {
+        const pagado = (c.pagos || []).reduce((s, p) => s + (p.monto || 0), 0);
+        if (Math.max(0, (c.monto || 0) - pagado) > 0 && c.clienteId) deudores.add(c.clienteId);
+    });
+
     const n = deudores.size;
     if (n > 0) {
         badge.textContent = n > 9 ? '9+' : String(n);
@@ -1171,30 +1178,44 @@ async function mostrarCreditos() {
     const container = document.getElementById('productsContainer');
     container.innerHTML = '<p class="text-center text-slate-400 py-8 text-sm">Cargando...</p>';
 
-    const pedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
-    const pagos   = (await HDVStorage.getItem('hdv_pagos_credito', { clone: false })) || [];
+    const pedidos          = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
+    const pagos            = (await HDVStorage.getItem('hdv_pagos_credito', { clone: false })) || [];
+    const creditosManuales = (await HDVStorage.getItem('hdv_creditos_manuales', { clone: false })) || [];
     const excluir = new Set(['anulado', 'nota_credito_mock']);
+    const clientes_local   = typeof clientes !== 'undefined' ? clientes : [];
 
+    // Agrupar por cliente
     const clientesMap = {};
+
+    const _bucket = (cid, nombre, zona, fecha) => {
+        if (!clientesMap[cid]) {
+            clientesMap[cid] = { id: cid, nombre, zona, itemCount: 0, tieneManual: false, deudaTotal: 0, fechaMasAntigua: fecha };
+        }
+        if (fecha < clientesMap[cid].fechaMasAntigua) clientesMap[cid].fechaMasAntigua = fecha;
+    };
+
+    // Pedidos a crédito
     pedidos.filter(p => p.tipoPago === 'credito' && !excluir.has(p.estado)).forEach(p => {
         const pagado = pagos.filter(pg => pg.pedidoId === p.id).reduce((s, pg) => s + (pg.monto || 0), 0);
         const saldo  = Math.max(0, (p.total || 0) - pagado);
         if (saldo <= 0 || !p.cliente?.id) return;
         const cid = p.cliente.id;
-        if (!clientesMap[cid]) {
-            const cli = (typeof clientes !== 'undefined' ? clientes : []).find(c => c.id === cid);
-            clientesMap[cid] = {
-                id: cid,
-                nombre: p.cliente.nombre || 'Sin nombre',
-                zona: cli?.zona || '',
-                pedidos: [],
-                deudaTotal: 0,
-                fechaMasAntigua: p.fecha
-            };
-        }
-        clientesMap[cid].pedidos.push(p);
+        const cli = clientes_local.find(c => c.id === cid);
+        _bucket(cid, p.cliente.nombre || 'Sin nombre', cli?.zona || '', p.fecha);
         clientesMap[cid].deudaTotal += saldo;
-        if (p.fecha < clientesMap[cid].fechaMasAntigua) clientesMap[cid].fechaMasAntigua = p.fecha;
+        clientesMap[cid].itemCount++;
+    });
+
+    // Créditos manuales del admin
+    creditosManuales.filter(c => !c.eliminado && !c.pagado).forEach(c => {
+        const pagado = (c.pagos || []).reduce((s, p) => s + (p.monto || 0), 0);
+        const saldo  = Math.max(0, (c.monto || 0) - pagado);
+        if (saldo <= 0 || !c.clienteId) return;
+        const cli = clientes_local.find(cl => cl.id === c.clienteId);
+        _bucket(c.clienteId, c.clienteNombre || 'Sin nombre', cli?.zona || '', c.fecha);
+        clientesMap[c.clienteId].deudaTotal += saldo;
+        clientesMap[c.clienteId].itemCount++;
+        clientesMap[c.clienteId].tieneManual = true;
     });
 
     const deudores = Object.values(clientesMap).sort((a, b) => a.fechaMasAntigua.localeCompare(b.fechaMasAntigua));
@@ -1217,12 +1238,12 @@ async function mostrarCreditos() {
 
     const cards = deudores.map(c => {
         const aging = _agingCreditoBadge(c.fechaMasAntigua);
-        const nF = c.pedidos.length;
+        const etiquetaItems = `${c.itemCount} ítem${c.itemCount !== 1 ? 's' : ''}${c.tieneManual ? ' · incluye manual' : ''}`;
         return `<div class="bg-white rounded-xl border border-slate-100 shadow-sm p-4 mb-3">
             <div class="flex items-start justify-between mb-2">
                 <div class="flex-1 min-w-0 mr-2">
                     <p class="font-bold text-gray-800 text-sm truncate">${escapeHTML(c.nombre)}</p>
-                    <p class="text-xs text-slate-400 mt-0.5">${escapeHTML(c.zona)}${c.zona ? ' · ' : ''}${nF} factura${nF !== 1 ? 's' : ''} pendiente${nF !== 1 ? 's' : ''}</p>
+                    <p class="text-xs text-slate-400 mt-0.5">${escapeHTML(c.zona)}${c.zona ? ' · ' : ''}${etiquetaItems}</p>
                 </div>
                 <span class="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${aging.clase}">${aging.texto}</span>
             </div>

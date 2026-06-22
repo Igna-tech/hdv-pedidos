@@ -79,6 +79,7 @@ const _vendedorActionMap = {
     'togglePedidosFiltroDropdown':    () => typeof _togglePedidosFiltroDropdown === 'function' && _togglePedidosFiltroDropdown(),
     // Creditos
     'mostrarCreditos':                () => typeof mostrarCreditos === 'function' && mostrarCreditos(),
+    'registrarPagoManualVendedor':    (_, id) => typeof registrarPagoManualVendedor === 'function' && registrarPagoManualVendedor(id),
     // Mi Jornada — timeline
     'toggleDiaJornada':               (_, d) => typeof _toggleDiaJornada === 'function' && _toggleDiaJornada(d),
     'agregarGastoVendedor':           () => typeof agregarGastoVendedor === 'function' && agregarGastoVendedor(),

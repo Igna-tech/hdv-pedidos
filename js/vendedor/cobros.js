@@ -136,21 +136,21 @@ async function registrarPagoCobro(pedidoId) {
     const resultado = await mostrarInputModal({
         titulo: `Pagar — ${pedidoId}`,
         campos: [
-            { id: 'monto', label: `Monto a cobrar (saldo: ${formatearGuaranies(saldo)})`, tipo: 'number', valor: saldo, min: 1, max: saldo, requerido: true },
-            { id: 'metodo', label: 'Forma de pago', tipo: 'select', opciones: [
+            { key: 'monto', label: `Monto a cobrar (saldo: ${formatearGuaranies(saldo)})`, tipo: 'number', valor: saldo, requerido: true },
+            { key: 'metodo', label: 'Forma de pago', tipo: 'select', opciones: [
                 { value: 'efectivo', label: 'Efectivo' },
                 { value: 'transferencia', label: 'Transferencia' },
                 { value: 'cheque', label: 'Cheque' }
             ], valor: 'efectivo' },
-            { id: 'nota', label: 'Nota (opcional)', tipo: 'text', valor: '' }
+            { key: 'nota', label: 'Nota (opcional)', tipo: 'text', valor: '' }
         ]
     });
 
     if (!resultado) return;
 
     const monto = parseFloat(resultado.monto);
-    if (!monto || monto <= 0 || monto > saldo + 1) {
-        mostrarToast('Monto inválido', 'error');
+    if (!monto || monto <= 0 || monto > saldo + 0.01) {
+        mostrarToast('Monto inválido — debe ser mayor a 0 y no superar el saldo', 'error');
         return;
     }
 

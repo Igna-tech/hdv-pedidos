@@ -73,8 +73,11 @@ const _vendedorActionMap = {
     // Configuracion — zona de peligro
     'limpiarTodosDatos':              () => typeof limpiarTodosDatos === 'function' && limpiarTodosDatos(),
     // Mis Pedidos — acciones de tarjeta
-    'cobrarPedidoVendedor':           (_, id) => cobrarPedidoVendedor(id),
-    'entregarCreditoVendedor':        (_, id) => entregarCreditoVendedor(id),
+    'cobrarPedidoVendedor':               (_, id) => cobrarPedidoVendedor(id),
+    'entregarCreditoVendedor':            (_, id) => entregarCreditoVendedor(id),
+    'toggle-pedido-accordion-vendedor':   (_, id) => _togglePedidoAccordionVendedor(id),
+    'ver-pedido-completo-vendedor':       (_, id) => _abrirModalPedidoCompletoVendedor(id),
+    'cerrar-modal-pedido-vendedor':       () => document.getElementById('dialogVendedorPedidoCompleto')?.hide(),
     // Mis Pedidos — filtros y paginacion
     'setPedidosFiltro':               (_, f) => typeof _setPedidosFiltro === 'function' && _setPedidosFiltro(f),
     'setPedidosPagina':               (_, n) => typeof _setPedidosPagina === 'function' && _setPedidosPagina(n),
@@ -127,6 +130,77 @@ let vistaCatalogo = 'categorias'; // 'categorias' o 'productos'
 let categoriaSeleccionada = null; // categoria clickeada en el grid
 let vistaActual = 'lista'; // 'lista', 'pedidos' o 'config'
 let autoBackupInterval = null;
+
+// --- Accordion de tarjetas Mis Pedidos ---
+let _pedidoVendedorExpandidoId = null;
+
+function _togglePedidoAccordionVendedor(id) {
+    if (_pedidoVendedorExpandidoId === id) {
+        _setPedidoAccordionEstadoVendedor(id, false);
+        _pedidoVendedorExpandidoId = null;
+        return;
+    }
+    if (_pedidoVendedorExpandidoId) _setPedidoAccordionEstadoVendedor(_pedidoVendedorExpandidoId, false);
+    _setPedidoAccordionEstadoVendedor(id, true);
+    _pedidoVendedorExpandidoId = id;
+}
+
+function _setPedidoAccordionEstadoVendedor(id, open) {
+    const card = document.querySelector(`[data-pedido-id="${id}"]`);
+    if (!card) return;
+    card.querySelector('.pedido-accordion-body')?.classList.toggle('open', open);
+    const chevron = card.querySelector('.pedido-chevron-icon');
+    if (chevron) chevron.style.transform = open ? 'rotate(180deg)' : '';
+}
+
+async function _abrirModalPedidoCompletoVendedor(id) {
+    const todos = (await HDVStorage.getItem('hdv_pedidos')) || [];
+    const pedido = todos.find(p => p.id === id);
+    if (!pedido) return;
+    const numPed = formatNumPedido(pedido);
+    const { label: labelEstado, clases: colorEstado } = obtenerEstadoUI(pedido.estado, '700');
+    const itemsHTML = (pedido.items || []).map(i => `
+        <div class="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
+            <span class="text-sm text-gray-700">${escapeHTML(i.nombre)} <span class="text-xs text-gray-400">(${escapeHTML(i.presentacion)}) ×${i.cantidad}</span></span>
+            <span class="text-sm font-medium text-gray-800 ml-3 shrink-0">${formatearGuaranies(i.subtotal)}</span>
+        </div>`).join('');
+
+    let dialog = document.getElementById('dialogVendedorPedidoCompleto');
+    if (!dialog) {
+        dialog = document.createElement('sl-dialog');
+        dialog.id = 'dialogVendedorPedidoCompleto';
+        dialog.setAttribute('label', 'Detalle del Pedido');
+        document.body.appendChild(dialog);
+    }
+
+    dialog.innerHTML = `
+        <div class="space-y-3">
+            <div class="flex items-start justify-between">
+                <div>
+                    <p class="font-bold text-gray-900">${escapeHTML(pedido.cliente?.nombre || 'Sin cliente')}</p>
+                    <div class="flex items-center gap-2 mt-0.5 text-xs text-gray-400">
+                        ${numPed ? `<span class="font-mono">#${numPed}</span>` : ''}
+                        <span>${new Date(pedido.fecha).toLocaleString('es-PY')}</span>
+                    </div>
+                </div>
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${colorEstado}">${labelEstado}</span>
+            </div>
+            <div class="bg-gray-50 rounded-lg px-3 py-2">
+                ${itemsHTML}
+                <div class="flex justify-between items-center pt-2 border-t border-gray-200 mt-1">
+                    <span class="text-sm font-semibold text-gray-700">Total</span>
+                    <span class="text-base font-bold text-gray-900">${formatearGuaranies(pedido.total)}</span>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 text-xs text-gray-500">
+                <span>${escapeHTML(pedido.tipoPago || 'contado')}</span>
+                ${pedido.notas ? `<span>·</span><span>${escapeHTML(pedido.notas)}</span>` : ''}
+            </div>
+        </div>
+        <sl-button slot="footer" variant="default" data-action="cerrar-modal-pedido-vendedor">Cerrar</sl-button>`;
+    dialog.show();
+    if (typeof lucide !== 'undefined') setTimeout(() => lucide.createIcons({ nodes: [dialog] }), 50);
+}
 
 // Flag global: suprime toasts info/success durante carga inicial
 window._hdvAppReady = false;

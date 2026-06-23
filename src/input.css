@@ -178,3 +178,15 @@ textarea:focus, select:focus {
 
 /* Scrollbar hide */
 .no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* ==========================================
+   Accordion para tarjetas de pedido
+   ========================================== */
+.pedido-accordion-body {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.22s ease;
+}
+.pedido-accordion-body.open {
+  max-height: 700px;
+}

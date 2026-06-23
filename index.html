@@ -338,16 +338,8 @@
     <!-- VISTA MAPA DE CLIENTES -->
     <div id="vistaMapaWrapper" class="hidden fixed left-0 right-0 bottom-0 z-40" style="top:60px;">
 
-        <!-- Filtros superiores -->
-        <div class="absolute top-0 left-0 right-0 z-10 px-3 pt-2">
-            <div class="overflow-x-auto pb-1">
-                <div id="mapaFiltrosChips" class="flex gap-2 w-max">
-                    <!-- chips inyectados por mapa.js -->
-                </div>
-            </div>
-            <!-- Instrucción de colocación de pin (oculta por defecto) -->
-            <div id="mapaInstruccion" class="hidden mt-2"></div>
-        </div>
+        <!-- Instrucción de colocación (top, solo en modo colocación) -->
+        <div id="mapaInstruccion" class="hidden absolute top-2 left-0 right-0 z-10 px-3"></div>
 
         <!-- Contenedor Leaflet (fondo oscuro) -->
         <div id="hdvMapContainer" style="width:100%;height:100%;background:#1a1a2e;"></div>
@@ -376,8 +368,17 @@
             </div>
         </div>
 
-        <!-- FABs: sin ubicar + mi ubicación -->
-        <div class="absolute bottom-6 right-4 z-10 flex flex-col items-end gap-2">
+        <!-- FILTROS FLOTANTES — fila inferior sobre el mapa -->
+        <div class="absolute bottom-20 left-0 right-0 z-10 px-3">
+            <div class="overflow-x-auto">
+                <div id="mapaFiltrosChips" class="flex gap-2 pb-1 w-max">
+                    <!-- chips inyectados por mapa.js -->
+                </div>
+            </div>
+        </div>
+
+        <!-- FABs: mi ubicación (bottom-right) -->
+        <div class="absolute bottom-5 right-4 z-10 flex flex-col items-end gap-2">
             <button id="mapaSinUbicarBadge" data-action="setFiltroMapa" data-arg="sin-ubicacion"
                 class="hidden bg-amber-500 text-white rounded-full px-3 py-1.5 text-xs font-bold shadow-xl border border-amber-400">
             </button>
@@ -390,10 +391,9 @@
             </button>
         </div>
 
-        <!-- Botón confirmar pin (modo colocación) -->
+        <!-- Botón confirmar pin (modo colocación, cubre toda la base) -->
         <button id="mapaConfirmarPin" data-action="confirmarPin"
-            class="hidden absolute bottom-6 left-4 z-10 bg-indigo-600 active:bg-indigo-700 text-white py-3.5 rounded-2xl font-bold text-sm shadow-2xl flex items-center justify-center gap-2 transition-colors"
-            style="right:70px;">
+            class="hidden absolute bottom-4 left-4 right-4 z-20 bg-indigo-600 active:bg-indigo-700 text-white py-3.5 rounded-2xl font-bold text-sm shadow-2xl flex items-center justify-center gap-2 transition-colors">
             <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
             </svg>
@@ -407,8 +407,8 @@
         </div>
     </div>
 
-    <!-- FAB Carrito (floating, centrado en bottom) -->
-    <div class="fixed bottom-0 left-0 right-0 flex justify-center pb-5 z-40 pointer-events-none">
+    <!-- FAB Carrito (solo en vista Catálogo) -->
+    <div id="cartFabWrapper" class="fixed bottom-0 left-0 right-0 flex justify-center pb-5 z-40 pointer-events-none">
         <button data-action="mostrarModalCarrito" id="viewCartBtn" aria-label="Ver carrito de compras"
             class="pointer-events-auto relative bg-indigo-600 text-white p-4 rounded-full shadow-2xl border-4 border-white disabled:opacity-50 disabled:bg-slate-400 hover:bg-indigo-700 active:scale-95 transition-all">
             <i data-lucide="shopping-cart" class="w-6 h-6"></i>

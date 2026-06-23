@@ -362,6 +362,10 @@ function cambiarVistaVendedor(vista) {
     const searchBox = document.getElementById('searchContainer');
     const clienteSearch = document.getElementById('clienteSearchWrapper');
 
+    // FAB carrito: solo visible en catálogo
+    const cartFab = document.getElementById('cartFabWrapper');
+    if (cartFab) cartFab.style.display = vista === 'lista' ? '' : 'none';
+
     // Cerrar sidebar
     const sidebar = document.getElementById('sidebarMenu');
     if (sidebar) sidebar.hide();

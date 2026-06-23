@@ -281,8 +281,11 @@ async function guardarClienteModal() {
 }
 
 // ============================================
-// UBICACIÓN GPS — Geocoding Nominatim
+// UBICACIÓN GPS — Mini-mapa Leaflet
 // ============================================
+
+let _minimapAdmin = null;
+let _minimapMarker = null;
 
 function _actualizarUbicacionStatus(lat, lng) {
     const status = document.getElementById('clienteUbicacionStatus');
@@ -297,26 +300,98 @@ function _actualizarUbicacionStatus(lat, lng) {
     }
 }
 
-async function geocodificarClienteAdmin() {
-    const btn = document.getElementById('btnGeocodeCliente');
-    const direccion = document.getElementById('nuevoClienteDireccion')?.value.trim();
-    const zona = document.getElementById('nuevoClienteZona')?.value.trim();
-    if (!direccion) { mostrarToast('Ingresá una dirección primero', 'warning'); return; }
+function _colocarMarkerAdmin(lat, lng) {
+    if (!_minimapAdmin) return;
+    if (_minimapMarker) {
+        _minimapMarker.setLatLng([lat, lng]);
+    } else {
+        _minimapMarker = L.marker([lat, lng], { draggable: true }).addTo(_minimapAdmin);
+        _minimapMarker.on('drag', () => {
+            const pos = _minimapMarker.getLatLng();
+            const coordLabel = document.getElementById('adminMapCoordsLabel');
+            if (coordLabel) coordLabel.textContent = `${pos.lat.toFixed(5)}, ${pos.lng.toFixed(5)}`;
+        });
+    }
+    const coordLabel = document.getElementById('adminMapCoordsLabel');
+    if (coordLabel) coordLabel.textContent = `${parseFloat(lat).toFixed(5)}, ${parseFloat(lng).toFixed(5)}`;
+    _minimapAdmin.panTo([lat, lng]);
+}
 
+function _initMinimapLeaflet() {
+    if (_minimapAdmin) {
+        _minimapAdmin.invalidateSize();
+        return;
+    }
+    _minimapAdmin = L.map('adminMapContainer', { zoomControl: true })
+        .setView([-25.2867, -57.647], 13);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
+        subdomains: 'abcd',
+        maxZoom: 19
+    }).addTo(_minimapAdmin);
+
+    _minimapAdmin.on('click', (e) => {
+        _colocarMarkerAdmin(e.latlng.lat, e.latlng.lng);
+    });
+}
+
+function abrirMinimapAdmin() {
+    const dialog = document.getElementById('dialogMapaAdmin');
+    if (!dialog) return;
+
+    // Pre-llenar buscador con la dirección del formulario
+    const dir = document.getElementById('nuevoClienteDireccion')?.value.trim();
+    const zona = document.getElementById('nuevoClienteZona')?.value.trim();
+    const geocodeInput = document.getElementById('geocodeAdminInput');
+    if (geocodeInput && dir) geocodeInput.value = `${dir}${zona ? ', ' + zona : ''}`;
+
+    dialog.addEventListener('sl-after-show', () => {
+        _initMinimapLeaflet();
+
+        // Reset marcador previo para empezar limpio
+        if (_minimapMarker && _minimapAdmin) {
+            _minimapAdmin.removeLayer(_minimapMarker);
+            _minimapMarker = null;
+        }
+        const coordLabel = document.getElementById('adminMapCoordsLabel');
+        if (coordLabel) coordLabel.textContent = 'Sin posición seleccionada';
+
+        // Si el cliente ya tiene coordenadas, mostrar allí
+        const lat = parseFloat(document.getElementById('clienteLatHidden')?.value) || null;
+        const lng = parseFloat(document.getElementById('clienteLngHidden')?.value) || null;
+        if (lat && lng) {
+            _colocarMarkerAdmin(lat, lng);
+            _minimapAdmin.setView([lat, lng], 15);
+        } else if (geocodeInput?.value) {
+            geocodificarEnMinimapa();
+        }
+    }, { once: true });
+
+    dialog.show();
+
+    // Habilitar Enter en el buscador del mapa
+    const geocodeInputEl = document.getElementById('geocodeAdminInput');
+    if (geocodeInputEl) {
+        geocodeInputEl.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') geocodificarEnMinimapa();
+        }, { once: true });
+    }
+}
+
+async function geocodificarEnMinimapa() {
+    const input = document.getElementById('geocodeAdminInput')?.value.trim();
+    if (!input) return;
+    const btn = document.getElementById('btnGeocodeInMap');
     if (btn) btn.loading = true;
     try {
-        const query = encodeURIComponent(`${direccion}${zona ? ', ' + zona : ''}, Paraguay`);
+        const query = encodeURIComponent(`${input}, Paraguay`);
         const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=1&countrycodes=py`, {
             headers: { 'Accept-Language': 'es', 'User-Agent': 'HDV-Distribuciones/1.0' }
         });
         const data = await res.json();
-        if (!data.length) { mostrarToast('No se encontró la dirección — intentá con menos detalle', 'warning'); return; }
-        const lat = parseFloat(data[0].lat).toFixed(7);
-        const lng = parseFloat(data[0].lon).toFixed(7);
-        document.getElementById('clienteLatHidden').value = lat;
-        document.getElementById('clienteLngHidden').value = lng;
-        _actualizarUbicacionStatus(lat, lng);
-        mostrarToast('Ubicación encontrada correctamente', 'success');
+        if (!data.length) { mostrarToast('No se encontró — intentá con menos detalle', 'warning'); return; }
+        _colocarMarkerAdmin(parseFloat(data[0].lat), parseFloat(data[0].lon));
+        _minimapAdmin.setView([parseFloat(data[0].lat), parseFloat(data[0].lon)], 16);
     } catch (_e) {
         mostrarToast('Error al buscar la dirección', 'danger');
     } finally {
@@ -324,9 +399,34 @@ async function geocodificarClienteAdmin() {
     }
 }
 
+function confirmarUbicacionAdmin() {
+    if (!_minimapMarker) {
+        mostrarToast('Hacé clic en el mapa para colocar el pin primero', 'warning');
+        return;
+    }
+    const pos = _minimapMarker.getLatLng();
+    const lat = pos.lat.toFixed(7);
+    const lng = pos.lng.toFixed(7);
+    document.getElementById('clienteLatHidden').value = lat;
+    document.getElementById('clienteLngHidden').value = lng;
+    _actualizarUbicacionStatus(lat, lng);
+    document.getElementById('dialogMapaAdmin')?.hide();
+    mostrarToast('Ubicación seleccionada correctamente', 'success');
+}
+
+function cancelarMinimapAdmin() {
+    document.getElementById('dialogMapaAdmin')?.hide();
+}
+
 function limpiarUbicacionAdmin() {
     document.getElementById('clienteLatHidden').value = '';
     document.getElementById('clienteLngHidden').value = '';
+    if (_minimapMarker && _minimapAdmin) {
+        _minimapAdmin.removeLayer(_minimapMarker);
+        _minimapMarker = null;
+    }
+    const coordLabel = document.getElementById('adminMapCoordsLabel');
+    if (coordLabel) coordLabel.textContent = 'Sin posición seleccionada';
     _actualizarUbicacionStatus(null, null);
 }
 

@@ -10,6 +10,8 @@
     <link rel="stylesheet" href="dist/tailwind.css">
     <!-- Shoelace Web Components (local, offline-first) -->
     <link rel="stylesheet" href="assets/lib/shoelace/themes/light.css">
+    <!-- Leaflet (mini-mapa selector de ubicación) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H" crossorigin="anonymous">
     <script type="module">
         import { setBasePath } from './assets/lib/shoelace/utilities/base-path.js';
         setBasePath('./assets/lib/shoelace');
@@ -17,6 +19,8 @@
     <script type="module" src="assets/lib/shoelace/shoelace.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" integrity="sha384-e6nUZLBkQ86NJ6TVVKAeSaK8jWa3NhkYWZFomE39AvDbQWeie9PlQqM3pmYW5d1g" crossorigin="anonymous"></script>
     <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js" integrity="sha384-uTYyvsSSUZeaPhb5RbKlQa0zY/WpX/QHfvg2mczXyBQOpkWPEDy9lczyp+w7SKXu" crossorigin="anonymous"></script>
+    <!-- Leaflet JS (mini-mapa selector de ubicación) -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script>
     <!-- Supabase (version fijada para SRI) -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.99.2" integrity="sha384-zETTH+6IXxKQ6zbGcT6H6EDdnGaae9uhI8uO7doTJoNEmPGeTKVOe5S6/XybS9JH" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" integrity="sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk" crossorigin="anonymous"></script>
@@ -1936,7 +1940,12 @@
                         <div class="flex-1 bg-gray-50 rounded-lg px-3 py-2 text-sm min-h-[36px] flex items-center">
                             <span id="clienteUbicacionStatus" class="text-gray-400 text-xs">Sin ubicación</span>
                         </div>
-                        <sl-button id="btnGeocodeCliente" data-action="geocodificarClienteAdmin" variant="neutral" size="small">Buscar dirección</sl-button>
+                        <sl-button id="btnGeocodeCliente" data-action="abrirMinimapAdmin" variant="neutral" size="small">
+                            <svg slot="prefix" xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/>
+                            </svg>
+                            Ubicar en mapa
+                        </sl-button>
                         <sl-button id="btnClearUbicacion" data-action="limpiarUbicacionAdmin" variant="text" size="small" style="display:none;">✕</sl-button>
                     </div>
                     <input type="hidden" id="clienteLatHidden">
@@ -2299,5 +2308,29 @@
     <script src="js/admin/dtes.js"></script>
     <script src="js/admin/ai-assistant.js"></script>
     <script>lucide.createIcons();</script>
+
+    <!-- DIALOG MINI-MAPA — Selector de ubicación GPS -->
+    <sl-dialog id="dialogMapaAdmin" label="Seleccionar ubicación" style="--width: 640px;">
+        <div>
+            <!-- Buscador de dirección dentro del mapa -->
+            <div class="flex gap-2 mb-3">
+                <sl-input id="geocodeAdminInput" placeholder="Buscá una dirección, ciudad..." class="flex-1" size="small" clearable></sl-input>
+                <sl-button id="btnGeocodeInMap" data-action="geocodificarEnMinimapa" variant="neutral" size="small">Buscar</sl-button>
+            </div>
+            <p class="text-xs text-slate-400 mb-2">Hacé clic en el mapa para colocar el pin. También podés arrastrarlo para ajustar la posición.</p>
+            <!-- Contenedor Leaflet -->
+            <div id="adminMapContainer" style="width:100%;height:380px;border-radius:12px;overflow:hidden;background:#1a1a2e;"></div>
+            <p class="text-xs text-slate-400 mt-2 text-center" id="adminMapCoordsLabel">Sin posición seleccionada</p>
+        </div>
+        <div slot="footer" class="flex justify-end gap-3">
+            <sl-button data-action="cancelarMinimapAdmin" variant="text" size="small">Cancelar</sl-button>
+            <sl-button id="btnConfirmarMapaAdmin" data-action="confirmarUbicacionAdmin" variant="primary" size="small">
+                <svg slot="prefix" xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                </svg>
+                Confirmar ubicación
+            </sl-button>
+        </div>
+    </sl-dialog>
 </body>
 </html>

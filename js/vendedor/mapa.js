@@ -120,7 +120,7 @@ const HDVMapa = (() => {
             { key: 'sin-ubicacion',  label: 'Sin ubicar' },
         ];
         return opts.map(o => `<button data-action="setFiltroMapa" data-arg="${o.key}"
-            class="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${_filtroActivo === o.key ? 'bg-indigo-500 text-white shadow' : 'bg-white/90 text-slate-700 border border-slate-200'}">
+            class="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors shadow-sm ${_filtroActivo === o.key ? 'bg-indigo-500 text-white' : 'bg-white text-slate-700 border border-slate-200'}">
             ${escapeHTML(o.label)}
         </button>`).join('');
     }

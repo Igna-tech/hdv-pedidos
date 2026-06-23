@@ -184,7 +184,10 @@ function crearTarjetaPedidoAdmin(p) {
     div.innerHTML = `
         <div class="flex justify-between items-start mb-3">
             <div>
-                <h3 class="text-lg font-bold text-gray-800">${escapeHTML(p.cliente?.nombre || 'Sin cliente')}</h3>
+                <div class="flex items-baseline gap-2">
+                    <h3 class="text-lg font-bold text-gray-800">${escapeHTML(p.cliente?.nombre || 'Sin cliente')}</h3>
+                    ${formatNumPedido(p) ? `<span class="text-xs font-mono text-gray-400">#${formatNumPedido(p)}</span>` : ''}
+                </div>
                 <div class="text-sm text-gray-500 mt-1 flex items-center gap-1 flex-wrap">
                     <i data-lucide="map-pin" class="w-3 h-3"></i> ${escapeHTML(zona)}
                     <span class="mx-1">·</span> <i data-lucide="clock" class="w-3 h-3"></i> ${new Date(p.fecha).toLocaleString('es-PY')}
@@ -338,7 +341,31 @@ async function marcarPendiente(id) {
 }
 
 async function marcarCobrado(id) {
-    if (!await mostrarConfirmModal('¿Cobrar este pedido sin factura? Pasará a la sección Ventas.', { textoConfirmar: 'Cobrar' })) return;
+    const pedido = (todosLosPedidos || []).find(p => p.id === id);
+    if (!pedido) return;
+
+    // Pedir monto cobrado (default = total)
+    const datos = await mostrarInputModal({
+        titulo: `Cobrar — ${escapeHTML(pedido.cliente?.nombre || 'Cliente')}`,
+        campos: [{ key: 'monto', label: `Monto cobrado (total: ${formatearGuaranies(pedido.total)})`, tipo: 'number', placeholder: String(pedido.total), requerido: true }],
+        textoConfirmar: 'Confirmar cobro'
+    });
+    if (!datos) return;
+
+    const montoCobrado = Number(datos.monto);
+    if (montoCobrado <= 0) { mostrarToast('Monto inválido', 'error'); return; }
+    const saldo = Math.max(0, Math.round(pedido.total - montoCobrado));
+
+    if (saldo > 0) {
+        const crearCredito = await mostrarConfirmModal(
+            `Cobro parcial: ${formatearGuaranies(montoCobrado)} de ${formatearGuaranies(pedido.total)}.\n¿Crear crédito por el saldo de ${formatearGuaranies(saldo)} para ${escapeHTML(pedido.cliente?.nombre || 'el cliente')}?`,
+            { textoConfirmar: 'Crear crédito' }
+        );
+        if (crearCredito && typeof crearCreditoParcial === 'function') {
+            await crearCreditoParcial(pedido, saldo);
+        }
+    }
+
     if (typeof actualizarEstadoPedido === 'function') {
         try {
             await actualizarEstadoPedido(id, PEDIDO_ESTADOS.COBRADO);
@@ -348,17 +375,16 @@ async function marcarCobrado(id) {
             return;
         }
     }
-    await HDVStorage.atomicUpdate('hdv_pedidos', (pedidos) => {
-        const list = pedidos || [];
-        const p = list.find(x => x.id === id);
-        if (p) p.estado = PEDIDO_ESTADOS.COBRADO;
-        return list;
+    await HDVStorage.atomicUpdate('hdv_pedidos', (list) => {
+        const p = (list || []).find(x => x.id === id);
+        if (p) {
+            p.estado = PEDIDO_ESTADOS.COBRADO;
+            if (saldo > 0) { p.cobro_parcial = true; p.monto_cobrado = montoCobrado; p.saldo_credito = saldo; }
+        }
+        return list || [];
     });
-    // Quitar de Pedidos Entrantes (pasa a Ventas)
-    if (!actualizarTarjetaPedidoAdminDOM(id, PEDIDO_ESTADOS.COBRADO)) {
-        cargarPedidos();
-    }
-    mostrarToast('Pedido cobrado — aparece en Ventas', 'success');
+    if (!actualizarTarjetaPedidoAdminDOM(id, PEDIDO_ESTADOS.COBRADO)) cargarPedidos();
+    mostrarToast(saldo > 0 ? `Cobro parcial de ${formatearGuaranies(montoCobrado)} registrado` : 'Pedido cobrado — aparece en Ventas', 'success');
 }
 
 async function eliminarPedidoAdmin(id) {

@@ -1272,7 +1272,7 @@ function crearTarjetaPedidoVendedor(p) {
         <div class="flex justify-between items-start mb-2">
             <div>
                 <p class="font-bold text-gray-800">${escapeHTML(p.cliente?.nombre || 'N/A')}</p>
-                <p class="text-xs text-gray-500">${new Date(p.fecha).toLocaleString('es-PY')}</p>
+                <p class="text-xs text-gray-500">${new Date(p.fecha).toLocaleString('es-PY')}${formatNumPedido(p) ? ` · <span class="font-mono">#${formatNumPedido(p)}</span>` : ''}</p>
             </div>
             <span class="pedido-estado-badge px-2 py-1 rounded-full text-[10px] font-bold ${colorEstado}">${labelEstado}</span>
         </div>

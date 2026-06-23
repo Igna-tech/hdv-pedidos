@@ -30,7 +30,7 @@ const SupabaseService = (() => {
             while (hasMore) {
                 const { data, error } = await supabaseClient
                     .from('pedidos')
-                    .select('id, estado, fecha, datos, vendedor_id, creado_en, actualizado_en')
+                    .select('id, estado, fecha, datos, numero_pedido, vendedor_id, creado_en, actualizado_en')
                     .order('fecha', { ascending: false })
                     .range(currentOffset, currentOffset + PAGE_SIZE - 1);
                 if (error) throw error;
@@ -87,11 +87,13 @@ const SupabaseService = (() => {
             } else if (window.hdvUsuario?.id) {
                 row.vendedor_id = window.hdvUsuario.id;
             }
-            const { error } = await supabaseClient
+            const { data: resultRow, error } = await supabaseClient
                 .from('pedidos')
-                .upsert(row, { onConflict: 'id' });
+                .upsert(row, { onConflict: 'id' })
+                .select('id, numero_pedido')
+                .single();
             if (error) throw error;
-            return { success: true, error: null };
+            return { success: true, error: null, numero_pedido: resultRow?.numero_pedido ?? null };
         } catch (error) {
             console.error('[SupabaseService] upsertPedido:', error);
             _reportError('upsertPedido', error);

@@ -490,10 +490,27 @@ async function cobrarPedidoVendedor(pedidoId) {
     const pedido = todos.find(p => p.id === pedidoId);
     if (!pedido) return;
 
-    if (!await mostrarConfirmModal(
-        `¿Confirmar cobro de ${formatearGuaranies(pedido.total)} a ${escapeHTML(pedido.cliente?.nombre || 'cliente')}?`,
-        { textoConfirmar: 'Cobrar' }
-    )) return;
+    // Pedir monto cobrado (default = total)
+    const datos = await mostrarInputModal({
+        titulo: `Cobrar — ${escapeHTML(pedido.cliente?.nombre || 'Cliente')}`,
+        campos: [{ key: 'monto', label: `Monto cobrado (total: ${formatearGuaranies(pedido.total)})`, tipo: 'number', placeholder: String(pedido.total), requerido: true }],
+        textoConfirmar: 'Confirmar cobro'
+    });
+    if (!datos) return;
+
+    const montoCobrado = Number(datos.monto);
+    if (montoCobrado <= 0) { mostrarToast('Monto inválido', 'error'); return; }
+    const saldo = Math.max(0, Math.round(pedido.total - montoCobrado));
+
+    if (saldo > 0) {
+        const crearCredito = await mostrarConfirmModal(
+            `Cobro parcial: ${formatearGuaranies(montoCobrado)} de ${formatearGuaranies(pedido.total)}.\n¿Crear crédito por el saldo de ${formatearGuaranies(saldo)}?`,
+            { textoConfirmar: 'Crear crédito' }
+        );
+        if (crearCredito && typeof crearCreditoParcial === 'function') {
+            await crearCreditoParcial(pedido, saldo);
+        }
+    }
 
     if (typeof actualizarEstadoPedido === 'function') {
         try {
@@ -505,10 +522,13 @@ async function cobrarPedidoVendedor(pedidoId) {
     }
     await HDVStorage.atomicUpdate('hdv_pedidos', (list) => {
         const p = (list || []).find(x => x.id === pedidoId);
-        if (p) p.estado = PEDIDO_ESTADOS.COBRADO;
+        if (p) {
+            p.estado = PEDIDO_ESTADOS.COBRADO;
+            if (saldo > 0) { p.cobro_parcial = true; p.monto_cobrado = montoCobrado; p.saldo_credito = saldo; }
+        }
         return list || [];
     });
-    mostrarExito('Pedido cobrado correctamente');
+    mostrarExito(saldo > 0 ? `Cobro parcial de ${formatearGuaranies(montoCobrado)} registrado` : 'Pedido cobrado correctamente');
     mostrarMisPedidos();
     if (typeof _renderResumenHoy === 'function') _renderResumenHoy();
 }

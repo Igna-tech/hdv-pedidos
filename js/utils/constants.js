@@ -50,6 +50,14 @@ function obtenerEstadoUI(estado, intensidad) {
     };
 }
 
+// Formatea numero_pedido como string de 7 dígitos (ej: "0000042").
+// Si la empresa tiene establecimiento/punto definidos, el llamador los antepone.
+// Retorna null si el pedido aún no tiene número asignado (pedido offline sin sync).
+function formatNumPedido(pedido) {
+    if (!pedido?.numero_pedido) return null;
+    return String(pedido.numero_pedido).padStart(7, '0');
+}
+
 // --- Timeouts y delays centralizados ---
 
 const TIEMPOS = {

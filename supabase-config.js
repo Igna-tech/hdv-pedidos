@@ -67,10 +67,37 @@ window.addEventListener('offline', () => actualizarIndicadorConexion(false));
 // ============================================
 
 async function guardarPedido(pedido) {
-    const { success } = await SupabaseService.upsertPedido(pedido);
-    if (success) console.log('[Supabase] Pedido guardado:', pedido.id);
-    else console.error('[Supabase] Error guardando pedido:', pedido.id);
+    const { success, numero_pedido } = await SupabaseService.upsertPedido(pedido);
+    if (success) {
+        console.log('[Supabase] Pedido guardado:', pedido.id, numero_pedido ? `#${numero_pedido}` : '');
+        if (numero_pedido != null) {
+            await HDVStorage.atomicUpdate('hdv_pedidos', (list) => {
+                const p = (list || []).find(x => x.id === pedido.id);
+                if (p && p.numero_pedido == null) p.numero_pedido = numero_pedido;
+                return list || [];
+            });
+        }
+    } else {
+        console.error('[Supabase] Error guardando pedido:', pedido.id);
+    }
     return success;
+}
+
+async function crearCreditoParcial(pedido, saldo) {
+    const creditos = await obtenerCreditosManuales() || [];
+    const nuevo = {
+        id: 'CM' + Date.now(),
+        clienteId: pedido.cliente?.id || pedido.clienteId,
+        clienteNombre: pedido.cliente?.nombre || pedido.clienteNombre || 'Sin nombre',
+        monto: saldo,
+        descripcion: `Saldo cobro parcial — ${pedido.id?.slice(0, 12) || ''}`,
+        fecha: new Date().toISOString(),
+        pagos: [], pagado: false
+    };
+    creditos.push(nuevo);
+    await HDVStorage.setItem('hdv_creditos_manuales', creditos);
+    try { await guardarCreditosManuales(creditos); } catch(e) { console.warn('[Cobro parcial] Error sync crédito:', e); }
+    return nuevo;
 }
 
 async function actualizarEstadoPedido(pedidoId, nuevoEstado) {
@@ -90,7 +117,11 @@ async function eliminarPedido(pedidoId) {
 async function obtenerPedidos() {
     const { data, error } = await SupabaseService.fetchPedidos();
     if (error) return null;
-    return data.map(r => r.datos);
+    return data.map(r => {
+        const p = r.datos || {};
+        if (r.numero_pedido != null) p.numero_pedido = r.numero_pedido;
+        return p;
+    });
 }
 
 async function escucharPedidosRealtime(callback) {
@@ -102,7 +133,11 @@ async function escucharPedidosRealtime(callback) {
             const pedidosLocal = (await HDVStorage.getItem('hdv_pedidos')) || [];
             callback(pedidosLocal, []);
         } else {
-            const pedidos = data.map(r => r.datos);
+            const pedidos = data.map(r => {
+                const p = r.datos || {};
+                if (r.numero_pedido != null) p.numero_pedido = r.numero_pedido;
+                return p;
+            });
             // Merge atómico: preservar pedidos locales no sincronizados
             const merged = await HDVStorage.atomicUpdate('hdv_pedidos', (pedidosLocal) => {
                 const list = pedidosLocal || [];
@@ -132,6 +167,7 @@ async function escucharPedidosRealtime(callback) {
 
             if (eventType === 'UPDATE' && newRow) {
                 const datos = newRow.datos || {};
+                if (newRow.numero_pedido != null) datos.numero_pedido = newRow.numero_pedido;
                 const pedidoId = newRow.id;
 
                 await HDVStorage.atomicUpdate('hdv_pedidos', (pedidos) => {
@@ -156,6 +192,7 @@ async function escucharPedidosRealtime(callback) {
 
             } else if (eventType === 'INSERT' && newRow) {
                 const datos = newRow.datos || {};
+                if (newRow.numero_pedido != null) datos.numero_pedido = newRow.numero_pedido;
 
                 await HDVStorage.atomicUpdate('hdv_pedidos', (pedidos) => {
                     const list = pedidos || [];
@@ -187,7 +224,11 @@ function escucharPedidosRealtimeVendedor(callbacks) {
         try {
             const { data, error } = await SupabaseService.fetchPedidos();
             if (!error && data) {
-                const pedidosRemoto = data.map(r => r.datos);
+                const pedidosRemoto = data.map(r => {
+                    const p = r.datos || {};
+                    if (r.numero_pedido != null) p.numero_pedido = r.numero_pedido;
+                    return p;
+                });
                 const merged = await HDVStorage.atomicUpdate('hdv_pedidos', (pedidosLocal) => {
                     const list = pedidosLocal || [];
                     const sinSync = list.filter(p => p.sincronizado === false);
@@ -211,6 +252,7 @@ function escucharPedidosRealtimeVendedor(callbacks) {
 
         if (eventType === 'UPDATE' && newRow) {
             const datos = newRow.datos || {};
+            if (newRow.numero_pedido != null) datos.numero_pedido = newRow.numero_pedido;
             const pedidoId = newRow.id;
             const nuevoEstado = datos.estado;
 
@@ -239,6 +281,7 @@ function escucharPedidosRealtimeVendedor(callbacks) {
             }
         } else if (eventType === 'INSERT' && newRow) {
             const datos = newRow.datos || {};
+            if (newRow.numero_pedido != null) datos.numero_pedido = newRow.numero_pedido;
 
             const updated = await HDVStorage.atomicUpdate('hdv_pedidos', (pedidos) => {
                 const list = pedidos || [];

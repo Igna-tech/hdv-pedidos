@@ -615,6 +615,25 @@ const SupabaseService = (() => {
     }
 
     // ============================================
+    // UBICACION CLIENTES
+    // ============================================
+
+    async function updateClienteUbicacion(clienteId, lat, lng) {
+        try {
+            const { error } = await supabaseClient
+                .from('clientes')
+                .update({ lat, lng, ubicacion_actualizada_en: new Date().toISOString() })
+                .eq('id', clienteId);
+            if (error) throw error;
+            return { success: true, error: null };
+        } catch (error) {
+            console.error('[SupabaseService] updateClienteUbicacion:', error);
+            _reportError('updateClienteUbicacion', error);
+            return { success: false, error };
+        }
+    }
+
+    // ============================================
     // REALTIME helpers
     // ============================================
 
@@ -683,6 +702,9 @@ const SupabaseService = (() => {
         // Push Subscriptions
         upsertPushSubscription,
         deletePushSubscription,
+
+        // Ubicacion clientes
+        updateClienteUbicacion,
 
         // Utils
         healthCheck,

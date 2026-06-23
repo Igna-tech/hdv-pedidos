@@ -79,6 +79,22 @@ const _vendedorActionMap = {
     // Creditos
     'mostrarCreditos':                () => typeof mostrarCreditos === 'function' && mostrarCreditos(),
     'registrarPagoManualVendedor':    (_, id) => typeof registrarPagoManualVendedor === 'function' && registrarPagoManualVendedor(id),
+    // Mapa de clientes
+    'setFiltroMapa':                  (_, f) => typeof HDVMapa !== 'undefined' && HDVMapa.setFiltroMapa(f),
+    'iniciarColocacionPin':           (_, id) => typeof HDVMapa !== 'undefined' && HDVMapa.iniciarColocacionPin(id),
+    'confirmarPin':                   () => typeof HDVMapa !== 'undefined' && HDVMapa.confirmarPin(),
+    'cancelarColocacionPin':          () => typeof HDVMapa !== 'undefined' && HDVMapa.cancelarColocacionPin(),
+    'cerrarBottomSheetMapa':          () => typeof HDVMapa !== 'undefined' && HDVMapa.cerrarBottomSheet(),
+    'centrarEnMiUbicacion':           () => typeof HDVMapa !== 'undefined' && HDVMapa.centrarEnMiUbicacion(),
+    'crearPedidoDesdeMapaCliente':    (_, id) => {
+        if (typeof _seleccionarCliente === 'function') _seleccionarCliente(id);
+        if (typeof HDVMapa !== 'undefined') HDVMapa.cerrarBottomSheet();
+        cambiarVistaVendedor('lista');
+    },
+    'cobrarDesdeMapaCliente':         (_, id) => {
+        if (typeof HDVMapa !== 'undefined') HDVMapa.cerrarBottomSheet();
+        if (typeof abrirCobrosCliente === 'function') abrirCobrosCliente(id);
+    },
     // Mi Jornada — timeline
     'toggleDiaJornada':               (_, d) => typeof _toggleDiaJornada === 'function' && _toggleDiaJornada(d),
     'agregarGastoVendedor':           () => typeof agregarGastoVendedor === 'function' && agregarGastoVendedor(),
@@ -339,6 +355,9 @@ function configurarEventos() {
 function cambiarVistaVendedor(vista) {
     vistaActual = vista;
 
+    // Ocultar mapa si se cambia a otra vista
+    if (vista !== 'mapa' && typeof HDVMapa !== 'undefined') HDVMapa.ocultarMapa();
+
     const catFilters = document.getElementById('categoryFilters');
     const searchBox = document.getElementById('searchContainer');
     const clienteSearch = document.getElementById('clienteSearchWrapper');
@@ -382,6 +401,11 @@ function cambiarVistaVendedor(vista) {
         catFilters.style.display = 'none';
         searchBox.style.display = 'none';
         mostrarConfiguracion();
+    } else if (vista === 'mapa') {
+        if (clienteSearch) clienteSearch.style.display = 'none';
+        catFilters.style.display = 'none';
+        searchBox.style.display = 'none';
+        if (typeof mostrarMapa === 'function') mostrarMapa();
     }
 }
 

@@ -1263,6 +1263,7 @@ async function renderizarCarrito() {
 function crearTarjetaPedidoVendedor(p) {
     const estado = p.estado || PEDIDO_ESTADOS.PENDIENTE;
     const { clases: colorEstado, label: labelEstado } = obtenerEstadoUI(estado, '700');
+    const esPendiente = estado === PEDIDO_ESTADOS.PENDIENTE || estado === 'pendiente';
 
     const div = document.createElement('div');
     div.className = 'bg-white rounded-xl p-4 shadow-sm border border-gray-100 mb-3 transition-all duration-300';
@@ -1282,10 +1283,21 @@ function crearTarjetaPedidoVendedor(p) {
             <span class="text-xs text-gray-500">${p.tipoPago || 'contado'}</span>
             <span class="font-bold text-gray-900">${formatearGuaranies(p.total)}</span>
         </div>
-        <div class="flex gap-2 mt-3 pt-2 border-t border-gray-50">
+        ${esPendiente ? `
+        <div class="grid grid-cols-2 gap-2 mt-3">
+            <button data-action="cobrarPedidoVendedor" data-arg="${p.id}"
+                class="bg-emerald-500 active:bg-emerald-600 text-white py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors">
+                <i data-lucide="circle-check" class="w-3.5 h-3.5"></i> Cobrado
+            </button>
+            <button data-action="entregarCreditoVendedor" data-arg="${p.id}"
+                class="bg-amber-500 active:bg-amber-600 text-white py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors">
+                <i data-lucide="clock" class="w-3.5 h-3.5"></i> A crédito
+            </button>
+        </div>` : ''}
+        <div class="flex gap-2 mt-2 pt-2 border-t border-gray-50">
             <sl-button data-action="imprimirTicketVendedor" data-arg="${p.id}" variant="default" size="small" class="flex-1"><i data-lucide="printer" class="w-3 h-3"></i> Ticket</sl-button>
             <sl-button data-action="generarPDFVendedor" data-arg="${p.id}" variant="default" size="small" class="flex-1"><i data-lucide="file-text" class="w-3 h-3"></i> PDF</sl-button>
-            <sl-button data-action="compartirPedidoWA" data-arg="${p.id}" variant="success" size="small" class="flex-1"><i data-lucide="send" class="w-3 h-3"></i> WhatsApp</sl-button>
+            <sl-button data-action="compartirPedidoWA" data-arg="${p.id}" variant="success" size="small" class="flex-1"><i data-lucide="send" class="w-3 h-3"></i> WA</sl-button>
         </div>
     `;
     return div;

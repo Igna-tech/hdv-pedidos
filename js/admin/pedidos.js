@@ -16,6 +16,7 @@ const _pedidosActionMap = {
     'facturar':          (id) => { if (typeof facturarPedidoAdmin === 'function') facturarPedidoAdmin(id); },
     'marcar-entregado':  (id) => marcarEntregado(id),
     'marcar-pendiente':  (id) => marcarPendiente(id),
+    'marcar-cobrado':    (id) => marcarCobrado(id),
     'editar':            (id) => abrirModalEditarPedido(id),
     'pdf':               (id) => generarPDFRemision(id),
     'ticket':            (id) => generarTicketTermico(id),
@@ -90,8 +91,13 @@ function aplicarFiltrosPedidos(resetPagina = true) {
     const estado = document.getElementById('filtroEstado')?.value;
 
     let filtrados = todosLosPedidos;
-    // Filtrar por estado (default: pedido_pendiente via select)
-    if (estado) {
+    // Filtrar por estado
+    if (estado === 'activos') {
+        filtrados = filtrados.filter(p => {
+            const e = p.estado || PEDIDO_ESTADOS.PENDIENTE;
+            return e === PEDIDO_ESTADOS.PENDIENTE || e === 'pendiente' || e === PEDIDO_ESTADOS.ENTREGADO;
+        });
+    } else if (estado) {
         filtrados = filtrados.filter(p => p.estado === estado || (estado === PEDIDO_ESTADOS.PENDIENTE && p.estado === 'pendiente'));
     }
     if (desde || hasta) {
@@ -207,7 +213,10 @@ function crearTarjetaPedidoAdmin(p) {
         <div class="pedido-acciones flex gap-2 mt-4 flex-wrap">
             <sl-button variant="success" size="small" data-action="facturar" data-id="${p.id}"><i data-lucide="file-check" class="w-3.5 h-3.5"></i> Facturar (SIFEN)</sl-button>
             ${estado === 'pendiente' || estado === PEDIDO_ESTADOS.PENDIENTE ?
-                `<sl-button class="btn-estado" variant="success" size="small" data-action="marcar-entregado" data-id="${p.id}"><i data-lucide="check" class="w-3.5 h-3.5"></i> Entregado</sl-button>` :
+                `<sl-button class="btn-estado" variant="success" size="small" data-action="marcar-entregado" data-id="${p.id}"><i data-lucide="truck" class="w-3.5 h-3.5"></i> Entregado</sl-button>` :
+            estado === PEDIDO_ESTADOS.ENTREGADO ?
+                `<sl-button class="btn-cobrar" variant="primary" size="small" data-action="marcar-cobrado" data-id="${p.id}"><i data-lucide="circle-check" class="w-3.5 h-3.5"></i> Cobrar</sl-button>
+                 <sl-button class="btn-estado" variant="default" size="small" data-action="marcar-pendiente" data-id="${p.id}"><i data-lucide="undo-2" class="w-3.5 h-3.5"></i> Pendiente</sl-button>` :
                 `<sl-button class="btn-estado" variant="default" size="small" data-action="marcar-pendiente" data-id="${p.id}"><i data-lucide="undo-2" class="w-3.5 h-3.5"></i> Pendiente</sl-button>`}
             <sl-button variant="primary" size="small" data-action="editar" data-id="${p.id}"><i data-lucide="pencil" class="w-3.5 h-3.5"></i> Editar</sl-button>
             <sl-button variant="default" size="small" data-action="pdf" data-id="${p.id}"><i data-lucide="file-text" class="w-3.5 h-3.5"></i> PDF</sl-button>
@@ -221,6 +230,12 @@ function actualizarTarjetaPedidoAdminDOM(pedidoId, nuevoEstado) {
     const card = document.querySelector(`[data-pedido-id="${pedidoId}"]`);
     if (!card) return false;
 
+    // Al cobrar, el pedido sale de Pedidos Entrantes y pasa a Ventas
+    if (nuevoEstado === PEDIDO_ESTADOS.COBRADO) {
+        eliminarTarjetaPedidoAdminDOM(pedidoId);
+        return true;
+    }
+
     // Actualizar badge de estado
     const badge = card.querySelector('.pedido-estado-badge');
     if (badge) {
@@ -229,21 +244,25 @@ function actualizarTarjetaPedidoAdminDOM(pedidoId, nuevoEstado) {
         badge.textContent = label;
     }
 
-    // Actualizar boton de estado (Entregado ↔ Pendiente)
-    const btnEstado = card.querySelector('.btn-estado');
-    if (btnEstado) {
+    // Reemplazar bloque de botones de accion segun nuevo estado
+    const accionesDiv = card.querySelector('.pedido-acciones');
+    if (accionesDiv) {
+        let botonesEstado = '';
         if (nuevoEstado === PEDIDO_ESTADOS.ENTREGADO) {
-            btnEstado.setAttribute('variant', 'default');
-            btnEstado.innerHTML = `<i data-lucide="undo-2" class="w-3.5 h-3.5"></i> Pendiente`;
-            btnEstado.dataset.action = 'marcar-pendiente';
-            btnEstado.dataset.id = pedidoId;
+            botonesEstado = `
+                <sl-button class="btn-cobrar" variant="primary" size="small" data-action="marcar-cobrado" data-id="${pedidoId}"><i data-lucide="circle-check" class="w-3.5 h-3.5"></i> Cobrar</sl-button>
+                <sl-button class="btn-estado" variant="default" size="small" data-action="marcar-pendiente" data-id="${pedidoId}"><i data-lucide="undo-2" class="w-3.5 h-3.5"></i> Pendiente</sl-button>`;
         } else {
-            btnEstado.setAttribute('variant', 'success');
-            btnEstado.innerHTML = `<i data-lucide="check" class="w-3.5 h-3.5"></i> Entregado`;
-            btnEstado.dataset.action = 'marcar-entregado';
-            btnEstado.dataset.id = pedidoId;
+            botonesEstado = `<sl-button class="btn-estado" variant="success" size="small" data-action="marcar-entregado" data-id="${pedidoId}"><i data-lucide="truck" class="w-3.5 h-3.5"></i> Entregado</sl-button>`;
         }
-        lucide.createIcons({ nodes: [btnEstado] });
+        accionesDiv.innerHTML = `
+            <sl-button variant="success" size="small" data-action="facturar" data-id="${pedidoId}"><i data-lucide="file-check" class="w-3.5 h-3.5"></i> Facturar (SIFEN)</sl-button>
+            ${botonesEstado}
+            <sl-button variant="primary" size="small" data-action="editar" data-id="${pedidoId}"><i data-lucide="pencil" class="w-3.5 h-3.5"></i> Editar</sl-button>
+            <sl-button variant="default" size="small" data-action="pdf" data-id="${pedidoId}"><i data-lucide="file-text" class="w-3.5 h-3.5"></i> PDF</sl-button>
+            <sl-button variant="default" size="small" data-action="ticket" data-id="${pedidoId}"><i data-lucide="printer" class="w-3.5 h-3.5"></i> Ticket</sl-button>
+            <sl-button variant="danger" size="small" data-action="eliminar" data-id="${pedidoId}"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></sl-button>`;
+        lucide.createIcons({ nodes: [accionesDiv] });
     }
 
     // Flash visual para destacar el cambio
@@ -316,6 +335,30 @@ async function marcarPendiente(id) {
         cargarPedidos();
     }
     mostrarToast('Pedido marcado como pendiente', 'success');
+}
+
+async function marcarCobrado(id) {
+    if (!await mostrarConfirmModal('¿Cobrar este pedido sin factura? Pasará a la sección Ventas.', { textoConfirmar: 'Cobrar' })) return;
+    if (typeof actualizarEstadoPedido === 'function') {
+        try {
+            await actualizarEstadoPedido(id, PEDIDO_ESTADOS.COBRADO);
+        } catch(e) {
+            console.error('[Pedidos] Error actualizando estado en Supabase:', e);
+            mostrarToast('Error al actualizar estado en servidor', 'error');
+            return;
+        }
+    }
+    await HDVStorage.atomicUpdate('hdv_pedidos', (pedidos) => {
+        const list = pedidos || [];
+        const p = list.find(x => x.id === id);
+        if (p) p.estado = PEDIDO_ESTADOS.COBRADO;
+        return list;
+    });
+    // Quitar de Pedidos Entrantes (pasa a Ventas)
+    if (!actualizarTarjetaPedidoAdminDOM(id, PEDIDO_ESTADOS.COBRADO)) {
+        cargarPedidos();
+    }
+    mostrarToast('Pedido cobrado — aparece en Ventas', 'success');
 }
 
 async function eliminarPedidoAdmin(id) {

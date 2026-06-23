@@ -72,6 +72,9 @@ const _vendedorActionMap = {
     'cerrarSidebar':                  () => { const s = document.getElementById('sidebarMenu'); if (s) s.hide(); },
     // Configuracion — zona de peligro
     'limpiarTodosDatos':              () => typeof limpiarTodosDatos === 'function' && limpiarTodosDatos(),
+    // Mis Pedidos — acciones de tarjeta
+    'cobrarPedidoVendedor':           (_, id) => cobrarPedidoVendedor(id),
+    'entregarCreditoVendedor':        (_, id) => entregarCreditoVendedor(id),
     // Mis Pedidos — filtros y paginacion
     'setPedidosFiltro':               (_, f) => typeof _setPedidosFiltro === 'function' && _setPedidosFiltro(f),
     'setPedidosPagina':               (_, n) => typeof _setPedidosPagina === 'function' && _setPedidosPagina(n),
@@ -479,7 +482,66 @@ function obtenerRangoSemanaVendedor(weekStr) {
 
 function _esEstadoContadoVendedor(estado) {
     const norm = ESTADOS_ALIAS[estado] || estado;
-    return norm === PEDIDO_ESTADOS.ENTREGADO || norm === PEDIDO_ESTADOS.PENDIENTE;
+    return norm === PEDIDO_ESTADOS.COBRADO;
+}
+
+async function cobrarPedidoVendedor(pedidoId) {
+    const todos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
+    const pedido = todos.find(p => p.id === pedidoId);
+    if (!pedido) return;
+
+    if (!await mostrarConfirmModal(
+        `¿Confirmar cobro de ${formatearGuaranies(pedido.total)} a ${escapeHTML(pedido.cliente?.nombre || 'cliente')}?`,
+        { textoConfirmar: 'Cobrar' }
+    )) return;
+
+    if (typeof actualizarEstadoPedido === 'function') {
+        try {
+            await actualizarEstadoPedido(pedidoId, PEDIDO_ESTADOS.COBRADO);
+        } catch(e) {
+            mostrarToast('Sin conexión — asegurate de estar online para registrar el cobro', 'warning');
+            return;
+        }
+    }
+    await HDVStorage.atomicUpdate('hdv_pedidos', (list) => {
+        const p = (list || []).find(x => x.id === pedidoId);
+        if (p) p.estado = PEDIDO_ESTADOS.COBRADO;
+        return list || [];
+    });
+    mostrarExito('Pedido cobrado correctamente');
+    mostrarMisPedidos();
+    if (typeof _renderResumenHoy === 'function') _renderResumenHoy();
+}
+
+async function entregarCreditoVendedor(pedidoId) {
+    const todos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
+    const pedido = todos.find(p => p.id === pedidoId);
+    if (!pedido) return;
+
+    if (!await mostrarConfirmModal(
+        `¿Marcar como entregado a crédito? ${escapeHTML(pedido.cliente?.nombre || 'El cliente')} quedará con deuda de ${formatearGuaranies(pedido.total)}.`,
+        { textoConfirmar: 'Confirmar crédito' }
+    )) return;
+
+    if (typeof actualizarEstadoPedido === 'function') {
+        try {
+            await actualizarEstadoPedido(pedidoId, PEDIDO_ESTADOS.ENTREGADO);
+        } catch(e) {
+            mostrarToast('Sin conexión — asegurate de estar online para registrar la entrega', 'warning');
+            return;
+        }
+    }
+    await HDVStorage.atomicUpdate('hdv_pedidos', (list) => {
+        const p = (list || []).find(x => x.id === pedidoId);
+        if (p) {
+            p.estado = PEDIDO_ESTADOS.ENTREGADO;
+            p.tipoPago = 'credito';
+        }
+        return list || [];
+    });
+    if (typeof _actualizarBadgeCreditos === 'function') _actualizarBadgeCreditos();
+    mostrarExito('Pedido entregado a crédito');
+    mostrarMisPedidos();
 }
 
 async function agregarGastoVendedor() {

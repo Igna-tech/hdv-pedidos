@@ -537,8 +537,9 @@
                     </div>
                     <div class="flex-1 min-w-[130px]">
                         <label class="block text-xs font-bold text-gray-500 mb-1">ESTADO</label>
-                        <sl-select id="filtroEstado" class="w-full" size="small" hoist value="pedido_pendiente">
+                        <sl-select id="filtroEstado" class="w-full" size="small" hoist value="activos">
                             <sl-option value="">Todos</sl-option>
+                            <sl-option value="activos">Activos (pendiente + entregado)</sl-option>
                             <sl-option value="pedido_pendiente">Pendiente</sl-option>
                             <sl-option value="entregado">Entregado</sl-option>
                             <sl-option value="cobrado_sin_factura">Cobrado</sl-option>

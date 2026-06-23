@@ -203,8 +203,19 @@ Reglas:
         p += "\n";
     }
 
+    if (ctx.historico_mensual?.length) {
+        p += `HISTÓRICO MENSUAL COMPLETO (todos los meses disponibles):\n`;
+        ctx.historico_mensual.forEach((m: any) => {
+            p += `- ${m.mes}: ${m.total_fmt} | ${m.cantidad} pedidos | ticket prom. ${m.ticket_fmt}\n`;
+        });
+        if (ctx.mejor_mes) {
+            p += `→ Mejor mes histórico: ${ctx.mejor_mes.mes} con ${ctx.mejor_mes.total_fmt}\n`;
+        }
+        p += "\n";
+    }
+
     if (ctx.clientes_deudores?.length) {
-        p += `CLIENTES CON DEUDA PENDIENTE:\n`;
+        p += `CLIENTES CON DEUDA PENDIENTE (total: ${ctx.total_deuda_fmt || ''}):\n`;
         ctx.clientes_deudores.forEach((c: any) => {
             p += `- ${c.nombre}: ${c.deuda_fmt}`;
             if (c.dias) p += ` (${c.dias} días de antigüedad)`;

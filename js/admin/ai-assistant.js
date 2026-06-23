@@ -293,6 +293,34 @@
             };
         });
 
+        // ── Histórico mensual completo (todos los meses disponibles) ──────
+        const mesMap = {};
+        pedidos
+            .filter(p => estadosVenta.includes(p.estado))
+            .forEach(p => {
+                // fecha puede ser "2026-04-15T..." o "2026-04-15" — tomar primeros 7 chars
+                const mes = (p.fecha || p.creado_en || '').substring(0, 7);
+                if (!mes || mes.length < 7) return;
+                if (!mesMap[mes]) mesMap[mes] = { total: 0, cantidad: 0 };
+                mesMap[mes].total    += p.total;
+                mesMap[mes].cantidad += 1;
+            });
+
+        const historicoMensual = Object.entries(mesMap)
+            .sort((a, b) => a[0].localeCompare(b[0]))
+            .map(([mes, v]) => ({
+                mes,
+                total_fmt:  _fmt(v.total),
+                cantidad:   v.cantidad,
+                ticket_fmt: _fmt(v.cantidad ? v.total / v.cantidad : 0),
+            }));
+
+        // Mejor mes histórico
+        const mejorMes = historicoMensual.reduce((best, m) => {
+            const raw = mesMap[m.mes].total;
+            return raw > (mesMap[best?.mes]?.total || 0) ? m : best;
+        }, null);
+
         // ── Alertas automáticas ────────────────────────────────────────────
         const alertas = [];
         if (totalMesAnt > 0 && totalMes < totalMesAnt * 0.85) {
@@ -380,6 +408,8 @@
                 total_variantes:   variantesTotal,
                 stock_critico:     stockCritico,
             },
+            historico_mensual: historicoMensual,
+            mejor_mes:         mejorMes,
             alertas,
         };
     }

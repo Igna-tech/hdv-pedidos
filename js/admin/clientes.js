@@ -72,12 +72,19 @@ function mostrarClientesGestion() {
         const precios = c.precios_personalizados ? Object.keys(c.precios_personalizados).length : 0;
         const nombre = c.razon_social || c.nombre || 'Sin nombre';
         const tel = c.telefono || '';
+        const tieneUbicacion = !!(c.lat && c.lng);
         const tr = document.createElement('tr');
         tr.className = `hover:bg-gray-50 cursor-pointer ${oculto ? 'opacity-40' : ''}`;
         tr.innerHTML = `
             <td class="px-4 py-3" data-action="abrirPerfilCliente" data-arg="${escapeHTML(c.id)}">
-                <p class="font-medium text-gray-800">${escapeHTML(nombre)}</p>
-                <p class="text-xs text-gray-500">${escapeHTML(c.ruc || '')} ${c.encargado ? '| ' + escapeHTML(c.encargado) : ''}</p>
+                <div class="flex items-start gap-2">
+                    <div class="flex-1 min-w-0">
+                        <p class="font-medium text-gray-800">${escapeHTML(nombre)}</p>
+                        <p class="text-xs text-gray-500">${escapeHTML(c.ruc || '')} ${c.encargado ? '| ' + escapeHTML(c.encargado) : ''}</p>
+                    </div>
+                    <span class="w-2 h-2 rounded-full mt-1.5 shrink-0 ${tieneUbicacion ? 'bg-emerald-400' : 'bg-gray-200'}"
+                          title="${tieneUbicacion ? 'Tiene ubicación GPS' : 'Sin ubicación GPS'}"></span>
+                </div>
             </td>
             <td class="px-4 py-3 text-sm text-gray-500">${escapeHTML(c.zona || c.direccion || '-')}</td>
             <td class="px-4 py-3 text-sm text-gray-500">${escapeHTML(tel || '-')}</td>
@@ -198,6 +205,9 @@ function abrirModalCliente(clienteId) {
         document.getElementById('nuevoClienteZona').value = c.zona || '';
         document.getElementById('nuevoClienteEncargado').value = c.encargado || '';
         document.getElementById('nuevoClienteTipoDoc').value = c.tipo_documento || 'RUC';
+        document.getElementById('clienteLatHidden').value = c.lat || '';
+        document.getElementById('clienteLngHidden').value = c.lng || '';
+        _actualizarUbicacionStatus(c.lat, c.lng);
     } else {
         titulo.textContent = 'Nuevo Cliente';
         formId.value = '';
@@ -205,6 +215,9 @@ function abrirModalCliente(clienteId) {
             const el = document.getElementById(id); if (el) el.value = '';
         });
         document.getElementById('nuevoClienteTipoDoc').value = 'RUC';
+        document.getElementById('clienteLatHidden').value = '';
+        document.getElementById('clienteLngHidden').value = '';
+        _actualizarUbicacionStatus(null, null);
     }
     document.getElementById('modalCliente')?.show();
 }
@@ -227,6 +240,9 @@ async function guardarClienteModal() {
 
     if (!razon) { mostrarToast('Ingresa la razon social', 'error'); return; }
 
+    const latVal = parseFloat(document.getElementById('clienteLatHidden')?.value) || null;
+    const lngVal = parseFloat(document.getElementById('clienteLngHidden')?.value) || null;
+
     await withButtonLock('btnGuardarCliente', async () => {
         if (id) {
             // Edicion
@@ -238,6 +254,10 @@ async function guardarClienteModal() {
                 c.encargado = encargado;
                 c.tipo_documento = tipoDocumento;
                 c.pais_documento = c.pais_documento || 'PRY';
+                c.lat = latVal; c.lng = lngVal;
+                if (latVal && lngVal) {
+                    await SupabaseService.updateClienteUbicacion(id, latVal, lngVal);
+                }
             }
         } else {
             // Creacion
@@ -248,7 +268,8 @@ async function guardarClienteModal() {
                 id: nuevoId, nombre: razon, razon_social: razon, ruc: ruc || '',
                 telefono: telefono || '', direccion: direccion || '', zona: zona || direccion || '',
                 encargado: encargado || '', tipo: 'mayorista_estandar', precios_personalizados: {},
-                tipo_documento: tipoDocumento, pais_documento: 'PRY'
+                tipo_documento: tipoDocumento, pais_documento: 'PRY',
+                lat: latVal, lng: lngVal
             });
         }
 
@@ -257,6 +278,56 @@ async function guardarClienteModal() {
         mostrarClientesGestion();
         cerrarModalCliente();
     }, 'Guardando...')();
+}
+
+// ============================================
+// UBICACIÓN GPS — Geocoding Nominatim
+// ============================================
+
+function _actualizarUbicacionStatus(lat, lng) {
+    const status = document.getElementById('clienteUbicacionStatus');
+    const clearBtn = document.getElementById('btnClearUbicacion');
+    if (!status) return;
+    if (lat && lng) {
+        status.innerHTML = `<span class="text-emerald-600 font-semibold text-xs">📍 ${parseFloat(lat).toFixed(5)}, ${parseFloat(lng).toFixed(5)}</span>`;
+        if (clearBtn) clearBtn.style.display = '';
+    } else {
+        status.textContent = 'Sin ubicación';
+        if (clearBtn) clearBtn.style.display = 'none';
+    }
+}
+
+async function geocodificarClienteAdmin() {
+    const btn = document.getElementById('btnGeocodeCliente');
+    const direccion = document.getElementById('nuevoClienteDireccion')?.value.trim();
+    const zona = document.getElementById('nuevoClienteZona')?.value.trim();
+    if (!direccion) { mostrarToast('Ingresá una dirección primero', 'warning'); return; }
+
+    if (btn) btn.loading = true;
+    try {
+        const query = encodeURIComponent(`${direccion}${zona ? ', ' + zona : ''}, Paraguay`);
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=1&countrycodes=py`, {
+            headers: { 'Accept-Language': 'es', 'User-Agent': 'HDV-Distribuciones/1.0' }
+        });
+        const data = await res.json();
+        if (!data.length) { mostrarToast('No se encontró la dirección — intentá con menos detalle', 'warning'); return; }
+        const lat = parseFloat(data[0].lat).toFixed(7);
+        const lng = parseFloat(data[0].lon).toFixed(7);
+        document.getElementById('clienteLatHidden').value = lat;
+        document.getElementById('clienteLngHidden').value = lng;
+        _actualizarUbicacionStatus(lat, lng);
+        mostrarToast('Ubicación encontrada correctamente', 'success');
+    } catch (_e) {
+        mostrarToast('Error al buscar la dirección', 'danger');
+    } finally {
+        if (btn) btn.loading = false;
+    }
+}
+
+function limpiarUbicacionAdmin() {
+    document.getElementById('clienteLatHidden').value = '';
+    document.getElementById('clienteLngHidden').value = '';
+    _actualizarUbicacionStatus(null, null);
 }
 
 // ============================================

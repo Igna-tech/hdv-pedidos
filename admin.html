@@ -1930,6 +1930,18 @@
                     <label class="block text-xs font-bold text-gray-500 mb-1">ENCARGADO (opcional)</label>
                     <sl-input type="text" id="nuevoClienteEncargado" class="w-full" size="small" placeholder="Juan Perez"></sl-input>
                 </div>
+                <div class="border-t border-gray-100 pt-3">
+                    <label class="block text-xs font-bold text-gray-500 mb-2">UBICACIÓN GPS</label>
+                    <div class="flex items-center gap-2">
+                        <div class="flex-1 bg-gray-50 rounded-lg px-3 py-2 text-sm min-h-[36px] flex items-center">
+                            <span id="clienteUbicacionStatus" class="text-gray-400 text-xs">Sin ubicación</span>
+                        </div>
+                        <sl-button id="btnGeocodeCliente" data-action="geocodificarClienteAdmin" variant="neutral" size="small">Buscar dirección</sl-button>
+                        <sl-button id="btnClearUbicacion" data-action="limpiarUbicacionAdmin" variant="text" size="small" style="display:none;">✕</sl-button>
+                    </div>
+                    <input type="hidden" id="clienteLatHidden">
+                    <input type="hidden" id="clienteLngHidden">
+                </div>
             </div>
             <div slot="footer" class="flex justify-end gap-3">
                 <sl-button data-action="cerrarModalCliente" variant="text" size="small">Cancelar</sl-button>

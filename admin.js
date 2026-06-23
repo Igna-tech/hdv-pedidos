@@ -173,6 +173,8 @@ const ACTION_DISPATCH = {
     'abrirModalCliente':                ()     => typeof abrirModalCliente === 'function' && abrirModalCliente(),
     'cerrarModalCliente':               ()     => typeof cerrarModalCliente === 'function' && cerrarModalCliente(),
     'guardarClienteModal':              ()     => typeof guardarClienteModal === 'function' && guardarClienteModal(),
+    'geocodificarClienteAdmin':         ()     => typeof geocodificarClienteAdmin === 'function' && geocodificarClienteAdmin(),
+    'limpiarUbicacionAdmin':            ()     => typeof limpiarUbicacionAdmin === 'function' && limpiarUbicacionAdmin(),
     'abrirPerfilCliente':               (_, a) => typeof abrirPerfilCliente === 'function' && abrirPerfilCliente(a),
     'cerrarPerfilCliente':              ()     => typeof cerrarPerfilCliente === 'function' && cerrarPerfilCliente(),
     'cambiarTabPerfil':                 (_, a) => typeof cambiarTabPerfil === 'function' && cambiarTabPerfil(a),

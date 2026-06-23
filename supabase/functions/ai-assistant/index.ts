@@ -213,10 +213,41 @@ Reglas:
         p += "\n";
     }
 
+    if (ctx.catalogo) {
+        const c = ctx.catalogo;
+        p += `CATÁLOGO:\n`;
+        p += `- Clientes activos: ${c.total_clientes}\n`;
+        if (c.clientes_por_zona && Object.keys(c.clientes_por_zona).length) {
+            p += `- Por zona: ${Object.entries(c.clientes_por_zona).map(([z,n]) => `${z}: ${n}`).join(', ')}\n`;
+        }
+        p += `- Productos activos: ${c.total_productos} (${c.total_variantes} variantes)\n`;
+        if (c.stock_critico?.length) {
+            p += `- Stock crítico (≤5 unidades):\n`;
+            c.stock_critico.slice(0, 5).forEach((s: any) => {
+                p += `  · ${s.producto} ${s.variante}: ${s.stock} unidades\n`;
+            });
+        }
+        p += "\n";
+    }
+
+    if (ctx.metas?.length) {
+        p += `METAS DEL MES:\n`;
+        ctx.metas.forEach((m: any) => {
+            p += `- ${m.vendedor}: ${m.pct}% completado (${m.real_fmt} de ${m.objetivo_fmt})`;
+            if (m.comision_fmt) p += ` — comisión estimada: ${m.comision_fmt}`;
+            p += "\n";
+        });
+        p += "\n";
+    }
+
     if (ctx.alertas?.length) {
         p += `ALERTAS DETECTADAS:\n`;
         ctx.alertas.forEach((a: string) => { p += `⚠️ ${a}\n`; });
         p += "\n";
+    }
+
+    if (ctx.empresa?.nombre) {
+        p += `EMPRESA: ${ctx.empresa.nombre} | RUC: ${ctx.empresa.ruc}\n\n`;
     }
 
     return p;

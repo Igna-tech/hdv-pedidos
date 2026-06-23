@@ -92,22 +92,58 @@
                 metas = Array.isArray(cfgM?.datos) ? cfgM.datos : [];
             } catch (_) {}
 
-            // 6. Clientes (de productosData si está disponible)
+            // 6. Clientes desde Supabase
+            let clientes = [];
             let clientesMap = {};
             try {
+                const { data: cls } = await SupabaseService.fetchClientes(5000, 0);
+                clientes = cls || [];
+                clientes.forEach(c => { clientesMap[c.id] = c.nombre; });
+            } catch (_) {
+                // Fallback a productosData si ya está cargado
                 if (typeof productosData !== 'undefined' && Array.isArray(productosData.clientes)) {
-                    productosData.clientes.forEach(c => { clientesMap[c.id] = c.nombre; });
+                    clientes = productosData.clientes;
+                    clientes.forEach(c => { clientesMap[c.id] = c.nombre; });
                 }
-            } catch (_) {}
-
-            _cache = { pedidos, vendMap, creditosManuales, pagosCredito, metas, clientesMap, ts: Date.now() };
-
-            // Sincronizar _vendedoresMap global de admin-ventas si existe
-            if (typeof _vendedoresMap !== 'undefined') {
-                Object.assign(vendMap, _vendedoresMap);
             }
 
-            console.log(`[AI] Datos pre-cargados: ${pedidos.length} pedidos, ${creditosManuales.length} créditos manuales, ${pagosCredito.length} pagos`);
+            // 7. Productos y variantes desde Supabase
+            let productos = [];
+            try {
+                const { data: prods } = await SupabaseService.fetchProductosConVariantes(5000, 0);
+                productos = prods || [];
+            } catch (_) {
+                if (typeof productosData !== 'undefined' && Array.isArray(productosData.productos)) {
+                    productos = productosData.productos;
+                }
+            }
+
+            // 8. Reporte mensual anterior (para comparativas históricas)
+            let reporteMesAnt = null;
+            try {
+                const mesAnt = new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1)
+                    .toISOString().slice(0, 7);
+                const { data: rep } = await SupabaseService.fetchReporteMensual(mesAnt);
+                reporteMesAnt = rep?.datos || null;
+            } catch (_) {}
+
+            // 9. Configuracion empresa
+            let empresa = null;
+            try {
+                const { data: emp } = await SupabaseService.fetchConfigEmpresa();
+                empresa = emp;
+            } catch (_) {}
+
+            // Sincronizar _vendedoresMap global si existe
+            if (typeof _vendedoresMap !== 'undefined') Object.assign(vendMap, _vendedoresMap);
+
+            _cache = {
+                pedidos, vendMap, creditosManuales, pagosCredito, metas,
+                clientes, clientesMap, productos, reporteMesAnt, empresa,
+                ts: Date.now()
+            };
+
+            console.log(`[AI] Datos pre-cargados: ${pedidos.length} pedidos | ${clientes.length} clientes | ${productos.length} productos | ${creditosManuales.length} créditos manuales`);
         } catch (e) {
             console.warn('[AI] Error en precarga:', e);
         } finally {
@@ -119,7 +155,8 @@
     function _construirContexto() {
         if (!_cache) return {};
 
-        const { pedidos, vendMap, creditosManuales, pagosCredito, metas, clientesMap } = _cache;
+        const { pedidos, vendMap, creditosManuales, pagosCredito, metas,
+                clientes, clientesMap, productos, reporteMesAnt, empresa } = _cache;
         const ahora = new Date();
         const mesActual  = ahora.toISOString().slice(0, 7);
         const mesAnterior = new Date(ahora.getFullYear(), ahora.getMonth() - 1, 1).toISOString().slice(0, 7);
@@ -274,10 +311,54 @@
             }
         });
 
+        // ── Catálogo: clientes, productos, stock ───────────────────────────
+        const clientesActivos  = (clientes || []).filter(c => !c.oculto);
+        const clientesPorZona  = {};
+        clientesActivos.forEach(c => {
+            const z = c.zona || 'Sin zona';
+            clientesPorZona[z] = (clientesPorZona[z] || 0) + 1;
+        });
+
+        // Stock crítico y productos sin ventas recientes
+        const prodIds30 = new Set();
+        pedidos
+            .filter(p => new Date(p.fecha || p.creado_en || 0) >= new Date(ahora.getTime() - 30 * 86_400_000))
+            .forEach(p => (p.items || []).forEach(it => prodIds30.add(it.productoId)));
+
+        let stockCritico = [];
+        let productosTotal = 0;
+        let variantesTotal = 0;
+        if (Array.isArray(productos)) {
+            productosTotal = productos.filter(p => !p.oculto && p.estado !== 'discontinuado').length;
+            productos.forEach(p => {
+                (p.presentaciones || []).forEach(v => {
+                    if (v.activo !== false) {
+                        variantesTotal++;
+                        if ((v.stock || 0) <= 5 && (v.stock || 0) >= 0) {
+                            stockCritico.push({
+                                producto: p.nombre,
+                                variante: v.tamano || v.nombre_variante,
+                                stock:    v.stock || 0,
+                            });
+                        }
+                    }
+                });
+            });
+            stockCritico = stockCritico.sort((a, b) => a.stock - b.stock).slice(0, 10);
+        }
+
+        if (stockCritico.length > 0) {
+            alertas.push(`${stockCritico.length} variante(s) con stock crítico (≤5 unidades).`);
+        }
+
         const periodoLabel = ahora.toLocaleDateString('es-PY', { month: 'long', year: 'numeric' });
 
         return {
             periodo: periodoLabel,
+            empresa: empresa ? {
+                nombre: empresa.nombre_fantasia || empresa.razon_social,
+                ruc:    empresa.ruc_empresa,
+            } : null,
             resumen: {
                 total_fmt:           _fmt(totalMes),
                 cantidad:            pedMes.length,
@@ -292,6 +373,13 @@
             clientes_deudores: deudores,
             total_deuda_fmt:   _fmt(totalDeuda),
             metas: metasResumen,
+            catalogo: {
+                total_clientes:    clientesActivos.length,
+                clientes_por_zona: clientesPorZona,
+                total_productos:   productosTotal,
+                total_variantes:   variantesTotal,
+                stock_critico:     stockCritico,
+            },
             alertas,
         };
     }

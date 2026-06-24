@@ -430,22 +430,6 @@ function _hdvRefrescarSeccionActiva(docId) {
     }
 }
 
-// Fija la altura de #adminContentArea midiendo desde el DOM real.
-// Necesario porque flex-1 falla con contenido estático: el contenedor crece
-// hasta acomodar todo el HTML antes de que flex pueda limitarlo, y
-// main.overflow-hidden corta silenciosamente sin crear scrollbar.
-function _ajustarAlturaContentArea() {
-    const contentArea = document.getElementById('adminContentArea');
-    if (!contentArea) return;
-    const top = contentArea.getBoundingClientRect().top;
-    const h = Math.floor(window.innerHeight - top);
-    if (h < 100) return; // sanity check
-    contentArea.style.height = h + 'px';
-    contentArea.style.flex = 'none';
-    contentArea.style.overflowY = 'auto';
-}
-window.addEventListener('resize', _ajustarAlturaContentArea);
-
 function cambiarSeccion(seccionId) {
     _seccionActiva = seccionId;
     document.querySelectorAll('.tab-content').forEach(el => {
@@ -458,10 +442,7 @@ function cambiarSeccion(seccionId) {
     if (seccion) { seccion.classList.add('active'); seccion.style.display = 'block'; }
 
     const contentArea = document.getElementById('adminContentArea');
-    if (contentArea) {
-        _ajustarAlturaContentArea();
-        contentArea.scrollTop = 0;
-    }
+    if (contentArea) contentArea.scrollTop = 0;
 
     const btn = document.querySelector(`button[data-section="${seccionId}"]`);
     if (btn) btn.classList.add('active');
@@ -1380,9 +1361,6 @@ document.addEventListener('DOMContentLoaded', () => {
         e.target.value = '';
     });
 
-    // Ajustar altura del content area después de que Shoelace inicialice sus componentes
-    // (necesario para secciones con HTML estático que no activan overflow-y-auto de flex)
-    setTimeout(_ajustarAlturaContentArea, 300);
 });
 
 // ============================================

@@ -152,6 +152,9 @@ function _setPedidoAccordionEstadoVendedor(id, open) {
     const chevron = card.querySelector('.pedido-chevron-icon');
     if (chevron) chevron.style.transform = open ? 'rotate(180deg)' : '';
 }
+window._hdvRestoreVendedorAccordion = () => {
+    if (_pedidoVendedorExpandidoId) _setPedidoAccordionEstadoVendedor(_pedidoVendedorExpandidoId, true);
+};
 
 async function _abrirModalPedidoCompletoVendedor(id) {
     const todos = (await HDVStorage.getItem('hdv_pedidos')) || [];

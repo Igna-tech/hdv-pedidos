@@ -861,10 +861,13 @@ function _quickAddProd(prod) {
 }
 
 function _quickRemoveProd(prod) {
-    const existente = carrito.findLastIndex ? carrito.findLastIndex(item => item.productoId === prod.id)
-        : [...carrito].reverse().findIndex(item => item.productoId === prod.id);
-    const realIdx = carrito.findIndex ? carrito.findIndex(item => item.productoId === prod.id) : -1;
-    const idx = realIdx;
+    let idx;
+    if (typeof carrito.findLastIndex === 'function') {
+        idx = carrito.findLastIndex(item => item.productoId === prod.id);
+    } else {
+        const revIdx = [...carrito].reverse().findIndex(item => item.productoId === prod.id);
+        idx = revIdx >= 0 ? carrito.length - 1 - revIdx : -1;
+    }
     if (idx < 0) return;
     if (carrito[idx].cantidad > 1) {
         carrito[idx].cantidad--;
@@ -1483,6 +1486,7 @@ async function mostrarMisPedidos() {
         pagina.forEach(p => listaEl.appendChild(crearTarjetaPedidoVendedor(p)));
     }
     if (typeof lucide !== 'undefined') lucide.createIcons();
+    if (typeof window._hdvRestoreVendedorAccordion === 'function') window._hdvRestoreVendedorAccordion();
 }
 
 // Toast, confirm, and input modals are in js/utils/dialogs.js (shared)

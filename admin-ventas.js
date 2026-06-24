@@ -372,7 +372,7 @@ function editarPedidoDesdeDetalle(pedidoId) {
 }
 
 async function anularDocumentoDesdeDetalle(pedidoId) {
-    const ok = await mostrarConfirmModal('¿Anular este documento? Esta acción no se puede deshacer.', { confirmText: 'Anular', danger: true });
+    const ok = await mostrarConfirmModal('¿Anular este documento? Esta acción no se puede deshacer.', { textoConfirmar: 'Anular', destructivo: true });
     if (!ok) return;
     try {
         const { success, error } = await SupabaseService.updateEstadoPedido(pedidoId, 'anulado');

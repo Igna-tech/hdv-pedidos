@@ -448,6 +448,22 @@ async function cobrarTodoEfectivo(clienteId) {
         guardarPagosCredito(pagosActualizados).catch(err => console.error('[Cobros] Error sync todo:', err));
     }
 
+    // Marcar cada pedido saldado como cobrado_sin_factura
+    await HDVStorage.atomicUpdate('hdv_pedidos', (list) => {
+        const updated = list || [];
+        pedidosCredito.forEach(p => {
+            const found = updated.find(x => x.id === p.id);
+            if (found) found.estado = 'cobrado_sin_factura';
+        });
+        return updated;
+    });
+    if (typeof actualizarEstadoPedido === 'function') {
+        pedidosCredito.forEach(p => {
+            actualizarEstadoPedido(p.id, 'cobrado_sin_factura')
+                .catch(err => console.error('[Cobros] Error sync estado pedido:', err));
+        });
+    }
+
     if (typeof navigator.vibrate === 'function') navigator.vibrate([100, 50, 100]);
     mostrarExito(`${formatearGuaranies(deudaTotal)} cobrado. ${pedidosCredito.length} pedido(s) saldado(s).`);
     cerrarCobrosDrawer();

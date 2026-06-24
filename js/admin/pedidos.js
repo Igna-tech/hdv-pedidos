@@ -153,10 +153,10 @@ function _renderPaginacionPedidos(total, totalPaginas) {
     if (total === 0) { pagEl.innerHTML = ''; return; }
     pagEl.innerHTML = `<span>${total} pedidos | Pagina ${paginaPedidos} de ${totalPaginas}</span>
     <div class="flex gap-2">
-        <sl-button variant="default" size="small" onclick="paginaPedidos=1;aplicarFiltrosPedidos(false)" ${paginaPedidos <= 1 ? 'disabled' : ''}>&lt;&lt;</sl-button>
-        <sl-button variant="default" size="small" onclick="paginaPedidos--;aplicarFiltrosPedidos(false)" ${paginaPedidos <= 1 ? 'disabled' : ''}>&lt;</sl-button>
-        <sl-button variant="default" size="small" onclick="paginaPedidos++;aplicarFiltrosPedidos(false)" ${paginaPedidos >= totalPaginas ? 'disabled' : ''}>&gt;</sl-button>
-        <sl-button variant="default" size="small" onclick="paginaPedidos=${totalPaginas};aplicarFiltrosPedidos(false)" ${paginaPedidos >= totalPaginas ? 'disabled' : ''}>&gt;&gt;</sl-button>
+        <sl-button variant="default" size="small" data-action="pedPagPrimera" ${paginaPedidos <= 1 ? 'disabled' : ''}>&lt;&lt;</sl-button>
+        <sl-button variant="default" size="small" data-action="pedPagAnterior" ${paginaPedidos <= 1 ? 'disabled' : ''}>&lt;</sl-button>
+        <sl-button variant="default" size="small" data-action="pedPagSiguiente" data-arg="${totalPaginas}" ${paginaPedidos >= totalPaginas ? 'disabled' : ''}>&gt;</sl-button>
+        <sl-button variant="default" size="small" data-action="pedPagUltima" data-arg="${totalPaginas}" ${paginaPedidos >= totalPaginas ? 'disabled' : ''}>&gt;&gt;</sl-button>
     </div>`;
 }
 
@@ -337,6 +337,7 @@ function actualizarTarjetaPedidoAdminDOM(pedidoId, nuevoEstado) {
 function eliminarTarjetaPedidoAdminDOM(pedidoId) {
     const card = document.querySelector(`[data-pedido-id="${pedidoId}"]`);
     if (!card) return;
+    if (_pedidoExpandidoId === pedidoId) _pedidoExpandidoId = null;
     card.style.opacity = '0';
     card.style.transform = 'translateX(-100%)';
     setTimeout(() => card.remove(), TIEMPOS.DEBOUNCE_BUSQUEDA_MS);
@@ -488,12 +489,16 @@ function _enviarWhatsAppPedidoAdmin(id) {
     window.open(`https://wa.me/${telefono}?text=${encodeURIComponent(msg)}`, '_blank');
 }
 
-// Extender ACTION_DISPATCH del admin para botones del modal (fuera de #listaPedidos)
+// Extender ACTION_DISPATCH del admin para botones del modal y paginacion (fuera de #listaPedidos)
 if (typeof ACTION_DISPATCH !== 'undefined') {
     Object.assign(ACTION_DISPATCH, {
         'modal-pedido-pdf':    (btn, arg) => generarPDFRemision(arg),
         'modal-pedido-wa':     (btn, arg) => _enviarWhatsAppPedidoAdmin(arg),
         'modal-pedido-cerrar': () => document.getElementById('dialogPedidoCompleto')?.hide(),
+        'pedPagPrimera':    () => { paginaPedidos = 1; aplicarFiltrosPedidos(false); },
+        'pedPagAnterior':   () => { if (paginaPedidos > 1) { paginaPedidos--; aplicarFiltrosPedidos(false); } },
+        'pedPagSiguiente':  (btn) => { const t = parseInt(btn.dataset.arg || 1); if (paginaPedidos < t) { paginaPedidos++; aplicarFiltrosPedidos(false); } },
+        'pedPagUltima':     (btn) => { paginaPedidos = parseInt(btn.dataset.arg || 1); aplicarFiltrosPedidos(false); },
     });
 }
 
@@ -774,23 +779,11 @@ function renderizarItemsEdicion(items) {
         container.removeEventListener('sl-change', container._editChangeHandler);
     }
     container._editChangeHandler = (e) => {
-        const sel = e.target.closest('.edit-item-producto');
-        const inp = e.target.closest('.edit-item-cantidad');
-        if (sel) {
-            const idx = parseInt(sel.dataset.idx);
-            actualizarItemEdicion(idx, 'producto', sel.value);
-            recalcularTotalEdicion();
-        } else if (inp) {
-            const idx = parseInt(inp.dataset.idx);
-            actualizarItemEdicion(idx, 'cantidad', inp.value);
+        if (e.target.closest('.edit-item-producto') || e.target.closest('.edit-item-cantidad')) {
             recalcularTotalEdicion();
         }
     };
     container.addEventListener('sl-change', container._editChangeHandler);
-}
-
-function actualizarItemEdicion(idx, campo, valor) {
-    // This gets called when editing items, will be processed in guardarEdicionPedido
 }
 
 function agregarItemEditPedido() {

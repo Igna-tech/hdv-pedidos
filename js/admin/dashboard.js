@@ -1,21 +1,37 @@
 // ============================================
-// HDV Admin - Modulo Dashboard
-// Charts, KPIs, resumen mensual, metas, comisiones
+// HDV Admin - Modulo Dashboard v2
+// KPIs realtime, chart temporal, feed actividad, leaderboard vendedores
 // Depende de globals: todosLosPedidos, productosData
 // Depende de: calcularGananciaPedidos (pedidos.js), Chart.js
 // ============================================
 
-let chartVentas7d = null;
+let chartVentas7d = null;  // legacy ref, no usado
 let chartTopProd = null;
+let _chartTemporal = null;
+let _chartPeriodo = '7d';
+let _leaderboardPeriodo = 'mes';
+let _perfilesMap = {};
+let _metaMap = {};
 
 // ============================================
-// DASHBOARD
+// DASHBOARD — Carga principal
 // ============================================
-function cargarDashboard() {
+async function cargarDashboard() {
     const pedidos = todosLosPedidos;
     const hoy = new Date();
 
-    // Stats del mes
+    // Cargar perfiles y metas (necesario para feed y leaderboard)
+    const perfiles = await _obtenerPerfilesMetas();
+    _perfilesMap = {};
+    perfiles.forEach(p => { _perfilesMap[p.id] = p.nombre_completo || 'Sin nombre'; });
+
+    const metas = (await HDVStorage.getItem('hdv_metas')) || [];
+    const mesActual = hoy.toISOString().slice(0, 7);
+    _metaMap = {};
+    metas.filter(m => m.activa && m.mes === mesActual && m.vendedor_id)
+         .forEach(m => { _metaMap[m.vendedor_id] = m.monto || 0; });
+
+    // KPIs mensuales
     const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
     const pedidosMes = pedidos.filter(p => new Date(p.fecha) >= inicioMes);
     const ventasMes = pedidosMes.reduce((s, p) => s + (p.total || 0), 0);
@@ -41,91 +57,26 @@ function cargarDashboard() {
             gananciaMes.margenPromedio > 15 ? 'text-yellow-700' : 'text-red-700'
         );
     }
-
     const elDetalle = document.getElementById('dashGananciaDetalle');
-    if (elDetalle) {
-        if (gananciaMes.itemsConCosto === 0) {
-            elDetalle.textContent = 'Define costos en productos para ver ganancia real';
-        } else {
-            elDetalle.textContent = `${gananciaMes.itemsConCosto}/${gananciaMes.itemsTotales} items con costo definido`;
-        }
-    }
+    if (elDetalle) elDetalle.textContent = gananciaMes.itemsConCosto === 0
+        ? 'Define costos en productos para ver ganancia real'
+        : `${gananciaMes.itemsConCosto}/${gananciaMes.itemsTotales} items con costo definido`;
     const elMargenDet = document.getElementById('dashMargenDetalle');
-    if (elMargenDet) {
-        elMargenDet.textContent = gananciaMes.costoTotal > 0
-            ? `Ventas ${formatearGuaranies(ventasMes)} - Costos ${formatearGuaranies(gananciaMes.costoTotal)}`
-            : 'Sin costos definidos aun';
-    }
+    if (elMargenDet) elMargenDet.textContent = gananciaMes.costoTotal > 0
+        ? `Ventas ${formatearGuaranies(ventasMes)} - Costos ${formatearGuaranies(gananciaMes.costoTotal)}`
+        : 'Sin costos definidos aun';
     const elCostoDet = document.getElementById('dashCostoDetalle');
-    if (elCostoDet) {
-        elCostoDet.textContent = gananciaMes.costoTotal > 0
-            ? `${pedidosMes.length} pedidos este mes`
-            : 'Agrega costos a tus productos';
-    }
+    if (elCostoDet) elCostoDet.textContent = gananciaMes.costoTotal > 0
+        ? `${pedidosMes.length} pedidos este mes` : 'Agrega costos a tus productos';
 
-    // Chart: ventas ultimos 7 dias (ahora con ganancia)
-    const labels7d = [];
-    const datos7d = [];
-    const ganancia7d = [];
-    for (let i = 6; i >= 0; i--) {
-        const d = new Date(hoy);
-        d.setDate(d.getDate() - i);
-        const fechaStr = d.toISOString().split('T')[0];
-        const diaNombre = d.toLocaleDateString('es-PY', { weekday: 'short' });
-        labels7d.push(diaNombre);
-        const pedidosDia = pedidos.filter(p => new Date(p.fecha).toISOString().split('T')[0] === fechaStr);
-        const ventasDia = pedidosDia.reduce((s, p) => s + (p.total || 0), 0);
-        datos7d.push(ventasDia);
-        const gDia = calcularGananciaPedidos(pedidosDia);
-        ganancia7d.push(gDia.gananciaTotal);
-    }
-
-    const ctx7d = document.getElementById('chartVentas7Dias');
-    if (ctx7d) {
-        if (chartVentas7d) chartVentas7d.destroy();
-        chartVentas7d = new Chart(ctx7d, {
-            type: 'bar',
-            data: {
-                labels: labels7d,
-                datasets: [
-                    {
-                        label: 'Ventas (Gs.)',
-                        data: datos7d,
-                        backgroundColor: 'rgba(17, 24, 39, 0.8)',
-                        borderRadius: 8,
-                        borderSkipped: false
-                    },
-                    {
-                        label: 'Ganancia (Gs.)',
-                        data: ganancia7d,
-                        backgroundColor: 'rgba(34, 197, 94, 0.7)',
-                        borderRadius: 8,
-                        borderSkipped: false
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                plugins: { legend: { display: true, position: 'top' } },
-                scales: {
-                    y: { beginAtZero: true, ticks: { callback: v => 'Gs.' + (v/1000).toFixed(0) + 'k' } },
-                    x: { grid: { display: false } }
-                }
-            }
-        });
-    }
-
-    // Chart: top 5 productos del mes
+    // Chart: top 5 productos del mes (doughnut — sin cambios)
     const prodCount = {};
-    pedidosMes.forEach(p => {
-        (p.items || []).forEach(i => {
-            const key = i.nombre || 'N/A';
-            prodCount[key] = (prodCount[key] || 0) + (i.cantidad || 1);
-        });
-    });
+    pedidosMes.forEach(p => (p.items || []).forEach(i => {
+        const key = i.nombre || 'N/A';
+        prodCount[key] = (prodCount[key] || 0) + (i.cantidad || 1);
+    }));
     const top5 = Object.entries(prodCount).sort((a,b) => b[1]-a[1]).slice(0, 5);
-    const colores = ['#111827', '#374151', '#6b7280', '#9ca3af', '#d1d5db'];
-
+    const coloresDoughnut = ['#111827', '#374151', '#6b7280', '#9ca3af', '#d1d5db'];
     const ctxTop = document.getElementById('chartTopProductos');
     if (ctxTop) {
         if (chartTopProd) chartTopProd.destroy();
@@ -133,16 +84,9 @@ function cargarDashboard() {
             type: 'doughnut',
             data: {
                 labels: top5.map(t => t[0]),
-                datasets: [{
-                    data: top5.map(t => t[1]),
-                    backgroundColor: colores,
-                    borderWidth: 0
-                }]
+                datasets: [{ data: top5.map(t => t[1]), backgroundColor: coloresDoughnut, borderWidth: 0 }]
             },
-            options: {
-                responsive: true,
-                plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } }
-            }
+            options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } } }
         });
     }
 
@@ -156,7 +100,6 @@ function cargarDashboard() {
         clienteRanking[nombre].total += p.total || 0;
         clienteRanking[nombre].pedidos++;
     });
-
     const rankDiv = document.getElementById('rankingClientes');
     if (rankDiv) {
         const sorted = Object.entries(clienteRanking).sort((a,b) => b[1].total - a[1].total).slice(0, 10);
@@ -166,28 +109,394 @@ function cargarDashboard() {
             const maxTotal = sorted[0][1].total;
             rankDiv.innerHTML = sorted.map(([nombre, data], i) => {
                 const pct = maxTotal > 0 ? (data.total / maxTotal * 100) : 0;
-                const medallas = ['#1','#2','#3'];
-                const medal = i < 3 ? medallas[i] : `<span class="text-gray-400 text-xs">#${i+1}</span>`;
+                const medals = ['🥇','🥈','🥉'];
+                const medal = i < 3 ? medals[i] : `<span class="text-gray-400 text-xs font-bold">#${i+1}</span>`;
                 return `<div class="flex items-center gap-3">
-                    <span class="text-xl w-8 text-center">${medal}</span>
+                    <span class="text-lg w-8 text-center">${medal}</span>
                     <div class="flex-1">
                         <div class="flex justify-between mb-1">
-                            <span class="text-sm font-bold text-gray-800">${escapeHTML(nombre)}</span>
-                            <span class="text-sm font-bold text-gray-600">${formatearGuaranies(data.total)} (${data.pedidos})</span>
+                            <span class="text-sm font-semibold text-gray-800">${escapeHTML(nombre)}</span>
+                            <span class="text-sm font-bold text-gray-700 tabular-nums">${formatearGuaranies(data.total)} <span class="text-xs font-normal text-gray-400">(${data.pedidos})</span></span>
                         </div>
-                        <div class="w-full bg-gray-100 rounded-full h-2"><div class="bg-gray-800 h-2 rounded-full" style="width:${pct}%"></div></div>
+                        <div class="w-full bg-gray-100 rounded-full h-1.5"><div class="bg-gray-800 h-1.5 rounded-full" style="width:${pct}%"></div></div>
                     </div>
                 </div>`;
             }).join('');
         }
     }
 
-    // Widget: ventas de hoy por vendedor
-    _renderVentasHoyPorVendedor(pedidos, hoy);
+    // NUEVOS MÓDULOS
+    _actualizarKPIsRealtime(pedidos);
+    _initChartTemporal(_chartPeriodo);
+    _renderFeedActividad(pedidos);
+    _renderLeaderboard(_leaderboardPeriodo);
 
-    // Cargar selector de meses
+    // Selector de meses
     cargarSelectorMeses();
 }
+
+// ============================================
+// MÓDULO 1 — KPI HOY EN VIVO (real-time)
+// ============================================
+function _actualizarKPIsRealtime(pedidos) {
+    const hoy = new Date().toISOString().split('T')[0];
+    const ayer = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+    const estadosCobrado = new Set(['cobrado_sin_factura', 'facturado_mock']);
+
+    const pedidosHoy = pedidos.filter(p => (p.fecha || '').slice(0, 10) === hoy);
+    const pedidosAyer = pedidos.filter(p => (p.fecha || '').slice(0, 10) === ayer);
+
+    const ventasHoy   = pedidosHoy.reduce((s, p) => s + (p.total || 0), 0);
+    const ventasAyer  = pedidosAyer.reduce((s, p) => s + (p.total || 0), 0);
+    const countHoy    = pedidosHoy.length;
+    const countAyer   = pedidosAyer.length;
+    const pendientes  = pedidos.filter(p => p.estado === 'pedido_pendiente').length;
+    const cobradoHoy  = pedidosHoy.filter(p => estadosCobrado.has(p.estado)).reduce((s, p) => s + (p.total || 0), 0);
+    const cobradoAyer = pedidosAyer.filter(p => estadosCobrado.has(p.estado)).reduce((s, p) => s + (p.total || 0), 0);
+
+    _animarValor('kpiVentasHoy',  ventasHoy,  v => formatearGuaranies(v));
+    _animarValor('kpiPedidosHoy', countHoy);
+    _animarValor('kpiPendientes', pendientes);
+    _animarValor('kpiCobradoHoy', cobradoHoy, v => formatearGuaranies(v));
+
+    const setTrend = (id, hoyVal, ayerVal) => {
+        const e = document.getElementById(id);
+        if (!e) return;
+        if (ayerVal === 0) { e.textContent = '— vs ayer'; e.className = 'text-xs text-gray-400 mt-1'; return; }
+        const pct = Math.round((hoyVal - ayerVal) / ayerVal * 100);
+        const sube = pct >= 0;
+        e.textContent = `${sube ? '↑' : '↓'} ${Math.abs(pct)}% vs ayer`;
+        e.className = `text-xs mt-1 font-semibold ${sube ? 'text-emerald-600' : 'text-red-500'}`;
+    };
+    setTrend('kpiVentasHoyTrend',   ventasHoy,   ventasAyer);
+    setTrend('kpiPedidosHoyTrend',  countHoy,    countAyer);
+    setTrend('kpiCobradoHoyTrend',  cobradoHoy,  cobradoAyer);
+
+    const feedEl = document.getElementById('feedContador');
+    if (feedEl) feedEl.textContent = `${pedidosHoy.length} hoy`;
+}
+
+function _animarValor(id, target, fmt) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const start = parseFloat(el.dataset.valor || '0');
+    el.dataset.valor = target;
+    if (start === target) { el.textContent = fmt ? fmt(target) : target; return; }
+    const dur = 550, t0 = performance.now();
+    const step = (now) => {
+        const p = Math.min((now - t0) / dur, 1);
+        const ease = 1 - Math.pow(1 - p, 3);
+        const val = Math.round(start + (target - start) * ease);
+        el.textContent = fmt ? fmt(val) : val;
+        if (p < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+}
+
+// ============================================
+// MÓDULO 2 — GRÁFICO VENTAS TEMPORAL
+// ============================================
+function _calcularDatosChart(periodo) {
+    const pedidos = window.todosLosPedidos || [];
+    const hoy = new Date();
+    const hoyStr = hoy.toISOString().split('T')[0];
+    let labels = [], ventasData = [], gananciaData = [];
+
+    if (periodo === 'hoy') {
+        for (let h = 0; h <= 22; h++) {
+            labels.push(`${String(h).padStart(2,'0')}:00`);
+            const pp = pedidos.filter(p => {
+                const f = new Date(p.fecha);
+                return f.toISOString().split('T')[0] === hoyStr && f.getHours() === h;
+            });
+            ventasData.push(pp.reduce((s, p) => s + (p.total || 0), 0));
+            gananciaData.push(calcularGananciaPedidos(pp).gananciaTotal);
+        }
+    } else if (periodo === '7d') {
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date(hoy); d.setDate(d.getDate() - i);
+            const fs = d.toISOString().split('T')[0];
+            labels.push(d.toLocaleDateString('es-PY', { weekday: 'short' }));
+            const pp = pedidos.filter(p => (p.fecha || '').slice(0, 10) === fs);
+            ventasData.push(pp.reduce((s, p) => s + (p.total || 0), 0));
+            gananciaData.push(calcularGananciaPedidos(pp).gananciaTotal);
+        }
+    } else if (periodo === '30d') {
+        for (let i = 29; i >= 0; i--) {
+            const d = new Date(hoy); d.setDate(d.getDate() - i);
+            const fs = d.toISOString().split('T')[0];
+            labels.push(d.toLocaleDateString('es-PY', { day: 'numeric', month: 'numeric' }));
+            const pp = pedidos.filter(p => (p.fecha || '').slice(0, 10) === fs);
+            ventasData.push(pp.reduce((s, p) => s + (p.total || 0), 0));
+            gananciaData.push(calcularGananciaPedidos(pp).gananciaTotal);
+        }
+    } else {
+        const diasEnMes = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0).getDate();
+        const mesStr = hoy.toISOString().slice(0, 7);
+        for (let d = 1; d <= diasEnMes; d++) {
+            const fs = `${mesStr}-${String(d).padStart(2, '0')}`;
+            labels.push(String(d));
+            const pp = pedidos.filter(p => (p.fecha || '').slice(0, 10) === fs);
+            ventasData.push(pp.reduce((s, p) => s + (p.total || 0), 0));
+            gananciaData.push(calcularGananciaPedidos(pp).gananciaTotal);
+        }
+    }
+    return { labels, ventasData, gananciaData };
+}
+
+function _initChartTemporal(periodo) {
+    _chartPeriodo = periodo;
+    const canvas = document.getElementById('chartVentasTemporal');
+    if (!canvas) return;
+    if (_chartTemporal) { _chartTemporal.destroy(); _chartTemporal = null; }
+
+    const { labels, ventasData, gananciaData } = _calcularDatosChart(periodo);
+    const puntos = ventasData.length > 15 ? 0 : 3;
+
+    _chartTemporal = new Chart(canvas, {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [
+                {
+                    label: 'Ventas',
+                    data: ventasData,
+                    borderColor: '#111827',
+                    backgroundColor: 'rgba(17,24,39,0.06)',
+                    fill: true, tension: 0.4, borderWidth: 2,
+                    pointRadius: puntos, pointHoverRadius: 5,
+                    pointBackgroundColor: '#111827'
+                },
+                {
+                    label: 'Ganancia',
+                    data: gananciaData,
+                    borderColor: '#10b981',
+                    backgroundColor: 'rgba(16,185,129,0.05)',
+                    fill: true, tension: 0.4, borderWidth: 2,
+                    pointRadius: puntos, pointHoverRadius: 5,
+                    pointBackgroundColor: '#10b981'
+                }
+            ]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: '#1f2937', titleColor: '#f9fafb',
+                    bodyColor: '#d1d5db', padding: 10, cornerRadius: 8,
+                    callbacks: { label: ctx => ` ${ctx.dataset.label}: ${formatearGuaranies(ctx.parsed.y)}` }
+                }
+            },
+            scales: {
+                x: { grid: { display: false }, ticks: { font: { size: 11 }, color: '#9ca3af', maxRotation: 0 } },
+                y: {
+                    beginAtZero: true,
+                    grid: { color: 'rgba(0,0,0,0.04)', drawBorder: false },
+                    ticks: {
+                        font: { size: 11 }, color: '#9ca3af',
+                        callback: v => v >= 1e6 ? `${(v/1e6).toFixed(1)}M` : v >= 1e3 ? `${(v/1e3).toFixed(0)}K` : v
+                    }
+                }
+            }
+        }
+    });
+}
+
+function _cambiarPeriodoChart(periodo) {
+    document.querySelectorAll('#chartPeriodoTabs .chart-tab').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.arg === periodo);
+    });
+    if (!_chartTemporal) { _initChartTemporal(periodo); return; }
+    _chartPeriodo = periodo;
+    const { labels, ventasData, gananciaData } = _calcularDatosChart(periodo);
+    const puntos = ventasData.length > 15 ? 0 : 3;
+    _chartTemporal.data.labels = labels;
+    _chartTemporal.data.datasets[0].data = ventasData;
+    _chartTemporal.data.datasets[0].pointRadius = puntos;
+    _chartTemporal.data.datasets[1].data = gananciaData;
+    _chartTemporal.data.datasets[1].pointRadius = puntos;
+    _chartTemporal.update('active');
+}
+
+// ============================================
+// MÓDULO 3 — FEED DE ACTIVIDAD EN VIVO
+// ============================================
+function _vendorColor(id) {
+    let h = 0;
+    for (const c of String(id)) h = (h * 31 + c.charCodeAt(0)) & 0xffffffff;
+    return `hsl(${Math.abs(h) % 360}, 52%, 42%)`;
+}
+
+function _timeAgo(fecha) {
+    const diff = (Date.now() - new Date(fecha).getTime()) / 1000;
+    if (diff < 60) return 'ahora';
+    if (diff < 3600) return `hace ${Math.floor(diff / 60)}min`;
+    if (diff < 86400) return `hace ${Math.floor(diff / 3600)}h`;
+    return `hace ${Math.floor(diff / 86400)}d`;
+}
+
+function _estadoBadge(estado) {
+    const map = {
+        pedido_pendiente:    ['bg-yellow-100 text-yellow-700', 'Pendiente'],
+        entregado:           ['bg-blue-100 text-blue-700', 'Entregado'],
+        cobrado_sin_factura: ['bg-green-100 text-green-700', 'Cobrado'],
+        facturado_mock:      ['bg-indigo-100 text-indigo-700', 'Facturado'],
+        nota_remision:       ['bg-purple-100 text-purple-700', 'Remisión'],
+        anulado:             ['bg-red-100 text-red-700', 'Anulado'],
+    };
+    const [cls, label] = map[estado] || ['bg-gray-100 text-gray-500', estado || '?'];
+    return `<span class="text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${cls}">${label}</span>`;
+}
+
+function _renderFeedItem(p) {
+    const nombre = escapeHTML((p.cliente?.nombre || 'Cliente').substring(0, 22));
+    const vendorNombre = escapeHTML(_perfilesMap[p.vendedor_id] || 'Vendedor');
+    const inicial = vendorNombre.charAt(0).toUpperCase();
+    const color = _vendorColor(p.vendedor_id || 'x');
+    const monto = formatearGuaranies(p.total || 0);
+    const tiempo = _timeAgo(p.fecha);
+    return `
+    <div class="feed-item flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-gray-50 transition-colors">
+      <div class="w-7 h-7 rounded-full flex items-center justify-center text-white text-[11px] font-bold flex-shrink-0"
+           style="background:${color}">${inicial}</div>
+      <div class="flex-1 min-w-0">
+        <div class="text-xs font-semibold text-gray-900 truncate">${nombre}</div>
+        <div class="text-[10px] text-gray-400 truncate">${vendorNombre} · ${tiempo}</div>
+      </div>
+      <div class="text-right flex-shrink-0 space-y-0.5">
+        <div class="text-xs font-bold text-gray-800 tabular-nums">${monto}</div>
+        ${_estadoBadge(p.estado)}
+      </div>
+    </div>`;
+}
+
+function _renderFeedActividad(pedidos) {
+    const container = document.getElementById('dashFeedActividad');
+    if (!container) return;
+    const sorted = [...pedidos].sort((a, b) => new Date(b.fecha) - new Date(a.fecha)).slice(0, 25);
+    if (sorted.length === 0) {
+        container.innerHTML = '<p class="text-xs text-gray-400 italic text-center py-6">Sin actividad reciente</p>';
+    } else {
+        container.innerHTML = sorted.map(p => _renderFeedItem(p)).join('');
+    }
+    const hoy = new Date().toISOString().split('T')[0];
+    const feedEl = document.getElementById('feedContador');
+    if (feedEl) feedEl.textContent = `${pedidos.filter(p => (p.fecha || '').slice(0,10) === hoy).length} hoy`;
+}
+
+function _addFeedItem(pedidoDatos) {
+    const container = document.getElementById('dashFeedActividad');
+    if (!container) return;
+    container.querySelector('.italic')?.remove();
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = _renderFeedItem(pedidoDatos);
+    const feedItem = wrapper.firstElementChild;
+    if (feedItem) {
+        container.insertBefore(feedItem, container.firstChild);
+        while (container.children.length > 25) container.removeChild(container.lastChild);
+    }
+    const hoy = new Date().toISOString().split('T')[0];
+    const feedEl = document.getElementById('feedContador');
+    if (feedEl && (pedidoDatos.fecha || '').slice(0, 10) === hoy) {
+        const current = parseInt(feedEl.textContent) || 0;
+        feedEl.textContent = `${current + 1} hoy`;
+    }
+}
+
+// ============================================
+// MÓDULO 4 — LEADERBOARD DE VENDEDORES
+// ============================================
+function _pedidosEnPeriodo(pedidos, periodo) {
+    const hoy = new Date();
+    const hoyStr = hoy.toISOString().split('T')[0];
+    if (periodo === 'hoy') return pedidos.filter(p => (p.fecha || '').slice(0, 10) === hoyStr);
+    if (periodo === 'sem') {
+        const semStr = new Date(hoy.getTime() - 7 * 86400000).toISOString().split('T')[0];
+        return pedidos.filter(p => (p.fecha || '').slice(0, 10) >= semStr);
+    }
+    const mesStr = hoy.toISOString().slice(0, 7);
+    return pedidos.filter(p => (p.fecha || '').slice(0, 7) === mesStr);
+}
+
+function _renderLeaderboard(periodo) {
+    _leaderboardPeriodo = periodo;
+    const container = document.getElementById('dashLeaderboard');
+    if (!container) return;
+
+    const pedidosPeriodo = _pedidosEnPeriodo(window.todosLosPedidos || [], periodo)
+        .filter(p => p.estado !== 'anulado');
+
+    const stats = {};
+    pedidosPeriodo.forEach(p => {
+        const vid = p.vendedor_id || 'sin_vendedor';
+        if (!stats[vid]) stats[vid] = { total: 0, count: 0 };
+        stats[vid].total += p.total || 0;
+        stats[vid].count++;
+    });
+
+    const sorted = Object.entries(stats).sort((a, b) => b[1].total - a[1].total);
+    if (sorted.length === 0) {
+        container.innerHTML = '<p class="text-xs text-gray-400 italic text-center py-4">Sin pedidos en este período</p>';
+        return;
+    }
+
+    const maxTotal = sorted[0][1].total;
+    const medals = ['🥇', '🥈', '🥉'];
+
+    container.innerHTML = sorted.map(([vid, s], i) => {
+        const nombre = escapeHTML(_perfilesMap[vid] || (vid === 'sin_vendedor' ? 'Sin vendedor' : 'Vendedor'));
+        const color = _vendorColor(vid);
+        const inicial = nombre.charAt(0).toUpperCase();
+        const pct = maxTotal > 0 ? Math.round(s.total / maxTotal * 100) : 0;
+        const ticketProm = s.count > 0 ? Math.round(s.total / s.count) : 0;
+        const meta = _metaMap[vid] || 0;
+        const pctMeta = meta > 0 ? Math.min(100, Math.round(s.total / meta * 100)) : null;
+        const medal = i < 3 ? medals[i] : `<span class="text-xs font-bold text-gray-400">#${i+1}</span>`;
+        return `
+        <div class="flex items-center gap-3">
+          <span class="text-lg w-7 text-center leading-none">${medal}</span>
+          <div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
+               style="background:${color}">${inicial}</div>
+          <div class="flex-1 min-w-0">
+            <div class="flex justify-between items-baseline mb-1">
+              <span class="text-sm font-semibold text-gray-800 truncate">${nombre}</span>
+              <span class="text-sm font-bold text-gray-900 ml-2 tabular-nums">${formatearGuaranies(s.total)}</span>
+            </div>
+            <div class="w-full bg-gray-100 rounded-full h-1.5 mb-1">
+              <div class="bg-gray-800 h-1.5 rounded-full transition-all duration-700" style="width:${pct}%"></div>
+            </div>
+            <div class="flex justify-between text-[10px] text-gray-400">
+              <span>${s.count} pedido${s.count !== 1 ? 's' : ''} · TP ${formatearGuaranies(ticketProm)}</span>
+              ${pctMeta !== null ? `<span class="font-semibold ${pctMeta >= 100 ? 'text-emerald-600' : 'text-gray-500'}">${pctMeta}% meta</span>` : ''}
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+}
+
+function _cambiarPeriodoLeaderboard(periodo) {
+    document.querySelectorAll('#leaderboardTabs .chart-tab').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.arg === periodo);
+    });
+    _renderLeaderboard(periodo);
+}
+
+// ============================================
+// MÓDULO RT — Listener de pedidos en tiempo real
+// ============================================
+document.addEventListener('hdv:pedidos-rt', (e) => {
+    if (document.getElementById('seccion-dashboard')?.style.display === 'none') return;
+    const { pedidos, cambio } = e.detail;
+    _actualizarKPIsRealtime(pedidos);
+    if (cambio?.type === 'added') {
+        _addFeedItem(cambio.datos);
+    } else {
+        _renderFeedActividad(pedidos);
+    }
+    _renderLeaderboard(_leaderboardPeriodo);
+});
 
 async function _renderVentasHoyPorVendedor(pedidos, hoy) {
     const container = document.getElementById('dashVendedoresHoy');

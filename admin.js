@@ -91,6 +91,8 @@ const ACTION_DISPATCH = {
     'cerrarSesion':                     ()     => cerrarSesion(),
 
     // === Dashboard / Cierre mensual ===
+    'cambiarPeriodoChart':              (_, a) => typeof _cambiarPeriodoChart === 'function' && _cambiarPeriodoChart(a),
+    'cambiarPeriodoLeaderboard':        (_, a) => typeof _cambiarPeriodoLeaderboard === 'function' && _cambiarPeriodoLeaderboard(a),
     'exportarResumenMensualPDF':        ()     => exportarResumenMensualPDF(),
     'guardarResumenMensual':            ()     => guardarResumenMensual(),
     'previsualizarCierre':              ()     => previsualizarCierre(),
@@ -604,6 +606,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     _pedidosBannerOcultar();
                 }
                 console.log(`[Admin] Carga inicial pedidos: ${pedidos?.length ?? 0}${errorConexion ? ' (caché local)' : ''}`);
+                if (pedidos !== null) {
+                    document.dispatchEvent(new CustomEvent('hdv:pedidos-rt', { detail: { pedidos: todosLosPedidos, cambio: null } }));
+                }
                 return;
             }
 
@@ -637,6 +642,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     setTimeout(() => badge.style.color = '', TIEMPOS.PAGE_RELOAD_MS);
                 }
             }
+            document.dispatchEvent(new CustomEvent('hdv:pedidos-rt', { detail: { pedidos: todosLosPedidos, cambio } }));
             console.log(`[Admin] Delta sync: ${cambio.type} pedido ${cambio.pedidoId || ''}`);
         });
         console.log('[Admin] Escuchando pedidos en tiempo real (delta sync) desde Supabase');

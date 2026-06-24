@@ -93,6 +93,9 @@ const ACTION_DISPATCH = {
     // === Dashboard / Cierre mensual ===
     'cambiarPeriodoChart':              (_, a) => typeof _cambiarPeriodoChart === 'function' && _cambiarPeriodoChart(a),
     'cambiarPeriodoLeaderboard':        (_, a) => typeof _cambiarPeriodoLeaderboard === 'function' && _cambiarPeriodoLeaderboard(a),
+    'cambiarIntelTab':                  (_, a) => typeof _cambiarIntelTab === 'function' && _cambiarIntelTab(a),
+    'sortTablaMargen':                  (_, a) => typeof _sortTablaMargen === 'function' && _sortTablaMargen(a),
+    'filtrarRFMSegmento':               (_, a) => typeof _filtrarRFMPorSegmento === 'function' && _filtrarRFMPorSegmento(a),
     'exportarResumenMensualPDF':        ()     => exportarResumenMensualPDF(),
     'guardarResumenMensual':            ()     => guardarResumenMensual(),
     'previsualizarCierre':              ()     => previsualizarCierre(),

@@ -543,28 +543,151 @@
                     </div>
                 </div>
 
-                <!-- ROW 4 — TOP PRODUCTOS + LEADERBOARD -->
+                <!-- ROW 4 — TOP PRODUCTOS + LEADERBOARD (compacto) -->
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div class="saas-card p-6">
-                        <h3 class="font-semibold text-gray-900 mb-4">Top 5 Productos del Mes</h3>
-                        <canvas id="chartTopProductos" height="200"></canvas>
+                    <div class="saas-card p-5">
+                        <h3 class="font-semibold text-gray-900 text-sm mb-3">Top 5 Productos del Mes</h3>
+                        <canvas id="chartTopProductos" height="150"></canvas>
                     </div>
-                    <div class="saas-card p-6">
-                        <div class="flex items-center justify-between mb-4">
-                            <h3 class="font-semibold text-gray-900">Ranking Vendedores</h3>
+                    <div class="saas-card p-5">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="font-semibold text-gray-900 text-sm">Ranking Vendedores</h3>
                             <div class="flex gap-1" id="leaderboardTabs">
                                 <button class="chart-tab" data-action="cambiarPeriodoLeaderboard" data-arg="hoy">Hoy</button>
-                                <button class="chart-tab" data-action="cambiarPeriodoLeaderboard" data-arg="sem">Semana</button>
+                                <button class="chart-tab" data-action="cambiarPeriodoLeaderboard" data-arg="sem">Sem</button>
                                 <button class="chart-tab active" data-action="cambiarPeriodoLeaderboard" data-arg="mes">Mes</button>
                             </div>
                         </div>
-                        <div id="dashLeaderboard" class="space-y-4">
-                            <p class="text-xs text-gray-400 italic text-center py-4">Cargando...</p>
+                        <div id="dashLeaderboard" class="space-y-3">
+                            <p class="text-xs text-gray-400 italic text-center py-3">Cargando...</p>
                         </div>
                     </div>
                 </div>
 
-                <!-- ROW 5 — RANKING CLIENTES + RESUMEN MENSUAL -->
+                <!-- ROW 5 — INTELIGENCIA DE NEGOCIO -->
+                <div class="saas-card p-6">
+                    <div class="flex items-center justify-between mb-5 flex-wrap gap-3">
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="brain-circuit" class="w-4 h-4 text-indigo-500"></i>
+                            <h3 class="font-semibold text-gray-900">Inteligencia de Negocio</h3>
+                        </div>
+                        <div class="flex gap-1 flex-wrap" id="intelTabs">
+                            <button class="intel-tab active" data-action="cambiarIntelTab" data-arg="proyeccion"><i data-lucide="trending-up" class="w-3 h-3"></i>Proyección</button>
+                            <button class="intel-tab" data-action="cambiarIntelTab" data-arg="creditos"><i data-lucide="credit-card" class="w-3 h-3"></i>Créditos</button>
+                            <button class="intel-tab" data-action="cambiarIntelTab" data-arg="margen"><i data-lucide="bar-chart-2" class="w-3 h-3"></i>Margen</button>
+                            <button class="intel-tab" data-action="cambiarIntelTab" data-arg="clientes"><i data-lucide="users" class="w-3 h-3"></i>Clientes RFM</button>
+                        </div>
+                    </div>
+
+                    <!-- Panel: Proyección -->
+                    <div id="intel-proyeccion" class="intel-panel">
+                        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+                            <div class="bg-gray-50 rounded-xl p-4">
+                                <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Proyección Cierre</p>
+                                <p class="text-lg font-bold text-gray-900 tabular-nums" id="projFinalMes">Gs. 0</p>
+                                <p class="text-[10px] text-gray-400 mt-0.5" id="projMetodo">Calculando...</p>
+                            </div>
+                            <div class="bg-gray-50 rounded-xl p-4">
+                                <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Pace Actual</p>
+                                <p class="text-lg font-bold text-gray-900" id="projPace">0%</p>
+                                <div class="w-full bg-gray-200 rounded-full h-1.5 mt-1.5">
+                                    <div id="projPaceBar" class="bg-indigo-500 h-1.5 rounded-full transition-all" style="width:0%"></div>
+                                </div>
+                            </div>
+                            <div class="bg-gray-50 rounded-xl p-4">
+                                <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Obj. Diario Rest.</p>
+                                <p class="text-lg font-bold text-gray-900 tabular-nums" id="projObjDiario">Gs. 0</p>
+                                <p class="text-[10px] text-gray-400 mt-0.5" id="projDiasRestantes">— días restantes</p>
+                            </div>
+                            <div class="bg-gray-50 rounded-xl p-4">
+                                <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Confianza R²</p>
+                                <p class="text-lg font-bold text-gray-900" id="projR2">—%</p>
+                                <p class="text-[10px] text-gray-400 mt-0.5">precisión del modelo</p>
+                            </div>
+                        </div>
+                        <div class="relative mb-5" style="height:190px"><canvas id="chartProyeccion"></canvas></div>
+                        <div id="projTablaVendedores" class="overflow-x-auto"></div>
+                    </div>
+
+                    <!-- Panel: Créditos -->
+                    <div id="intel-creditos" class="intel-panel hidden">
+                        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+                            <div class="bg-gray-50 rounded-xl p-4">
+                                <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Deuda Vigente</p>
+                                <p class="text-lg font-bold text-gray-900 tabular-nums" id="credDeudaTotal">Gs. 0</p>
+                            </div>
+                            <div class="bg-gray-50 rounded-xl p-4">
+                                <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Vencidos</p>
+                                <p class="text-lg font-bold text-red-600 tabular-nums" id="credVencidos">0</p>
+                            </div>
+                            <div class="bg-gray-50 rounded-xl p-4">
+                                <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Días Prom. Cobro</p>
+                                <p class="text-lg font-bold text-gray-900" id="credDiasPromedio">—</p>
+                            </div>
+                            <div class="bg-gray-50 rounded-xl p-4">
+                                <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Clientes en Mora</p>
+                                <p class="text-lg font-bold text-red-600" id="credClientesMora">0</p>
+                            </div>
+                        </div>
+                        <div class="relative mb-5" style="height:100px"><canvas id="chartAging"></canvas></div>
+                        <div id="credTablaScore" class="overflow-x-auto"></div>
+                    </div>
+
+                    <!-- Panel: Margen -->
+                    <div id="intel-margen" class="intel-panel hidden">
+                        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+                            <div class="bg-gray-50 rounded-xl p-4">
+                                <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Margen Global</p>
+                                <p class="text-lg font-bold text-gray-900" id="margenGlobal">0%</p>
+                            </div>
+                            <div class="bg-gray-50 rounded-xl p-4">
+                                <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Mejor Categoría</p>
+                                <p class="text-sm font-bold text-gray-900 mt-1 leading-tight truncate" id="margenMejorCat">—</p>
+                            </div>
+                            <div class="bg-gray-50 rounded-xl p-4">
+                                <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Producto Estrella</p>
+                                <p class="text-sm font-bold text-gray-900 mt-1 leading-tight truncate" id="margenProductoEstrella">—</p>
+                            </div>
+                            <div class="bg-gray-50 rounded-xl p-4">
+                                <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Cobertura Costos</p>
+                                <p class="text-lg font-bold text-gray-900" id="margenCobertura">0%</p>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                            <div class="relative" style="height:220px"><canvas id="chartBurbuja"></canvas></div>
+                            <div id="margenTablaProductos" class="overflow-y-auto text-xs" style="max-height:220px"></div>
+                        </div>
+                    </div>
+
+                    <!-- Panel: Clientes RFM -->
+                    <div id="intel-clientes" class="intel-panel hidden">
+                        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+                            <div class="bg-gray-50 rounded-xl p-4">
+                                <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Activos 90 días</p>
+                                <p class="text-lg font-bold text-gray-900" id="rfmActivos">0</p>
+                            </div>
+                            <div class="bg-gray-50 rounded-xl p-4">
+                                <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Retención</p>
+                                <p class="text-lg font-bold text-gray-900" id="rfmRetencion">0%</p>
+                            </div>
+                            <div class="bg-gray-50 rounded-xl p-4">
+                                <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Campeones</p>
+                                <p class="text-lg font-bold text-emerald-600" id="rfmCampeones">0</p>
+                            </div>
+                            <div class="bg-gray-50 rounded-xl p-4">
+                                <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">En Riesgo</p>
+                                <p class="text-lg font-bold text-amber-500" id="rfmEnRiesgo">0</p>
+                            </div>
+                        </div>
+                        <div id="rfmPills" class="flex flex-wrap gap-2 mb-4"></div>
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                            <div class="relative" style="height:220px"><canvas id="chartRFM"></canvas></div>
+                            <div id="rfmTabla" class="overflow-y-auto text-xs" style="max-height:220px"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ROW 6 — RANKING CLIENTES + RESUMEN MENSUAL -->
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <div class="saas-card p-6">
                         <h3 class="font-semibold text-gray-900 mb-4">Ranking Clientes (Semana)</h3>

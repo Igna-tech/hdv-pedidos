@@ -125,11 +125,14 @@ async function cargarDashboard() {
         }
     }
 
-    // NUEVOS MÓDULOS
+    // MÓDULOS DASHBOARD
     _actualizarKPIsRealtime(pedidos);
     _initChartTemporal(_chartPeriodo);
     _renderFeedActividad(pedidos);
     _renderLeaderboard(_leaderboardPeriodo);
+
+    // MÓDULO INTELIGENCIA — carga tab por defecto
+    _cargarIntelProyeccion();
 
     // Selector de meses
     cargarSelectorMeses();
@@ -436,9 +439,9 @@ function _renderLeaderboard(periodo) {
         stats[vid].count++;
     });
 
-    const sorted = Object.entries(stats).sort((a, b) => b[1].total - a[1].total);
+    const sorted = Object.entries(stats).sort((a, b) => b[1].total - a[1].total).slice(0, 2);
     if (sorted.length === 0) {
-        container.innerHTML = '<p class="text-xs text-gray-400 italic text-center py-4">Sin pedidos en este período</p>';
+        container.innerHTML = '<p class="text-xs text-gray-400 italic text-center py-3">Sin pedidos en este período</p>';
         return;
     }
 
@@ -481,6 +484,600 @@ function _cambiarPeriodoLeaderboard(periodo) {
         btn.classList.toggle('active', btn.dataset.arg === periodo);
     });
     _renderLeaderboard(periodo);
+}
+
+// ============================================
+// INTELIGENCIA DE NEGOCIO — Globals
+// ============================================
+let _intelTabActual = 'proyeccion';
+let _intelCargado   = { proyeccion: false, creditos: false, margen: false, clientes: false };
+let _chartProyeccion = null;
+let _chartAging      = null;
+let _chartBurbuja    = null;
+let _chartRFM        = null;
+let _margenOrden     = { campo: 'ganancia', dir: 'desc' };
+let _rfmFiltroActual = null;
+let _rfmRows         = [];
+let _margenRows      = [];
+
+function _cambiarIntelTab(tab) {
+    _intelTabActual = tab;
+    document.querySelectorAll('#intelTabs .intel-tab').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.arg === tab);
+    });
+    document.querySelectorAll('.intel-panel').forEach(p => p.classList.add('hidden'));
+    const panel = document.getElementById(`intel-${tab}`);
+    if (panel) panel.classList.remove('hidden');
+
+    if (!_intelCargado[tab]) {
+        if (tab === 'proyeccion') _cargarIntelProyeccion();
+        else if (tab === 'creditos') _cargarIntelCreditos();
+        else if (tab === 'margen') _cargarIntelMargen();
+        else if (tab === 'clientes') _cargarIntelClientes();
+    }
+}
+
+// ============================================
+// INTELIGENCIA 1 — PROYECCIÓN DEL MES
+// ============================================
+function _regresionLineal(puntos) {
+    const n = puntos.length;
+    if (n < 2) return { m: 0, b: puntos[0]?.y || 0, r2: 0 };
+    const sx = puntos.reduce((s, p) => s + p.x, 0);
+    const sy = puntos.reduce((s, p) => s + p.y, 0);
+    const sxy = puntos.reduce((s, p) => s + p.x * p.y, 0);
+    const sxx = puntos.reduce((s, p) => s + p.x * p.x, 0);
+    const m = (n * sxy - sx * sy) / (n * sxx - sx * sx);
+    const b = (sy - m * sx) / n;
+    const yMean = sy / n;
+    const ssTot = puntos.reduce((s, p) => s + Math.pow(p.y - yMean, 2), 0);
+    const ssRes = puntos.reduce((s, p) => s + Math.pow(p.y - (m * p.x + b), 2), 0);
+    const r2 = ssTot > 0 ? Math.max(0, 1 - ssRes / ssTot) : 0;
+    return { m, b, r2 };
+}
+
+function _proyectarMes(pedidos) {
+    const hoy = new Date();
+    const diasEnMes = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0).getDate();
+    const diaHoy = hoy.getDate();
+    const diasRestantes = diasEnMes - diaHoy;
+    const mesStr = hoy.toISOString().slice(0, 7);
+
+    const ventasPorDia = {};
+    pedidos.filter(p => (p.fecha || '').slice(0, 7) === mesStr && p.estado !== 'anulado').forEach(p => {
+        const d = parseInt((p.fecha || '').slice(8, 10), 10);
+        ventasPorDia[d] = (ventasPorDia[d] || 0) + (p.total || 0);
+    });
+
+    const ventasActuales = Object.values(ventasPorDia).reduce((s, v) => s + v, 0);
+    const puntos = [];
+    for (let d = 1; d <= diaHoy; d++) {
+        puntos.push({ x: d, y: ventasPorDia[d] || 0 });
+    }
+
+    const naive = diaHoy > 0 ? Math.round(ventasActuales / diaHoy * diasEnMes) : 0;
+    const reg = _regresionLineal(puntos);
+    let proyeccionReg = ventasActuales;
+    for (let d = diaHoy + 1; d <= diasEnMes; d++) {
+        proyeccionReg += Math.max(0, Math.round(reg.m * d + reg.b));
+    }
+
+    const metaTotal = Object.values(_metaMap).reduce((s, v) => s + v, 0);
+    const pace = metaTotal > 0 ? Math.round(ventasActuales / metaTotal * 100) : Math.round(diaHoy / diasEnMes * 100);
+    const objDiario = diasRestantes > 0 && metaTotal > ventasActuales
+        ? Math.round((metaTotal - ventasActuales) / diasRestantes) : 0;
+
+    return { ventasActuales, naive, regresion: proyeccionReg, r2: reg.r2, pace, objDiario, diasRestantes, diasEnMes, diaHoy, ventasPorDia, metaTotal };
+}
+
+async function _cargarIntelProyeccion() {
+    _intelCargado.proyeccion = true;
+    const pedidos = window.todosLosPedidos || [];
+    const hoy = new Date();
+    const p = _proyectarMes(pedidos);
+
+    const el = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+    el('projFinalMes', formatearGuaranies(p.regresion));
+    el('projPace', `${p.pace}%`);
+    el('projObjDiario', p.objDiario > 0 ? formatearGuaranies(p.objDiario) : '— (meta no config.)');
+    el('projDiasRestantes', `${p.diasRestantes} días restantes`);
+    el('projR2', `${Math.round(p.r2 * 100)}%`);
+    el('projMetodo', `Regresión lineal · Naive: ${formatearGuaranies(p.naive)}`);
+
+    const bar = document.getElementById('projPaceBar');
+    if (bar) {
+        const pct = Math.min(100, p.pace);
+        bar.style.width = `${pct}%`;
+        bar.className = `h-1.5 rounded-full transition-all ${pct >= 100 ? 'bg-emerald-500' : pct >= 70 ? 'bg-indigo-500' : 'bg-amber-500'}`;
+    }
+
+    // Chart: días reales + proyección
+    const labels = Array.from({ length: p.diasEnMes }, (_, i) => String(i + 1));
+    const real = labels.map((_, i) => i + 1 <= p.diaHoy ? (p.ventasPorDia[i + 1] || 0) : null);
+    const puntosReg = Array.from({ length: p.diaHoy }, (_, j) => ({ x: j + 1, y: p.ventasPorDia[j + 1] || 0 }));
+    const reg2 = _regresionLineal(puntosReg);
+    const proyec = labels.map((_, i) => {
+        if (i + 1 < p.diaHoy) return null;
+        if (i + 1 === p.diaHoy) return p.ventasPorDia[i + 1] || 0;
+        return Math.max(0, Math.round(reg2.m * (i + 1) + reg2.b));
+    });
+    const meta = p.metaTotal > 0 ? labels.map(() => p.metaTotal) : null;
+
+    const canvas = document.getElementById('chartProyeccion');
+    if (canvas) {
+        if (_chartProyeccion) _chartProyeccion.destroy();
+        const datasets = [
+            { label: 'Real', data: real, borderColor: '#111827', backgroundColor: 'rgba(17,24,39,0.07)', fill: true, tension: 0.3, borderWidth: 2, pointRadius: 2, spanGaps: false },
+            { label: 'Proyección', data: proyec, borderColor: '#6366f1', backgroundColor: 'rgba(99,102,241,0.06)', fill: true, tension: 0.3, borderWidth: 2, borderDash: [6, 3], pointRadius: 0, spanGaps: false }
+        ];
+        if (meta) datasets.push({ label: 'Meta', data: meta, borderColor: '#f59e0b', borderWidth: 1.5, borderDash: [4, 4], pointRadius: 0, fill: false });
+        _chartProyeccion = new Chart(canvas, {
+            type: 'line',
+            data: { labels, datasets },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${formatearGuaranies(ctx.parsed.y || 0)}` } }
+                },
+                scales: {
+                    x: { grid: { display: false }, ticks: { font: { size: 10 }, color: '#9ca3af', maxTicksLimit: 10 } },
+                    y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.04)' }, ticks: { font: { size: 10 }, color: '#9ca3af', callback: v => v >= 1e6 ? `${(v/1e6).toFixed(1)}M` : v >= 1e3 ? `${(v/1e3).toFixed(0)}K` : v } }
+                }
+            }
+        });
+    }
+
+    // Tabla vendedores
+    const mesStr = hoy.toISOString().slice(0, 7);
+    const pMes = pedidos.filter(q => (q.fecha || '').slice(0, 7) === mesStr && q.estado !== 'anulado');
+    const vStats = {};
+    pMes.forEach(q => {
+        const vid = q.vendedor_id || 'sin_vendedor';
+        if (!vStats[vid]) vStats[vid] = { total: 0, count: 0 };
+        vStats[vid].total += q.total || 0;
+        vStats[vid].count++;
+    });
+    const vRows = Object.entries(vStats).sort((a, b) => b[1].total - a[1].total);
+    const tbl = document.getElementById('projTablaVendedores');
+    if (tbl && vRows.length > 0) {
+        tbl.innerHTML = `<table class="w-full text-xs">
+          <thead><tr class="text-gray-400 text-[10px] uppercase tracking-wide border-b border-gray-100">
+            <th class="text-left py-1.5 pr-3">Vendedor</th>
+            <th class="text-right py-1.5 pr-3">Ventas Mes</th>
+            <th class="text-right py-1.5 pr-3">Proyección</th>
+            <th class="text-right py-1.5">Estado</th>
+          </tr></thead>
+          <tbody class="divide-y divide-gray-50">
+            ${vRows.map(([vid, s]) => {
+                const nombre = escapeHTML(_perfilesMap[vid] || 'Vendedor');
+                const metaV = _metaMap[vid] || 0;
+                const paceV = p.diaHoy > 0 ? Math.round(s.total / p.diaHoy * p.diasEnMes) : 0;
+                const pctMeta = metaV > 0 ? Math.round(paceV / metaV * 100) : null;
+                const estado = pctMeta === null ? `<span class="text-gray-400">sin meta</span>`
+                    : pctMeta >= 100 ? `<span class="text-emerald-600 font-semibold">✓ En meta</span>`
+                    : pctMeta >= 70  ? `<span class="text-amber-500 font-semibold">⚠ Riesgo</span>`
+                    :                  `<span class="text-red-500 font-semibold">✗ Crítico</span>`;
+                return `<tr class="hover:bg-gray-50">
+                  <td class="py-2 pr-3 font-semibold text-gray-800">${nombre}</td>
+                  <td class="py-2 pr-3 text-right tabular-nums text-gray-700">${formatearGuaranies(s.total)}</td>
+                  <td class="py-2 pr-3 text-right tabular-nums text-indigo-700 font-semibold">${formatearGuaranies(paceV)}</td>
+                  <td class="py-2 text-right">${estado}${pctMeta !== null ? ` <span class="text-gray-400">(${pctMeta}%)</span>` : ''}</td>
+                </tr>`;
+            }).join('')}
+          </tbody></table>`;
+    }
+}
+
+// ============================================
+// INTELIGENCIA 2 — CRÉDITOS
+// ============================================
+function _obtenerSaldoPendienteCredito(pedido, pagosArr) {
+    const pagos = pagosArr.filter(pg => pg.pedidoId === pedido.id);
+    const pagado = pagos.reduce((s, pg) => s + (pg.monto || 0), 0);
+    return Math.max(0, (pedido.total || 0) - pagado);
+}
+
+async function _cargarIntelCreditos() {
+    _intelCargado.creditos = true;
+    const pedidos = (window.todosLosPedidos || []).filter(p => p.datos?.tipoPago === 'credito' && p.estado !== 'anulado');
+    const pagosRaw = (await HDVStorage.getItem('hdv_pagos_credito')) || [];
+    const diasVenc = window._diasVencimientoCredito || 15;
+    const hoy = Date.now();
+
+    // Aging buckets
+    const aging = { alDia: 0, proximo: 0, vencido: 0, critico: 0 };
+    let deudaTotal = 0, clientesMoraSet = new Set(), vencidosCount = 0;
+    const diasCobro = [];
+
+    pedidos.forEach(p => {
+        const saldo = _obtenerSaldoPendienteCredito(p, pagosRaw);
+        if (saldo <= 0) return;
+        deudaTotal += saldo;
+        const dias = Math.floor((hoy - new Date(p.fecha).getTime()) / 86400000);
+        if (dias <= diasVenc) aging.alDia += saldo;
+        else if (dias <= 30) aging.proximo += saldo;
+        else if (dias <= 60) { aging.vencido += saldo; vencidosCount++; clientesMoraSet.add(p.cliente?.id); }
+        else { aging.critico += saldo; vencidosCount++; clientesMoraSet.add(p.cliente?.id); }
+    });
+
+    // Días promedio de cobro
+    pagosRaw.forEach(pg => {
+        const pedido = pedidos.find(p => p.id === pg.pedidoId);
+        if (!pedido) return;
+        const d = Math.floor((new Date(pg.fecha).getTime() - new Date(pedido.fecha).getTime()) / 86400000);
+        if (d >= 0) diasCobro.push(d);
+    });
+    const diasProm = diasCobro.length > 0 ? Math.round(diasCobro.reduce((s, v) => s + v, 0) / diasCobro.length) : null;
+
+    const el = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+    el('credDeudaTotal', formatearGuaranies(deudaTotal));
+    el('credVencidos', vencidosCount);
+    el('credDiasPromedio', diasProm !== null ? `${diasProm}d` : '—');
+    el('credClientesMora', clientesMoraSet.size);
+
+    // Chart aging horizontal
+    const canvas = document.getElementById('chartAging');
+    if (canvas) {
+        if (_chartAging) _chartAging.destroy();
+        _chartAging = new Chart(canvas, {
+            type: 'bar',
+            data: {
+                labels: ['Deuda por antigüedad'],
+                datasets: [
+                    { label: `Al día (0-${diasVenc}d)`, data: [aging.alDia], backgroundColor: '#10b981' },
+                    { label: 'Próx. vencer (≤30d)', data: [aging.proximo], backgroundColor: '#f59e0b' },
+                    { label: 'Vencido (≤60d)', data: [aging.vencido], backgroundColor: '#f97316' },
+                    { label: 'Crítico (60d+)', data: [aging.critico], backgroundColor: '#ef4444' }
+                ]
+            },
+            options: {
+                indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom', labels: { font: { size: 10 }, boxWidth: 10 } },
+                    tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${formatearGuaranies(ctx.parsed.x || 0)}` } }
+                },
+                scales: {
+                    x: { stacked: true, ticks: { callback: v => v >= 1e6 ? `${(v/1e6).toFixed(1)}M` : `${(v/1e3).toFixed(0)}K`, font: { size: 10 } } },
+                    y: { stacked: true, display: false }
+                }
+            }
+        });
+    }
+
+    // Score por cliente
+    const clienteStats = {};
+    pedidos.forEach(p => {
+        const cid = p.cliente?.id || 'x';
+        if (!clienteStats[cid]) clienteStats[cid] = { nombre: p.cliente?.nombre || '—', pedidos: [], saldo: 0, totalCredito: 0 };
+        clienteStats[cid].pedidos.push(p);
+        clienteStats[cid].saldo += _obtenerSaldoPendienteCredito(p, pagosRaw);
+        clienteStats[cid].totalCredito += p.total || 0;
+    });
+
+    const scores = Object.entries(clienteStats).map(([cid, cs]) => {
+        const puntuales = cs.pedidos.filter(p => {
+            const pags = pagosRaw.filter(pg => pg.pedidoId === p.id);
+            return pags.some(pg => Math.floor((new Date(pg.fecha) - new Date(p.fecha)) / 86400000) <= diasVenc);
+        }).length;
+        const ptPuntual  = cs.pedidos.length > 0 ? Math.round(puntuales / cs.pedidos.length * 40) : 0;
+        const ptSaldo    = cs.totalCredito > 0 ? Math.round((1 - cs.saldo / cs.totalCredito) * 25) : 25;
+        const ptFrec     = Math.min(20, cs.pedidos.length * 2);
+        const primerPed  = cs.pedidos.reduce((m, p) => (!m || p.fecha < m) ? p.fecha : m, null);
+        const meses      = primerPed ? Math.min(12, Math.floor((hoy - new Date(primerPed)) / (30 * 86400000))) : 0;
+        const ptAntig    = Math.round(meses / 12 * 15);
+        const score      = ptPuntual + ptSaldo + ptFrec + ptAntig;
+        const pagsCliente = pagosRaw.filter(pg => cs.pedidos.find(p => p.id === pg.pedidoId));
+        const diasPC     = pagsCliente.map(pg => {
+            const ped = cs.pedidos.find(p => p.id === pg.pedidoId);
+            return ped ? Math.max(0, Math.floor((new Date(pg.fecha) - new Date(ped.fecha)) / 86400000)) : null;
+        }).filter(d => d !== null);
+        const diasPromC  = diasPC.length > 0 ? Math.round(diasPC.reduce((s, v) => s + v, 0) / diasPC.length) : null;
+        return { nombre: cs.nombre, saldo: cs.saldo, diasProm: diasPromC, score };
+    }).sort((a, b) => a.score - b.score);
+
+    const tbl = document.getElementById('credTablaScore');
+    if (tbl) {
+        tbl.innerHTML = `<table class="w-full text-xs">
+          <thead><tr class="text-gray-400 text-[10px] uppercase tracking-wide border-b border-gray-100">
+            <th class="text-left py-1.5 pr-3">Cliente</th>
+            <th class="text-right py-1.5 pr-3">Saldo pendiente</th>
+            <th class="text-right py-1.5 pr-3">Días prom. cobro</th>
+            <th class="text-right py-1.5 pr-3">Score</th>
+            <th class="text-right py-1.5">Riesgo</th>
+          </tr></thead>
+          <tbody class="divide-y divide-gray-50">
+            ${scores.map(s => {
+                const badge = s.score >= 80 ? `<span class="risk-verde">Excelente</span>`
+                    : s.score >= 50 ? `<span class="risk-amarillo">Regular</span>`
+                    : `<span class="risk-rojo">Problemático</span>`;
+                return `<tr class="hover:bg-gray-50">
+                  <td class="py-1.5 pr-3 font-semibold text-gray-800">${escapeHTML(s.nombre)}</td>
+                  <td class="py-1.5 pr-3 text-right tabular-nums ${s.saldo > 0 ? 'text-red-600 font-semibold' : 'text-gray-400'}">${formatearGuaranies(s.saldo)}</td>
+                  <td class="py-1.5 pr-3 text-right text-gray-600">${s.diasProm !== null ? `${s.diasProm}d` : '—'}</td>
+                  <td class="py-1.5 pr-3 text-right font-bold text-gray-900">${s.score}/100</td>
+                  <td class="py-1.5 text-right">${badge}</td>
+                </tr>`;
+            }).join('')}
+          </tbody></table>`;
+    }
+}
+
+// ============================================
+// INTELIGENCIA 3 — ANÁLISIS DE MARGEN
+// ============================================
+async function _cargarIntelMargen() {
+    _intelCargado.margen = true;
+    const hoy = new Date();
+    const mesStr = hoy.toISOString().slice(0, 7);
+    const pedidosMes = (window.todosLosPedidos || []).filter(p => (p.fecha || '').slice(0, 7) === mesStr && p.estado !== 'anulado');
+
+    // KPIs globales
+    const ganGlobal = calcularGananciaPedidos(pedidosMes);
+    document.getElementById('margenGlobal')?.textContent && (document.getElementById('margenGlobal').textContent = `${ganGlobal.margenPromedio}%`);
+
+    // Cobertura de costos
+    let totalVariantes = 0, conCosto = 0;
+    (productosData?.productos || []).forEach(pr => {
+        (pr.presentaciones || []).forEach(v => { totalVariantes++; if ((v.costo || 0) > 0) conCosto++; });
+    });
+    const cobStr = totalVariantes > 0 ? `${Math.round(conCosto / totalVariantes * 100)}%` : '0%';
+    const elCob = document.getElementById('margenCobertura'); if (elCob) elCob.textContent = cobStr;
+
+    // Margen por producto
+    const prodMap = {};
+    (productosData?.productos || []).forEach(pr => {
+        (pr.presentaciones || []).forEach(v => {
+            const key = `${pr.id}||${v.tamano}`;
+            prodMap[key] = { nombre: escapeHTML(`${pr.nombre} ${v.tamano}`), categoria: pr.categoria || '—', costo: v.costo || 0 };
+        });
+    });
+
+    const filas = {};
+    pedidosMes.forEach(p => {
+        (p.items || []).forEach(item => {
+            const key = `${item.productoId}||${item.presentacion}`;
+            if (!filas[key]) filas[key] = { nombre: escapeHTML(item.nombre || '?'), categoria: prodMap[key]?.categoria || '—', unidades: 0, ventas: 0, costo: 0, ganancia: 0 };
+            const costoUnit = prodMap[key]?.costo || 0;
+            const cant = item.cantidad || 0;
+            const subtotal = item.subtotal || item.precio * cant || 0;
+            filas[key].unidades += cant;
+            filas[key].ventas   += subtotal;
+            filas[key].costo    += costoUnit * cant;
+            filas[key].ganancia += subtotal - costoUnit * cant;
+        });
+    });
+    _margenRows = Object.values(filas).map(f => ({ ...f, margenPct: f.ventas > 0 ? Math.round(f.ganancia / f.ventas * 100) : 0 }));
+
+    // Mejor categoría
+    const catMap = {};
+    _margenRows.forEach(r => {
+        if (!catMap[r.categoria]) catMap[r.categoria] = { ganancia: 0, ventas: 0 };
+        catMap[r.categoria].ganancia += r.ganancia;
+        catMap[r.categoria].ventas   += r.ventas;
+    });
+    const mejorCat = Object.entries(catMap).sort((a, b) => (b[1].ventas > 0 ? b[1].ganancia/b[1].ventas : 0) - (a[1].ventas > 0 ? a[1].ganancia/a[1].ventas : 0))[0];
+    const elMC = document.getElementById('margenMejorCat'); if (elMC) elMC.textContent = mejorCat ? escapeHTML(mejorCat[0]) : '—';
+
+    // Producto estrella
+    const estrella = [..._margenRows].sort((a, b) => b.ganancia - a.ganancia)[0];
+    const elPE = document.getElementById('margenProductoEstrella'); if (elPE) elPE.textContent = estrella ? estrella.nombre : '—';
+
+    _renderTablaMargen();
+    _renderBurbujaMargen();
+}
+
+function _renderTablaMargen() {
+    const tbl = document.getElementById('margenTablaProductos');
+    if (!tbl) return;
+    const rows = [..._margenRows].sort((a, b) => {
+        const va = a[_margenOrden.campo] ?? 0, vb = b[_margenOrden.campo] ?? 0;
+        return _margenOrden.dir === 'desc' ? vb - va : va - vb;
+    }).slice(0, 20);
+    tbl.innerHTML = `<table class="w-full">
+      <thead><tr class="text-[10px] text-gray-400 uppercase tracking-wide border-b border-gray-100 sticky top-0 bg-white">
+        <th class="text-left py-1.5 pr-2">Producto</th>
+        <th class="text-right py-1.5 pr-2 cursor-pointer hover:text-gray-700" data-action="sortTablaMargen" data-arg="ventas">Ventas</th>
+        <th class="text-right py-1.5 pr-2 cursor-pointer hover:text-gray-700" data-action="sortTablaMargen" data-arg="ganancia">Ganancia</th>
+        <th class="text-right py-1.5 cursor-pointer hover:text-gray-700" data-action="sortTablaMargen" data-arg="margenPct">Margen</th>
+      </tr></thead>
+      <tbody class="divide-y divide-gray-50">
+        ${rows.map(r => `<tr class="hover:bg-gray-50">
+          <td class="py-1.5 pr-2 font-semibold text-gray-800 max-w-[120px] truncate">${r.nombre}</td>
+          <td class="py-1.5 pr-2 text-right tabular-nums text-gray-600">${formatearGuaranies(r.ventas)}</td>
+          <td class="py-1.5 pr-2 text-right tabular-nums font-semibold ${r.ganancia > 0 ? 'text-emerald-600' : 'text-red-500'}">${formatearGuaranies(r.ganancia)}</td>
+          <td class="py-1.5 text-right">
+            ${r.costo === 0 ? '<span class="text-[9px] text-gray-400 italic">sin costo</span>' : `<span class="${r.margenPct < 10 ? 'risk-rojo' : r.margenPct < 25 ? 'risk-amarillo' : 'risk-verde'}">${r.margenPct}%</span>`}
+          </td>
+        </tr>`).join('')}
+      </tbody></table>`;
+}
+
+function _sortTablaMargen(campo) {
+    if (_margenOrden.campo === campo) _margenOrden.dir = _margenOrden.dir === 'desc' ? 'asc' : 'desc';
+    else { _margenOrden.campo = campo; _margenOrden.dir = 'desc'; }
+    _renderTablaMargen();
+}
+
+function _renderBurbujaMargen() {
+    const canvas = document.getElementById('chartBurbuja');
+    if (!canvas || _margenRows.length === 0) return;
+    if (_chartBurbuja) _chartBurbuja.destroy();
+
+    const top25 = [..._margenRows].filter(r => r.ventas > 0).sort((a, b) => b.ganancia - a.ganancia).slice(0, 25);
+    const colorBurbuja = r => r.costo === 0 ? 'rgba(156,163,175,0.6)' : r.margenPct >= 25 ? 'rgba(16,185,129,0.65)' : r.margenPct >= 10 ? 'rgba(245,158,11,0.65)' : 'rgba(239,68,68,0.65)';
+
+    _chartBurbuja = new Chart(canvas, {
+        type: 'bubble',
+        data: {
+            datasets: [{
+                label: 'Productos',
+                data: top25.map(r => ({ x: r.unidades, y: r.margenPct, r: Math.min(30, Math.max(4, Math.sqrt(r.ganancia / 3000))), _nombre: r.nombre })),
+                backgroundColor: top25.map(r => colorBurbuja(r))
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: { callbacks: { label: ctx => {
+                    const d = ctx.raw;
+                    return ` ${d._nombre}: ${d.y}% margen · ${d.x} unid.`;
+                }}}
+            },
+            scales: {
+                x: { title: { display: true, text: 'Unidades vendidas', font: { size: 10 } }, ticks: { font: { size: 10 } } },
+                y: { title: { display: true, text: 'Margen %', font: { size: 10 } }, ticks: { font: { size: 10 }, callback: v => `${v}%` } }
+            }
+        }
+    });
+}
+
+// ============================================
+// INTELIGENCIA 4 — CLIENTES RFM
+// ============================================
+function _rfmScore(valor, breaks) {
+    for (let i = 0; i < breaks.length; i++) if (valor >= breaks[i]) return 5 - i;
+    return 1;
+}
+
+function _rfmSegmento(r, f, m) {
+    if (r >= 4 && f >= 4 && m >= 4) return { label: 'Campeones',      clase: 'bg-emerald-100 text-emerald-800' };
+    if (f >= 4 && m >= 3)           return { label: 'Leales',          clase: 'bg-blue-100 text-blue-800' };
+    if (r >= 4 && f <= 3)           return { label: 'Potencial fiel',  clase: 'bg-indigo-100 text-indigo-800' };
+    if (r <= 2 && (f >= 3 || m >= 3)) return { label: 'En riesgo',    clase: 'bg-amber-100 text-amber-800' };
+    if (r <= 2 && f <= 2)           return { label: 'Hibernando',      clase: 'bg-orange-100 text-orange-800' };
+    if (r === 5 && f === 1)         return { label: 'Nuevos',          clase: 'bg-violet-100 text-violet-800' };
+    return                                  { label: 'Perdidos',        clase: 'bg-red-100 text-red-800' };
+}
+
+async function _cargarIntelClientes() {
+    _intelCargado.clientes = true;
+    const hoy = Date.now();
+    const d90 = new Date(hoy - 90 * 86400000).toISOString().split('T')[0];
+    const pedidos90 = (window.todosLosPedidos || []).filter(p => (p.fecha || '').slice(0, 10) >= d90 && p.estado !== 'anulado');
+    const mesStr = new Date().toISOString().slice(0, 7);
+    const mesPasSrt = new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1).toISOString().slice(0, 7);
+
+    // RFM por cliente
+    const cMap = {};
+    pedidos90.forEach(p => {
+        const cid = p.cliente?.id || 'x';
+        if (!cMap[cid]) cMap[cid] = { nombre: p.cliente?.nombre || '—', pedidos: [], totalGs: 0, items: {} };
+        cMap[cid].pedidos.push(p);
+        cMap[cid].totalGs += p.total || 0;
+        (p.items || []).forEach(it => { cMap[cid].items[it.nombre] = (cMap[cid].items[it.nombre] || 0) + (it.cantidad || 1); });
+    });
+
+    _rfmRows = Object.entries(cMap).map(([cid, cs]) => {
+        const ultimo = cs.pedidos.reduce((m, p) => p.fecha > m ? p.fecha : m, '');
+        const diasR  = Math.floor((hoy - new Date(ultimo).getTime()) / 86400000);
+        // Recency: menos días = mejor score (invertido)
+        const R = diasR <= 7 ? 5 : diasR <= 14 ? 4 : diasR <= 30 ? 3 : diasR <= 60 ? 2 : 1;
+        const F = _rfmScore(cs.pedidos.length, [10, 7, 4, 2, 1]);
+        const M = _rfmScore(cs.totalGs,        [10e6, 5e6, 2e6, 500e3, 0]);
+        const seg = _rfmSegmento(R, F, M);
+        const favItem = Object.entries(cs.items).sort((a, b) => b[1] - a[1])[0];
+        return { nombre: cs.nombre, R, F, M, segmento: seg.label, segClase: seg.clase, ultimoPedido: ultimo.slice(0, 10), productoFav: favItem ? escapeHTML(favItem[0]) : '—' };
+    });
+
+    // KPIs
+    const campeones = _rfmRows.filter(r => r.segmento === 'Campeones').length;
+    const enRiesgo  = _rfmRows.filter(r => ['En riesgo', 'Hibernando'].includes(r.segmento)).length;
+    const clientesPasP = new Set((window.todosLosPedidos || []).filter(p => (p.fecha || '').slice(0, 7) === mesPasSrt).map(p => p.cliente?.id));
+    const clientesMesActual = new Set((window.todosLosPedidos || []).filter(p => (p.fecha || '').slice(0, 7) === mesStr).map(p => p.cliente?.id));
+    const retenidos = [...clientesMesActual].filter(id => clientesPasP.has(id)).length;
+    const retenPct = clientesPasP.size > 0 ? Math.round(retenidos / clientesPasP.size * 100) : 0;
+
+    const el = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+    el('rfmActivos', _rfmRows.length);
+    el('rfmRetencion', `${retenPct}%`);
+    el('rfmCampeones', campeones);
+    el('rfmEnRiesgo', enRiesgo);
+
+    // Pills de segmento
+    const segmentos = [...new Set(_rfmRows.map(r => r.segmento))];
+    const pillsEl = document.getElementById('rfmPills');
+    if (pillsEl) {
+        pillsEl.innerHTML = `<button class="rfm-chip bg-gray-800 text-white px-3 py-1 text-xs rounded-full cursor-pointer" data-action="filtrarRFMSegmento" data-arg="">Todos (${_rfmRows.length})</button>`
+            + segmentos.map(s => {
+                const count = _rfmRows.filter(r => r.segmento === s).length;
+                const cls = _rfmRows.find(r => r.segmento === s)?.segClase || '';
+                return `<button class="rfm-chip ${cls} px-3 py-1 text-xs rounded-full cursor-pointer" data-action="filtrarRFMSegmento" data-arg="${escapeHTML(s)}">${escapeHTML(s)} (${count})</button>`;
+            }).join('');
+    }
+
+    _renderTablaRFM(_rfmRows);
+    _renderChartRFM(_rfmRows);
+}
+
+function _filtrarRFMPorSegmento(seg) {
+    _rfmFiltroActual = seg || null;
+    const rows = seg ? _rfmRows.filter(r => r.segmento === seg) : _rfmRows;
+    _renderTablaRFM(rows);
+}
+
+function _renderTablaRFM(rows) {
+    const tbl = document.getElementById('rfmTabla');
+    if (!tbl) return;
+    tbl.innerHTML = `<table class="w-full">
+      <thead><tr class="text-[10px] text-gray-400 uppercase tracking-wide border-b border-gray-100 sticky top-0 bg-white">
+        <th class="text-left py-1.5 pr-2">Cliente</th>
+        <th class="text-center py-1.5 pr-2">R</th>
+        <th class="text-center py-1.5 pr-2">F</th>
+        <th class="text-center py-1.5 pr-2">M</th>
+        <th class="text-left py-1.5 pr-2">Segmento</th>
+        <th class="text-left py-1.5">Producto fav.</th>
+      </tr></thead>
+      <tbody class="divide-y divide-gray-50">
+        ${rows.map(r => `<tr class="hover:bg-gray-50">
+          <td class="py-1.5 pr-2 font-semibold text-gray-800 max-w-[100px] truncate">${escapeHTML(r.nombre)}</td>
+          <td class="py-1.5 pr-2 text-center font-bold text-gray-700">${r.R}</td>
+          <td class="py-1.5 pr-2 text-center font-bold text-gray-700">${r.F}</td>
+          <td class="py-1.5 pr-2 text-center font-bold text-gray-700">${r.M}</td>
+          <td class="py-1.5 pr-2"><span class="rfm-chip ${r.segClase} px-1.5 py-0.5 rounded-full">${escapeHTML(r.segmento)}</span></td>
+          <td class="py-1.5 text-gray-500 max-w-[100px] truncate">${r.productoFav}</td>
+        </tr>`).join('')}
+      </tbody></table>`;
+}
+
+function _renderChartRFM(rows) {
+    const canvas = document.getElementById('chartRFM');
+    if (!canvas || rows.length === 0) return;
+    if (_chartRFM) _chartRFM.destroy();
+
+    const segColores = {
+        'Campeones':     'rgba(16,185,129,0.7)',
+        'Leales':        'rgba(59,130,246,0.7)',
+        'Potencial fiel':'rgba(99,102,241,0.7)',
+        'En riesgo':     'rgba(245,158,11,0.7)',
+        'Hibernando':    'rgba(249,115,22,0.7)',
+        'Nuevos':        'rgba(139,92,246,0.7)',
+        'Perdidos':      'rgba(239,68,68,0.7)',
+    };
+    const segs = [...new Set(rows.map(r => r.segmento))];
+    const datasets = segs.map(s => ({
+        label: s,
+        data: rows.filter(r => r.segmento === s).map(r => ({ x: r.F, y: r.M * 1e-6, r: r.R * 3 })),
+        backgroundColor: segColores[s] || 'rgba(107,114,128,0.6)'
+    }));
+
+    _chartRFM = new Chart(canvas, {
+        type: 'bubble',
+        data: { datasets },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom', labels: { font: { size: 10 }, boxWidth: 10 } },
+                tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: F=${ctx.parsed.x} M=${formatearGuaranies(ctx.parsed.y * 1e6)}` } }
+            },
+            scales: {
+                x: { title: { display: true, text: 'Frecuencia (F)', font: { size: 10 } }, min: 0, max: 6, ticks: { stepSize: 1, font: { size: 10 } } },
+                y: { title: { display: true, text: 'Monetario (M en millones Gs.)', font: { size: 10 } }, beginAtZero: true, ticks: { font: { size: 10 } } }
+            }
+        }
+    });
 }
 
 // ============================================

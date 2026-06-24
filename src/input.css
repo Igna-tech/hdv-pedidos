@@ -211,3 +211,21 @@ textarea:focus, select:focus {
 .feed-item {
   animation: feedSlideIn 0.22s ease-out;
 }
+
+/* ==========================================
+   Dashboard — Inteligencia de Negocio tabs
+   ========================================== */
+.intel-tab {
+  @apply px-3 py-1.5 text-xs font-semibold text-gray-500 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer flex items-center gap-1.5 whitespace-nowrap;
+}
+.intel-tab.active {
+  @apply bg-gray-900 text-white;
+}
+
+/* Risk badges — Créditos */
+.risk-verde    { @apply text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-semibold; }
+.risk-amarillo { @apply text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-semibold; }
+.risk-rojo     { @apply text-[10px] px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-semibold; }
+
+/* RFM segment chips — Clientes */
+.rfm-chip { @apply text-[10px] px-2 py-0.5 rounded-full font-semibold; }

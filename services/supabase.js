@@ -49,11 +49,11 @@ const SupabaseService = (() => {
                 }
             }
 
-            return { data: allData, error: null };
+            return { data: allData, error: null, empty: allData.length === 0 };
         } catch (error) {
             console.error('[SupabaseService] fetchPedidos:', error);
             _reportError('fetchPedidos', error);
-            return { data: [], error };
+            return { data: [], error, empty: true };
         }
     }
 

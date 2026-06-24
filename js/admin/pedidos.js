@@ -77,10 +77,55 @@ const _eliminarPedidoSupabase = typeof eliminarPedido === 'function' ? eliminarP
 // ============================================
 // CARGA Y FILTROS
 // ============================================
+// Online-first: Supabase como fuente primaria, IndexedDB solo como emergencia
 async function cargarPedidos() {
-    todosLosPedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
     await poblarFiltroVendedor();
+    try {
+        const { data, error } = await SupabaseService.fetchPedidos();
+        if (error) throw error;
+        const pedidosRemoto = data.map(r => {
+            const p = r.datos || {};
+            if (r.numero_pedido != null) p.numero_pedido = r.numero_pedido;
+            return p;
+        });
+        await HDVStorage.atomicUpdate('hdv_pedidos', (local) => {
+            const list = local || [];
+            const sinSync = list.filter(p => p.sincronizado === false);
+            const remIds = new Set(pedidosRemoto.map(p => p.id));
+            const extras = sinSync.filter(p => !remIds.has(p.id));
+            return [...pedidosRemoto, ...extras];
+        });
+        todosLosPedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
+        _pedidosBannerOcultar();
+    } catch (e) {
+        console.warn('[Pedidos] Sin conexión, usando caché local:', e?.message);
+        todosLosPedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
+        _pedidosBannerMostrar(todosLosPedidos.length > 0 ? 'stale' : 'error');
+    }
     aplicarFiltrosPedidos();
+}
+
+function _pedidosBannerMostrar(tipo) {
+    const lista = document.getElementById('listaPedidos');
+    if (!lista) return;
+    let banner = document.getElementById('pedidosBannerConexion');
+    if (!banner) {
+        banner = document.createElement('div');
+        banner.id = 'pedidosBannerConexion';
+        lista.parentElement?.insertBefore(banner, lista);
+    }
+    if (tipo === 'stale') {
+        banner.className = 'flex items-center gap-2 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-lg mb-3 text-amber-700 text-xs font-medium';
+        banner.innerHTML = `<i data-lucide="wifi-off" class="w-3.5 h-3.5 shrink-0 pointer-events-none"></i> Mostrando datos locales — sin conexión al servidor. <button data-action="recargarPedidos" class="ml-auto underline font-semibold hover:text-amber-900">Reintentar</button>`;
+    } else {
+        banner.className = 'flex items-center gap-2 px-4 py-2.5 bg-red-50 border border-red-200 rounded-lg mb-3 text-red-700 text-xs font-medium';
+        banner.innerHTML = `<i data-lucide="alert-circle" class="w-3.5 h-3.5 shrink-0 pointer-events-none"></i> No se pudo cargar pedidos desde el servidor. <button data-action="recargarPedidos" class="ml-auto underline font-semibold hover:text-red-900">Reintentar</button>`;
+    }
+    if (typeof lucide !== 'undefined') lucide.createIcons({ nodes: [banner] });
+}
+
+function _pedidosBannerOcultar() {
+    document.getElementById('pedidosBannerConexion')?.remove();
 }
 
 function filtrarPedidos() { aplicarFiltrosPedidos(); }
@@ -495,6 +540,7 @@ if (typeof ACTION_DISPATCH !== 'undefined') {
         'modal-pedido-pdf':    (btn, arg) => generarPDFRemision(arg),
         'modal-pedido-wa':     (btn, arg) => _enviarWhatsAppPedidoAdmin(arg),
         'modal-pedido-cerrar': () => document.getElementById('dialogPedidoCompleto')?.hide(),
+        'recargarPedidos':  () => cargarPedidos(),
         'pedPagPrimera':    () => { paginaPedidos = 1; aplicarFiltrosPedidos(false); },
         'pedPagAnterior':   () => { if (paginaPedidos > 1) { paginaPedidos--; aplicarFiltrosPedidos(false); } },
         'pedPagSiguiente':  (btn) => { const t = parseInt(btn.dataset.arg || 1); if (paginaPedidos < t) { paginaPedidos++; aplicarFiltrosPedidos(false); } },

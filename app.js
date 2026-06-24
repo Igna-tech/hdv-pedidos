@@ -306,9 +306,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             },
             onSync: (pedidosMerged) => {
                 console.log(`[Vendedor RT] Sync completa: ${pedidosMerged.length} pedidos`);
-                // Re-renderizar vista completa solo si estamos en pedidos
                 if (vistaActual === 'pedidos' && typeof mostrarMisPedidos === 'function') {
                     mostrarMisPedidos();
+                }
+            },
+            onErrorConexion: (err) => {
+                console.warn('[Vendedor RT] Sin conexión al servidor:', err?.message);
+                // Solo mostrar toast si la vista está activa (no interrumpir otras vistas)
+                if (vistaActual === 'pedidos') {
+                    mostrarToast('Sin conexión — mostrando pedidos locales', 'warning', 4000);
                 }
             }
         });

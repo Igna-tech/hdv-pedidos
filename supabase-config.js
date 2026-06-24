@@ -126,12 +126,14 @@ async function obtenerPedidos() {
 
 async function escucharPedidosRealtime(callback) {
     // Carga inicial — await garantiza datos listos antes de renderizar
+    // callback(pedidos, cambios, error) — error!=null indica fallo de conexión
     try {
         const { data, error } = await SupabaseService.fetchPedidos();
         if (error) {
             console.error('[Supabase] Error carga inicial pedidos:', error);
             const pedidosLocal = (await HDVStorage.getItem('hdv_pedidos')) || [];
-            callback(pedidosLocal, []);
+            // Admin-first: pasar error explícito — UI decide cómo mostrarlo
+            callback(pedidosLocal.length > 0 ? pedidosLocal : null, [], { message: error?.message || 'Sin conexión al servidor', code: error?.code });
         } else {
             const pedidos = data.map(r => {
                 const p = r.datos || {};
@@ -150,12 +152,12 @@ async function escucharPedidosRealtime(callback) {
                 console.warn('[Supabase] Carga inicial vacia pero hay datos locales, conservando');
                 return list;
             });
-            callback(merged, []);
+            callback(merged, [], null);
         }
     } catch(e) {
         console.error('[Supabase] Error critico carga inicial pedidos:', e);
         const pedidosLocal = (await HDVStorage.getItem('hdv_pedidos')) || [];
-        callback(pedidosLocal, []);
+        callback(pedidosLocal.length > 0 ? pedidosLocal : null, [], { message: e?.message || 'Error crítico de conexión' });
     }
 
     // Suscripcion realtime GRANULAR (delta sync) — sin refetch completo
@@ -219,7 +221,7 @@ async function escucharPedidosRealtime(callback) {
 function escucharPedidosRealtimeVendedor(callbacks) {
     // callbacks: { onEstadoCambiado(pedidoId, nuevoEstado, datosPedido), onPedidoEliminado(pedidoId), onSync(pedidosMerged) }
 
-    // Carga inicial silenciosa — merge remoto + local no sincronizado
+    // Carga inicial — offline-first blindada: IndexedDB inmediato, luego merge con Supabase
     (async () => {
         try {
             const { data, error } = await SupabaseService.fetchPedidos();
@@ -234,12 +236,26 @@ function escucharPedidosRealtimeVendedor(callbacks) {
                     const sinSync = list.filter(p => p.sincronizado === false);
                     const remIds = new Set(pedidosRemoto.map(p => p.id));
                     const localesExtra = sinSync.filter(p => !remIds.has(p.id));
+                    // Regla de oro: nunca reemplazar datos locales con remoto vacío
+                    if (pedidosRemoto.length === 0 && list.length > 0) {
+                        console.warn('[Vendedor RT] Remoto vacío pero hay datos locales, conservando IndexedDB');
+                        return list;
+                    }
                     return [...pedidosRemoto, ...localesExtra];
                 });
                 if (callbacks.onSync) callbacks.onSync(merged);
+            } else if (error) {
+                // Supabase falló: mantener IndexedDB intacta, notificar con datos locales
+                console.warn('[Vendedor RT] Sin conexión inicial, usando caché local:', error?.message);
+                const pedidosLocal = (await HDVStorage.getItem('hdv_pedidos')) || [];
+                if (callbacks.onSync) callbacks.onSync(pedidosLocal);
+                if (callbacks.onErrorConexion) callbacks.onErrorConexion(error);
             }
         } catch(e) {
             console.warn('[Vendedor RT] Error carga inicial pedidos:', e);
+            const pedidosLocal = (await HDVStorage.getItem('hdv_pedidos')) || [];
+            if (callbacks.onSync) callbacks.onSync(pedidosLocal);
+            if (callbacks.onErrorConexion) callbacks.onErrorConexion(e);
         }
     })();
 

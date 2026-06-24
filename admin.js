@@ -581,12 +581,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     cargarConfigEmpresa();
 
     if (typeof escucharPedidosRealtime === 'function') {
-        unsubscribePedidos = await escucharPedidosRealtime((pedidos, cambios) => {
-            // Carga inicial: pedidos es el array completo
-            if (pedidos !== null) {
-                todosLosPedidos = pedidos;
-                aplicarFiltrosPedidos();
-                console.log(`[Admin] Carga inicial pedidos: ${pedidos.length}`);
+        unsubscribePedidos = await escucharPedidosRealtime((pedidos, cambios, errorConexion) => {
+            // Carga inicial: pedidos es el array completo (puede ser null si Supabase falló y IndexedDB vacía)
+            if (pedidos !== null || errorConexion) {
+                if (pedidos !== null) {
+                    todosLosPedidos = pedidos;
+                    aplicarFiltrosPedidos();
+                }
+                if (errorConexion) {
+                    console.warn('[Admin] Error carga pedidos:', errorConexion.message);
+                    if (typeof _pedidosBannerMostrar === 'function') {
+                        _pedidosBannerMostrar(pedidos !== null ? 'stale' : 'error');
+                    }
+                } else if (typeof _pedidosBannerOcultar === 'function') {
+                    _pedidosBannerOcultar();
+                }
+                console.log(`[Admin] Carga inicial pedidos: ${pedidos?.length ?? 0}${errorConexion ? ' (caché local)' : ''}`);
                 return;
             }
 

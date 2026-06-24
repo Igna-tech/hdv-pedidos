@@ -1095,7 +1095,7 @@ function _renderDTESTabla(dtes) {
             <td class="px-4 py-3 text-xs ${sifenCls}">${escapeHTML(sifen.replace(/_/g, ' '))}</td>
             <td class="px-4 py-3 text-xs font-semibold text-right text-gray-800 whitespace-nowrap">${total}</td>
             <td class="px-4 py-3 text-xs">
-                ${cdc ? `<button class="text-[10px] font-mono text-gray-400 hover:text-indigo-600 truncate max-w-[120px] block" title="${escapeHTML(cdc)}" onclick="navigator.clipboard.writeText('${escapeHTML(cdc)}').then(()=>mostrarToast('CDC copiado','success'))">${escapeHTML(cdc.substring(0, 12))}…</button>` : '—'}
+                ${cdc ? `<button class="text-[10px] font-mono text-gray-400 hover:text-indigo-600 truncate max-w-[120px] block" title="${escapeHTML(cdc)}" data-action="copiarCDCDTE" data-arg="${escapeHTML(cdc)}">${escapeHTML(cdc.substring(0, 12))}…</button>` : '—'}
             </td>
         </tr>`;
     }).join('');

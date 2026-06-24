@@ -230,6 +230,9 @@ const ACTION_DISPATCH = {
     'crearBackup':                      ()     => crearBackup(),
     'crearBackupSoloProductos':         ()     => crearBackupSoloProductos(),
     'crearBackupSoloPedidos':           ()     => crearBackupSoloPedidos(),
+    'restaurarAutoBackupAdmin':         (_, a) => typeof restaurarAutoBackupAdmin === 'function' && restaurarAutoBackupAdmin(parseInt(a)),
+    'descargarAutoBackupAdmin':         (_, a) => typeof descargarAutoBackupAdmin === 'function' && descargarAutoBackupAdmin(parseInt(a)),
+    'toggleAccesoVendedor':             (btn)  => typeof toggleAccesoVendedor === 'function' && toggleAccesoVendedor(btn.dataset.uid, btn.dataset.activo === 'true'),
     'triggerRestaurarFile':             ()     => document.getElementById('restaurarFile').click(),
     'triggerImportarFile':              ()     => document.getElementById('importarFile').click(),
     'triggerImportarClientesFile':      ()     => document.getElementById('importarClientesFile').click(),
@@ -282,6 +285,7 @@ const ACTION_DISPATCH = {
     'irAVentasSifen':     (_, a) => typeof irAVentasSifen === 'function' && irAVentasSifen(a),
     'filtrarSifenEstado': ()     => typeof filtrarSifenEstado === 'function' && filtrarSifenEstado(),
     'exportarSifenCSV':   ()     => typeof exportarSifenCSV === 'function' && exportarSifenCSV(),
+    'copiarCDCDTE':       (_, a) => navigator.clipboard?.writeText(a).then(() => mostrarToast('CDC copiado', 'success')).catch(() => mostrarToast('No se pudo copiar', 'error')),
 
     // === Ventas (nuevo sistema tabla + drawer) ===
     'abrirDetalleVenta':            (_, a) => typeof abrirDetalleVenta === 'function' && abrirDetalleVenta(a),
@@ -436,6 +440,9 @@ function cambiarSeccion(seccionId) {
 
     const seccion = document.getElementById(`seccion-${seccionId}`);
     if (seccion) { seccion.classList.add('active'); seccion.style.display = 'block'; }
+
+    const contentArea = document.getElementById('adminContentArea');
+    if (contentArea) contentArea.scrollTop = 0;
 
     const btn = document.querySelector(`button[data-section="${seccionId}"]`);
     if (btn) btn.classList.add('active');
@@ -733,7 +740,7 @@ async function cargarListaVendedores() {
                     <span class="text-sm font-medium text-gray-700">${escapeHTML(v.nombre_completo || 'Sin nombre')}</span>
                     <span class="text-[10px] text-gray-400">${v.activo ? 'Activo' : 'Bloqueado'}</span>
                 </div>
-                <sl-button onclick="toggleAccesoVendedor('${escapeHTML(v.id)}', ${v.activo})"
+                <sl-button data-action="toggleAccesoVendedor" data-uid="${escapeHTML(v.id)}" data-activo="${v.activo}"
                     variant="${v.activo ? 'danger' : 'success'}" size="small">
                     ${v.activo ? 'Bloquear' : 'Reactivar'}
                 </sl-button>
@@ -1168,8 +1175,8 @@ async function mostrarHistorialBackupsAdmin() {
                 <p class="text-xs text-gray-500">${new Date(b.fecha).toLocaleString('es-PY')} - ${b.resumen?.totalProductos || '?'} prod, ${b.resumen?.totalPedidos || '?'} ped</p>
             </div>
             <div class="flex gap-2">
-                <sl-button onclick="restaurarAutoBackupAdmin(${idx})" variant="primary" size="small">Restaurar</sl-button>
-                <sl-button onclick="descargarAutoBackupAdmin(${idx})" variant="success" size="small">Descargar</sl-button>
+                <sl-button data-action="restaurarAutoBackupAdmin" data-arg="${idx}" variant="primary" size="small">Restaurar</sl-button>
+                <sl-button data-action="descargarAutoBackupAdmin" data-arg="${idx}" variant="success" size="small">Descargar</sl-button>
             </div>
         `;
         container.appendChild(div);

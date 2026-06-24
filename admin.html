@@ -339,6 +339,10 @@
             <button data-section="promociones" class="nav-item w-full flex items-center text-sm">
                 <i data-lucide="gift" class="w-4 h-4 mr-3 text-gray-400"></i> Promociones
             </button>
+            <button data-section="proveedores" class="nav-item w-full flex items-center text-sm">
+                <i data-lucide="truck" class="w-4 h-4 mr-3 text-gray-400"></i> Proveedores
+                <span id="badgeProvCxP" class="ml-auto text-[10px] font-bold bg-red-500 text-white rounded-full px-1.5 py-0.5 hidden"></span>
+            </button>
 
             <div class="px-3 mt-5 mb-2 text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Vendedores</div>
             <button data-section="rendiciones" class="nav-item w-full flex items-center text-sm">
@@ -1160,6 +1164,222 @@
                         <sl-button id="btnGuardarPromo" data-action="guardarPromocion" variant="neutral" size="small">Guardar</sl-button>
                     </div>
             </sl-dialog>
+
+            <!-- ========== PROVEEDORES ========== -->
+            <section id="seccion-proveedores" class="tab-content space-y-6">
+                <!-- Header KPIs -->
+                <div class="flex items-center justify-between flex-wrap gap-4">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="truck" class="w-5 h-5 text-indigo-500"></i>
+                            <h3 class="text-xl font-bold text-gray-900">Proveedores</h3>
+                        </div>
+                        <div class="flex gap-3 mt-1 text-xs text-gray-500">
+                            <span id="provKpiTotal">— proveedores</span>
+                            <span id="provKpiDeuda" class="text-red-500 font-semibold hidden"></span>
+                        </div>
+                    </div>
+                    <sl-button data-action="abrirModalProveedor" variant="primary" size="small">
+                        <i data-lucide="plus" class="w-4 h-4" slot="prefix"></i> Nuevo Proveedor
+                    </sl-button>
+                </div>
+
+                <!-- Sub-tabs -->
+                <div class="flex gap-1 border-b border-gray-100 pb-0" id="provTabs">
+                    <button class="prov-tab active" data-action="cambiarTabProv" data-arg="directorio">
+                        <i data-lucide="book-user" class="w-3.5 h-3.5"></i> Directorio
+                    </button>
+                    <button class="prov-tab" data-action="cambiarTabProv" data-arg="oc">
+                        <i data-lucide="shopping-cart" class="w-3.5 h-3.5"></i> Órdenes de Compra
+                    </button>
+                    <button class="prov-tab" data-action="cambiarTabProv" data-arg="cxp">
+                        <i data-lucide="receipt" class="w-3.5 h-3.5"></i> Cuentas x Pagar
+                    </button>
+                    <button class="prov-tab" data-action="cambiarTabProv" data-arg="analisis">
+                        <i data-lucide="bar-chart-2" class="w-3.5 h-3.5"></i> Análisis
+                    </button>
+                </div>
+
+                <!-- Panel: Directorio -->
+                <div id="prov-directorio" class="prov-panel">
+                    <div class="flex gap-2 flex-wrap mb-4 items-center">
+                        <sl-input id="buscarProveedor" placeholder="Buscar por nombre, RUC..." size="small" style="width:16rem" data-action="filtrarProveedores" clearable></sl-input>
+                        <sl-select id="filtroCategoriaProveedor" size="small" hoist placeholder="Todas las categorías" style="width:11rem" data-action="filtrarProveedores">
+                            <sl-option value="">Todas las categorías</sl-option>
+                            <sl-option value="alimentos">Alimentos</sl-option>
+                            <sl-option value="bebidas">Bebidas</sl-option>
+                            <sl-option value="limpieza">Limpieza</sl-option>
+                            <sl-option value="higiene">Higiene</sl-option>
+                            <sl-option value="otros">Otros</sl-option>
+                        </sl-select>
+                        <div class="flex items-center gap-2 ml-1">
+                            <sl-switch id="mostrarInactivosProv" size="small" data-action="filtrarProveedores">Ver inactivos</sl-switch>
+                        </div>
+                    </div>
+                    <div class="saas-card overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead class="bg-gray-50 border-b border-gray-100">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Proveedor</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">RUC</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Contacto</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Categoría</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Condición</th>
+                                    <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500">OCs</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Deuda</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tablaProveedoresCuerpo" class="divide-y divide-gray-100">
+                                <tr><td colspan="8" class="py-10 text-center text-gray-300 text-sm">Cargando...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="paginacionProveedores" class="text-xs text-gray-400 mt-2"></div>
+                </div>
+
+                <!-- Panel: Órdenes de Compra -->
+                <div id="prov-oc" class="prov-panel hidden">
+                    <div class="flex gap-2 flex-wrap mb-4 items-center justify-between">
+                        <div class="flex gap-2 flex-wrap">
+                            <sl-select id="filtroOCEstado" size="small" hoist placeholder="Todos los estados" style="width:11rem" data-action="filtrarOC">
+                                <sl-option value="">Todos los estados</sl-option>
+                                <sl-option value="borrador">Borrador</sl-option>
+                                <sl-option value="confirmada">Confirmada</sl-option>
+                                <sl-option value="recibida">Recibida</sl-option>
+                                <sl-option value="pagada">Pagada</sl-option>
+                                <sl-option value="cancelada">Cancelada</sl-option>
+                            </sl-select>
+                            <sl-select id="filtroOCProveedor" size="small" hoist placeholder="Todos los proveedores" style="width:14rem" data-action="filtrarOC">
+                                <sl-option value="">Todos los proveedores</sl-option>
+                            </sl-select>
+                        </div>
+                        <sl-button data-action="abrirModalOC" variant="primary" size="small">
+                            <i data-lucide="plus" class="w-4 h-4" slot="prefix"></i> Nueva OC
+                        </sl-button>
+                    </div>
+                    <div class="saas-card overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead class="bg-gray-50 border-b border-gray-100">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">#OC</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Proveedor</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Emitida</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Esperada</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Estado</th>
+                                    <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500">Total</th>
+                                    <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500">Pagado</th>
+                                    <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500">Saldo</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="tablaOCCuerpo" class="divide-y divide-gray-100">
+                                <tr><td colspan="9" class="py-10 text-center text-gray-300 text-sm">Cargando...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="paginacionOC" class="text-xs text-gray-400 mt-2"></div>
+                </div>
+
+                <!-- Panel: Cuentas x Pagar -->
+                <div id="prov-cxp" class="prov-panel hidden space-y-5">
+                    <!-- KPI row -->
+                    <div class="grid grid-cols-3 gap-4">
+                        <div class="saas-card p-5">
+                            <div class="text-xs text-gray-400 font-medium mb-1">Deuda Total</div>
+                            <div id="cxpDeudaTotal" class="text-2xl font-bold text-red-600">—</div>
+                        </div>
+                        <div class="saas-card p-5">
+                            <div class="text-xs text-gray-400 font-medium mb-1">Próximas a Vencer (7d)</div>
+                            <div id="cxpProxVencer" class="text-2xl font-bold text-amber-500">—</div>
+                        </div>
+                        <div class="saas-card p-5">
+                            <div class="text-xs text-gray-400 font-medium mb-1">OC Vencidas</div>
+                            <div id="cxpVencidas" class="text-2xl font-bold text-gray-800">—</div>
+                        </div>
+                    </div>
+                    <!-- Aging -->
+                    <div class="saas-card p-5">
+                        <h4 class="text-sm font-semibold text-gray-700 mb-3">Distribución de deuda por antigüedad</h4>
+                        <div id="cxpAgingBars"></div>
+                    </div>
+                    <!-- Tabla -->
+                    <div class="saas-card overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead class="bg-gray-50 border-b border-gray-100">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Proveedor</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">#OC</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Vencimiento</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Atraso</th>
+                                    <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500">Total OC</th>
+                                    <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500">Pagado</th>
+                                    <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500">Saldo</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="tablaCxPCuerpo" class="divide-y divide-gray-100">
+                                <tr><td colspan="8" class="py-10 text-center text-gray-300 text-sm">Cargando...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Panel: Análisis -->
+                <div id="prov-analisis" class="prov-panel hidden space-y-5">
+                    <!-- KPI row -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div class="saas-card p-5">
+                            <div class="text-xs text-gray-400 font-medium mb-1">Comprado este mes</div>
+                            <div id="analisisTotalMes" class="text-xl font-bold text-gray-900">—</div>
+                        </div>
+                        <div class="saas-card p-5">
+                            <div class="text-xs text-gray-400 font-medium mb-1">Lead Time Prom.</div>
+                            <div id="analisisLeadTime" class="text-xl font-bold text-gray-900">—</div>
+                        </div>
+                        <div class="saas-card p-5">
+                            <div class="text-xs text-gray-400 font-medium mb-1">Cumplimiento Entrega</div>
+                            <div id="analisisCumplimiento" class="text-xl font-bold text-gray-900">—</div>
+                        </div>
+                        <div class="saas-card p-5">
+                            <div class="text-xs text-gray-400 font-medium mb-1">Proveedor Top (mes)</div>
+                            <div id="analisisTopProv" class="text-sm font-bold text-gray-900 leading-tight">—</div>
+                        </div>
+                    </div>
+                    <!-- Charts -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div class="saas-card p-5">
+                            <h4 class="text-sm font-semibold text-gray-700 mb-3">Top 5 por volumen comprado</h4>
+                            <canvas id="chartProvVolumen" height="200"></canvas>
+                        </div>
+                        <div class="saas-card p-5">
+                            <h4 class="text-sm font-semibold text-gray-700 mb-1">Lead Time vs. Confiabilidad</h4>
+                            <p class="text-xs text-gray-400 mb-3">Tamaño del punto = volumen comprado</p>
+                            <div id="chartProvScatterWrapper"><canvas id="chartProvScatter" height="200"></canvas></div>
+                        </div>
+                    </div>
+                    <!-- Scorecard table -->
+                    <div class="saas-card overflow-x-auto">
+                        <h4 class="px-4 pt-4 text-sm font-semibold text-gray-700">Scorecard de Proveedores</h4>
+                        <table class="w-full text-sm mt-3">
+                            <thead class="bg-gray-50 border-b border-gray-100">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Proveedor</th>
+                                    <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500">Volumen</th>
+                                    <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500">OCs</th>
+                                    <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500">Lead Time</th>
+                                    <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500">Cumplimiento</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Última compra</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">Score</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tablaScorecard" class="divide-y divide-gray-100">
+                                <tr><td colspan="7" class="py-10 text-center text-gray-300 text-sm">Cargando...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
 
             <!-- HERRAMIENTAS -->
             <!-- ========== RENDICIONES ========== -->
@@ -2513,11 +2733,187 @@
         </div>
     </sl-drawer>
 
+    <!-- ========== MODAL PROVEEDOR ========== -->
+    <sl-dialog id="modalProveedor" label="Nuevo Proveedor" style="--width: 36rem;">
+        <div class="grid grid-cols-2 gap-4 p-1">
+            <div class="col-span-2">
+                <label class="text-xs font-semibold text-gray-600 block mb-1">Nombre comercial *</label>
+                <sl-input id="provNombre" placeholder="Ej: Distribuidora El Sol" size="small"></sl-input>
+            </div>
+            <div>
+                <label class="text-xs font-semibold text-gray-600 block mb-1">Razón social</label>
+                <sl-input id="provRazonSocial" placeholder="Razón social" size="small"></sl-input>
+            </div>
+            <div>
+                <label class="text-xs font-semibold text-gray-600 block mb-1">RUC</label>
+                <sl-input id="provRUC" placeholder="80012345-6" size="small"></sl-input>
+            </div>
+            <div>
+                <label class="text-xs font-semibold text-gray-600 block mb-1">Teléfono</label>
+                <sl-input id="provTelefono" placeholder="0981-123456" type="tel" size="small"></sl-input>
+            </div>
+            <div>
+                <label class="text-xs font-semibold text-gray-600 block mb-1">Email</label>
+                <sl-input id="provEmail" placeholder="contacto@proveedor.com" type="email" size="small"></sl-input>
+            </div>
+            <div>
+                <label class="text-xs font-semibold text-gray-600 block mb-1">Contacto principal</label>
+                <sl-input id="provContacto" placeholder="Nombre del encargado" size="small"></sl-input>
+            </div>
+            <div>
+                <label class="text-xs font-semibold text-gray-600 block mb-1">Ciudad</label>
+                <sl-input id="provCiudad" placeholder="Asunción" size="small"></sl-input>
+            </div>
+            <div class="col-span-2">
+                <label class="text-xs font-semibold text-gray-600 block mb-1">Dirección</label>
+                <sl-input id="provDireccion" placeholder="Av. Principal 123" size="small"></sl-input>
+            </div>
+            <div>
+                <label class="text-xs font-semibold text-gray-600 block mb-1">Categoría</label>
+                <sl-select id="provCategoria" hoist size="small" value="otros">
+                    <sl-option value="alimentos">Alimentos</sl-option>
+                    <sl-option value="bebidas">Bebidas</sl-option>
+                    <sl-option value="limpieza">Limpieza</sl-option>
+                    <sl-option value="higiene">Higiene</sl-option>
+                    <sl-option value="otros">Otros</sl-option>
+                </sl-select>
+            </div>
+            <div>
+                <label class="text-xs font-semibold text-gray-600 block mb-1">Condición de pago</label>
+                <sl-select id="provCondPago" hoist size="small" value="contado">
+                    <sl-option value="contado">Contado</sl-option>
+                    <sl-option value="credito_15">Crédito 15 días</sl-option>
+                    <sl-option value="credito_30">Crédito 30 días</sl-option>
+                    <sl-option value="credito_60">Crédito 60 días</sl-option>
+                </sl-select>
+            </div>
+            <div class="col-span-2">
+                <label class="text-xs font-semibold text-gray-600 block mb-1">Notas</label>
+                <sl-textarea id="provNotas" placeholder="Notas adicionales..." rows="2" size="small"></sl-textarea>
+            </div>
+            <div class="col-span-2 flex items-center gap-2">
+                <sl-switch id="provActivo" checked>Proveedor activo</sl-switch>
+            </div>
+        </div>
+        <div slot="footer" class="flex justify-end gap-3">
+            <sl-button data-action="cerrarModalProveedor" variant="text" size="small">Cancelar</sl-button>
+            <sl-button id="btnGuardarProveedor" data-action="guardarProveedor" variant="primary" size="small">Guardar</sl-button>
+        </div>
+    </sl-dialog>
+
+    <!-- ========== MODAL NUEVA OC ========== -->
+    <sl-dialog id="modalOC" label="Nueva Orden de Compra" style="--width: 54rem;">
+        <div class="p-1 space-y-4">
+            <div class="grid grid-cols-2 gap-4">
+                <div class="col-span-2 md:col-span-1">
+                    <label class="text-xs font-semibold text-gray-600 block mb-1">Proveedor *</label>
+                    <sl-select id="ocProveedor" hoist size="small" placeholder="Seleccioná un proveedor"></sl-select>
+                </div>
+                <div>
+                    <label class="text-xs font-semibold text-gray-600 block mb-1">Fecha de emisión</label>
+                    <sl-input id="ocFechaEmision" type="date" size="small"></sl-input>
+                </div>
+                <div>
+                    <label class="text-xs font-semibold text-gray-600 block mb-1">Entrega esperada</label>
+                    <sl-input id="ocFechaEsperada" type="date" size="small"></sl-input>
+                </div>
+                <div>
+                    <label class="text-xs font-semibold text-gray-600 block mb-1">Nro. factura proveedor</label>
+                    <sl-input id="ocNroFactura" placeholder="Opcional" size="small"></sl-input>
+                </div>
+            </div>
+            <!-- Items dinámicos -->
+            <div>
+                <div class="flex justify-between items-center mb-2">
+                    <h4 class="text-xs font-semibold text-gray-600 uppercase tracking-wide">Ítems</h4>
+                    <button data-action="agregarItemOC" class="text-xs text-indigo-600 hover:text-indigo-800 font-semibold flex items-center gap-1 transition-colors">
+                        <i data-lucide="plus" class="w-3.5 h-3.5 pointer-events-none"></i> Agregar ítem
+                    </button>
+                </div>
+                <div class="border border-gray-200 rounded-xl overflow-hidden">
+                    <table class="w-full text-xs">
+                        <thead class="bg-gray-50 border-b border-gray-200">
+                            <tr>
+                                <th class="px-2 py-2 text-left font-semibold text-gray-500">Producto</th>
+                                <th class="px-2 py-2 text-left font-semibold text-gray-500">Presentación</th>
+                                <th class="px-2 py-2 text-right font-semibold text-gray-500 w-20">Cantidad</th>
+                                <th class="px-2 py-2 text-right font-semibold text-gray-500 w-32">P. Unitario (Gs.)</th>
+                                <th class="px-2 py-2 text-right font-semibold text-gray-500">Subtotal</th>
+                                <th class="px-2 py-2 w-8"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="ocItemsCuerpo">
+                            <tr><td colspan="6" class="py-6 text-center text-sm text-gray-400">Sin ítems. Hacé clic en "+ Agregar ítem".</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="flex justify-end mt-2 gap-6 text-sm pr-2">
+                    <span class="text-gray-500">Total:</span>
+                    <span id="ocTotalDisplay" class="font-bold text-gray-900">Gs. 0</span>
+                </div>
+            </div>
+            <div>
+                <label class="text-xs font-semibold text-gray-600 block mb-1">Notas</label>
+                <sl-textarea id="ocNotas" placeholder="Notas adicionales..." rows="2" size="small"></sl-textarea>
+            </div>
+        </div>
+        <div slot="footer" class="flex justify-end gap-3">
+            <sl-button data-action="cerrarModalOC" variant="text" size="small">Cancelar</sl-button>
+            <sl-button id="btnGuardarOC" data-action="guardarOC" variant="primary" size="small">Guardar OC</sl-button>
+        </div>
+    </sl-dialog>
+
+    <!-- ========== MODAL REGISTRAR PAGO ========== -->
+    <sl-dialog id="modalRegistrarPago" label="Registrar Pago" style="--width: 28rem;">
+        <div class="p-1 space-y-4">
+            <p id="pagoOCLabel" class="text-xs text-gray-500 bg-gray-50 rounded-lg px-3 py-2"></p>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="text-xs font-semibold text-gray-600 block mb-1">Monto (Gs.) *</label>
+                    <sl-input id="pagoMonto" type="number" min="1" step="1000" size="small" placeholder="0"></sl-input>
+                </div>
+                <div>
+                    <label class="text-xs font-semibold text-gray-600 block mb-1">Fecha del pago</label>
+                    <sl-input id="pagoFecha" type="date" size="small"></sl-input>
+                </div>
+                <div class="col-span-2">
+                    <label class="text-xs font-semibold text-gray-600 block mb-1">Método de pago</label>
+                    <sl-select id="pagoMetodo" hoist size="small" value="transferencia">
+                        <sl-option value="efectivo">Efectivo</sl-option>
+                        <sl-option value="transferencia">Transferencia bancaria</sl-option>
+                        <sl-option value="cheque">Cheque</sl-option>
+                    </sl-select>
+                </div>
+                <div class="col-span-2">
+                    <label class="text-xs font-semibold text-gray-600 block mb-1">Referencia / Nro. operación</label>
+                    <sl-input id="pagoReferencia" placeholder="Ej: TRF-00123456" size="small"></sl-input>
+                </div>
+                <div class="col-span-2">
+                    <label class="text-xs font-semibold text-gray-600 block mb-1">Notas</label>
+                    <sl-textarea id="pagoNotas" rows="2" size="small"></sl-textarea>
+                </div>
+            </div>
+        </div>
+        <div slot="footer" class="flex justify-end gap-3">
+            <sl-button data-action="cerrarModalPago" variant="text" size="small">Cancelar</sl-button>
+            <sl-button id="btnGuardarPago" data-action="guardarPagoProveedor" variant="primary" size="small">Confirmar Pago</sl-button>
+        </div>
+    </sl-dialog>
+
+    <!-- ========== DRAWER DETALLE OC ========== -->
+    <sl-drawer id="drawerOC" label="Detalle OC" placement="end" style="--size: 38rem;">
+        <div id="drawerOCContenido" class="overflow-y-auto h-full"></div>
+        <div slot="footer">
+            <sl-button data-action="cerrarDrawerOC" variant="text" size="small">Cerrar</sl-button>
+        </div>
+    </sl-drawer>
+
     <script src="js/utils/kude-generator.js"></script>
     <script src="js/modules/ventas/ventas-templates.js"></script>
     <script src="admin-ventas.js"></script>
     <script src="admin-devoluciones.js"></script>
     <script src="admin-contabilidad.js"></script>
+    <script src="js/admin/proveedores.js"></script>
     <script src="js/admin/sifen-estado.js"></script>
     <script src="js/admin/dtes.js"></script>
     <script src="js/admin/ai-assistant.js"></script>

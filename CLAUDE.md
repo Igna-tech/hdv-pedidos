@@ -57,6 +57,7 @@ PWA mobile-first para vendedores de calle + panel admin de escritorio.
 ├── js/admin/productos.js   → Modulo admin: CRUD de productos y variantes
 ├── js/admin/clientes.js    → Modulo admin: CRUD de clientes
 ├── js/admin/creditos.js    → Modulo admin: creditos con historial, soft-delete, event log
+├── js/admin/proveedores.js → Modulo admin: Proveedores — 4 sub-tabs (Directorio CRUD, Ordenes de Compra con drawer, Cuentas x Pagar con aging waterfall, Analisis scorecard). Tablas Supabase: proveedores, ordenes_compra, pagos_proveedor. IDs: PROV-/OC-/PP-. Score 0-100 por proveedor (cumplimiento+lead time+volumen+antiguedad).
 ├── js/modules/ventas/ventas-data.js      → Datos y logica de ventas/facturacion. ventasDataObtenerEmpresa() incluye logo_url (desde window._empresaLogoUrl)
 ├── js/modules/ventas/ventas-templates.js → Vaciado: templates de impresion legacy eliminados. Archivo conservado por compatibilidad de carga.
 │
@@ -93,7 +94,7 @@ PWA mobile-first para vendedores de calle + panel admin de escritorio.
 supabase CDN → supabase-init.js → **js/utils/constants.js** → services/supabase.js → js/utils/storage.js → guard.js → supabase-config.js → js/services/sync.js → [core/state, sanitizer, **dialogs**, helpers, formatters, printer, pdf-generator, vendedor/ui.js, vendedor/cart.js, **vendedor/cobros.js**] → app.js → checkout.js
 
 **admin.html:**
-supabase CDN → Chart.js → supabase-init.js → **js/utils/constants.js** → services/supabase.js → js/utils/storage.js → guard.js → supabase-config.js → [core/state, sanitizer, **dialogs**, helpers, formatters, printer, pdf-generator] → admin.js → [admin modules] → **js/utils/kude-generator.js** → admin-ventas.js → admin-devoluciones.js → admin-contabilidad.js → js/admin/sifen-estado.js → js/admin/dtes.js
+supabase CDN → Chart.js → supabase-init.js → **js/utils/constants.js** → services/supabase.js → js/utils/storage.js → guard.js → supabase-config.js → [core/state, sanitizer, **dialogs**, helpers, formatters, printer, pdf-generator] → admin.js → [admin modules] → **js/utils/kude-generator.js** → admin-ventas.js → admin-devoluciones.js → admin-contabilidad.js → **js/admin/proveedores.js** → js/admin/sifen-estado.js → js/admin/dtes.js
 
 **login.html:**
 supabase CDN → supabase-init.js → js/utils/storage.js → login.js
@@ -116,6 +117,11 @@ supabase CDN → supabase-init.js → js/utils/storage.js → login.js
 
 - `alertas_rate_limit` (clave TEXT PK, contador INT, ventana_inicio TIMESTAMPTZ) — rate limiting persistente para alertas WhatsApp; RLS habilitado solo SELECT admin; escrita atomicamente via RPC `verificar_rate_limit_alerta` con FOR UPDATE
 - `push_subscriptions` (id UUID PK, user_id UUID FK→auth.users CASCADE, endpoint TEXT UNIQUE, p256dh TEXT, auth_key TEXT, created_at, updated_at) — suscripciones Web Push de vendedores; RLS: vendedor solo sus propias, admin SELECT todas
+
+### Tablas de Proveedores (admin-only):
+- `proveedores` (id TEXT PK 'PROV-', nombre, razon_social, ruc, telefono, email, direccion, ciudad, contacto_principal, categoria, condiciones_pago, dias_credito, activo BOOL, notas, created_at, actualizado_en) — RLS solo admin, audit trigger
+- `ordenes_compra` (id TEXT PK 'OC-', proveedor_id FK→proveedores, estado TEXT, fecha_emision, fecha_esperada, fecha_recepcion, fecha_vencimiento, items JSONB, total NUMERIC, pagado NUMERIC, nro_factura_prov, notas, created_at, actualizado_en, creado_por UUID) — estados: borrador/confirmada/recibida/pagada/cancelada. RLS solo admin, audit trigger
+- `pagos_proveedor` (id TEXT PK 'PP-', orden_compra_id FK→ordenes_compra, proveedor_id FK→proveedores, monto NUMERIC, fecha TEXT, metodo_pago, referencia, notas, created_at) — RLS solo admin
 
 ### Tabla legacy eliminada:
 - `catalogo` — eliminada 2026-06-09 (reemplazada por tablas relacionales desde 2026-03-10)
@@ -146,6 +152,7 @@ Patron Repository. Singleton global `SupabaseService` (IIFE). Centraliza TODAS l
 - **Variantes**: `deleteVariantesByProductoIds(ids)`, `insertVariantes(rows)`, `updateVariante(id,campos)`, `upsertVariante(row)`, `reemplazarVariantes(ids, rows)` [RPC atomica]
 - **Config**: `fetchConfig(docId)`, `upsertConfig(docId,datos)`, `fetchConfigEmpresa()`, `upsertConfigEmpresa(datos)`
 - **Reportes**: `upsertReporteMensual(mes,datos)`, `fetchReporteMensual(mes)`
+- **Proveedores**: `fetchProveedores()`, `upsertProveedores(rows)`, `deleteProveedores(ids)`, `fetchOrdenesCompra()`, `upsertOrdenesCompra(rows)`, `fetchPagosProveedor()`, `upsertPagosProveedor(rows)`
 - **Utils**: `healthCheck()`, `subscribeTo(channel,table,cb,filter?)`
 
 Retornos: `{ data, error }` para fetches, `{ success, error }` para mutaciones.

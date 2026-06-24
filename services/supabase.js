@@ -636,6 +636,113 @@ const SupabaseService = (() => {
     }
 
     // ============================================
+    // PROVEEDORES
+    // ============================================
+
+    async function fetchProveedores() {
+        try {
+            const { data, error } = await supabaseClient
+                .from('proveedores')
+                .select('*')
+                .order('nombre', { ascending: true });
+            if (error) throw error;
+            return { data: data || [], error: null };
+        } catch (error) {
+            console.error('[SupabaseService] fetchProveedores:', error);
+            return { data: [], error };
+        }
+    }
+
+    async function upsertProveedores(rows) {
+        try {
+            const { error } = await supabaseClient
+                .from('proveedores')
+                .upsert(rows, { onConflict: 'id' });
+            if (error) throw error;
+            return { success: true, error: null };
+        } catch (error) {
+            console.error('[SupabaseService] upsertProveedores:', error);
+            return { success: false, error };
+        }
+    }
+
+    async function deleteProveedores(ids) {
+        try {
+            const { error } = await supabaseClient
+                .from('proveedores')
+                .delete()
+                .in('id', ids);
+            if (error) throw error;
+            return { success: true, error: null };
+        } catch (error) {
+            console.error('[SupabaseService] deleteProveedores:', error);
+            return { success: false, error };
+        }
+    }
+
+    // ============================================
+    // ORDENES DE COMPRA
+    // ============================================
+
+    async function fetchOrdenesCompra() {
+        try {
+            const { data, error } = await supabaseClient
+                .from('ordenes_compra')
+                .select('*')
+                .order('fecha_emision', { ascending: false });
+            if (error) throw error;
+            return { data: data || [], error: null };
+        } catch (error) {
+            console.error('[SupabaseService] fetchOrdenesCompra:', error);
+            return { data: [], error };
+        }
+    }
+
+    async function upsertOrdenesCompra(rows) {
+        try {
+            const { error } = await supabaseClient
+                .from('ordenes_compra')
+                .upsert(rows, { onConflict: 'id' });
+            if (error) throw error;
+            return { success: true, error: null };
+        } catch (error) {
+            console.error('[SupabaseService] upsertOrdenesCompra:', error);
+            return { success: false, error };
+        }
+    }
+
+    // ============================================
+    // PAGOS PROVEEDOR
+    // ============================================
+
+    async function fetchPagosProveedor() {
+        try {
+            const { data, error } = await supabaseClient
+                .from('pagos_proveedor')
+                .select('*')
+                .order('created_at', { ascending: false });
+            if (error) throw error;
+            return { data: data || [], error: null };
+        } catch (error) {
+            console.error('[SupabaseService] fetchPagosProveedor:', error);
+            return { data: [], error };
+        }
+    }
+
+    async function upsertPagosProveedor(rows) {
+        try {
+            const { error } = await supabaseClient
+                .from('pagos_proveedor')
+                .upsert(rows, { onConflict: 'id' });
+            if (error) throw error;
+            return { success: true, error: null };
+        } catch (error) {
+            console.error('[SupabaseService] upsertPagosProveedor:', error);
+            return { success: false, error };
+        }
+    }
+
+    // ============================================
     // REALTIME helpers
     // ============================================
 
@@ -707,6 +814,19 @@ const SupabaseService = (() => {
 
         // Ubicacion clientes
         updateClienteUbicacion,
+
+        // Proveedores
+        fetchProveedores,
+        upsertProveedores,
+        deleteProveedores,
+
+        // Ordenes de compra
+        fetchOrdenesCompra,
+        upsertOrdenesCompra,
+
+        // Pagos proveedor
+        fetchPagosProveedor,
+        upsertPagosProveedor,
 
         // Utils
         healthCheck,

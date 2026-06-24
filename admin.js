@@ -203,6 +203,26 @@ const ACTION_DISPATCH = {
     'agregarPrecioEspecial':            ()     => typeof agregarPrecioEspecial === 'function' && agregarPrecioEspecial(),
     'eliminarPrecioEspecial':           (btn)  => typeof eliminarPrecioEspecial === 'function' && eliminarPrecioEspecial(btn.dataset.prodId, btn.dataset.tamano),
 
+    // === Proveedores ===
+    'cambiarTabProv':                   (_, a) => typeof _cambiarTabProv === 'function' && _cambiarTabProv(a),
+    'abrirModalProveedor':              (_, a) => typeof abrirModalProveedor === 'function' && abrirModalProveedor(a),
+    'guardarProveedor':                 ()     => typeof guardarProveedor === 'function' && guardarProveedor(),
+    'cerrarModalProveedor':             ()     => typeof cerrarModalProveedor === 'function' && cerrarModalProveedor(),
+    'eliminarProveedor':                (_, a) => typeof eliminarProveedor === 'function' && eliminarProveedor(a),
+    'abrirModalOC':                     (_, a) => typeof abrirModalOC === 'function' && abrirModalOC(a),
+    'guardarOC':                        ()     => typeof guardarOC === 'function' && guardarOC(),
+    'cerrarModalOC':                    ()     => typeof cerrarModalOC === 'function' && cerrarModalOC(),
+    'abrirDrawerOC':                    (_, a) => typeof abrirDrawerOC === 'function' && abrirDrawerOC(a),
+    'cerrarDrawerOC':                   ()     => typeof cerrarDrawerOC === 'function' && cerrarDrawerOC(),
+    'cambiarEstadoOC':                  (btn)  => typeof cambiarEstadoOC === 'function' && cambiarEstadoOC(btn.dataset.arg, btn.dataset.estado),
+    'registrarPagoProveedor':           (_, a) => typeof registrarPagoProveedor === 'function' && registrarPagoProveedor(a),
+    'cerrarModalPago':                  ()     => typeof cerrarModalPago === 'function' && cerrarModalPago(),
+    'guardarPagoProveedor':             ()     => typeof _guardarPago === 'function' && _guardarPago(),
+    'filtrarProveedores':               ()     => typeof _filtrarProveedores === 'function' && _filtrarProveedores(),
+    'filtrarOC':                        ()     => typeof _filtrarOC === 'function' && _filtrarOC(),
+    'agregarItemOC':                    ()     => typeof _agregarItemOC === 'function' && _agregarItemOC(),
+    'eliminarItemOC':                   (_, a) => typeof _eliminarItemOC === 'function' && _eliminarItemOC(parseInt(a)),
+
     // === Promociones ===
     'abrirModalPromocion':              (_, a) => typeof abrirModalPromocion === 'function' && abrirModalPromocion(a),
     'cerrarModalPromocion':             ()     => typeof cerrarModalPromocion === 'function' && cerrarModalPromocion(),
@@ -367,6 +387,18 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('filtroTextoVentas')
         ?.addEventListener('sl-input', () => typeof filtrarVentas === 'function' && filtrarVentas());
 
+    // Proveedores — filtros
+    document.getElementById('buscarProveedor')
+        ?.addEventListener('sl-input', () => typeof _filtrarProveedores === 'function' && _filtrarProveedores());
+    document.getElementById('filtroCategoriaProveedor')
+        ?.addEventListener('sl-change', () => typeof _filtrarProveedores === 'function' && _filtrarProveedores());
+    document.getElementById('mostrarInactivosProv')
+        ?.addEventListener('sl-change', () => typeof _filtrarProveedores === 'function' && _filtrarProveedores());
+    document.getElementById('filtroOCEstado')
+        ?.addEventListener('sl-change', () => typeof _filtrarOC === 'function' && _filtrarOC());
+    document.getElementById('filtroOCProveedor')
+        ?.addEventListener('sl-change', () => typeof _filtrarOC === 'function' && _filtrarOC());
+
     // onchange en file inputs nativos
     document.getElementById('restaurarFile')
         ?.addEventListener('change', (e) => restaurarBackup(e));
@@ -464,6 +496,7 @@ function cambiarSeccion(seccionId) {
         'herramientas': 'Sistema y Herramientas',
         'sifen-estado': 'Consulta de Estado DTE / SIFEN',
         'dtes': 'Mis DTEs',
+        'proveedores': 'Proveedores',
     };
     const titleEl = document.getElementById('currentSectionTitle');
     if (titleEl) titleEl.textContent = titulos[seccionId] || 'Panel Admin';
@@ -489,6 +522,7 @@ function cambiarSeccion(seccionId) {
     if (seccionId === 'inactivos') cargarClientesInactivos();
     if (seccionId === 'forense') { renderForenseFraudes(); renderForenseLogs(); }
     if (seccionId === 'sifen-estado' && typeof cargarSifenEstado === 'function') cargarSifenEstado();
+    if (seccionId === 'proveedores' && typeof cargarProveedores === 'function') cargarProveedores();
 
     if (typeof lucide !== 'undefined') lucide.createIcons();
 

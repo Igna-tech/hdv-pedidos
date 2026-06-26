@@ -547,6 +547,34 @@
                     </div>
                 </div>
 
+                <!-- ROW 3.5 — RADAR PEDIDOS SIN FINALIZAR + HISTORIAL DE COBROS -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="saas-card p-5 flex flex-col" style="max-height:380px; min-height:240px">
+                        <div class="flex items-center justify-between mb-3 flex-shrink-0">
+                            <div class="flex items-center gap-2">
+                                <i data-lucide="alert-triangle" class="w-4 h-4 text-amber-500"></i>
+                                <h3 class="font-semibold text-gray-900 text-sm">Pedidos sin finalizar</h3>
+                            </div>
+                            <span id="dashSinFinalizarCount" class="text-xs font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">0</span>
+                        </div>
+                        <div id="dashPedidosSinFinalizar" class="flex-1 overflow-y-auto min-h-0">
+                            <p class="text-xs text-gray-400 italic text-center py-6">Cargando...</p>
+                        </div>
+                    </div>
+                    <div class="saas-card p-5 flex flex-col" style="max-height:380px; min-height:240px">
+                        <div class="flex items-center justify-between mb-3 flex-shrink-0">
+                            <div class="flex items-center gap-2">
+                                <i data-lucide="receipt-text" class="w-4 h-4 text-emerald-500"></i>
+                                <h3 class="font-semibold text-gray-900 text-sm">Historial de cobros</h3>
+                            </div>
+                            <span id="dashHistorialCobrosTotal" class="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full"></span>
+                        </div>
+                        <div id="dashHistorialCobros" class="flex-1 overflow-y-auto min-h-0">
+                            <p class="text-xs text-gray-400 italic text-center py-6">Cargando...</p>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- ROW 4 — TOP PRODUCTOS + LEADERBOARD (compacto) -->
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <div class="saas-card p-5">
@@ -835,11 +863,18 @@
                 </div>
 
                 <div class="saas-card p-0 overflow-hidden">
-                    <div class="px-5 py-4 border-b border-gray-100 flex justify-between items-center">
+                    <div class="px-5 py-4 border-b border-gray-100 flex justify-between items-center flex-wrap gap-2">
                         <h3 class="font-semibold text-gray-800 flex items-center gap-2">
                             <i data-lucide="receipt" class="w-4 h-4 text-blue-500"></i> Documentos Emitidos
                         </h3>
-                        <span id="ventasCount" class="text-xs text-gray-400">0 documentos</span>
+                        <div class="flex items-center gap-3">
+                            <div class="flex bg-gray-100 rounded-lg p-0.5" id="ventasSegmentoTabs">
+                                <button class="ventas-seg px-3 py-1 rounded-md text-xs font-bold text-gray-500" data-action="ventasSegmento" data-arg="todos">Todos</button>
+                                <button class="ventas-seg px-3 py-1 rounded-md text-xs font-bold text-gray-500" data-action="ventasSegmento" data-arg="activos">Activos</button>
+                                <button class="ventas-seg px-3 py-1 rounded-md text-xs font-bold text-white bg-indigo-600" data-action="ventasSegmento" data-arg="archivo">Archivo</button>
+                            </div>
+                            <span id="ventasCount" class="text-xs text-gray-400">0 documentos</span>
+                        </div>
                     </div>
                     <div id="ventasTabla" class="overflow-x-auto">
                         <div class="text-center py-8 text-gray-400 text-sm">Cargando documentos...</div>
@@ -2666,6 +2701,8 @@
     <script src="js/utils/formatters.js"></script>
     <script src="js/utils/printer.js"></script>
     <script src="js/utils/pdf-generator.js"></script>
+    <!-- Compartido vendedor + admin -->
+    <script src="js/shared/entrega.js"></script>
     <!-- App -->
     <script src="admin.js"></script>
     <script src="js/admin/pedidos.js"></script>

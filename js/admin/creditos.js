@@ -58,8 +58,8 @@ function obtenerEstadoCredito(credito, tipo) {
         return { estado: 'pendiente', clase: 'bg-blue-100 text-blue-800', label: 'Pendiente' };
     }
     // tipo === 'pedido'
-    if (credito.estado === 'anulado') return { estado: 'anulado', clase: 'bg-red-200 text-red-800', label: 'Anulado' };
-    if (credito.estado === 'pagado') return { estado: 'pagado', clase: 'bg-green-100 text-green-800', label: 'Pagado' };
+    if (credito.estado === PEDIDO_ESTADOS.ANULADO) return { estado: 'anulado', clase: 'bg-red-200 text-red-800', label: 'Anulado' };
+    if (credito.estado === PEDIDO_ESTADOS.COBRADO) return { estado: 'pagado', clase: 'bg-green-100 text-green-800', label: 'Saldado' };
     return { estado: 'pendiente', clase: 'bg-blue-100 text-blue-800', label: 'Pendiente' };
 }
 
@@ -68,21 +68,15 @@ async function actualizarBadgeCreditosVencer() {
     if (!badge) return;
     try {
         const pedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
-        const creditosManuales = (await HDVStorage.getItem('hdv_creditos_manuales', { clone: false })) || [];
         const pagos = (await HDVStorage.getItem('hdv_pagos_credito', { clone: false })) || [];
         const umbral = _diasVencimientoCredito - 3;
         let count = 0;
 
-        pedidos.filter(p => p.tipoPago === 'credito' && p.estado !== 'anulado' && p.estado !== 'pagado').forEach(p => {
+        // Solo créditos del sistema = pedidos entregados con saldo pendiente (manuales no cuentan)
+        pedidos.filter(p => p.estado === PEDIDO_ESTADOS.ENTREGADO).forEach(p => {
             const dias = calcularDiasDesde(p.fecha);
             const totalPagado = pagos.filter(pg => pg.pedidoId === p.id).reduce((s, pg) => s + (pg.monto || 0), 0);
             if (totalPagado < (p.total || 0) && dias >= umbral) count++;
-        });
-
-        creditosManuales.filter(c => !c.eliminado && !c.pagado).forEach(c => {
-            const dias = calcularDiasDesde(c.fecha);
-            const saldo = obtenerSaldoManual(c);
-            if (saldo > 0 && dias >= umbral) count++;
         });
 
         if (count > 0) {
@@ -124,12 +118,13 @@ function obtenerSaldoManual(credito) {
 }
 
 async function cargarCreditos() {
-    // Pedidos a credito
-    const pedidosCredito = todosLosPedidos.filter(p => p.tipoPago === 'credito' && p.estado !== 'pagado');
+    // Créditos del sistema = pedidos ENTREGADOS (con saldo pendiente). Viven aquí por su número.
+    const pedidosCredito = todosLosPedidos.filter(p => p.estado === PEDIDO_ESTADOS.ENTREGADO);
+    // Créditos manuales = recordatorios personales AISLADOS (no entran en stats del sistema).
     const creditosManuales = (await obtenerCreditosManuales()).filter(c => !c.pagado && !c.eliminado);
     const allPagos = (await HDVStorage.getItem('hdv_pagos_credito')) || [];
 
-    // Calcular stats
+    // Stats SOLO del sistema (los manuales no cuentan)
     let totalDeuda = 0, totalCobrado = 0;
     pedidosCredito.forEach(p => {
         const pagos = allPagos.filter(pg => pg.pedidoId === p.id);
@@ -137,22 +132,14 @@ async function cargarCreditos() {
         totalDeuda += (p.total || 0) - pagado;
         totalCobrado += pagado;
     });
-    creditosManuales.forEach(c => {
-        const pagado = (c.pagos || []).reduce((s, p) => s + (p.monto || 0), 0);
-        totalDeuda += (c.monto || 0) - pagado;
-        totalCobrado += pagado;
-    });
 
-    const clientesUnicos = new Set([
-        ...pedidosCredito.map(p => p.cliente?.id),
-        ...creditosManuales.map(c => c.clienteId)
-    ]).size;
+    const clientesUnicos = new Set(pedidosCredito.map(p => p.cliente?.id)).size;
 
     const el = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
     el('totalCreditos', formatearGuaranies(totalDeuda));
     el('totalCobrado', formatearGuaranies(totalCobrado));
     el('clientesConCredito', clientesUnicos);
-    el('pedidosCredito', pedidosCredito.length + creditosManuales.length);
+    el('pedidosCredito', pedidosCredito.length);
 
     const container = document.getElementById('listaCreditos');
     if (!container) return;
@@ -182,7 +169,7 @@ async function cargarCreditos() {
             <div class="flex justify-between items-start mb-2">
                 <div>
                     <p class="font-bold text-gray-800 text-lg">${escapeHTML(p.cliente?.nombre || 'N/A')}</p>
-                    <p class="text-sm text-gray-500">${new Date(p.fecha).toLocaleDateString('es-PY')} - Pedido #${escapeHTML(p.id)}</p>
+                    <p class="text-sm text-gray-500">${new Date(p.fecha).toLocaleDateString('es-PY')} - Pedido ${escapeHTML(displayNumPedido(p))}</p>
                 </div>
                 <div class="text-right">
                     <span class="px-3 py-1 rounded-full text-xs font-bold ${esVencido ? 'bg-red-200 text-red-800' : 'bg-yellow-100 text-yellow-800'}">
@@ -210,7 +197,13 @@ async function cargarCreditos() {
         container.appendChild(div);
     }
 
-    // Creditos manuales
+    // Creditos manuales = recordatorios personales aislados (no afectan stats ni el sistema)
+    if (creditosManuales.length > 0) {
+        const sep = document.createElement('div');
+        sep.className = 'px-5 py-2 bg-purple-50 border-y border-purple-100';
+        sep.innerHTML = `<p class="text-xs font-bold text-purple-700 uppercase tracking-wider">Recordatorios personales (${creditosManuales.length}) — no afectan el sistema</p>`;
+        container.appendChild(sep);
+    }
     creditosManuales.forEach(c => {
         const dias = calcularDiasDesde(c.fecha);
         const saldo = obtenerSaldoManual(c);
@@ -269,26 +262,20 @@ async function registrarPagoCredito(pedidoId) {
     if (monto <= 0) { mostrarToast('Monto invalido', 'error'); return; }
     if (monto > saldo) { mostrarToast('El monto excede el saldo pendiente', 'error'); return; }
 
-    const pago = { id: 'PAG' + Date.now(), pedidoId, monto, fecha: new Date().toISOString(), nota: datos.nota || '' };
-    const pagos = (await HDVStorage.getItem('hdv_pagos_credito')) || [];
-    pagos.push(pago);
-    await HDVStorage.setItem('hdv_pagos_credito', pagos);
+    // Registrar en el libro unificado (con numero_pedido, tipo crédito, registrado_por admin)
+    await registrarCobroLibro({ pedido, monto, tipo: COBRO_TIPOS.CREDITO, nota: datos.nota || '' });
 
-    if (typeof guardarPagosCredito === 'function') {
-        try {
-            await guardarPagosCredito(pagos);
-        } catch(e) {
-            console.error('[Creditos] Error sincronizando pago con Supabase:', e);
-        }
+    const saldoNuevo = Math.max(0, saldo - monto);
+    registrarEventoCredito({ numero_pedido: pedido.numero_pedido ?? null, creditoId: pedidoId, pedidoId, tipo: 'pedido', accion: 'pago_registrado', monto, saldoAnterior: saldo, saldoNuevo, clienteNombre: pedido.cliente?.nombre, nota: datos.nota || '' });
+
+    // Si quedó saldado → cerrar el crédito (sale de Créditos, entra a Archivo)
+    if (saldoNuevo <= 0) {
+        await marcarPagado(pedidoId);
     }
 
-    registrarEventoCredito({ creditoId: pedidoId, tipo: 'pedido', accion: 'pago_registrado', monto, saldoAnterior: saldo, saldoNuevo: saldo - monto, clienteNombre: pedido.cliente?.nombre, nota: datos.nota || '' });
-
-    if (saldo - monto <= 0) {
-        marcarPagado(pedidoId);
-    }
-
-    mostrarToast(`Pago de ${formatearGuaranies(monto)} registrado exitosamente`, 'success');
+    mostrarToast(saldoNuevo <= 0
+        ? `Crédito saldado — ${formatearGuaranies(monto)} cobrado`
+        : `Pago de ${formatearGuaranies(monto)} registrado`, 'success');
     cargarCreditos();
 }
 
@@ -336,11 +323,11 @@ async function marcarPagado(id) {
     await HDVStorage.atomicUpdate('hdv_pedidos', (pedidos) => {
         const list = pedidos || [];
         const p = list.find(x => x.id === id);
-        if (p) p.estado = 'pagado';
+        if (p) { p.estado = PEDIDO_ESTADOS.COBRADO; p.saldo_credito = 0; }
         return list;
     });
-    if (typeof actualizarEstadoPedido === 'function') actualizarEstadoPedido(id, 'pagado');
-    registrarEventoCredito({ creditoId: id, tipo: 'pedido', accion: 'marcado_pagado', monto: 0, saldoAnterior: 0, saldoNuevo: 0, clienteNombre: pedido?.cliente?.nombre });
+    if (typeof actualizarEstadoPedido === 'function') actualizarEstadoPedido(id, PEDIDO_ESTADOS.COBRADO);
+    registrarEventoCredito({ numero_pedido: pedido?.numero_pedido ?? null, creditoId: id, pedidoId: id, tipo: 'pedido', accion: 'credito_saldado', monto: 0, saldoAnterior: 0, saldoNuevo: 0, clienteNombre: pedido?.cliente?.nombre });
     cargarCreditos();
 }
 

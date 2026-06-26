@@ -51,14 +51,15 @@ PWA mobile-first para vendedores de calle + panel admin de escritorio.
 ├── js/utils/pdf-generator.js → Generacion de PDFs con jsPDF
 ├── js/vendedor/ui.js       → UI del vendedor (catalogo visual, sidebar nav, historial cliente, Mi Jornada). mostrarHistorialCliente(clienteId), cerrarHistorialCliente(), mostrarMiCaja() [vista Mi Jornada — toggle Hoy/Semana via _vistaCajaModo], _renderResumenHoy(), _renderResumenSemana(), setCajaModo(modo), mostrarConfiguracion().
 ├── js/vendedor/cart.js     → Logica de carrito del vendedor
-├── js/vendedor/cobros.js   → Cobros en campo: abrirCobrosCliente(clienteId), cerrarCobrosDrawer(), registrarPagoCobro(pedidoId), cobrarTodoEfectivo(clienteId). Bottom sheet con aging de deuda, sync atomico hdv_pagos_credito.
+├── js/vendedor/cobros.js   → Cobros en campo (creditos = pedidos entregados con saldo): abrirCobrosCliente(clienteId), registrarPagoCobro(pedidoId) [cierra el pedido a saldo 0 → cobrado_sin_factura], cobrarTodoEfectivo(clienteId). Escribe en libro unificado hdv_pagos_credito + historial via helpers de entrega.js. Creditos manuales desacoplados (no los cobra el vendedor).
 ├── js/admin/pedidos.js     → Modulo admin: pedidos con filtros vendedor/estado, badges fraude/tipo/editado, desglose IVA, CSV enriquecido
 ├── js/admin/dashboard.js   → Modulo admin: dashboard con Chart.js
 ├── js/admin/productos.js   → Modulo admin: CRUD de productos y variantes
 ├── js/admin/clientes.js    → Modulo admin: CRUD de clientes
-├── js/admin/creditos.js    → Modulo admin: creditos con historial, soft-delete, event log
+├── js/admin/creditos.js    → Modulo admin: creditos = pedidos ENTREGADOS (con saldo) por su numero. registrarPagoCredito() escribe libro unificado + cierra a cobrado_sin_factura al saldar. Creditos manuales = recordatorios personales AISLADOS (no entran en stats/balance/historial/badge).
 ├── js/admin/proveedores.js → Modulo admin: Proveedores — 4 sub-tabs (Directorio CRUD, Ordenes de Compra con drawer, Cuentas x Pagar con aging waterfall, Analisis scorecard). Tablas Supabase: proveedores, ordenes_compra, pagos_proveedor. IDs: PROV-/OC-/PP-. Score 0-100 por proveedor (cumplimiento+lead time+volumen+antiguedad).
-├── js/modules/ventas/ventas-data.js      → Datos y logica de ventas/facturacion. ventasDataObtenerEmpresa() incluye logo_url (desde window._empresaLogoUrl)
+├── js/shared/entrega.js    → COMPARTIDO vendedor+admin. Modal de entrega: abrirModalEntrega(pedidoId) con 3 botones (Cobro total / Cobro parcial / Ingresar a creditos). Helpers reutilizables: registrarCobroLibro(), registrarEventoHistorialCredito(). Corazon del ciclo de vida. Cargado en index.html y admin.html antes de la app.
+├── js/modules/ventas/ventas-data.js      → Datos y logica de ventas/facturacion. ventasDataObtenerEmpresa() incluye logo_url. ventasDataCobrosPorPeriodo(desde,hasta,vendedorId?) = suma del libro de cobros (fuente unica de caja)
 ├── js/modules/ventas/ventas-templates.js → Vaciado: templates de impresion legacy eliminados. Archivo conservado por compatibilidad de carga.
 │
 ├── src/input.css           → Entrada Tailwind + design tokens Shoelace (:root --sl-*, --hdv-*) + clases utilitarias compartidas
@@ -91,10 +92,10 @@ PWA mobile-first para vendedores de calle + panel admin de escritorio.
 ## Orden de carga de scripts
 
 **index.html (vendedor):**
-supabase CDN → supabase-init.js → **js/utils/constants.js** → services/supabase.js → js/utils/storage.js → guard.js → supabase-config.js → js/services/sync.js → [core/state, sanitizer, **dialogs**, helpers, formatters, printer, pdf-generator, vendedor/ui.js, vendedor/cart.js, **vendedor/cobros.js**] → app.js → checkout.js
+supabase CDN → supabase-init.js → **js/utils/constants.js** → services/supabase.js → js/utils/storage.js → guard.js → supabase-config.js → js/services/sync.js → [core/state, sanitizer, **dialogs**, helpers, formatters, printer, pdf-generator, **js/shared/entrega.js**, vendedor/ui.js, vendedor/cart.js, **vendedor/cobros.js**] → app.js → checkout.js
 
 **admin.html:**
-supabase CDN → Chart.js → supabase-init.js → **js/utils/constants.js** → services/supabase.js → js/utils/storage.js → guard.js → supabase-config.js → [core/state, sanitizer, **dialogs**, helpers, formatters, printer, pdf-generator] → admin.js → [admin modules] → **js/utils/kude-generator.js** → admin-ventas.js → admin-devoluciones.js → admin-contabilidad.js → **js/admin/proveedores.js** → js/admin/sifen-estado.js → js/admin/dtes.js
+supabase CDN → Chart.js → supabase-init.js → **js/utils/constants.js** → services/supabase.js → js/utils/storage.js → guard.js → supabase-config.js → [core/state, sanitizer, **dialogs**, helpers, formatters, printer, pdf-generator, **js/shared/entrega.js**] → admin.js → [admin modules] → **js/utils/kude-generator.js** → admin-ventas.js → admin-devoluciones.js → admin-contabilidad.js → **js/admin/proveedores.js** → js/admin/sifen-estado.js → js/admin/dtes.js
 
 **login.html:**
 supabase CDN → supabase-init.js → js/utils/storage.js → login.js
@@ -108,7 +109,7 @@ supabase CDN → supabase-init.js → js/utils/storage.js → login.js
 - `producto_variantes` (id UUID PK, producto_id FK→productos CASCADE, nombre_variante, precio, costo, stock, activo)
 
 ### Tablas operativas:
-- `pedidos` (id TEXT PK, estado, fecha TEXT, datos JSONB, creado_en, actualizado_en, vendedor_id UUID FK→auth.users DEFAULT auth.uid()) — estados: pedido_pendiente, entregado, cobrado_sin_factura, facturado_mock, nota_credito_mock, nota_remision, anulado. IDs por tipo: PED-, REC-, FAC-, NC-, NRE-
+- `pedidos` (id TEXT PK, estado, fecha TEXT, datos JSONB, creado_en, actualizado_en, vendedor_id UUID FK→auth.users DEFAULT auth.uid(), **numero_pedido BIGINT** secuencial via trigger fn_asignar_numero_pedido, secuencia hdv_pedidos_numero_seq arranca en #0) — estados: pedido_pendiente, entregado, cobrado_sin_factura, facturado_mock, nota_credito_mock, nota_remision, anulado. IDs por tipo: PED-, REC-, FAC-, NC-, NRE-. **numero_pedido = numero sagrado de seguimiento (#0000000), distinto del numero de factura SIFEN**
 - `configuracion` (doc_id TEXT PK, datos JSONB) — docs: pagos_credito, creditos_manuales, historial_creditos, promociones, whatsapp_plantilla, gastos_vendedor_${vendedorId}, rendiciones_${vendedorId}, cuentas_bancarias, metas_vendedor. NOTA: gastos y rendiciones particionados por vendedor_id desde Fase 1 (antes era doc_id compartido → last-write-wins)
 - `configuracion_empresa` (id INT PK default 1, ruc_empresa, razon_social, nombre_fantasia, timbrado_numero, timbrado_vencimiento, establecimiento, punto_expedicion, direccion_fiscal, telefono_empresa, email_empresa, actividad_economica, logo_url TEXT) — fila unica, DELETE bloqueado. logo_url → URL publica en bucket empresa_assets
 - `reportes_mensuales` (mes TEXT PK, datos JSONB)
@@ -264,7 +265,7 @@ Bucket `productos_img` (Supabase Storage). Compresion Canvas → WebP 800px max.
 - **RLS habilitado y estricto** en TODAS las tablas. Zero politicas `anon`. RPCs con REVOKE de `public`/`anon`.
 - **Triggers de validacion server-side** (NUNCA confiar en frontend):
   - `trg_validar_precios`: precio < 50% catalogo, descuento > 30%, total < 40%, qty > 9999 → marca `alerta_fraude: true`, fuerza `pedido_pendiente`.
-  - `trg_bloquear_mutacion_terminal`: vendedores no pueden modificar pedidos en estados terminales (facturado, nota_credito, cobrado, entregado, anulado).
+  - `trg_bloquear_mutacion_terminal`: vendedores no pueden modificar pedidos en estados terminales (facturado, nota_credito, cobrado, entregado, anulado). EXCEPCION (lifecycle-v2): permite la transicion entregado → cobrado_sin_factura (cierre de credito al saldarlo).
   - `trg_forzar_fecha_servidor`: sobreescribe `pedidos.fecha` con `NOW()` del servidor. Impide backdating.
 - **Aislamiento de datos**:
   - `pedidos.vendedor_id` DEFAULT `auth.uid()`. DELETE solo admin.
@@ -366,9 +367,39 @@ Bucket `productos_img` (Supabase Storage). Compresion Canvas → WebP 800px max.
 | E2E | Flujo Datos E2E | 10 puntos ciegos | 7 reparados (vendedor badge, fraude, filtros, CSV, tipo comprobante, editado, IVA). 3 pendientes decision negocio. 2026-03-25 |
 | Fase 1 | Integridad de Datos | 14 (3C, 6M, 5B) | 12 remediados: storage blindaje, sync robustez, gastos aislamiento, auto-paginacion, debounce realtime, beforeunload. 2026-03-25 |
 
+## Ciclo de vida del pedido (lifecycle-v2)
+
+Todo gira en torno al **numero_pedido sagrado** (#0000000, secuencial, server-side, unico).
+Invariante ERP: **un numero vive en UNA sola seccion a la vez** segun su estado.
+
+```
+pedido_pendiente ──[ENTREGAR → modal 3 botones (abrirModalEntrega)]──►
+   • Cobro total      → cobrado_sin_factura  → ARCHIVO (Ventas)
+   • Cobro parcial    → entregado (saldo)    → CREDITOS (mismo numero)
+   • Ingresar credito → entregado (total)    → CREDITOS (mismo numero)
+entregado ──[pagos hasta saldo 0]──► cobrado_sin_factura → ARCHIVO
+```
+
+| Estado | Unica ubicacion operativa |
+|--------|---------------------------|
+| pedido_pendiente | Mis Pedidos (Activos) |
+| entregado (saldo>0) | Creditos (admin y vendedor) |
+| cobrado_sin_factura / facturado_mock / nota_credito_mock / anulado | Archivo (Ventas) |
+
+- **Libro de cobros unificado** `hdv_pagos_credito`: TODO cobro (contado y credito) se registra ahi,
+  con `numero_pedido` y `tipo` (contado|credito). **Cobrado(periodo) = Σ libro** (fuente unica, sin doble conteo).
+  **Ventas(periodo) = Σ pedidos.total**. **A rendir = Cobrado − Gastos**.
+- **Historial** `hdv_historial_creditos`: cada cobro escribe un evento (numero, monto, quien) → feed del dashboard.
+- Dashboard: KPI "Cobrado Hoy" desde libro; panel "Pedidos sin finalizar" (radar pendiente+entregado con aging);
+  feed "Historial de cobros". Son lentes de SOLO LECTURA (no son una ubicacion del invariante).
+- **Creditos manuales** = recordatorios personales del dueño: AISLADOS, sin numero, fuera de stats/balance/historial/sync.
+- Migracion `supabase/migrations/lifecycle-v2.sql` (manual): wipe mock, reset secuencia a #0, excepcion del trigger terminal.
+- Reset local one-shot en supabase-config.js (`LIFECYCLE_RESET_VERSION`): purga pedidos/pagos/historial locales, conserva manuales.
+
 ## Reglas operativas
 
 - **NO bloquear por stock en la app del vendedor**. Flujo: levantar pedido → comprar mercaderia → entregar.
+- **Al ENTREGAR siempre se abre el modal de 3 botones** (abrirModalEntrega) — vendedor y admin. tipoPago = solo intencion.
 - Service worker: incrementar `VERSION` en cada deploy.
 - `productos.json` es fallback estatico, no fuente de verdad.
 - Variantes se reemplazan atomicamente via RPC `reemplazar_variantes` (no update individual).

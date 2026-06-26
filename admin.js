@@ -110,6 +110,7 @@ const ACTION_DISPATCH = {
 
     // === Ventas ===
     'filtrarVentas':                    ()     => typeof filtrarVentas === 'function' && filtrarVentas(),
+    'ventasSegmento':                   (_, a) => typeof setVentasSegmento === 'function' && setVentasSegmento(a),
     'exportarVentasSemanalesCSV':       ()     => typeof exportarVentasSemanalesCSV === 'function' && exportarVentasSemanalesCSV(),
     'paginaVentasFirst': ()    => typeof _paginaVentasCambiar === 'function' && _paginaVentasCambiar(1),
     'paginaVentasPrev':  ()    => typeof _paginaVentasCambiar === 'function' && _paginaVentasCambiar(Math.max(1, paginaVentas - 1)),

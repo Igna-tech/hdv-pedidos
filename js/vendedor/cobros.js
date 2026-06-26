@@ -51,15 +51,15 @@ async function abrirCobrosCliente(clienteId) {
 
     const pedidos         = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
     const allPagos        = (await HDVStorage.getItem('hdv_pagos_credito', { clone: false })) || [];
-    const creditosManuales = (await HDVStorage.getItem('hdv_creditos_manuales', { clone: false })) || [];
 
+    // Créditos del sistema = pedidos ENTREGADOS con saldo pendiente (por su número).
     const pedidosCredito = pedidos
-        .filter(p => p.cliente?.id === clienteId && p.tipoPago === 'credito')
+        .filter(p => p.cliente?.id === clienteId && p.estado === PEDIDO_ESTADOS.ENTREGADO)
         .filter(p => _calcularSaldoPedido(p, allPagos) > 0)
         .sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
 
-    const manualesCliente = creditosManuales
-        .filter(c => c.clienteId === clienteId && !c.eliminado && !c.pagado && _saldoCreditoManual(c) > 0);
+    // Créditos manuales = recordatorios personales del dueño: el vendedor no los cobra.
+    const manualesCliente = [];
 
     if (pedidosCredito.length === 0 && manualesCliente.length === 0) {
         mostrarToast('Este cliente no tiene deuda pendiente', 'neutral');
@@ -229,35 +229,50 @@ async function registrarPagoCobro(pedidoId) {
         if (!ok) return;
     }
 
-    const nuevoPago = {
-        id: 'PAG-' + crypto.randomUUID(),
-        pedidoId,
-        monto,
-        fecha: new Date().toISOString(),
-        metodo: resultado.metodo || 'efectivo',
-        nota: resultado.nota || '',
-        vendedor_id: window.hdvUsuario?.id || null,
-        registrado_por: 'vendedor',
-        sincronizado: false
-    };
-
-    await HDVStorage.atomicUpdate('hdv_pagos_credito', (pagos) => {
-        const list = pagos || [];
-        list.push(nuevoPago);
-        return list;
+    // Registrar en el libro unificado (con numero_pedido) — helper compartido (entrega.js)
+    const nuevoPago = await registrarCobroLibro({
+        pedido, monto, tipo: COBRO_TIPOS.CREDITO,
+        metodo: resultado.metodo || 'efectivo', nota: resultado.nota || ''
     });
 
-    // Sync en background
-    if (typeof guardarPagosCredito === 'function') {
-        const pagosActualizados = (await HDVStorage.getItem('hdv_pagos_credito', { clone: false })) || [];
-        guardarPagosCredito(pagosActualizados).catch(err => console.error('[Cobros] Error sync:', err));
+    const saldoRestante = Math.max(0, saldo - monto);
+
+    // Evento en el historial de créditos (visible en el dashboard admin)
+    await registrarEventoHistorialCredito({
+        numero_pedido: pedido.numero_pedido ?? null, pedidoId,
+        tipo: 'pedido', accion: 'pago_registrado', monto,
+        saldoAnterior: saldo, saldoNuevo: saldoRestante,
+        clienteNombre: pedido.cliente?.nombre || '',
+        metodo: nuevoPago.metodo, nota: nuevoPago.nota,
+        registrado_por: 'vendedor', vendedor_nombre: window.hdvUsuario?.nombre || ''
+    });
+
+    // Si quedó saldado, cerrar el pedido → sale de Créditos, entra a Archivo
+    if (saldoRestante <= 0) {
+        let rpcOk = true;
+        if (typeof actualizarEstadoPedido === 'function') {
+            try { rpcOk = await actualizarEstadoPedido(pedidoId, PEDIDO_ESTADOS.COBRADO); }
+            catch (e) { rpcOk = false; }
+        }
+        await HDVStorage.atomicUpdate('hdv_pedidos', (list) => {
+            const p = (list || []).find(x => x.id === pedidoId);
+            if (p) { p.estado = PEDIDO_ESTADOS.COBRADO; p.saldo_credito = 0; p.sincronizado = rpcOk; }
+            return list || [];
+        });
+        await registrarEventoHistorialCredito({
+            numero_pedido: pedido.numero_pedido ?? null, pedidoId,
+            tipo: 'pedido', accion: 'credito_saldado', monto: 0,
+            saldoAnterior: 0, saldoNuevo: 0,
+            clienteNombre: pedido.cliente?.nombre || '', registrado_por: 'vendedor'
+        });
     }
 
     if (typeof navigator.vibrate === 'function') navigator.vibrate([80, 30, 80]);
-    mostrarExito(`Cobro de ${formatearGuaranies(monto)} registrado`);
+    mostrarExito(saldoRestante <= 0
+        ? `Crédito saldado — ${formatearGuaranies(monto)} cobrado`
+        : `Cobro de ${formatearGuaranies(monto)} registrado`);
 
     // Preguntar si enviar recibo por WhatsApp
-    const saldoRestante = Math.max(0, saldo - monto);
     const enviarWA = await mostrarConfirmModal(
         `¿Enviar recibo de cobro por WhatsApp al cliente?`,
         { confirmLabel: 'Sí, enviar', cancelLabel: 'No' }
@@ -339,52 +354,10 @@ async function registrarPagoManualVendedor(creditoId) {
         guardarCreditosManuales(creditosAct).catch(e => console.error('[Cobros] Error sync creditos manuales:', e));
     }
 
-    // 2. Agregar a hdv_pagos_credito → aparece en Mi Jornada timeline del vendedor
-    const pagoTimeline = {
-        id: 'PAG-' + crypto.randomUUID(),
-        pedidoId: creditoId,
-        tipo: 'credito_manual',
-        monto,
-        fecha: ahora,
-        metodo: pagoObj.metodo,
-        nota: pagoObj.nota,
-        clienteNombre: credito.clienteNombre || '',
-        vendedor_id: window.hdvUsuario?.id || null,
-        registrado_por: 'vendedor',
-        sincronizado: false
-    };
-    await HDVStorage.atomicUpdate('hdv_pagos_credito', (pagos) => (pagos || []).concat([pagoTimeline]));
-    if (typeof guardarPagosCredito === 'function') {
-        const pagosAct = (await HDVStorage.getItem('hdv_pagos_credito', { clone: false })) || [];
-        guardarPagosCredito(pagosAct).catch(e => console.error('[Cobros] Error sync pagos credito:', e));
-    }
-
-    // 3. Registrar en hdv_historial_creditos → visible en panel admin historial
+    // Lifecycle v2: los créditos manuales son recordatorios personales AISLADOS.
+    // NO se registran en el libro del sistema (hdv_pagos_credito) ni en el
+    // historial de créditos del dashboard. Solo viven en hdv_creditos_manuales.
     const saldoNuevo = Math.max(0, saldo - monto);
-    await _registrarHistorialCredito({
-        creditoId,
-        tipo: 'manual',
-        accion: 'pago_registrado',
-        monto,
-        saldoAnterior: saldo,
-        saldoNuevo,
-        clienteNombre: credito.clienteNombre || '',
-        nota: pagoObj.nota,
-        registrado_por: 'vendedor',
-        vendedor_nombre: pagoObj.vendedor_nombre
-    });
-    if (saldoNuevo <= 0) {
-        await _registrarHistorialCredito({
-            creditoId,
-            tipo: 'manual',
-            accion: 'marcado_pagado',
-            monto: 0,
-            saldoAnterior: 0,
-            saldoNuevo: 0,
-            clienteNombre: credito.clienteNombre || '',
-            registrado_por: 'vendedor'
-        });
-    }
 
     if (typeof navigator.vibrate === 'function') navigator.vibrate([80, 30, 80]);
     mostrarExito(`Cobro de ${formatearGuaranies(monto)} registrado`);
@@ -426,40 +399,30 @@ async function cobrarTodoEfectivo(clienteId) {
     );
     if (!ok) return;
 
-    const ahora = new Date().toISOString();
-    const nuevoPagos = pedidosCredito.map(p => ({
-        id: 'PAG-' + crypto.randomUUID(),
-        pedidoId: p.id,
-        monto: _calcularSaldoPedido(p, allPagos),
-        fecha: ahora,
-        metodo: 'efectivo',
-        nota: 'Cobro total en campo',
-        vendedor_id: window.hdvUsuario?.id || null,
-        registrado_por: 'vendedor',
-        sincronizado: false
-    }));
-
-    await HDVStorage.atomicUpdate('hdv_pagos_credito', (pagos) => {
-        return (pagos || []).concat(nuevoPagos);
-    });
-
-    if (typeof guardarPagosCredito === 'function') {
-        const pagosActualizados = (await HDVStorage.getItem('hdv_pagos_credito', { clone: false })) || [];
-        guardarPagosCredito(pagosActualizados).catch(err => console.error('[Cobros] Error sync todo:', err));
+    // Registrar cada cobro en el libro unificado (con numero_pedido) + historial,
+    // y cerrar cada pedido saldado → sale de Créditos, entra a Archivo.
+    for (const p of pedidosCredito) {
+        const saldoP = _calcularSaldoPedido(p, allPagos);
+        await registrarCobroLibro({ pedido: p, monto: saldoP, tipo: COBRO_TIPOS.CREDITO, nota: 'Cobro total en campo' });
+        await registrarEventoHistorialCredito({
+            numero_pedido: p.numero_pedido ?? null, pedidoId: p.id,
+            tipo: 'pedido', accion: 'credito_saldado', monto: saldoP,
+            saldoAnterior: saldoP, saldoNuevo: 0,
+            clienteNombre: p.cliente?.nombre || '', registrado_por: 'vendedor'
+        });
     }
 
-    // Marcar cada pedido saldado como cobrado_sin_factura
     await HDVStorage.atomicUpdate('hdv_pedidos', (list) => {
         const updated = list || [];
         pedidosCredito.forEach(p => {
             const found = updated.find(x => x.id === p.id);
-            if (found) found.estado = 'cobrado_sin_factura';
+            if (found) { found.estado = PEDIDO_ESTADOS.COBRADO; found.saldo_credito = 0; }
         });
         return updated;
     });
     if (typeof actualizarEstadoPedido === 'function') {
         pedidosCredito.forEach(p => {
-            actualizarEstadoPedido(p.id, 'cobrado_sin_factura')
+            actualizarEstadoPedido(p.id, PEDIDO_ESTADOS.COBRADO)
                 .catch(err => console.error('[Cobros] Error sync estado pedido:', err));
         });
     }

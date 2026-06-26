@@ -140,9 +140,10 @@ function aplicarFiltrosPedidos(resetPagina = true) {
     let filtrados = todosLosPedidos;
     // Filtrar por estado
     if (estado === 'activos') {
+        // Invariante: los entregados (créditos) viven en la sección Créditos, no acá.
         filtrados = filtrados.filter(p => {
             const e = p.estado || PEDIDO_ESTADOS.PENDIENTE;
-            return e === PEDIDO_ESTADOS.PENDIENTE || e === 'pendiente' || e === PEDIDO_ESTADOS.ENTREGADO;
+            return e === PEDIDO_ESTADOS.PENDIENTE || e === 'pendiente';
         });
     } else if (estado) {
         filtrados = filtrados.filter(p => p.estado === estado || (estado === PEDIDO_ESTADOS.PENDIENTE && p.estado === 'pendiente'));
@@ -252,9 +253,9 @@ function crearTarjetaPedidoAdmin(p) {
     if (estado === PEDIDO_ESTADOS.PENDIENTE || estado === 'pendiente') {
         botonesEstado = `<sl-button class="btn-estado" variant="success" size="small" data-action="marcar-entregado" data-id="${p.id}"><i data-lucide="truck" class="w-3.5 h-3.5"></i> Entregado</sl-button>`;
     } else if (estado === PEDIDO_ESTADOS.ENTREGADO) {
+        // Entregado = crédito (vive en Créditos). El cobro va por el flujo único de créditos.
         botonesEstado = `
-            <sl-button class="btn-cobrar" variant="primary" size="small" data-action="marcar-cobrado" data-id="${p.id}"><i data-lucide="circle-check" class="w-3.5 h-3.5"></i> Cobrar</sl-button>
-            <sl-button class="btn-estado" variant="default" size="small" data-action="marcar-pendiente" data-id="${p.id}"><i data-lucide="undo-2" class="w-3.5 h-3.5"></i> Pendiente</sl-button>`;
+            <sl-button class="btn-cobrar" variant="primary" size="small" data-action="marcar-cobrado" data-id="${p.id}"><i data-lucide="circle-check" class="w-3.5 h-3.5"></i> Cobrar crédito</sl-button>`;
     }
 
     const div = document.createElement('div');
@@ -556,29 +557,10 @@ function actualizarEstadisticasPedidos(pedidos) {
     el('statRecaudacion', formatearGuaranies(pedidos.reduce((s, p) => s + (p.total || 0), 0)));
 }
 
+// Lifecycle v2: al entregar se abre el modal compartido (Cobro total / parcial /
+// Ingresar a créditos). El modal aplica el estado y registra el cobro en el libro.
 async function marcarEntregado(id) {
-    // RPC primero: si falla, no mutar estado local
-    if (typeof actualizarEstadoPedido === 'function') {
-        try {
-            await actualizarEstadoPedido(id, PEDIDO_ESTADOS.ENTREGADO);
-        } catch(e) {
-            console.error('[Pedidos] Error actualizando estado en Supabase:', e);
-            mostrarToast('Error al actualizar estado en servidor', 'error');
-            return;
-        }
-    }
-    await HDVStorage.atomicUpdate('hdv_pedidos', (pedidos) => {
-        const list = pedidos || [];
-        const p = list.find(x => x.id === id);
-        if (p) p.estado = PEDIDO_ESTADOS.ENTREGADO;
-        return list;
-    });
-    // Actualizar DOM inmediatamente sin re-renderizar toda la lista
-    if (!actualizarTarjetaPedidoAdminDOM(id, PEDIDO_ESTADOS.ENTREGADO)) {
-        // Fallback: si la tarjeta no existe en DOM, re-renderizar
-        cargarPedidos();
-    }
-    mostrarToast('Pedido marcado como entregado', 'success');
+    return window.abrirModalEntrega(id);
 }
 
 async function marcarPendiente(id) {
@@ -605,51 +587,11 @@ async function marcarPendiente(id) {
     mostrarToast('Pedido marcado como pendiente', 'success');
 }
 
+// Lifecycle v2: cobrar un crédito (pedido entregado) usa el flujo ÚNICO de Créditos
+// (registrarPagoCredito escribe el libro con numero_pedido y cierra a saldo 0).
 async function marcarCobrado(id) {
-    const pedido = (todosLosPedidos || []).find(p => p.id === id);
-    if (!pedido) return;
-
-    // Pedir monto cobrado (default = total)
-    const datos = await mostrarInputModal({
-        titulo: `Cobrar — ${escapeHTML(pedido.cliente?.nombre || 'Cliente')}`,
-        campos: [{ key: 'monto', label: `Monto cobrado (total: ${formatearGuaranies(pedido.total)})`, tipo: 'number', placeholder: String(pedido.total), requerido: true }],
-        textoConfirmar: 'Confirmar cobro'
-    });
-    if (!datos) return;
-
-    const montoCobrado = Number(datos.monto);
-    if (montoCobrado <= 0) { mostrarToast('Monto inválido', 'error'); return; }
-    const saldo = Math.max(0, Math.round(pedido.total - montoCobrado));
-
-    if (saldo > 0) {
-        const crearCredito = await mostrarConfirmModal(
-            `Cobro parcial: ${formatearGuaranies(montoCobrado)} de ${formatearGuaranies(pedido.total)}.\n¿Crear crédito por el saldo de ${formatearGuaranies(saldo)} para ${escapeHTML(pedido.cliente?.nombre || 'el cliente')}?`,
-            { textoConfirmar: 'Crear crédito' }
-        );
-        if (crearCredito && typeof crearCreditoParcial === 'function') {
-            await crearCreditoParcial(pedido, saldo);
-        }
-    }
-
-    if (typeof actualizarEstadoPedido === 'function') {
-        try {
-            await actualizarEstadoPedido(id, PEDIDO_ESTADOS.COBRADO);
-        } catch(e) {
-            console.error('[Pedidos] Error actualizando estado en Supabase:', e);
-            mostrarToast('Error al actualizar estado en servidor', 'error');
-            return;
-        }
-    }
-    await HDVStorage.atomicUpdate('hdv_pedidos', (list) => {
-        const p = (list || []).find(x => x.id === id);
-        if (p) {
-            p.estado = PEDIDO_ESTADOS.COBRADO;
-            if (saldo > 0) { p.cobro_parcial = true; p.monto_cobrado = montoCobrado; p.saldo_credito = saldo; }
-        }
-        return list || [];
-    });
-    if (!actualizarTarjetaPedidoAdminDOM(id, PEDIDO_ESTADOS.COBRADO)) cargarPedidos();
-    mostrarToast(saldo > 0 ? `Cobro parcial de ${formatearGuaranies(montoCobrado)} registrado` : 'Pedido cobrado — aparece en Ventas', 'success');
+    if (typeof registrarPagoCredito === 'function') return registrarPagoCredito(id);
+    mostrarToast('Módulo de créditos no disponible', 'error');
 }
 
 async function eliminarPedidoAdmin(id) {

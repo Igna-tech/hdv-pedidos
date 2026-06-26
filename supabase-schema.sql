@@ -495,6 +495,8 @@ CREATE OR REPLACE FUNCTION public.bloquear_mutacion_terminal()
 RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
     IF OLD.estado IN ('facturado_mock', 'nota_credito_mock', 'anulado', 'cobrado_sin_factura', 'entregado')
+    -- Excepción (lifecycle-v2): cerrar un crédito entregado al cobrarlo en su totalidad.
+    AND NOT (OLD.estado = 'entregado' AND NEW.estado = 'cobrado_sin_factura')
     AND NOT EXISTS (
         SELECT 1 FROM public.perfiles WHERE id = auth.uid() AND rol = 'admin' AND activo = true
     ) THEN

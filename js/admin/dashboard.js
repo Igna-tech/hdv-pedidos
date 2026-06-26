@@ -130,6 +130,8 @@ async function cargarDashboard() {
     _initChartTemporal(_chartPeriodo);
     _renderFeedActividad(pedidos);
     _renderLeaderboard(_leaderboardPeriodo);
+    _renderPedidosSinFinalizar(pedidos);
+    _renderHistorialCobros();
 
     // MÓDULO INTELIGENCIA — carga tab por defecto
     _cargarIntelProyeccion();
@@ -141,10 +143,9 @@ async function cargarDashboard() {
 // ============================================
 // MÓDULO 1 — KPI HOY EN VIVO (real-time)
 // ============================================
-function _actualizarKPIsRealtime(pedidos) {
+async function _actualizarKPIsRealtime(pedidos) {
     const hoy = new Date().toISOString().split('T')[0];
     const ayer = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-    const estadosCobrado = new Set(['cobrado_sin_factura', 'facturado_mock']);
 
     const pedidosHoy = pedidos.filter(p => (p.fecha || '').slice(0, 10) === hoy);
     const pedidosAyer = pedidos.filter(p => (p.fecha || '').slice(0, 10) === ayer);
@@ -154,8 +155,10 @@ function _actualizarKPIsRealtime(pedidos) {
     const countHoy    = pedidosHoy.length;
     const countAyer   = pedidosAyer.length;
     const pendientes  = pedidos.filter(p => p.estado === 'pedido_pendiente').length;
-    const cobradoHoy  = pedidosHoy.filter(p => estadosCobrado.has(p.estado)).reduce((s, p) => s + (p.total || 0), 0);
-    const cobradoAyer = pedidosAyer.filter(p => estadosCobrado.has(p.estado)).reduce((s, p) => s + (p.total || 0), 0);
+    // Cobrado = caja real desde el libro unificado (incluye contado y créditos cobrados hoy)
+    const pagos = (await HDVStorage.getItem('hdv_pagos_credito', { clone: false })) || [];
+    const cobradoHoy  = pagos.filter(pg => (pg.fecha || '').slice(0, 10) === hoy).reduce((s, pg) => s + (Number(pg.monto) || 0), 0);
+    const cobradoAyer = pagos.filter(pg => (pg.fecha || '').slice(0, 10) === ayer).reduce((s, pg) => s + (Number(pg.monto) || 0), 0);
 
     _animarValor('kpiVentasHoy',  ventasHoy,  v => formatearGuaranies(v));
     _animarValor('kpiPedidosHoy', countHoy);
@@ -194,6 +197,111 @@ function _animarValor(id, target, fmt) {
         if (p < 1) requestAnimationFrame(step);
     };
     requestAnimationFrame(step);
+}
+
+// ============================================
+// MÓDULO — RADAR: PEDIDOS SIN FINALIZAR
+// Lente de solo lectura: pendientes + entregados con saldo (no es una ubicación).
+// ============================================
+async function _renderPedidosSinFinalizar(pedidos) {
+    const cont = document.getElementById('dashPedidosSinFinalizar');
+    const countEl = document.getElementById('dashSinFinalizarCount');
+    if (!cont) return;
+
+    const pagos = (await HDVStorage.getItem('hdv_pagos_credito', { clone: false })) || [];
+    const saldoDe = (p) => {
+        const pagado = pagos.filter(pg => pg.pedidoId === p.id).reduce((s, pg) => s + (Number(pg.monto) || 0), 0);
+        return Math.max(0, (p.total || 0) - pagado);
+    };
+
+    const abiertos = (pedidos || []).filter(p => {
+        const e = p.estado || PEDIDO_ESTADOS.PENDIENTE;
+        if (e === PEDIDO_ESTADOS.PENDIENTE || e === 'pendiente') return true;
+        if (e === PEDIDO_ESTADOS.ENTREGADO) return saldoDe(p) > 0;
+        return false;
+    }).map(p => {
+        const dias = Math.floor((Date.now() - new Date(p.fecha)) / 86400000);
+        return { p, dias };
+    }).sort((a, b) => b.dias - a.dias);
+
+    if (countEl) countEl.textContent = abiertos.length;
+
+    if (abiertos.length === 0) {
+        cont.innerHTML = '<p class="text-xs text-gray-400 italic text-center py-6">Todo finalizado — nada pendiente 🎉</p>';
+        return;
+    }
+
+    cont.innerHTML = abiertos.map(({ p, dias }) => {
+        const esPend = (p.estado === PEDIDO_ESTADOS.PENDIENTE || p.estado === 'pendiente');
+        const estadoLabel = esPend ? 'Pendiente' : 'En crédito';
+        const estadoClase = esPend ? 'bg-yellow-100 text-yellow-700' : 'bg-blue-100 text-blue-700';
+        const agingClase = dias <= 3 ? 'text-emerald-600' : dias <= 7 ? 'text-amber-600' : 'text-red-600';
+        const saldo = esPend ? (p.total || 0) : saldoDe(p);
+        return `<div class="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
+            <div class="min-w-0">
+                <div class="flex items-center gap-2">
+                    <span class="text-[10px] font-mono text-gray-400">${escapeHTML(displayNumPedido(p))}</span>
+                    <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full ${estadoClase}">${estadoLabel}</span>
+                </div>
+                <p class="text-xs text-gray-700 truncate mt-0.5">${escapeHTML(p.cliente?.nombre || 'Sin cliente')}</p>
+            </div>
+            <div class="text-right shrink-0 ml-2">
+                <p class="text-xs font-bold text-gray-800">${formatearGuaranies(saldo)}</p>
+                <p class="text-[10px] font-bold ${agingClase}">${dias}d</p>
+            </div>
+        </div>`;
+    }).join('');
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+// ============================================
+// MÓDULO — HISTORIAL DE COBROS (feed de eventos del libro)
+// ============================================
+const _HCR_ACCION_LABEL = {
+    cobro_total:     { txt: 'Cobro total',  cls: 'text-emerald-600' },
+    cobro_parcial:   { txt: 'Cobro parcial',cls: 'text-amber-600' },
+    ingreso_credito: { txt: 'A créditos',   cls: 'text-blue-600' },
+    pago_registrado: { txt: 'Pago',         cls: 'text-emerald-600' },
+    credito_saldado: { txt: 'Saldado',      cls: 'text-emerald-700' }
+};
+
+async function _renderHistorialCobros() {
+    const cont = document.getElementById('dashHistorialCobros');
+    const totalEl = document.getElementById('dashHistorialCobrosTotal');
+    if (!cont) return;
+
+    const historial = (await HDVStorage.getItem('hdv_historial_creditos', { clone: false })) || [];
+    const eventos = [...historial]
+        .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
+        .slice(0, 40);
+
+    if (totalEl) totalEl.textContent = historial.length ? `${historial.length} eventos` : '';
+
+    if (eventos.length === 0) {
+        cont.innerHTML = '<p class="text-xs text-gray-400 italic text-center py-6">Sin cobros registrados aún</p>';
+        return;
+    }
+
+    cont.innerHTML = eventos.map(h => {
+        const lbl = _HCR_ACCION_LABEL[h.accion] || { txt: h.accion || 'Evento', cls: 'text-gray-600' };
+        const ref = h.numero_pedido != null ? ('#' + String(h.numero_pedido).padStart(7, '0')) : '';
+        const quien = h.registrado_por === 'admin' ? 'Admin' : (h.vendedor_nombre || 'Vendedor');
+        const fechaStr = new Date(h.fecha).toLocaleDateString('es-PY', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+        const montoStr = (h.monto > 0) ? formatearGuaranies(h.monto) : '—';
+        return `<div class="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
+            <div class="min-w-0">
+                <div class="flex items-center gap-2">
+                    ${ref ? `<span class="text-[10px] font-mono text-gray-400">${escapeHTML(ref)}</span>` : ''}
+                    <span class="text-[11px] font-bold ${lbl.cls}">${escapeHTML(lbl.txt)}</span>
+                </div>
+                <p class="text-[11px] text-gray-500 truncate mt-0.5">${escapeHTML(h.clienteNombre || '')} · ${escapeHTML(quien)}</p>
+            </div>
+            <div class="text-right shrink-0 ml-2">
+                <p class="text-xs font-bold text-gray-800">${montoStr}</p>
+                <p class="text-[10px] text-gray-400">${fechaStr}</p>
+            </div>
+        </div>`;
+    }).join('');
 }
 
 // ============================================

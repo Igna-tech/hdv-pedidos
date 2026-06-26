@@ -38,6 +38,24 @@ function ventasDataEstadisticas(ventas) {
     };
 }
 
+// --- Libro de cobros unificado (hdv_pagos_credito) ---
+// Fuente ÚNICA de "caja / cobrado". Suma los cobros reales en un rango de fechas
+// [desde, hasta] (YYYY-MM-DD, inclusive). Opcional: filtrar por vendedorId.
+// Devuelve { total, pagos } donde pagos es el detalle dentro del rango.
+// Usar esto para todo cálculo de cobrado/recaudado (evita doble conteo por estado).
+async function ventasDataCobrosPorPeriodo(desde, hasta, vendedorId) {
+    const pagos = (await HDVStorage.getItem('hdv_pagos_credito', { clone: false })) || [];
+    const filtrados = pagos.filter(pg => {
+        const f = (pg.fecha || '').slice(0, 10);
+        if (desde && f < desde) return false;
+        if (hasta && f > hasta) return false;
+        if (vendedorId && pg.vendedor_id && pg.vendedor_id !== vendedorId) return false;
+        return true;
+    });
+    const total = filtrados.reduce((s, pg) => s + (Number(pg.monto) || 0), 0);
+    return { total, pagos: filtrados };
+}
+
 // --- Escritura (atomicUpdate previene race conditions con realtime) ---
 
 async function ventasDataFacturar(pedidoId) {

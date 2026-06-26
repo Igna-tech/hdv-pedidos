@@ -1,4 +1,4 @@
-const VERSION = '73.1';
+const VERSION = '74.1';
 const CACHE_NAME = `hdv-pedidos-v${VERSION}`;
 
 const urlsToCache = [
@@ -16,6 +16,7 @@ const urlsToCache = [
     './admin-devoluciones.js',
     './admin-contabilidad.js',
     './js/core/state.js',
+    './js/shared/entrega.js',
     './js/utils/formatters.js',
     './js/utils/printer.js',
     './js/utils/pdf-generator.js',
@@ -61,6 +62,7 @@ const networkFirstFiles = [
     'admin-devoluciones.js',
     'admin-contabilidad.js',
     'state.js',
+    'shared/entrega.js',
     'formatters.js',
     'printer.js',
     'pdf-generator.js',

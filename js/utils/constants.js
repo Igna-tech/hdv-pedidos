@@ -29,6 +29,33 @@ const ESTADOS_TERMINALES = [
     PEDIDO_ESTADOS.ENTREGADO
 ];
 
+// --- Ciclo de vida v2: ruteo "un número, un solo lugar" (modelo ERP) ---
+
+// Tipos de cobro registrados en el libro unificado (hdv_pagos_credito)
+const COBRO_TIPOS = {
+    CONTADO: 'contado',   // cobro al entregar (intención contado o crédito saldado de una)
+    CREDITO: 'credito'    // cobro de un saldo pendiente (pedido en estado entregado)
+};
+
+// ACTIVOS: requieren acción del vendedor/admin. Viven en Mis Pedidos / Créditos.
+const ESTADOS_ACTIVOS = [PEDIDO_ESTADOS.PENDIENTE, PEDIDO_ESTADOS.ENTREGADO];
+// ARCHIVADOS: finalizados. Viven en Archivo (Ventas), solo lectura.
+const ESTADOS_ARCHIVADOS = [
+    PEDIDO_ESTADOS.COBRADO,
+    PEDIDO_ESTADOS.FACTURADO,
+    PEDIDO_ESTADOS.NOTA_CREDITO,
+    PEDIDO_ESTADOS.ANULADO
+];
+
+function esEstadoActivo(estado) {
+    const norm = ESTADOS_ALIAS[estado] || estado;
+    return ESTADOS_ACTIVOS.includes(norm);
+}
+function esEstadoArchivado(estado) {
+    const norm = ESTADOS_ALIAS[estado] || estado;
+    return ESTADOS_ARCHIVADOS.includes(norm);
+}
+
 // Mapeo de colores por estado (Tailwind classes)
 // Parametro intensidad: '700' para vendedor, '800' para admin
 function obtenerEstadoUI(estado, intensidad) {
@@ -53,9 +80,17 @@ function obtenerEstadoUI(estado, intensidad) {
 // Formatea numero_pedido como string de 7 dígitos (ej: "0000042").
 // Si la empresa tiene establecimiento/punto definidos, el llamador los antepone.
 // Retorna null si el pedido aún no tiene número asignado (pedido offline sin sync).
+// IMPORTANTE: el número sagrado arranca en 0, por eso se compara con == null
+// (no con !numero_pedido, que trataría el 0 como ausente).
 function formatNumPedido(pedido) {
-    if (!pedido?.numero_pedido) return null;
+    if (pedido?.numero_pedido == null) return null;
     return String(pedido.numero_pedido).padStart(7, '0');
+}
+
+// Referencia visible del pedido: "#0000000" o "S/N" si aún no sincronizó (sin número).
+function displayNumPedido(pedido) {
+    const n = formatNumPedido(pedido);
+    return n ? ('#' + n) : 'S/N';
 }
 
 // --- Timeouts y delays centralizados ---

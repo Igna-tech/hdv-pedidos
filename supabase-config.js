@@ -695,7 +695,32 @@ function esperarDatosNegocio() {
     return _datosNegocioPromise || Promise.resolve();
 }
 
-HDVStorage.ready().then(() => {
+// ============================================
+// RESET LIFECYCLE V2 (one-shot) — alinea IndexedDB local con el wipe del servidor
+// Borra pedidos/pagos/historial mock locales. CONSERVA créditos manuales.
+// Se ejecuta una sola vez por dispositivo (guardado por flag de versión).
+// ============================================
+const LIFECYCLE_RESET_VERSION = 'v2-2026-06-26';
+
+async function resetLifecycleV2Local() {
+    try {
+        const aplicado = await HDVStorage.getItem('hdv_lifecycle_reset_version', { clone: false });
+        if (aplicado === LIFECYCLE_RESET_VERSION) return; // ya aplicado en este dispositivo
+
+        // Purga de datos del sistema (NO toca hdv_creditos_manuales = recordatorios personales)
+        await HDVStorage.removeItem('hdv_pedidos');
+        await HDVStorage.removeItem('hdv_pagos_credito');
+        await HDVStorage.removeItem('hdv_historial_creditos');
+
+        await HDVStorage.setItem('hdv_lifecycle_reset_version', LIFECYCLE_RESET_VERSION);
+        console.log('[Lifecycle v2] Reset local aplicado — pedidos/pagos/historial purgados (créditos manuales conservados)');
+    } catch (e) {
+        console.warn('[Lifecycle v2] No se pudo aplicar el reset local:', e);
+    }
+}
+
+HDVStorage.ready().then(async () => {
+    await resetLifecycleV2Local();
     monitorearConexion();
     _datosNegocioPromise = cargarDatosNegocio();
     iniciarListenersDatosNegocio();

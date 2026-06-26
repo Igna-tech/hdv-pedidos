@@ -73,6 +73,7 @@ const _vendedorActionMap = {
     // Configuracion — zona de peligro
     'limpiarTodosDatos':              () => typeof limpiarTodosDatos === 'function' && limpiarTodosDatos(),
     // Mis Pedidos — acciones de tarjeta
+    'abrirModalEntrega':                  (_, id) => window.abrirModalEntrega(id),
     'cobrarPedidoVendedor':               (_, id) => cobrarPedidoVendedor(id),
     'entregarCreditoVendedor':            (_, id) => entregarCreditoVendedor(id),
     'toggle-pedido-accordion-vendedor':   (_, id) => _togglePedidoAccordionVendedor(id),
@@ -568,83 +569,15 @@ function _esEstadoContadoVendedor(estado) {
     return norm === PEDIDO_ESTADOS.COBRADO;
 }
 
+// Lifecycle v2: ambas acciones convergen en el modal de entrega compartido
+// (Cobro total / Cobro parcial / Ingresar a créditos). Se conservan como
+// envoltorios por compatibilidad con cualquier llamador externo.
 async function cobrarPedidoVendedor(pedidoId) {
-    const todos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
-    const pedido = todos.find(p => p.id === pedidoId);
-    if (!pedido) return;
-
-    // Pedir monto cobrado (default = total)
-    const datos = await mostrarInputModal({
-        titulo: `Cobrar — ${escapeHTML(pedido.cliente?.nombre || 'Cliente')}`,
-        campos: [{ key: 'monto', label: `Monto cobrado (total: ${formatearGuaranies(pedido.total)})`, tipo: 'number', placeholder: String(pedido.total), requerido: true }],
-        textoConfirmar: 'Confirmar cobro'
-    });
-    if (!datos) return;
-
-    const montoCobrado = Number(datos.monto);
-    if (montoCobrado <= 0) { mostrarToast('Monto inválido', 'error'); return; }
-    const saldo = Math.max(0, Math.round(pedido.total - montoCobrado));
-
-    if (saldo > 0) {
-        const crearCredito = await mostrarConfirmModal(
-            `Cobro parcial: ${formatearGuaranies(montoCobrado)} de ${formatearGuaranies(pedido.total)}.\n¿Crear crédito por el saldo de ${formatearGuaranies(saldo)}?`,
-            { textoConfirmar: 'Crear crédito' }
-        );
-        if (crearCredito && typeof crearCreditoParcial === 'function') {
-            await crearCreditoParcial(pedido, saldo);
-        }
-    }
-
-    if (typeof actualizarEstadoPedido === 'function') {
-        try {
-            await actualizarEstadoPedido(pedidoId, PEDIDO_ESTADOS.COBRADO);
-        } catch(e) {
-            mostrarToast('Sin conexión — asegurate de estar online para registrar el cobro', 'warning');
-            return;
-        }
-    }
-    await HDVStorage.atomicUpdate('hdv_pedidos', (list) => {
-        const p = (list || []).find(x => x.id === pedidoId);
-        if (p) {
-            p.estado = PEDIDO_ESTADOS.COBRADO;
-            if (saldo > 0) { p.cobro_parcial = true; p.monto_cobrado = montoCobrado; p.saldo_credito = saldo; }
-        }
-        return list || [];
-    });
-    mostrarExito(saldo > 0 ? `Cobro parcial de ${formatearGuaranies(montoCobrado)} registrado` : 'Pedido cobrado correctamente');
-    mostrarMisPedidos();
-    if (typeof _renderResumenHoy === 'function') _renderResumenHoy();
+    return window.abrirModalEntrega(pedidoId);
 }
 
 async function entregarCreditoVendedor(pedidoId) {
-    const todos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
-    const pedido = todos.find(p => p.id === pedidoId);
-    if (!pedido) return;
-
-    if (!await mostrarConfirmModal(
-        `¿Marcar como entregado a crédito? ${escapeHTML(pedido.cliente?.nombre || 'El cliente')} quedará con deuda de ${formatearGuaranies(pedido.total)}.`,
-        { textoConfirmar: 'Confirmar crédito' }
-    )) return;
-
-    if (typeof actualizarEstadoPedido === 'function') {
-        try {
-            await actualizarEstadoPedido(pedidoId, PEDIDO_ESTADOS.ENTREGADO);
-        } catch(e) {
-            mostrarToast('Sin conexión — asegurate de estar online para registrar la entrega', 'warning');
-            return;
-        }
-    }
-    await HDVStorage.atomicUpdate('hdv_pedidos', (list) => {
-        const p = (list || []).find(x => x.id === pedidoId);
-        if (p) {
-            p.estado = PEDIDO_ESTADOS.ENTREGADO;
-            p.tipoPago = 'credito';
-        }
-        return list || [];
-    });
-    if (typeof _actualizarBadgeCreditos === 'function') _actualizarBadgeCreditos();
-    mostrarExito('Pedido entregado a crédito');
-    mostrarMisPedidos();
+    return window.abrirModalEntrega(pedidoId);
 }
 
 async function agregarGastoVendedor() {
@@ -699,30 +632,36 @@ async function cerrarSemanaVendedor(semana) {
     const { inicio, fin } = obtenerRangoSemanaVendedor(semana);
     const pedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
     const gastos = (await HDVStorage.getItem('hdv_gastos', { clone: false })) || [];
+    const allPagos = (await HDVStorage.getItem('hdv_pagos_credito', { clone: false })) || [];
 
     const pedidosSemana = pedidos.filter(p => {
         const f = new Date(p.fecha);
         return f >= inicio && f <= fin && p.vendedor_id === vendedorId;
     });
-    const totalContado = pedidosSemana
-        .filter(p => p.tipoPago === 'contado' && _esEstadoContadoVendedor(p.estado))
-        .reduce((s, p) => s + (p.total || 0), 0);
+    // Caja real de la semana = libro de cobros unificado (contado + créditos)
+    const totalCobros = allPagos
+        .filter(pg => {
+            if (pg.vendedor_id && pg.vendedor_id !== vendedorId) return false;
+            const f = new Date(pg.fecha);
+            return f >= inicio && f <= fin;
+        })
+        .reduce((s, pg) => s + (Number(pg.monto) || 0), 0);
     const gastosSemana = gastos.filter(g => {
         const f = new Date(g.fecha);
         return f >= inicio && f <= fin && g.vendedor_id === vendedorId;
     });
     const totalGastos = gastosSemana.reduce((s, g) => s + (g.monto || 0), 0);
 
-    const aRendir = totalContado - totalGastos;
+    const aRendir = totalCobros - totalGastos;
 
-    if (!await mostrarConfirmModal(`Cerrar rendicion de la semana?\n\nContado cobrado: ${formatearGuaranies(totalContado)}\nGastos: ${formatearGuaranies(totalGastos)}\n\nA RENDIR: ${formatearGuaranies(aRendir)}`, { textoConfirmar: 'Cerrar Semana' })) return;
+    if (!await mostrarConfirmModal(`Cerrar rendicion de la semana?\n\nCobrado: ${formatearGuaranies(totalCobros)}\nGastos: ${formatearGuaranies(totalGastos)}\n\nA RENDIR: ${formatearGuaranies(aRendir)}`, { textoConfirmar: 'Cerrar Semana' })) return;
 
     const rendicion = {
         id: 'REND' + Date.now(),
         semana,
         vendedor_id: vendedorId,
         fecha: new Date().toISOString(),
-        contado: totalContado,
+        cobros: totalCobros,
         gastos: totalGastos,
         aRendir,
         estado: 'pendiente',
@@ -1172,7 +1111,7 @@ function _formatearTelefonoWA(tel) {
 // Genera el texto de mensaje WhatsApp segun el tipo de template.
 // datos para 'pedido_confirmado'/'detalle_completo': objeto pedido
 // datos para 'recibo_cobro': { pedidoId, monto, metodo, fecha, saldoRestante }
-// datos para 'resumen_dia': { vendedor, fecha, pedidos, contado, credito, cobros, gastos, metaPct, aRendir }
+// datos para 'resumen_dia': { vendedor, fecha, pedidos, ventas, cobros, gastos, metaPct, aRendir }
 function _templateWA(tipo, datos) {
     const empresa = 'HDV Distribuciones';
     const fecha = new Date(datos.fecha || Date.now()).toLocaleDateString('es-PY');
@@ -1202,7 +1141,7 @@ function _templateWA(tipo, datos) {
 
     if (tipo === 'resumen_dia') {
         const icon = datos.metaPct >= 100 ? '🟢' : datos.metaPct >= 80 ? '🟡' : '🔴';
-        return `📊 *Cierre de jornada — ${datos.vendedor}*\n📅 ${fecha}\n${SEP}\n📦 Pedidos: ${datos.pedidos}\n💰 Contado: ${formatearGuaranies(datos.contado)}\n🔄 Crédito: ${formatearGuaranies(datos.credito)}\n💵 Cobros: ${formatearGuaranies(datos.cobros)}\n📉 Gastos: ${formatearGuaranies(datos.gastos)}\n${SEP}\n${icon} Meta: ${datos.metaPct}%\n✅ A rendir: ${formatearGuaranies(datos.aRendir)}`;
+        return `📊 *Cierre de jornada — ${datos.vendedor}*\n📅 ${fecha}\n${SEP}\n📦 Pedidos: ${datos.pedidos}\n💰 Vendido: ${formatearGuaranies(datos.ventas)}\n💵 Cobrado: ${formatearGuaranies(datos.cobros)}\n📉 Gastos: ${formatearGuaranies(datos.gastos)}\n${SEP}\n${icon} Meta: ${datos.metaPct}%\n✅ A rendir: ${formatearGuaranies(datos.aRendir)}`;
     }
 
     return '';

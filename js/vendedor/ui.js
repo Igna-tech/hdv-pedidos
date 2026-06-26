@@ -1333,16 +1333,10 @@ function crearTarjetaPedidoVendedor(p) {
                     </div>
                 </div>
                 ${esPendiente ? `
-                <div class="grid grid-cols-2 gap-2">
-                    <button data-action="cobrarPedidoVendedor" data-arg="${p.id}"
-                        class="bg-emerald-500 active:bg-emerald-600 text-white py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors">
-                        <i data-lucide="circle-check" class="w-3.5 h-3.5 pointer-events-none"></i> Cobrado
-                    </button>
-                    <button data-action="entregarCreditoVendedor" data-arg="${p.id}"
-                        class="bg-amber-500 active:bg-amber-600 text-white py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors">
-                        <i data-lucide="clock" class="w-3.5 h-3.5 pointer-events-none"></i> A crédito
-                    </button>
-                </div>` : ''}
+                <button data-action="abrirModalEntrega" data-arg="${p.id}"
+                    class="w-full bg-indigo-600 active:bg-indigo-700 text-white py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors">
+                    <i data-lucide="truck" class="w-3.5 h-3.5 pointer-events-none"></i> Entregar
+                </button>` : ''}
             </div>
         </div>`;
     return div;
@@ -1422,7 +1416,10 @@ function _togglePedidosFiltroDropdown() {
 async function mostrarMisPedidos() {
     const container = document.getElementById('productsContainer');
     const todos = (await HDVStorage.getItem('hdv_pedidos')) || [];
-    const ordenados = [...todos].sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+    // Invariante "un número, un solo lugar": los pedidos ENTREGADOS viven en Créditos,
+    // no en Mis Pedidos. Acá quedan los pendientes (activos) y los finalizados (historial).
+    const visibles = todos.filter(p => p.estado !== PEDIDO_ESTADOS.ENTREGADO);
+    const ordenados = [...visibles].sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
     const filtrados = _filtrarPedidosPorPeriodo(ordenados, _pedidosFiltro);
 
     const total = filtrados.length;
@@ -1536,8 +1533,6 @@ async function mostrarCreditos() {
 
     const pedidos          = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
     const pagos            = (await HDVStorage.getItem('hdv_pagos_credito', { clone: false })) || [];
-    const creditosManuales = (await HDVStorage.getItem('hdv_creditos_manuales', { clone: false })) || [];
-    const excluir = new Set(['anulado', 'nota_credito_mock']);
     const clientes_local   = typeof clientes !== 'undefined' ? clientes : [];
 
     // Agrupar por cliente
@@ -1550,8 +1545,9 @@ async function mostrarCreditos() {
         if (fecha < clientesMap[cid].fechaMasAntigua) clientesMap[cid].fechaMasAntigua = fecha;
     };
 
-    // Pedidos a crédito
-    pedidos.filter(p => p.tipoPago === 'credito' && !excluir.has(p.estado)).forEach(p => {
+    // Créditos del sistema = pedidos ENTREGADOS con saldo pendiente (por su número).
+    // Los créditos manuales son recordatorios personales del dueño: el vendedor no los ve.
+    pedidos.filter(p => p.estado === PEDIDO_ESTADOS.ENTREGADO).forEach(p => {
         const pagado = pagos.filter(pg => pg.pedidoId === p.id).reduce((s, pg) => s + (pg.monto || 0), 0);
         const saldo  = Math.max(0, (p.total || 0) - pagado);
         if (saldo <= 0 || !p.cliente?.id) return;
@@ -1560,18 +1556,6 @@ async function mostrarCreditos() {
         _bucket(cid, p.cliente.nombre || 'Sin nombre', cli?.zona || '', p.fecha);
         clientesMap[cid].deudaTotal += saldo;
         clientesMap[cid].itemCount++;
-    });
-
-    // Créditos manuales del admin
-    creditosManuales.filter(c => !c.eliminado && !c.pagado).forEach(c => {
-        const pagado = (c.pagos || []).reduce((s, p) => s + (p.monto || 0), 0);
-        const saldo  = Math.max(0, (c.monto || 0) - pagado);
-        if (saldo <= 0 || !c.clienteId) return;
-        const cli = clientes_local.find(cl => cl.id === c.clienteId);
-        _bucket(c.clienteId, c.clienteNombre || 'Sin nombre', cli?.zona || '', c.fecha);
-        clientesMap[c.clienteId].deudaTotal += saldo;
-        clientesMap[c.clienteId].itemCount++;
-        clientesMap[c.clienteId].tieneManual = true;
     });
 
     const deudores = Object.values(clientesMap).sort((a, b) => a.fechaMasAntigua.localeCompare(b.fechaMasAntigua));
@@ -2004,20 +1988,17 @@ async function _renderResumenHoy(container) {
     const metas = (await HDVStorage.getItem('hdv_metas', { clone: false })) || {};
 
     const pedidosHoy = pedidos.filter(p => p.fecha?.startsWith(hoy) && p.vendedor_id === vendedorId);
-    const contadoHoy = pedidosHoy
-        .filter(p => p.tipoPago === 'contado' && _esEstadoContadoVendedor(p.estado))
-        .reduce((s, p) => s + (p.total || 0), 0);
-    const creditoHoy = pedidosHoy
-        .filter(p => p.tipoPago === 'credito')
-        .reduce((s, p) => s + (p.total || 0), 0);
+    // VENTAS = lo vendido hoy (todos los pedidos del día, sin importar el cobro)
+    const ventasHoy = pedidosHoy.reduce((s, p) => s + (p.total || 0), 0);
+    // COBRADO = caja real desde el libro unificado (única fuente: incluye contado y créditos)
     const cobrosHoy = allPagos
-        .filter(pg => pg.fecha?.startsWith(hoy) && pg.vendedor_id === vendedorId)
-        .reduce((s, pg) => s + (pg.monto || 0), 0);
+        .filter(pg => (pg.fecha || '').slice(0, 10) === hoy && (!pg.vendedor_id || pg.vendedor_id === vendedorId))
+        .reduce((s, pg) => s + (Number(pg.monto) || 0), 0);
     const gastosHoy = gastos
         .filter(g => g.fecha?.startsWith(hoy) && g.vendedor_id === vendedorId)
         .reduce((s, g) => s + (g.monto || 0), 0);
-    const totalVendido = contadoHoy + creditoHoy;
-    const netoRendir = contadoHoy + cobrosHoy - gastosHoy;
+    const totalVendido = ventasHoy;            // la meta se mide sobre lo vendido
+    const netoRendir = cobrosHoy - gastosHoy;  // a rendir = caja (libro) − gastos
 
     const metaDiaria = metas.diaria || 0;
     const metaPct = metaDiaria > 0 ? Math.min(200, Math.round((totalVendido / metaDiaria) * 100)) : 0;
@@ -2066,8 +2047,8 @@ async function _renderResumenHoy(container) {
                 <p class="text-[10px] text-gray-500 font-bold uppercase">PEDIDOS</p>
             </div>
             <div class="bg-green-50 rounded-xl p-3 text-center">
-                <p class="text-base font-bold text-green-700">${formatearGuaranies(contadoHoy)}</p>
-                <p class="text-[10px] text-gray-500 font-bold uppercase">CONTADO</p>
+                <p class="text-base font-bold text-green-700">${formatearGuaranies(ventasHoy)}</p>
+                <p class="text-[10px] text-gray-500 font-bold uppercase">VENTAS</p>
             </div>
             <div class="bg-amber-50 rounded-xl p-3 text-center">
                 <p class="text-base font-bold text-amber-700">${formatearGuaranies(cobrosHoy)}</p>
@@ -2087,7 +2068,7 @@ async function _renderResumenHoy(container) {
             <i data-lucide="wallet" class="w-8 h-8 text-blue-300"></i>
         </div>
 
-        <sl-button data-action="enviarCierreWA" data-arg="${JSON.stringify({ vendedor: vendedorNombre, contado: contadoHoy, credito: creditoHoy, cobros: cobrosHoy, gastos: gastosHoy, pedidos: pedidosHoy.length, metaPct, aRendir: netoRendir })}" variant="default" class="w-full mb-3 sl-btn-whatsapp" style="--sl-color-neutral-600:#25D366;--sl-color-neutral-700:#1da851;">
+        <sl-button data-action="enviarCierreWA" data-arg="${JSON.stringify({ vendedor: vendedorNombre, ventas: ventasHoy, cobros: cobrosHoy, gastos: gastosHoy, pedidos: pedidosHoy.length, metaPct, aRendir: netoRendir })}" variant="default" class="w-full mb-3 sl-btn-whatsapp" style="--sl-color-neutral-600:#25D366;--sl-color-neutral-700:#1da851;">
             <i data-lucide="message-circle" class="w-4 h-4 mr-1"></i> Enviar cierre al jefe
         </sl-button>
 
@@ -2126,11 +2107,10 @@ async function _renderResumenSemana(container) {
         return f >= inicio && f <= fin && g.vendedor_id === vendedorId;
     });
 
-    const totalContado = pedidosSemana.filter(p => p.tipoPago === 'contado' && _esEstadoContadoVendedor(p.estado)).reduce((s, p) => s + (p.total || 0), 0);
-    const totalCredito = pedidosSemana.filter(p => p.tipoPago === 'credito').reduce((s, p) => s + (p.total || 0), 0);
-    const totalCobros  = pagosSemana.reduce((s, pg) => s + (pg.monto || 0), 0);
+    const totalVentas  = pedidosSemana.reduce((s, p) => s + (p.total || 0), 0);   // vendido
+    const totalCobros  = pagosSemana.reduce((s, pg) => s + (pg.monto || 0), 0);   // caja (libro)
     const totalGastos  = gastosSemana.reduce((s, g) => s + (g.monto || 0), 0);
-    const aRendir      = totalContado + totalCobros - totalGastos;
+    const aRendir      = totalCobros - totalGastos;                               // caja − gastos
     const rendSemana   = rendiciones.find(r => r.semana === semana && r.vendedor_id === vendedorId);
 
     // Generar días de la semana desde lunes hasta hoy
@@ -2230,16 +2210,16 @@ async function _renderResumenSemana(container) {
     container.innerHTML = _toggleCajaHTML() + `
         <div class="grid grid-cols-4 gap-1.5 mb-3">
             <div class="bg-green-50 rounded-xl p-2.5 text-center">
-                <p class="text-sm font-bold text-green-700">${formatearGuaranies(totalContado)}</p>
-                <p class="text-[9px] text-gray-400 font-bold">CONTADO</p>
-            </div>
-            <div class="bg-yellow-50 rounded-xl p-2.5 text-center">
-                <p class="text-sm font-bold text-yellow-700">${formatearGuaranies(totalCredito)}</p>
-                <p class="text-[9px] text-gray-400 font-bold">CRÉDITO</p>
+                <p class="text-sm font-bold text-green-700">${formatearGuaranies(totalVentas)}</p>
+                <p class="text-[9px] text-gray-400 font-bold">VENTAS</p>
             </div>
             <div class="bg-indigo-50 rounded-xl p-2.5 text-center">
                 <p class="text-sm font-bold text-indigo-700">${formatearGuaranies(totalCobros)}</p>
-                <p class="text-[9px] text-gray-400 font-bold">COBROS</p>
+                <p class="text-[9px] text-gray-400 font-bold">COBRADO</p>
+            </div>
+            <div class="bg-red-50 rounded-xl p-2.5 text-center">
+                <p class="text-sm font-bold text-red-600">${formatearGuaranies(totalGastos)}</p>
+                <p class="text-[9px] text-gray-400 font-bold">GASTOS</p>
             </div>
             <div class="bg-blue-50 rounded-xl p-2.5 text-center">
                 <p class="text-sm font-bold text-blue-700">${formatearGuaranies(aRendir)}</p>

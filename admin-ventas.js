@@ -8,6 +8,19 @@ const ventasCtrl = {};
 let paginaVentas = 1;
 const VENTAS_POR_PAGINA = 50;
 let _ventasFiltradas = [];
+// Segmento del archivo: 'todos' | 'activos' | 'archivo'. Por defecto Archivo (Ventas = archivo).
+let _ventasSegmento = 'archivo';
+
+function setVentasSegmento(seg) {
+    _ventasSegmento = seg || 'todos';
+    document.querySelectorAll('#ventasSegmentoTabs .ventas-seg').forEach(btn => {
+        const activo = btn.dataset.arg === _ventasSegmento;
+        btn.classList.toggle('bg-indigo-600', activo);
+        btn.classList.toggle('text-white', activo);
+        btn.classList.toggle('text-gray-500', !activo);
+    });
+    filtrarVentas();
+}
 
 // ---- Helpers de badge ----
 
@@ -112,6 +125,10 @@ function filtrarVentas() {
         });
     }
     if (vend) ventas = ventas.filter(p => (p.vendedor_id || '') === vend);
+
+    // Segmento Activos / Archivo (invariante: el archivo son los finalizados)
+    if (_ventasSegmento === 'activos') ventas = ventas.filter(p => esEstadoActivo(p.estado));
+    else if (_ventasSegmento === 'archivo') ventas = ventas.filter(p => esEstadoArchivado(p.estado));
     if (texto) ventas = ventas.filter(p => {
         const nom = (p.cliente?.nombre || '').toLowerCase();
         const ruc = (p.cliente?.ruc || '').toLowerCase();
@@ -127,13 +144,14 @@ function filtrarVentas() {
     actualizarEstadisticasVentas(ventas);
 }
 
-function actualizarEstadisticasVentas(ventas) {
+async function actualizarEstadisticasVentas(ventas) {
     const el = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
     const recibos    = ventas.filter(v => v.estado === 'cobrado_sin_factura' || (v.id || '').startsWith('REC-')).length;
     const facturados = ventas.filter(v => v.estado === 'facturado_mock' || (v.id || '').startsWith('FAC-')).length;
-    const recaudado  = ventas
-        .filter(v => v.estado !== 'pedido_pendiente' && v.estado !== 'entregado' && v.estado !== 'anulado')
-        .reduce((s, v) => s + (v.total || 0), 0);
+    // Recaudado real = suma del libro de cobros para los documentos mostrados (caja real)
+    const idsSet = new Set(ventas.map(v => v.id));
+    const pagos  = (await HDVStorage.getItem('hdv_pagos_credito', { clone: false })) || [];
+    const recaudado = pagos.filter(pg => idsSet.has(pg.pedidoId)).reduce((s, pg) => s + (Number(pg.monto) || 0), 0);
     el('statTotalVentas', ventas.length);
     el('statRecibos', recibos);
     el('statFacturados', facturados);
@@ -260,7 +278,28 @@ async function abrirDetalleVenta(pedidoId) {
     const tituloEl = document.getElementById('drawerDetalleVentaTitulo');
     const subEl    = document.getElementById('drawerDetalleVentaSubtitulo');
     if (tituloEl) tituloEl.textContent = `${num}`;
-    if (subEl)    subEl.textContent    = `${fecha}`;
+    if (subEl)    subEl.textContent    = `${fecha} · ${displayNumPedido(pedido)}`;
+
+    // Pagos registrados en el libro unificado para este pedido (historial de cobros)
+    const pagosPedido = ((await HDVStorage.getItem('hdv_pagos_credito', { clone: false })) || [])
+        .filter(pg => pg.pedidoId === pedido.id)
+        .sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+    const totalPagado = pagosPedido.reduce((s, pg) => s + (Number(pg.monto) || 0), 0);
+    const saldoPedido = Math.max(0, (pedido.total || 0) - totalPagado);
+    const pagosHtml = pagosPedido.length ? `
+        <div class="mt-4 pt-3 border-t border-gray-200">
+            <p class="text-[10px] font-bold text-gray-400 uppercase mb-2">Pagos registrados (${pagosPedido.length})</p>
+            <div class="space-y-1">
+                ${pagosPedido.map(pg => `<div class="flex justify-between text-xs">
+                    <span class="text-gray-500">${new Date(pg.fecha).toLocaleDateString('es-PY')} · ${escapeHTML(pg.metodo || 'efectivo')}${pg.registrado_por === 'admin' ? ' · admin' : ''}</span>
+                    <span class="font-semibold text-emerald-700">${formatearGuaranies(pg.monto || 0)}</span>
+                </div>`).join('')}
+            </div>
+            <div class="flex justify-between text-xs font-bold mt-2 pt-2 border-t border-gray-100">
+                <span class="text-gray-600">Pagado / Saldo</span>
+                <span><span class="text-emerald-700">${formatearGuaranies(totalPagado)}</span> / <span class="${saldoPedido > 0 ? 'text-red-600' : 'text-gray-400'}">${formatearGuaranies(saldoPedido)}</span></span>
+            </div>
+        </div>` : '';
 
     const itemsHtml = items.map(it => `
         <tr class="border-b border-gray-50 last:border-0">
@@ -324,6 +363,7 @@ async function abrirDetalleVenta(pedidoId) {
             <span class="text-xl font-bold text-indigo-700">${total}</span>
         </div>
         ${ivaHtml}
+        ${pagosHtml}
         ${cdcHtml}`;
 
     footer.innerHTML = _renderFooterVenta(pedido);

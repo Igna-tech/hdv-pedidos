@@ -51,13 +51,17 @@ function showAlert(message, type = 'error', target = alertBox) {
     target.open = true;
 }
 
-// --- Cambiar pantalla visible ---
+// --- Cambiar pantalla visible (con crossfade suave) ---
 function mostrarPantalla(pantalla) {
-    loginContainer.style.display = 'none';
-    mfaContainer.style.display = 'none';
-    mfaEnrollContainer.style.display = 'none';
+    [loginContainer, mfaContainer, mfaEnrollContainer].forEach(s => {
+        if (s && s !== pantalla) s.style.display = 'none';
+    });
     loadingScreen.style.display = 'none';
     pantalla.style.display = 'block';
+    // Reinicia la animación de entrada (crossfade)
+    pantalla.classList.remove('screen-in');
+    void pantalla.offsetWidth;
+    pantalla.classList.add('screen-in');
 }
 
 // --- Redirigir segun rol ---
@@ -540,6 +544,59 @@ function _initFeedbackIntentos() {
     });
 }
 
+// --- Pip de estado REAL (salud de Supabase) ---
+function _setPip(estado, label) {
+    const pip = document.getElementById('statusPip');
+    const lbl = document.getElementById('statusLabel');
+    if (pip) pip.className = 'pip ' + estado;
+    if (lbl) lbl.textContent = label;
+}
+async function _checkSupabaseHealth() {
+    if (!navigator.onLine) { _setPip('is-down', 'Sin conexión'); return; }
+    _setPip('is-checking', 'Verificando…');
+    try {
+        if (typeof SUPABASE_URL === 'undefined') { _setPip('is-online', 'Operativo'); return; }
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), 5000);
+        const r = await fetch(`${SUPABASE_URL}/auth/v1/health`, { signal: ctrl.signal });
+        clearTimeout(t);
+        _setPip(r.ok ? 'is-online' : 'is-down', r.ok ? 'Operativo' : 'Sin servidor');
+    } catch (e) {
+        _setPip('is-down', 'Sin servidor');
+    }
+}
+function _initPipEstado() {
+    _checkSupabaseHealth();
+    window.addEventListener('online', _checkSupabaseHealth);
+    window.addEventListener('offline', () => _setPip('is-down', 'Sin conexión'));
+    setInterval(_checkSupabaseHealth, 30000); // re-chequeo cada 30s
+}
+
+// --- Aviso de Bloq Mayús en el campo de contraseña ---
+function _initCapsLock() {
+    const hint = document.getElementById('capsHint');
+    if (!hint || !passwordInput) return;
+    const check = (e) => {
+        if (!e.getModifierState) return;
+        hint.style.display = e.getModifierState('CapsLock') ? 'flex' : 'none';
+    };
+    passwordInput.addEventListener('keydown', check);
+    passwordInput.addEventListener('keyup', check);
+    passwordInput.addEventListener('sl-blur', () => { hint.style.display = 'none'; });
+}
+
+// --- Auto-submit del código MFA al completar 6 dígitos ---
+function _initMfaAutosubmit() {
+    const wire = (input, btn) => {
+        if (!input || !btn) return;
+        input.addEventListener('sl-input', () => {
+            if (/^\d{6}$/.test((input.value || '').trim()) && !btn.loading) btn.click();
+        });
+    };
+    wire(mfaCodeInput, btnMfaVerify);
+    wire(document.getElementById('mfa-enroll-code'), document.getElementById('btn-mfa-enroll-verify'));
+}
+
 function _initLoginBranding() {
     _cargarLogoLogin();
     _saludoPorHora();
@@ -550,6 +607,9 @@ function _initLoginBranding() {
     _initSoporte();
     _initRecordar();
     _initFeedbackIntentos();
+    _initPipEstado();
+    _initCapsLock();
+    _initMfaAutosubmit();
 }
 
 // --- Limpiar lockout legacy de localStorage ---

@@ -6,3 +6,10 @@ node_modules/
 playwright-report/
 test-results/
 .playwright/
+
+# Claude Code skills (instaladas localmente; incluyen binarios de fuentes)
+.claude/skills/
+
+# Skills via skills.sh CLI (locales, con symlinks)
+.agents/
+skills-lock.json

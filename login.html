@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#111827">
-    <title>Iniciar Sesion - HDV Distribuciones</title>
+    <meta name="theme-color" content="#0b1020">
+    <title>Iniciar Sesión · HDV Distribuciones</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -20,197 +20,359 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.99.2" integrity="sha384-zETTH+6IXxKQ6zbGcT6H6EDdnGaae9uhI8uO7doTJoNEmPGeTKVOe5S6/XybS9JH" crossorigin="anonymous"></script>
 
     <style>
+        :root {
+            --hdv-navy-1: #0b1020;
+            --hdv-navy-2: #0f172a;
+            --hdv-navy-3: #131c33;
+            --hdv-indigo: #6366f1;
+            --hdv-violet: #8b5cf6;
+        }
+        * { box-sizing: border-box; }
+        html, body { height: 100%; }
         body {
             font-family: 'Inter', system-ui, -apple-system, sans-serif;
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
-            min-height: 100vh;
+            margin: 0;
+            background: var(--hdv-navy-1);
+            color: #e2e8f0;
+            overflow: hidden;
         }
-        .login-card {
-            animation: slideUp 0.5s ease both;
+
+        /* ===== Layout split-screen ===== */
+        .auth-shell { display: grid; grid-template-columns: 1fr; min-height: 100vh; }
+        @media (min-width: 1024px) {
+            .auth-shell { grid-template-columns: 1.05fr 1fr; }
+            body { overflow: auto; }
         }
-        @keyframes slideUp {
-            from { opacity: 0; transform: translateY(24px); }
-            to { opacity: 1; transform: translateY(0); }
+
+        /* ===== Panel de marca ===== */
+        .brand-panel {
+            position: relative;
+            display: none;
+            overflow: hidden;
+            padding: 3.5rem;
+            background:
+                radial-gradient(120% 120% at 0% 0%, #1e1b4b 0%, transparent 55%),
+                radial-gradient(130% 130% at 100% 100%, #4338ca 0%, transparent 50%),
+                linear-gradient(160deg, #0b1020 0%, #0f172a 60%, #0b1020 100%);
         }
-        /* Shoelace full-width buttons */
+        @media (min-width: 1024px) { .brand-panel { display: flex; flex-direction: column; justify-content: space-between; } }
+
+        /* Grid sutil */
+        .brand-panel::before {
+            content: '';
+            position: absolute; inset: 0;
+            background-image:
+                linear-gradient(rgba(148,163,184,0.06) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(148,163,184,0.06) 1px, transparent 1px);
+            background-size: 44px 44px;
+            mask-image: radial-gradient(110% 90% at 50% 35%, #000 40%, transparent 85%);
+            -webkit-mask-image: radial-gradient(110% 90% at 50% 35%, #000 40%, transparent 85%);
+            pointer-events: none;
+        }
+        /* Orbes de glow */
+        .orb { position: absolute; border-radius: 9999px; filter: blur(70px); opacity: 0.55; pointer-events: none; }
+        .orb-1 { width: 360px; height: 360px; top: -90px; right: -60px; background: #6366f1; }
+        .orb-2 { width: 300px; height: 300px; bottom: -80px; left: -50px; background: #8b5cf6; opacity: 0.4; }
+
+        .brand-content { position: relative; z-index: 2; }
+        .brand-logo-tile {
+            width: 76px; height: 76px; border-radius: 20px;
+            display: flex; align-items: center; justify-content: center;
+            background: linear-gradient(145deg, #6366f1, #8b5cf6);
+            box-shadow: 0 18px 40px -12px rgba(99,102,241,0.6), inset 0 1px 0 rgba(255,255,255,0.25);
+            overflow: hidden;
+        }
+        .brand-logo-tile img { width: 100%; height: 100%; object-fit: contain; padding: 10px; background: #fff; }
+        .brand-logo-mono { font-weight: 900; font-size: 1.7rem; color: #fff; letter-spacing: -1px; }
+
+        .brand-title { font-size: 2.6rem; line-height: 1.05; font-weight: 900; letter-spacing: -1.5px; color: #fff; margin: 0; }
+        .brand-grad { background: linear-gradient(90deg, #a5b4fc, #c4b5fd); -webkit-background-clip: text; background-clip: text; color: transparent; }
+        .brand-sub { color: #94a3b8; font-size: 1rem; margin-top: 1rem; max-width: 30rem; line-height: 1.6; }
+
+        .feature { display: flex; align-items: center; gap: 0.85rem; color: #cbd5e1; font-size: 0.9rem; font-weight: 500; }
+        .feature-ic {
+            width: 38px; height: 38px; border-radius: 11px; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+            background: rgba(99,102,241,0.14); border: 1px solid rgba(99,102,241,0.25); color: #a5b4fc;
+        }
+        .brand-foot { position: relative; z-index: 2; color: #64748b; font-size: 0.8rem; display: flex; align-items: center; gap: 0.5rem; }
+
+        /* ===== Panel del formulario ===== */
+        .form-panel {
+            position: relative;
+            display: flex; align-items: center; justify-content: center;
+            padding: 2rem 1.5rem;
+            background:
+                radial-gradient(100% 80% at 50% 0%, #131c33 0%, transparent 60%),
+                var(--hdv-navy-2);
+        }
+        .auth-card {
+            width: 100%; max-width: 400px;
+            background: rgba(255,255,255,0.035);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 24px;
+            padding: 2.25rem;
+            box-shadow: 0 30px 70px -25px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.06);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            animation: cardIn 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+        @keyframes cardIn { from { opacity: 0; transform: translateY(22px) scale(0.985); } to { opacity: 1; transform: none; } }
+
+        /* Logo compacto dentro del card (visible siempre) */
+        .card-logo-tile {
+            width: 56px; height: 56px; border-radius: 16px; margin: 0 auto;
+            display: flex; align-items: center; justify-content: center;
+            background: linear-gradient(145deg, #6366f1, #8b5cf6);
+            box-shadow: 0 12px 26px -10px rgba(99,102,241,0.65), inset 0 1px 0 rgba(255,255,255,0.25);
+            overflow: hidden;
+        }
+        .card-logo-tile img { width: 100%; height: 100%; object-fit: contain; padding: 7px; background: #fff; }
+        .card-logo-mono { font-weight: 900; font-size: 1.25rem; color: #fff; letter-spacing: -0.5px; }
+
+        .card-title { font-size: 1.5rem; font-weight: 800; color: #f8fafc; letter-spacing: -0.5px; margin: 0; }
+        .card-sub { color: #94a3b8; font-size: 0.875rem; margin-top: 0.35rem; }
+
+        /* Inputs Shoelace afinados */
+        sl-input::part(form-control-label) { color: #cbd5e1; font-weight: 600; font-size: 0.8rem; margin-bottom: 0.3rem; }
+        sl-input { --sl-input-background-color: rgba(15,23,42,0.6); --sl-input-border-color: rgba(255,255,255,0.1); --sl-input-color: #f1f5f9; }
+
+        /* Botón principal con gradiente */
         sl-button.w-full { display: block; }
         sl-button.w-full::part(base) { width: 100%; }
-        /* MFA code inputs: centered mono font */
+        sl-button[variant="primary"]::part(base) {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            border: none; font-weight: 700;
+            box-shadow: 0 12px 26px -10px rgba(99,102,241,0.7);
+            transition: transform 0.15s ease, box-shadow 0.2s ease;
+        }
+        sl-button[variant="primary"]::part(base):hover { transform: translateY(-1px); box-shadow: 0 16px 32px -10px rgba(99,102,241,0.85); }
+
         .mfa-code-input::part(input) { text-align: center; font-size: 1.5rem; letter-spacing: 0.5em; font-family: monospace; }
-        /* Pantalla de carga inicial */
+
+        /* Loading */
         #loading-screen {
-            position: fixed;
-            inset: 0;
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 50;
+            position: fixed; inset: 0; z-index: 50;
+            display: flex; align-items: center; justify-content: center;
+            background: linear-gradient(160deg, #0b1020 0%, #0f172a 60%, #0b1020 100%);
             transition: opacity 0.3s ease;
+        }
+        .spinner { width: 42px; height: 42px; border: 3px solid rgba(99,102,241,0.25); border-top-color: #818cf8; border-radius: 50%; animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .divider { display: flex; align-items: center; gap: 0.75rem; color: #475569; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; margin: 1.25rem 0 0.25rem; }
+        .divider::before, .divider::after { content: ''; height: 1px; flex: 1; background: rgba(255,255,255,0.08); }
+        .secure-note { display: flex; align-items: center; justify-content: center; gap: 0.4rem; color: #64748b; font-size: 0.72rem; margin-top: 1.25rem; }
+
+        @keyframes pulseLogo { 0%,100% { transform: scale(1); box-shadow: 0 12px 26px -10px rgba(99,102,241,0.5); } 50% { transform: scale(1.06); box-shadow: 0 18px 34px -10px rgba(99,102,241,0.8); } }
+
+        /* ===== Modo claro automático (según el sistema) ===== */
+        @media (prefers-color-scheme: light) {
+            body { background: #eef2f7; color: #1e293b; }
+            /* El panel de marca permanece oscuro (firma visual empresarial) */
+            .form-panel {
+                background:
+                    radial-gradient(100% 80% at 50% 0%, #ffffff 0%, transparent 60%),
+                    #eef2f7;
+            }
+            .auth-card {
+                background: #ffffff;
+                border: 1px solid #e2e8f0;
+                box-shadow: 0 30px 70px -30px rgba(15,23,42,0.25);
+            }
+            .card-title { color: #0f172a; }
+            .card-sub { color: #64748b; }
+            sl-input { --sl-input-background-color: #f8fafc; --sl-input-border-color: #e2e8f0; --sl-input-color: #0f172a; }
+            sl-input::part(form-control-label) { color: #334155; }
+            #loading-screen { background: #eef2f7; }
+            #loading-screen p { color: #64748b !important; }
         }
     </style>
 </head>
-<body class="flex items-center justify-center px-4">
+<body>
 
-    <!-- Pantalla de carga mientras se verifica sesion -->
+    <!-- Banner de sin conexión -->
+    <div id="offline-banner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:60;background:linear-gradient(90deg,#b91c1c,#dc2626);color:#fff;font-size:0.8rem;font-weight:600;text-align:center;padding:0.55rem 1rem;box-shadow:0 4px 14px rgba(0,0,0,0.3)">
+        Sin conexión — verificá tu internet
+    </div>
+
+    <!-- Indicador de entorno (discreto) -->
+    <div id="env-badge" style="display:none;position:fixed;top:0.75rem;right:0.75rem;z-index:55;font-size:0.62rem;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;padding:0.25rem 0.6rem;border-radius:9999px"></div>
+
+    <!-- Splash branded mientras se verifica sesion -->
     <div id="loading-screen">
-        <div class="text-center">
-            <div class="w-10 h-10 border-3 border-indigo-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p class="text-gray-400 text-sm">Verificando sesion...</p>
+        <div style="text-align:center">
+            <div class="card-logo-tile" style="margin:0 auto 1.25rem;animation:pulseLogo 1.8s ease-in-out infinite">
+                <img id="splashLogo" alt="HDV" style="display:none">
+                <span id="splashLogoMono" class="card-logo-mono">HDV</span>
+            </div>
+            <div class="spinner" style="margin:0 auto 1rem"></div>
+            <p style="color:#94a3b8;font-size:0.85rem">Verificando sesión…</p>
         </div>
     </div>
 
-    <!-- Formulario de Login -->
-    <div id="login-container" class="w-full max-w-sm login-card" style="display:none;">
-        <!-- Logo / Branding -->
-        <div class="text-center mb-8">
-            <div class="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-indigo-500/30">
-                <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
-                </svg>
-            </div>
-            <h1 class="text-2xl font-bold text-white">HDV Distribuciones</h1>
-            <p class="text-gray-400 text-sm mt-1">Ingresa a tu cuenta</p>
-        </div>
+    <div class="auth-shell">
+        <!-- ===== PANEL DE MARCA (desktop) ===== -->
+        <aside class="brand-panel">
+            <div class="orb orb-1"></div>
+            <div class="orb orb-2"></div>
 
-        <!-- Alerta de errores -->
-        <sl-alert id="login-alert" class="mb-4" closable style="display:none;">
-            <sl-icon slot="icon" name="exclamation-octagon"></sl-icon>
-            <span id="login-alert-msg"></span>
-        </sl-alert>
-
-        <!-- Formulario -->
-        <form id="login-form" class="space-y-4">
-            <sl-input
-                type="email"
-                id="email"
-                required
-                autocomplete="email"
-                placeholder="tu@correo.com"
-                label="Correo electronico"
-                size="large"
-            ></sl-input>
-            <sl-input
-                type="password"
-                id="password"
-                required
-                autocomplete="current-password"
-                placeholder="Tu contrasena"
-                label="Contrasena"
-                size="large"
-                password-toggle
-            ></sl-input>
-
-            <sl-button
-                type="submit"
-                id="btn-login"
-                variant="primary"
-                size="large"
-                class="w-full"
-            >
-                Iniciar Sesion
-            </sl-button>
-        </form>
-
-        <p class="text-center text-gray-500 text-xs mt-6">&copy; HDV Distribuciones</p>
-    </div>
-
-    <!-- Pantalla MFA: Verificacion TOTP -->
-    <div id="mfa-container" class="w-full max-w-sm login-card" style="display:none;">
-        <div class="text-center mb-6">
-            <div class="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-indigo-500/30">
-                <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
-                </svg>
-            </div>
-            <h2 class="text-xl font-bold text-white">Verificacion MFA</h2>
-            <p class="text-gray-400 text-sm mt-1">Ingresa el codigo de tu app de autenticacion</p>
-        </div>
-
-        <sl-alert id="mfa-alert" class="mb-4" closable style="display:none;">
-            <sl-icon slot="icon" name="exclamation-octagon"></sl-icon>
-            <span id="mfa-alert-msg"></span>
-        </sl-alert>
-
-        <div class="space-y-4">
-            <sl-input
-                type="text"
-                id="mfa-code"
-                maxlength="6"
-                inputmode="numeric"
-                pattern="[0-9]*"
-                autocomplete="one-time-code"
-                placeholder="000000"
-                label="Codigo TOTP (6 digitos)"
-                size="large"
-                class="mfa-code-input"
-            ></sl-input>
-            <sl-button id="btn-mfa-verify" variant="primary" size="large" class="w-full">
-                Verificar
-            </sl-button>
-            <sl-button id="btn-mfa-cancel" variant="text" size="medium" class="w-full">
-                Cancelar e iniciar con otra cuenta
-            </sl-button>
-        </div>
-    </div>
-
-    <!-- Pantalla MFA: Enrolamiento (primer setup, solo admin) -->
-    <div id="mfa-enroll-container" class="w-full max-w-sm login-card" style="display:none;">
-        <div class="text-center mb-6">
-            <div class="w-16 h-16 bg-amber-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-amber-500/30">
-                <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
-                </svg>
-            </div>
-            <h2 class="text-xl font-bold text-white">Configurar MFA</h2>
-            <p class="text-gray-400 text-sm mt-2">Tu cuenta de administrador requiere autenticacion de dos factores. Escanea el codigo QR con tu app (Google Authenticator, Authy, etc.)</p>
-        </div>
-
-        <sl-alert id="mfa-enroll-alert" class="mb-4" closable style="display:none;">
-            <sl-icon slot="icon" name="exclamation-octagon"></sl-icon>
-            <span id="mfa-enroll-alert-msg"></span>
-        </sl-alert>
-
-        <div class="space-y-4">
-            <!-- QR Code -->
-            <div id="mfa-qr-wrapper" class="flex justify-center">
-                <div class="bg-white p-3 rounded-xl">
-                    <img id="mfa-qr-img" src="" alt="Codigo QR para MFA" class="w-48 h-48">
+            <div class="brand-content">
+                <div class="brand-logo-tile">
+                    <img id="brandLogo" alt="HDV" style="display:none">
+                    <span id="brandLogoMono" class="brand-logo-mono">HDV</span>
                 </div>
             </div>
 
-            <!-- Clave manual -->
-            <div class="text-center">
-                <p class="text-gray-500 text-xs mb-1">O ingresa este codigo manualmente:</p>
-                <code id="mfa-secret-text" class="text-indigo-400 text-sm font-mono bg-white/5 px-3 py-1 rounded-lg select-all"></code>
+            <div class="brand-content">
+                <h1 class="brand-title">Sistema de gestión<br><span class="brand-grad">HDV Distribuciones</span></h1>
+                <p class="brand-sub">Plataforma integral de ventas, créditos e inventario. Control total de tu operación, en tiempo real y desde cualquier dispositivo.</p>
+
+                <div style="margin-top:2.5rem;display:flex;flex-direction:column;gap:1.1rem">
+                    <div class="feature">
+                        <span class="feature-ic">
+                            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3v18h18M9 17V9m4 8V5m4 12v-6"/></svg>
+                        </span>
+                        Inteligencia de negocio en vivo
+                    </div>
+                    <div class="feature">
+                        <span class="feature-ic">
+                            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.6-2A11.95 11.95 0 0112 2.94 11.95 11.95 0 013.4 6 12 12 0 0012 21.6 12 12 0 0020.6 6z"/></svg>
+                        </span>
+                        Seguridad de nivel empresarial
+                    </div>
+                    <div class="feature">
+                        <span class="feature-ic">
+                            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                        </span>
+                        Sincronización instantánea
+                    </div>
+                </div>
             </div>
 
-            <!-- Input de verificacion -->
-            <sl-input
-                type="text"
-                id="mfa-enroll-code"
-                maxlength="6"
-                inputmode="numeric"
-                pattern="[0-9]*"
-                autocomplete="one-time-code"
-                placeholder="000000"
-                label="Codigo de verificacion"
-                size="large"
-                class="mfa-code-input"
-            ></sl-input>
+            <div class="brand-foot">
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                Conexión cifrada · &copy; HDV Distribuciones
+            </div>
+        </aside>
 
-            <sl-button id="btn-mfa-enroll-verify" variant="primary" size="large" class="w-full">
-                Activar MFA
-            </sl-button>
-        </div>
+        <!-- ===== PANEL DEL FORMULARIO ===== -->
+        <main class="form-panel">
+
+            <!-- Formulario de Login -->
+            <div id="login-container" class="auth-card" style="display:none;">
+                <div style="text-align:center;margin-bottom:1.75rem">
+                    <div class="card-logo-tile">
+                        <img id="cardLogo" alt="HDV" style="display:none">
+                        <span id="cardLogoMono" class="card-logo-mono">HDV</span>
+                    </div>
+                    <h2 class="card-title" style="margin-top:1rem">Bienvenido de nuevo</h2>
+                    <p class="card-sub">Ingresá tus credenciales para continuar</p>
+                </div>
+
+                <sl-alert id="login-alert" class="mb-4" closable style="display:none;">
+                    <sl-icon slot="icon" name="exclamation-octagon"></sl-icon>
+                    <span id="login-alert-msg"></span>
+                </sl-alert>
+
+                <form id="login-form" style="display:flex;flex-direction:column;gap:1rem">
+                    <sl-input type="email" id="email" required autocomplete="email" placeholder="tu@correo.com" label="Correo electrónico" size="large">
+                        <sl-icon slot="prefix" name="envelope"></sl-icon>
+                    </sl-input>
+                    <sl-input type="password" id="password" required autocomplete="current-password" placeholder="Tu contraseña" label="Contraseña" size="large" password-toggle>
+                        <sl-icon slot="prefix" name="lock"></sl-icon>
+                    </sl-input>
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:0.1rem">
+                        <sl-checkbox id="remember-device" style="--sl-input-label-color:#94a3b8" size="small">Recordar este dispositivo</sl-checkbox>
+                    </div>
+                    <sl-button type="submit" id="btn-login" variant="primary" size="large" class="w-full" style="margin-top:0.25rem">
+                        Iniciar Sesión
+                    </sl-button>
+                </form>
+
+                <p class="secure-note">
+                    <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                    Acceso protegido con cifrado de extremo a extremo
+                </p>
+                <p style="text-align:center;margin-top:0.85rem">
+                    <a id="support-link" href="#" target="_blank" rel="noopener" style="color:#818cf8;font-size:0.78rem;font-weight:600;text-decoration:none">¿Problemas para ingresar?</a>
+                </p>
+            </div>
+
+            <!-- Pantalla MFA: Verificacion TOTP -->
+            <div id="mfa-container" class="auth-card" style="display:none;">
+                <div style="text-align:center;margin-bottom:1.5rem">
+                    <div class="card-logo-tile">
+                        <svg width="26" height="26" fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                    </div>
+                    <h2 class="card-title" style="margin-top:1rem">Verificación en dos pasos</h2>
+                    <p class="card-sub">Ingresá el código de tu app de autenticación</p>
+                </div>
+
+                <sl-alert id="mfa-alert" class="mb-4" closable style="display:none;">
+                    <sl-icon slot="icon" name="exclamation-octagon"></sl-icon>
+                    <span id="mfa-alert-msg"></span>
+                </sl-alert>
+
+                <div style="display:flex;flex-direction:column;gap:1rem">
+                    <sl-input type="text" id="mfa-code" maxlength="6" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code" placeholder="000000" label="Código TOTP (6 dígitos)" size="large" class="mfa-code-input"></sl-input>
+                    <sl-button id="btn-mfa-verify" variant="primary" size="large" class="w-full">Verificar</sl-button>
+                    <sl-button id="btn-mfa-cancel" variant="text" size="medium" class="w-full">Cancelar e iniciar con otra cuenta</sl-button>
+                </div>
+            </div>
+
+            <!-- Pantalla MFA: Enrolamiento (primer setup, solo admin) -->
+            <div id="mfa-enroll-container" class="auth-card" style="display:none;">
+                <div style="text-align:center;margin-bottom:1.25rem">
+                    <div class="card-logo-tile" style="background:linear-gradient(145deg,#f59e0b,#f97316)">
+                        <svg width="26" height="26" fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.6-2A11.95 11.95 0 0112 2.94 11.95 11.95 0 013.4 6 12 12 0 0012 21.6 12 12 0 0020.6 6z"/></svg>
+                    </div>
+                    <h2 class="card-title" style="margin-top:1rem">Configurar verificación</h2>
+                    <p class="card-sub" style="margin-top:0.5rem">Tu cuenta de administrador requiere doble factor. Escaneá el QR con tu app (Google Authenticator, Authy, etc.)</p>
+                </div>
+
+                <sl-alert id="mfa-enroll-alert" class="mb-4" closable style="display:none;">
+                    <sl-icon slot="icon" name="exclamation-octagon"></sl-icon>
+                    <span id="mfa-enroll-alert-msg"></span>
+                </sl-alert>
+
+                <div style="display:flex;flex-direction:column;gap:1rem">
+                    <div id="mfa-qr-wrapper" style="display:flex;justify-content:center">
+                        <div style="background:#fff;padding:0.75rem;border-radius:16px">
+                            <img id="mfa-qr-img" src="" alt="Código QR para MFA" style="width:11rem;height:11rem;display:block">
+                        </div>
+                    </div>
+                    <div style="text-align:center">
+                        <p style="color:#64748b;font-size:0.72rem;margin-bottom:0.35rem">O ingresá este código manualmente:</p>
+                        <code id="mfa-secret-text" style="color:#a5b4fc;font-size:0.85rem;font-family:monospace;background:rgba(255,255,255,0.06);padding:0.25rem 0.65rem;border-radius:8px;user-select:all"></code>
+                    </div>
+                    <sl-input type="text" id="mfa-enroll-code" maxlength="6" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code" placeholder="000000" label="Código de verificación" size="large" class="mfa-code-input"></sl-input>
+                    <sl-button id="btn-mfa-enroll-verify" variant="primary" size="large" class="w-full">Activar verificación</sl-button>
+                </div>
+            </div>
+
+            <!-- Pantalla: Cuenta desactivada (Kill Switch ?blocked=1) -->
+            <div id="blocked-container" class="auth-card" style="display:none;text-align:center">
+                <div class="card-logo-tile" style="background:linear-gradient(145deg,#dc2626,#b91c1c);margin:0 auto">
+                    <svg width="28" height="28" fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
+                </div>
+                <h2 class="card-title" style="margin-top:1.1rem">Cuenta desactivada</h2>
+                <p class="card-sub" style="margin-top:0.6rem;line-height:1.6">El acceso de este dispositivo fue suspendido por seguridad. Si creés que es un error, comunicate con el administrador para reactivar tu cuenta.</p>
+                <a id="blocked-support" href="#" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:0.45rem;margin-top:1.5rem;background:#25D366;color:#fff;font-weight:700;font-size:0.85rem;padding:0.7rem 1.3rem;border-radius:12px;text-decoration:none">
+                    <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163a11.867 11.867 0 01-1.587-5.945C.16 5.335 5.495 0 12.05 0a11.82 11.82 0 018.413 3.488 11.82 11.82 0 013.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 01-5.688-1.448L.057 24z"/></svg>
+                    Contactar al administrador
+                </a>
+                <p style="margin-top:1.25rem">
+                    <a href="/login.html" style="color:#818cf8;font-size:0.78rem;font-weight:600;text-decoration:none">Volver a iniciar sesión</a>
+                </p>
+            </div>
+
+        </main>
     </div>
 
     <!-- Sentry (Loader Script — carga lazy, captura errores desde el inicio) -->
     <script src="sentry-init.js"></script>
-    <script
-        src="https://js.sentry-cdn.com/9fbff7170a284960c033f57024eb5941.min.js"
-        crossorigin="anonymous"
-    ></script>
+    <script src="https://js.sentry-cdn.com/9fbff7170a284960c033f57024eb5941.min.js" crossorigin="anonymous"></script>
 
     <script src="supabase-init.js"></script>
     <script src="js/utils/storage.js"></script>

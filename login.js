@@ -431,13 +431,141 @@ sb.auth.onAuthStateChange(async (event, session) => {
     }
 });
 
-// --- Alerta si cuenta fue bloqueada (Kill Switch) ---
-if (new URLSearchParams(window.location.search).get('blocked') === '1') {
-    showAlert('Dispositivo bloqueado por seguridad. Contacte al administrador.');
+// ============================================
+// BRANDING + UX DEL LOGIN (logo, saludo, offline, entorno, soporte, recordar)
+// ============================================
+
+// --- Logo de empresa: cache local → bucket público, con fallback a monograma ---
+async function _cargarLogoLogin() {
+    const setLogo = (url) => {
+        [['brandLogo', 'brandLogoMono'], ['cardLogo', 'cardLogoMono'], ['splashLogo', 'splashLogoMono']].forEach(([imgId, monoId]) => {
+            const img = document.getElementById(imgId);
+            const mono = document.getElementById(monoId);
+            if (img) {
+                img.onload = () => { img.style.display = 'block'; if (mono) mono.style.display = 'none'; };
+                img.onerror = () => { img.style.display = 'none'; if (mono) mono.style.display = ''; };
+                img.src = url;
+            }
+        });
+    };
+    // 1. Cache local (instantáneo, sirve offline)
+    try { const cached = await HDVStorage.getItem('hdv_logo_empresa_url'); if (cached) setLogo(cached); } catch (e) {}
+    // 2. Bucket público empresa_assets: tomar el logo más reciente
+    try {
+        const { data, error } = await sb.storage.from('empresa_assets').list('', { limit: 100, sortBy: { column: 'created_at', order: 'desc' } });
+        if (!error && Array.isArray(data) && data.length) {
+            const logo = data.find(f => /^logo_.*\.(webp|png|jpe?g)$/i.test(f.name)) || data.find(f => f.name && !f.name.startsWith('.'));
+            if (logo) {
+                const { data: pub } = sb.storage.from('empresa_assets').getPublicUrl(logo.name);
+                if (pub?.publicUrl) { setLogo(pub.publicUrl); try { await HDVStorage.setItem('hdv_logo_empresa_url', pub.publicUrl); } catch (e) {} }
+            }
+        }
+    } catch (e) { /* se mantiene el monograma */ }
+}
+
+// --- Saludo contextual por horario ---
+function _saludoPorHora() {
+    const h = new Date().getHours();
+    const txt = h < 12 ? 'Buenos días' : h < 19 ? 'Buenas tardes' : 'Buenas noches';
+    const el = document.querySelector('#login-container .card-title');
+    if (el) el.textContent = txt;
+}
+
+// --- Detección offline ---
+function _actualizarOffline() {
+    const banner = document.getElementById('offline-banner');
+    const online = navigator.onLine;
+    if (banner) banner.style.display = online ? 'none' : 'block';
+    if (btnLogin) btnLogin.disabled = !online;
+}
+
+// --- Indicador de entorno (discreto: prod sin badge) ---
+function _indicadorEntorno() {
+    const el = document.getElementById('env-badge');
+    if (!el) return;
+    const host = location.hostname;
+    let label = '', bg = '';
+    if (host === 'localhost' || host === '127.0.0.1' || host.startsWith('192.168.')) { label = 'Local'; bg = '#0ea5e9'; }
+    else if (/-(git-|[a-z0-9]{9}-)/.test(host) || host.includes('-preview')) { label = 'Pruebas'; bg = '#f59e0b'; }
+    if (label) {
+        el.textContent = label;
+        el.style.background = bg;
+        el.style.color = '#fff';
+        el.style.display = 'block';
+    }
+}
+
+// --- Links de soporte (WhatsApp) ---
+function _initSoporte() {
+    const msg = encodeURIComponent('Hola, tengo problemas para ingresar al sistema HDV Distribuciones.');
+    const url = `https://wa.me/?text=${msg}`;
+    const a = document.getElementById('support-link');
+    const b = document.getElementById('blocked-support');
+    if (a) a.href = url;
+    if (b) b.href = url;
+}
+
+// --- Recordar correo en este dispositivo ---
+function _initRecordar() {
+    const chk = document.getElementById('remember-device');
+    try {
+        const saved = localStorage.getItem('hdv_remember_email');
+        if (saved && emailInput) { emailInput.value = saved; if (chk) chk.checked = true; if (passwordInput) setTimeout(() => passwordInput.focus(), 50); }
+    } catch (e) {}
+    loginForm.addEventListener('submit', () => {
+        try {
+            if (chk?.checked) localStorage.setItem('hdv_remember_email', (emailInput.value || '').trim().toLowerCase());
+            else localStorage.removeItem('hdv_remember_email');
+        } catch (e) {}
+    });
+}
+
+// --- Feedback visual tras varios intentos (el rate-limit real es server-side) ---
+function _initFeedbackIntentos() {
+    const VENTANA_MS = 120000, LIMITE = 5, ENFRIAR_MS = 30000;
+    loginForm.addEventListener('submit', () => {
+        let reg;
+        try { reg = JSON.parse(sessionStorage.getItem('hdv_login_try') || '{"n":0,"t":0}'); } catch (e) { reg = { n: 0, t: 0 }; }
+        const now = Date.now();
+        if (now - reg.t > VENTANA_MS) reg = { n: 0, t: now };
+        reg.n++; reg.t = now;
+        try { sessionStorage.setItem('hdv_login_try', JSON.stringify(reg)); } catch (e) {}
+        if (reg.n >= LIMITE) {
+            showAlert(`Varios intentos seguidos. Esperá unos segundos antes de reintentar.`, 'warning');
+            if (btnLogin) {
+                btnLogin.disabled = true;
+                setTimeout(() => { if (navigator.onLine) btnLogin.disabled = false; }, ENFRIAR_MS);
+            }
+        }
+    });
+}
+
+function _initLoginBranding() {
+    _cargarLogoLogin();
+    _saludoPorHora();
+    _actualizarOffline();
+    window.addEventListener('online', _actualizarOffline);
+    window.addEventListener('offline', _actualizarOffline);
+    _indicadorEntorno();
+    _initSoporte();
+    _initRecordar();
+    _initFeedbackIntentos();
 }
 
 // --- Limpiar lockout legacy de localStorage ---
 localStorage.removeItem('hdv_login_attempts');
 
 // --- Iniciar ---
-verificarSesionExistente();
+_initLoginBranding();
+
+if (new URLSearchParams(window.location.search).get('blocked') === '1') {
+    // Cuenta desactivada (Kill Switch) → pantalla dedicada estilizada
+    loadingScreen.style.opacity = '0';
+    setTimeout(() => {
+        loadingScreen.style.display = 'none';
+        const bc = document.getElementById('blocked-container');
+        if (bc) bc.style.display = 'block';
+    }, 300);
+} else {
+    verificarSesionExistente();
+}

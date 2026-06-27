@@ -74,7 +74,7 @@ async function abrirCobrosCliente(clienteId) {
     if (!drawer) {
         drawer = document.createElement('div');
         drawer.id = 'cobrosDrawer';
-        drawer.style.cssText = 'position:fixed;inset:0;z-index:160;display:flex;flex-direction:column;background:white;transform:translateY(100%);transition:transform 0.35s cubic-bezier(0.32,0.72,0,1);';
+        drawer.style.cssText = 'position:fixed;inset:0;z-index:160;display:flex;flex-direction:column;background:var(--ground);color:var(--ink);transform:translateY(100%);transition:transform 0.35s cubic-bezier(0.32,0.72,0,1);';
         document.body.appendChild(drawer);
     }
 

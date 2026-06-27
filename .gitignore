@@ -13,3 +13,9 @@ test-results/
 # Skills via skills.sh CLI (locales, con symlinks)
 .agents/
 skills-lock.json
+
+# Obsidian vault y notas scratch (segundo cerebro local, no del proyecto)
+.obsidian/
+*.base
+*.canvas
+2026-*.md

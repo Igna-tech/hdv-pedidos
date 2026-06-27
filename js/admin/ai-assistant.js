@@ -442,7 +442,7 @@
                 </div>`;
         } else {
             div.innerHTML = `
-                <div style="width:24px;height:24px;border-radius:8px;background:linear-gradient(135deg,#6366f1,#9333ea);flex-shrink:0;"
+                <div style="width:24px;height:24px;border-radius:8px;background:linear-gradient(135deg,#5681AE,#3D5A78);flex-shrink:0;"
                     class="flex items-center justify-center mb-0.5">
                     <svg style="width:12px;height:12px;color:#fff;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"/>
@@ -465,7 +465,7 @@
         div.id = 'aiTypingDot';
         div.className = 'flex justify-start gap-2 items-end';
         div.innerHTML = `
-            <div style="width:24px;height:24px;border-radius:8px;background:linear-gradient(135deg,#6366f1,#9333ea);"
+            <div style="width:24px;height:24px;border-radius:8px;background:linear-gradient(135deg,#5681AE,#3D5A78);"
                 class="flex items-center justify-center shrink-0">
                 <svg style="width:12px;height:12px;color:#fff;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"/>
@@ -491,9 +491,9 @@
             <div style="display:flex;flex-wrap:wrap;gap:6px;">
                 ${SUGERENCIAS.map(s => `
                     <button class="ai-sug" data-sug="${escapeHTML(s)}"
-                        style="font-size:11px;background:#f3f4f6;color:#4b5563;padding:4px 10px;border-radius:999px;border:1px solid transparent;cursor:pointer;transition:all .15s;"
-                        onmouseover="this.style.background='#eef2ff';this.style.color='#4338ca';this.style.borderColor='#c7d2fe';"
-                        onmouseout="this.style.background='#f3f4f6';this.style.color='#4b5563';this.style.borderColor='transparent';">
+                        style="font-size:11px;background:var(--panel-3);color:var(--ink-2);padding:4px 10px;border-radius:999px;border:1px solid var(--hairline);cursor:pointer;transition:all .15s;"
+                        onmouseover="this.style.background='var(--steel-soft)';this.style.color='var(--steel-bright)';this.style.borderColor='var(--steel)';"
+                        onmouseout="this.style.background='var(--panel-3)';this.style.color='var(--ink-2)';this.style.borderColor='var(--hairline)';">
                         ${escapeHTML(s)}
                     </button>`).join('')}
             </div>`;

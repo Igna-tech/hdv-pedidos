@@ -408,11 +408,21 @@ entregado ──[pagos hasta saldo 0]──► cobrado_sin_factura → ARCHIVO
 - IDs de pedidos generados con `crypto.randomUUID()` (PED-, REC-, FAC-). No usar Date.now() ni Math.random().
 - **PROHIBIDO modificar** el codigo de generacion XML, CDC, integracion SIFEN/SET o Edge Functions sin autorizacion explicita.
 
-## Sistema de UI — Shoelace + Tailwind CSS
+## Sistema de UI — "Command Center" (dark) + Shoelace + Tailwind CSS
 
-**Estado:** Migracion completada (2026-05-01). Todos los modales, drawer, inputs, selects, switches, buttons y alerts usan Shoelace Web Components. Tailwind CSS para layout y estilos visuales.
+**Estado:** Rediseño integral oscuro completado (2026-06-26). TODO el sistema (admin escritorio + PWA vendedor + login) comparte el lenguaje "command center": warm-black + acento **acero** (`--steel #3D5A78`), tipografia **IBM Plex Sans/Mono** (montos/labels en mono tabular), esquinas rectas (radius 2-4px), grano+grilla sutil y animaciones Emil. Shoelace en tema **oscuro** (`themes/dark.css`) con `--sl-color-primary` mapeado a acero. Se mantuvo Shoelace (no se migro a otra libreria): el look premium viene del design system, no del componente.
 
-**Design tokens:** `src/input.css` contiene `:root` con variables `--hdv-*` y overrides de Shoelace (`--sl-*`). Clases utilitarias: `.sl-dark-input`, `.mtz-input`, `.masivo-input`, `.sl-btn-whatsapp`, `.header-icon-btn`. `tailwind.config.js` extiende colores (`grafito`), border-radius (`hdv`), sombras (`hdv-card`, `hdv-elevated`).
+**Baseline oscuro:** `body.theme-dark` en index.html y admin.html (login ya es oscuro nativo). La app vendedor ademas conserva `document.body.classList.add('dark-mode')` (historico). NO hay toggle claro/oscuro — el oscuro es el diseño, no una opcion.
+
+**Design tokens** (`src/input.css`, fuente unica compartida con login):
+- `:root` define superficies (`--ground/--panel/--panel-2/--panel-3/--hairline`), tinta (`--ink/--ink-2/--muted/--faint`), acento (`--steel/--steel-bright/--steel-soft`), estados (`--ok/--warn/--alert`), easing Emil (`--ease-out/--ease-io`), radios sharp y fuentes (`--hdv-font-sans/-mono`).
+- Overrides Shoelace: `--sl-color-primary-*` = escala acero, `--sl-font-sans` = IBM Plex Sans, focus ring acero.
+- **Capa de motion compartida**: `.reveal`/`.reveal.dN` (stagger), `.screen-in`, `.pip`/`.pip.is-online|is-checking|is-down` (estado operativo), press feedback global, grano+grilla via `body.theme-dark::before/::after`, guard `prefers-reduced-motion`.
+- **CAPA DE REMAPEO OSCURO**: bajo `body.theme-dark` se redefine el significado de las clases Tailwind "claras" usadas en el markup generado (`bg-white→panel`, `text-gray-*→ink/muted`, `border-gray-*→hairline`, familia `indigo-*→acero`). Esto oscurece el grueso de la app SIN editar el JS clase por clase. Especificidad `(body.theme-dark .x)` gana a `(.x)`.
+- Escape hatch `.keep-paper` para superficies que DEBEN seguir claras (QR, logo tiles, placeholders).
+- **Chart.js**: tema oscuro global por JS en `js/admin/dashboard.js` (`Chart.defaults` color/borderColor/font/tooltip). Los canvas NO se tematizan por CSS. Datasets clave usan acero/ink (no índigo ni casi-negro).
+- Clases utilitarias: `.mono`, `.amount`/`.tnum` (mono tabular), `.eyebrow-label`, `.sl-dark-input`, `.mtz-input`, `.masivo-input`, `.sl-btn-whatsapp`, `.header-icon-btn`. `tailwind.config.js` extiende colores semanticos (`ground/panel/ink/steel/...`), `fontFamily` (Plex), radios (`hdv`, `hdv-sharp`), sombras.
+- **Al agregar markup nuevo**: usá clases Tailwind claras normales (el remapeo las oscurece) o las semanticas (`bg-panel`, `text-ink`, `text-steel`). Acento = acero, NUNCA índigo. Montos en `.amount`.
 
 **Componentes Shoelace en uso:**
 - `sl-dialog` — todos los modales (16 convertidos de div.modal-overlay)

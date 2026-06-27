@@ -390,7 +390,7 @@ async function renderizarCategoriasVendedor(container) {
                 const chip = document.createElement('sl-button');
                 chip.variant = 'default';
                 chip.size = 'small';
-                chip.style.cssText = '--sl-color-neutral-0: #eff6ff; --sl-color-neutral-700: #1e40af; border-color: #bfdbfe;';
+                chip.style.cssText = '--sl-color-neutral-0: var(--steel-soft); --sl-color-neutral-700: var(--steel-bright); border-color: var(--steel);';
                 chip.className = 'shrink-0';
                 chip.textContent = prod.nombre;
                 chip.onclick = () => mostrarDetalleProducto(prod);
@@ -1686,7 +1686,7 @@ async function mostrarHistorialCliente(clienteId) {
     if (!modal) {
         modal = document.createElement('div');
         modal.id = 'modalHistorialCliente';
-        modal.style.cssText = 'position:fixed;inset:0;z-index:150;display:flex;flex-direction:column;background:white;transform:translateY(100%);transition:transform 0.35s cubic-bezier(0.32,0.72,0,1);';
+        modal.style.cssText = 'position:fixed;inset:0;z-index:150;display:flex;flex-direction:column;background:var(--ground);color:var(--ink);transform:translateY(100%);transition:transform 0.35s cubic-bezier(0.32,0.72,0,1);';
         document.body.appendChild(modal);
     }
 

@@ -86,6 +86,29 @@
 }
 
 /* ============================================================
+   Reaserto del acento ACERO sobre el tema dark de Shoelace.
+   dark.css (.sl-theme-dark) carga DESPUÉS de este archivo y pisaría
+   el primary de :root. Con html.sl-theme-dark (especificidad 0,1,1)
+   ganamos por especificidad sin depender del orden de carga.
+   ============================================================ */
+html.sl-theme-dark, body.theme-dark {
+  --sl-color-primary-50:  #0f1620;
+  --sl-color-primary-100: #15202e;
+  --sl-color-primary-200: #1d2d3f;
+  --sl-color-primary-300: #284058;
+  --sl-color-primary-400: #345070;
+  --sl-color-primary-500: #3D5A78;
+  --sl-color-primary-600: #4a6c90;
+  --sl-color-primary-700: #5681AE;
+  --sl-color-primary-800: #7ba0c6;
+  --sl-color-primary-900: #a9c3dc;
+  --sl-color-primary-950: #d4e2ef;
+  --sl-focus-ring-color: var(--steel);
+  --sl-font-sans: var(--hdv-font-sans);
+  --sl-font-mono: var(--hdv-font-mono);
+}
+
+/* ============================================================
    Tipografía utilitaria
    ============================================================ */
 .mono { font-family: var(--hdv-font-mono); }

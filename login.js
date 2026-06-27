@@ -304,7 +304,13 @@ btnMfaCancel.addEventListener('click', async () => {
 
 async function verificarSesionExistente() {
     try {
-        const { data: { session } } = await sb.auth.getSession();
+        // getSession() puede colgarse (lock de auth / refresh de token stale).
+        // Carrera con timeout para que el splash NUNCA quede colgado.
+        const sessionRes = await Promise.race([
+            sb.auth.getSession(),
+            new Promise((_, rej) => setTimeout(() => rej(new Error('getSession timeout')), 3000))
+        ]);
+        const session = sessionRes?.data?.session || null;
 
         if (session) {
             const rol = await obtenerRol(session.user.id);
@@ -558,7 +564,10 @@ async function _checkSupabaseHealth() {
         if (typeof SUPABASE_URL === 'undefined') { _setPip('is-online', 'Operativo'); return; }
         const ctrl = new AbortController();
         const t = setTimeout(() => ctrl.abort(), 5000);
-        const r = await fetch(`${SUPABASE_URL}/auth/v1/health`, { signal: ctrl.signal });
+        const r = await fetch(`${SUPABASE_URL}/auth/v1/health`, {
+            signal: ctrl.signal,
+            headers: (typeof SUPABASE_ANON_KEY !== 'undefined') ? { apikey: SUPABASE_ANON_KEY } : {}
+        });
         clearTimeout(t);
         _setPip(r.ok ? 'is-online' : 'is-down', r.ok ? 'Operativo' : 'Sin servidor');
     } catch (e) {
@@ -629,3 +638,13 @@ if (new URLSearchParams(window.location.search).get('blocked') === '1') {
 } else {
     verificarSesionExistente();
 }
+
+// Red de seguridad: si tras 6s el splash sigue visible (algún await colgado),
+// ocultarlo igual y mostrar el formulario de login para no dejar la pantalla muerta.
+setTimeout(() => {
+    if (!loadingScreen || getComputedStyle(loadingScreen).display === 'none') return;
+    loadingScreen.style.display = 'none';
+    const pantallas = [loginContainer, mfaContainer, mfaEnrollContainer, document.getElementById('blocked-container')];
+    const algunaVisible = pantallas.some(el => el && getComputedStyle(el).display !== 'none');
+    if (!algunaVisible && loginContainer) loginContainer.style.display = 'block';
+}, 6000);

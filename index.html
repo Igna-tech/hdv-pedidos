@@ -3,15 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="theme-color" content="#111827">
+    <meta name="theme-color" content="#0E0F11">
     <title>HDV Pedidos - Vendedores</title>
     <link rel="manifest" href="manifest.json">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="dist/tailwind.css">
     <!-- Shoelace Web Components (local, offline-first) -->
-    <link rel="stylesheet" href="assets/lib/shoelace/themes/light.css">
+    <link rel="stylesheet" href="assets/lib/shoelace/themes/dark.css">
     <script type="module">
         import { setBasePath } from './assets/lib/shoelace/utilities/base-path.js';
         setBasePath('./assets/lib/shoelace');
@@ -31,7 +31,7 @@
             --grafito-oscuro: #111827;
         }
 
-        body { background-color: #f1f5f9; -webkit-tap-highlight-color: transparent; font-family: 'Inter', system-ui, -apple-system, sans-serif; visibility: hidden; }
+        body { background-color: var(--ground); color: var(--ink); -webkit-tap-highlight-color: transparent; font-family: var(--hdv-font-sans); visibility: hidden; }
         /* Fallback: si guard.js no logra mostrar el body en 5s, forzar visibilidad */
         @keyframes forceVisible { to { visibility: visible; } }
         body { animation: forceVisible 0s 5s forwards; }
@@ -218,7 +218,7 @@
         }
     </style>
 </head>
-<body class="pb-24 transition-colors duration-200">
+<body class="theme-dark pb-24 transition-colors duration-200">
 
     <header class="bg-white border-b border-slate-200 px-4 pt-3 pb-2 sticky top-0 z-50 shadow-sm">
         <div class="flex justify-between items-center mb-3">

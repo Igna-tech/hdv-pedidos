@@ -2,29 +2,56 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ============================================
-   HDV Design Tokens — Fuente unica de verdad
-   Sobreescribe defaults de Shoelace
-   ============================================ */
+/* ============================================================
+   HDV Design System — "Command Center" (dark baseline)
+   Fuente única de verdad. Mismo ADN que login.html.
+   Acento ACERO (no índigo). IBM Plex. Esquinas rectas.
+   ============================================================ */
 :root {
-  /* — Paleta de marca — */
-  --hdv-grafito-oscuro: #111827;
-  --hdv-grafito-medio: #1f2937;
-  --hdv-grafito-claro: #374151;
-  --hdv-brand-indigo: #6366f1;
+  /* — Superficies (warm-black + acero) — */
+  --ground:    #0E0F11;
+  --panel:     #15171B;
+  --panel-2:   #191C21;
+  --panel-3:   #22262c;
+  --hairline:  rgba(255,255,255,0.09);
+  --hairline-strong: rgba(255,255,255,0.16);
 
-  /* — Escala de border-radius — */
-  --hdv-radius-sm: 0.375rem;
-  --hdv-radius-md: 0.75rem;
-  --hdv-radius-lg: 1rem;
-  --hdv-radius-xl: 1.25rem;
+  /* — Tinta (alto contraste para legibilidad al sol) — */
+  --ink:    #E9E7E1;   /* texto principal (hueso) */
+  --ink-2:  #BFC4CC;   /* texto secundario */
+  --muted:  #8A8F98;   /* terciario / labels */
+  --faint:  #5A6068;   /* deshabilitado / metadatos */
 
-  /* — Sombras unificadas — */
-  --hdv-shadow-card: 0 1px 3px 0 rgba(0,0,0,0.08), 0 1px 2px -1px rgba(0,0,0,0.06);
-  --hdv-shadow-elevated: 0 4px 12px rgba(0,0,0,0.1);
-  --hdv-shadow-modal: 0 20px 60px rgba(0,0,0,0.25);
+  /* — Acento acero — */
+  --steel:        #3D5A78;
+  --steel-bright: #5681AE;
+  --steel-soft:   rgba(61,90,120,0.18);
 
-  /* — Shoelace: Border Radius global 12px — */
+  /* — Estados — */
+  --ok:    #34D399;
+  --warn:  #E0A800;
+  --alert: #E05252;
+
+  /* — Movimiento (Emil): PROHIBIDO ease-in en UI — */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);   /* entradas */
+  --ease-io:  cubic-bezier(0.77, 0, 0.175, 1);  /* on-screen */
+
+  /* — Border-radius: command center = rectas — */
+  --hdv-radius-sm: 2px;
+  --hdv-radius-md: 3px;
+  --hdv-radius-lg: 4px;
+  --hdv-radius-xl: 6px;
+
+  /* — Sombras (profundas, sin glow de color) — */
+  --hdv-shadow-card: 0 1px 0 rgba(255,255,255,0.03) inset, 0 1px 2px rgba(0,0,0,0.4);
+  --hdv-shadow-elevated: 0 12px 32px -16px rgba(0,0,0,0.75);
+  --hdv-shadow-modal: 0 24px 60px -30px rgba(0,0,0,0.85);
+
+  /* — Fuentes — */
+  --hdv-font-sans: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+  --hdv-font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+  /* ===== Shoelace overrides (tema oscuro + acero) ===== */
   --sl-border-radius-small: var(--hdv-radius-sm);
   --sl-border-radius-medium: var(--hdv-radius-md);
   --sl-border-radius-large: var(--hdv-radius-lg);
@@ -33,46 +60,126 @@
   --sl-input-border-radius-medium: var(--hdv-radius-md);
   --sl-input-border-radius-large: var(--hdv-radius-md);
 
-  /* — Shoelace: Primary Color = Indigo (alineado a Tailwind) — */
-  --sl-color-primary-50: #eef2ff;
-  --sl-color-primary-100: #e0e7ff;
-  --sl-color-primary-200: #c7d2fe;
-  --sl-color-primary-300: #a5b4fc;
-  --sl-color-primary-400: #818cf8;
-  --sl-color-primary-500: #6366f1;
-  --sl-color-primary-600: #4f46e5;
-  --sl-color-primary-700: #4338ca;
-  --sl-color-primary-800: #3730a3;
-  --sl-color-primary-900: #312e81;
-  --sl-color-primary-950: #1e1b4b;
+  /* Primary = ACERO (mapeo escala 50→950, oscuro→claro alineado al acento) */
+  --sl-color-primary-50:  #0f1620;
+  --sl-color-primary-100: #15202e;
+  --sl-color-primary-200: #1d2d3f;
+  --sl-color-primary-300: #284058;
+  --sl-color-primary-400: #345070;
+  --sl-color-primary-500: #3D5A78;
+  --sl-color-primary-600: #4a6c90;
+  --sl-color-primary-700: #5681AE;
+  --sl-color-primary-800: #7ba0c6;
+  --sl-color-primary-900: #a9c3dc;
+  --sl-color-primary-950: #d4e2ef;
 
-  /* — Shoelace: Focus Ring unificado — */
-  --sl-focus-ring-color: var(--hdv-brand-indigo);
+  --sl-focus-ring-color: var(--steel);
   --sl-focus-ring-width: 2px;
   --sl-focus-ring-offset: 2px;
 
-  /* — Shoelace: Sombras alineadas — */
   --sl-shadow-small: var(--hdv-shadow-card);
   --sl-shadow-medium: var(--hdv-shadow-elevated);
   --sl-shadow-large: var(--hdv-shadow-elevated);
 
-  /* — Shoelace: Tipografia — */
-  --sl-font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --sl-font-sans: var(--hdv-font-sans);
+  --sl-font-mono: var(--hdv-font-mono);
 }
 
-/* ============================================
+/* ============================================================
+   Tipografía utilitaria
+   ============================================================ */
+.mono { font-family: var(--hdv-font-mono); }
+.tnum { font-variant-numeric: tabular-nums; }
+/* Montos / números en mono tabular (ERP) */
+.amount { font-family: var(--hdv-font-mono); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+.eyebrow-label {
+  font-family: var(--hdv-font-mono); font-size: 0.64rem; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--muted);
+}
+::selection { background: var(--steel); color: #fff; }
+
+/* ============================================================
+   Grano + grilla sutil del command center (promovido del login)
+   Se activa con body.theme-dark
+   ============================================================ */
+body.theme-dark::before {
+  content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background-image:
+    linear-gradient(var(--hairline) 1px, transparent 1px),
+    linear-gradient(90deg, var(--hairline) 1px, transparent 1px);
+  background-size: 64px 64px;
+  -webkit-mask-image: radial-gradient(130% 100% at 50% 0%, #000 25%, transparent 80%);
+  mask-image: radial-gradient(130% 100% at 50% 0%, #000 25%, transparent 80%);
+  opacity: 0.35;
+}
+body.theme-dark::after {
+  content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none; opacity: 0.02;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+/* El contenido por encima del grano */
+body.theme-dark > * { position: relative; z-index: 1; }
+
+/* ============================================================
+   Capa de MOTION compartida (Emil) — promovida del login
+   ============================================================ */
+.reveal { opacity: 0; transform: translateY(8px); animation: hdvReveal 240ms var(--ease-out) forwards; }
+.reveal.d1 { animation-delay: 40ms; }
+.reveal.d2 { animation-delay: 90ms; }
+.reveal.d3 { animation-delay: 140ms; }
+.reveal.d4 { animation-delay: 190ms; }
+.reveal.d5 { animation-delay: 240ms; }
+@keyframes hdvReveal { to { opacity: 1; transform: none; } }
+
+.screen-in { animation: hdvScreenFade 200ms var(--ease-out); }
+@keyframes hdvScreenFade { from { opacity: 0; } to { opacity: 1; } }
+
+/* Pip de estado operativo reutilizable (header vendedor + admin) */
+.pip { width: 7px; height: 7px; border-radius: 50%; background: var(--faint); transition: background 200ms var(--ease-out); display: inline-block; }
+.pip.is-online   { background: var(--ok);    --pip-rgb: 52,211,153; animation: hdvPip 2.4s var(--ease-io) infinite; }
+.pip.is-checking { background: var(--warn);  --pip-rgb: 224,168,0;  animation: hdvPip 1.2s var(--ease-io) infinite; }
+.pip.is-down     { background: var(--alert); animation: none; }
+@keyframes hdvPip { 0% { box-shadow: 0 0 0 0 rgba(var(--pip-rgb),0.45);} 70%,100% { box-shadow: 0 0 0 6px rgba(var(--pip-rgb),0);} }
+
+/* Press feedback global */
+button:active:not(:disabled) { transform: scale(0.97); }
+sl-button::part(base) { transition: transform 120ms var(--ease-out), background 150ms var(--ease-out), border-color 150ms var(--ease-out); }
+sl-button::part(base):active { transform: scale(0.97); }
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal, .screen-in, .feed-item, .product-card { animation: none !important; opacity: 1 !important; transform: none !important; }
+  .pip { animation: none !important; }
+  *, *::before, *::after { transition-duration: 0.01ms !important; }
+}
+
+/* ============================================================
+   A11Y — Focus visible (acero)
+   ============================================================ */
+*:focus-visible {
+  outline: 2px solid var(--steel-bright);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+button, [role="button"], a, select, label[for], .cursor-pointer { cursor: pointer; }
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+textarea, select {
+  transition: border-color 0.15s var(--ease-out), box-shadow 0.15s var(--ease-out);
+}
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):focus,
+textarea:focus, select:focus {
+  border-color: var(--steel) !important;
+  box-shadow: 0 0 0 3px var(--steel-soft);
+}
+
+/* ============================================================
    Clases utilitarias para Shoelace
-   ============================================ */
-
-/* Inputs sobre fondo oscuro (header vendedor, modals oscuros) */
+   ============================================================ */
 .sl-dark-input {
-  --sl-input-background-color: var(--hdv-grafito-medio);
-  --sl-input-color: white;
-  --sl-input-border-color: var(--hdv-grafito-claro);
-  --sl-input-placeholder-color: #9ca3af;
+  --sl-input-background-color: var(--panel-2);
+  --sl-input-color: var(--ink);
+  --sl-input-border-color: var(--hairline);
+  --sl-input-placeholder-color: var(--faint);
 }
-
-/* Inputs numericos grandes */
 .mtz-input {
   --sl-input-font-size-medium: 1.5rem;
   --sl-input-font-weight: 700;
@@ -83,26 +190,12 @@
   --sl-input-font-weight: 700;
   text-align: center;
 }
-
-/* Botones con color WhatsApp */
 .sl-btn-whatsapp {
   --sl-color-success-600: #25D366;
   --sl-color-success-700: #1da851;
 }
-
-/* Header icon buttons */
-.header-icon-btn {
-  font-size: 1.1rem;
-  color: #64748b;
-}
-.header-icon-btn-danger {
-  font-size: 1.1rem;
-  color: #ef4444;
-}
-
-/* ============================================
-   Shoelace layout helpers (shared)
-   ============================================ */
+.header-icon-btn { font-size: 1.1rem; color: var(--muted); }
+.header-icon-btn-danger { font-size: 1.1rem; color: var(--alert); }
 
 /* sl-button full-width and flex support */
 sl-button.w-full { display: block; }
@@ -110,12 +203,22 @@ sl-button.w-full::part(base) { width: 100%; }
 sl-button.flex-1 { flex: 1; }
 sl-button.flex-1::part(base) { width: 100%; }
 
-/* ============================================
-   Skeleton loaders (shared)
-   ============================================ */
+/* Inputs sobre panel: borde acero al foco (look login) */
+sl-input::part(base), sl-textarea::part(base), sl-select::part(combobox) {
+  background: var(--panel-2); border: 1px solid var(--hairline);
+}
+sl-input:focus-within::part(base),
+sl-textarea:focus-within::part(base),
+sl-select:focus-within::part(combobox) {
+  border-color: var(--steel); box-shadow: 0 0 0 3px var(--steel-soft);
+}
+
+/* ============================================================
+   Skeleton loaders (dark)
+   ============================================================ */
 .skeleton {
-  background: #e5e7eb;
-  border-radius: 12px;
+  background: var(--panel-3);
+  border-radius: var(--hdv-radius-md);
   position: relative;
   overflow: hidden;
 }
@@ -123,7 +226,7 @@ sl-button.flex-1::part(base) { width: 100%; }
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent);
   animation: shimmer 1.5s infinite;
 }
 @keyframes shimmer {
@@ -131,111 +234,152 @@ sl-button.flex-1::part(base) { width: 100%; }
   100% { transform: translateX(100%); }
 }
 
-/* ============================================
-   A11Y — Focus visible (shared)
-   ============================================ */
-*:focus-visible {
-  outline: 2px solid #6366f1;
-  outline-offset: 2px;
-  border-radius: 4px;
-}
-button, [role="button"], a, select, label[for], .cursor-pointer { cursor: pointer; }
-button:active:not(:disabled) { transform: scale(0.97); }
-
-input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
-textarea, select {
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
-}
-input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):focus,
-textarea:focus, select:focus {
-  border-color: #6366f1 !important;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
-}
-
-/* ============================================
+/* ============================================================
    Toast notifications (sl-alert based, shared)
-   ============================================ */
+   ============================================================ */
 #toastContainer sl-alert { pointer-events: auto; }
 #toastContainer sl-alert::part(base) { font-weight: 600; font-size: 13px; }
 
-/* ============================================
-   Empty state (shared)
-   ============================================ */
+/* ============================================================
+   Empty state (dark)
+   ============================================================ */
 .empty-state { display: flex; flex-direction: column; align-items: center; padding: 3rem 1rem; }
-.empty-state svg { width: 120px; height: 120px; margin-bottom: 1rem; opacity: 0.6; }
-.empty-state p { color: #6b7280; font-weight: 600; font-size: 0.875rem; text-align: center; }
-.empty-state .empty-sub { color: #9ca3af; font-weight: 400; font-size: 0.75rem; margin-top: 0.25rem; }
+.empty-state svg { width: 120px; height: 120px; margin-bottom: 1rem; opacity: 0.4; }
+.empty-state p { color: var(--muted); font-weight: 600; font-size: 0.875rem; text-align: center; }
+.empty-state .empty-sub { color: var(--faint); font-weight: 400; font-size: 0.75rem; margin-top: 0.25rem; }
+.empty-state .empty-action {
+  margin-top: 1rem; padding: 0.625rem 1.5rem; border-radius: var(--hdv-radius-md);
+  background: var(--steel); color: #fff; font-weight: 700; font-size: 0.8125rem;
+  transition: background 0.15s var(--ease-out);
+}
+.empty-state .empty-action:hover { background: var(--steel-bright); }
 
-/* ============================================
-   Dark mode overrides (shared)
-   ============================================ */
-.dark-mode { background-color: var(--hdv-grafito-oscuro) !important; color: white; }
-.dark-mode .bg-white { background-color: var(--hdv-grafito-medio) !important; color: white; border-color: #374151; }
-.dark-mode .text-gray-800 { color: #f3f4f6 !important; }
-.dark-mode .text-gray-500 { color: #9ca3af !important; }
-.dark-mode .skeleton { background: #374151 !important; }
-.dark-mode .skeleton::after { background: linear-gradient(90deg, transparent, rgba(255,255,255,0.04), transparent) !important; }
-
-/* Scrollbar hide */
+/* Scrollbar */
 .no-scrollbar::-webkit-scrollbar { display: none; }
+body.theme-dark ::-webkit-scrollbar { width: 10px; height: 10px; }
+body.theme-dark ::-webkit-scrollbar-track { background: var(--ground); }
+body.theme-dark ::-webkit-scrollbar-thumb { background: #2a2f37; border-radius: 6px; border: 2px solid var(--ground); }
+body.theme-dark ::-webkit-scrollbar-thumb:hover { background: #353b44; }
 
-/* ==========================================
+/* Escape hatch: superficies que DEBEN seguir claras (QR, logo, papel) */
+.keep-paper, .keep-paper * { background-color: #fff !important; color: #111 !important; border-color: #ddd !important; }
+
+/* ============================================================
    Accordion para tarjetas de pedido
-   ========================================== */
-.pedido-accordion-body {
-  max-height: 0;
-  overflow: hidden;
-  transition: max-height 0.22s ease;
-}
-.pedido-accordion-body.open {
-  max-height: 700px;
-}
+   ============================================================ */
+.pedido-accordion-body { max-height: 0; overflow: hidden; transition: max-height 0.22s var(--ease-out); }
+.pedido-accordion-body.open { max-height: 700px; }
 
-/* ==========================================
+/* ============================================================
    Dashboard — Chart period tabs
-   ========================================== */
+   ============================================================ */
 .chart-tab {
-  @apply px-3 py-1 text-xs rounded-full font-medium text-gray-500 hover:bg-gray-100 transition-colors cursor-pointer;
+  @apply px-3 py-1 text-xs rounded-full font-medium transition-colors cursor-pointer;
+  color: var(--muted);
 }
-.chart-tab.active {
-  @apply bg-gray-900 text-white;
-}
+.chart-tab:hover { background: var(--panel-2); color: var(--ink); }
+.chart-tab.active { background: var(--steel); color: #fff; }
 
-/* ==========================================
+/* ============================================================
    Dashboard — Feed de actividad en vivo
-   ========================================== */
+   ============================================================ */
 @keyframes feedSlideIn {
   from { opacity: 0; transform: translateY(-6px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-.feed-item {
-  animation: feedSlideIn 0.22s ease-out;
-}
+.feed-item { animation: feedSlideIn 0.22s var(--ease-out); }
 
-/* ==========================================
+/* ============================================================
    Dashboard — Inteligencia de Negocio tabs
-   ========================================== */
+   ============================================================ */
 .intel-tab {
-  @apply px-3 py-1.5 text-xs font-semibold text-gray-500 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer flex items-center gap-1.5 whitespace-nowrap;
+  @apply px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 whitespace-nowrap;
+  color: var(--muted);
 }
-.intel-tab.active {
-  @apply bg-gray-900 text-white;
-}
+.intel-tab:hover { background: var(--panel-2); color: var(--ink); }
+.intel-tab.active { background: var(--steel); color: #fff; }
 
-/* Risk badges — Créditos */
-.risk-verde    { @apply text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-semibold; }
-.risk-amarillo { @apply text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-semibold; }
-.risk-rojo     { @apply text-[10px] px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-semibold; }
+/* Risk badges — Créditos (dark, alto contraste) */
+.risk-verde    { @apply text-[10px] px-2 py-0.5 rounded-full font-semibold; background: rgba(52,211,153,0.14); color: #6ee7b7; }
+.risk-amarillo { @apply text-[10px] px-2 py-0.5 rounded-full font-semibold; background: rgba(224,168,0,0.15); color: #fcd34d; }
+.risk-rojo     { @apply text-[10px] px-2 py-0.5 rounded-full font-semibold; background: rgba(224,82,82,0.15); color: #fca5a5; }
 
 /* RFM segment chips — Clientes */
 .rfm-chip { @apply text-[10px] px-2 py-0.5 rounded-full font-semibold; }
 
-/* ==========================================
+/* ============================================================
    Proveedores — sub-tabs
-   ========================================== */
+   ============================================================ */
 .prov-tab {
-  @apply px-3 py-2 text-xs font-semibold text-gray-500 rounded-t-lg hover:bg-gray-50 transition-colors cursor-pointer flex items-center gap-1.5 whitespace-nowrap border-b-2 border-transparent -mb-px;
+  @apply px-3 py-2 text-xs font-semibold rounded-t-lg transition-colors cursor-pointer flex items-center gap-1.5 whitespace-nowrap border-b-2 border-transparent -mb-px;
+  color: var(--muted);
 }
-.prov-tab.active {
-  @apply text-indigo-600 border-indigo-500 bg-white;
-}
+.prov-tab:hover { background: var(--panel-2); }
+.prov-tab.active { color: var(--steel-bright); border-color: var(--steel); background: var(--panel); }
+
+/* ============================================================
+   CAPA DE REMAPEO OSCURO
+   Redefine el significado de las clases Tailwind "claras"
+   usadas en el markup generado, sin tocar el JS.
+   Especificidad (body.theme-dark .x) > (.x) → gana sin !important.
+   ============================================================ */
+
+/* — Fondos — */
+body.theme-dark .bg-white { background-color: var(--panel); }
+body.theme-dark .bg-gray-50,
+body.theme-dark .bg-slate-50,
+body.theme-dark .bg-gray-100,
+body.theme-dark .bg-slate-100 { background-color: var(--panel-2); }
+body.theme-dark .bg-gray-200,
+body.theme-dark .bg-slate-200 { background-color: var(--panel-3); }
+body.theme-dark .bg-gray-800,
+body.theme-dark .bg-gray-900,
+body.theme-dark .bg-slate-800,
+body.theme-dark .bg-slate-900 { background-color: var(--panel); }
+
+/* hover de fondos */
+body.theme-dark .hover\:bg-gray-50:hover,
+body.theme-dark .hover\:bg-gray-100:hover,
+body.theme-dark .hover\:bg-slate-50:hover,
+body.theme-dark .hover\:bg-slate-100:hover { background-color: var(--panel-2); }
+body.theme-dark .hover\:bg-gray-200:hover { background-color: var(--panel-3); }
+
+/* — Texto — */
+body.theme-dark .text-gray-900, body.theme-dark .text-slate-900,
+body.theme-dark .text-gray-800, body.theme-dark .text-slate-800 { color: var(--ink); }
+body.theme-dark .text-gray-700, body.theme-dark .text-slate-700,
+body.theme-dark .text-gray-600, body.theme-dark .text-slate-600 { color: var(--ink-2); }
+body.theme-dark .text-gray-500, body.theme-dark .text-slate-500 { color: var(--muted); }
+body.theme-dark .text-gray-400, body.theme-dark .text-slate-400,
+body.theme-dark .text-gray-300, body.theme-dark .text-slate-300 { color: var(--faint); }
+
+/* — Bordes / divisores — */
+body.theme-dark .border-gray-100, body.theme-dark .border-slate-100,
+body.theme-dark .border-gray-200, body.theme-dark .border-slate-200,
+body.theme-dark .border-gray-300, body.theme-dark .border-slate-300,
+body.theme-dark .border { border-color: var(--hairline); }
+body.theme-dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
+body.theme-dark .divide-gray-200 > :not([hidden]) ~ :not([hidden]),
+body.theme-dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]),
+body.theme-dark .divide-slate-200 > :not([hidden]) ~ :not([hidden]) { border-color: var(--hairline); }
+
+/* — Acento índigo → acero — */
+body.theme-dark .text-indigo-600, body.theme-dark .text-indigo-500,
+body.theme-dark .text-indigo-700 { color: var(--steel-bright); }
+body.theme-dark .bg-indigo-600, body.theme-dark .bg-indigo-500,
+body.theme-dark .bg-indigo-700 { background-color: var(--steel); }
+body.theme-dark .hover\:bg-indigo-700:hover, body.theme-dark .hover\:bg-indigo-600:hover { background-color: var(--steel-bright); }
+body.theme-dark .bg-indigo-50, body.theme-dark .bg-indigo-100 { background-color: var(--steel-soft); }
+body.theme-dark .border-indigo-500, body.theme-dark .border-indigo-600 { border-color: var(--steel); }
+body.theme-dark .ring-indigo-500, body.theme-dark .ring-indigo-600 { --tw-ring-color: var(--steel); }
+
+/* — Sombras: suavizar en oscuro — */
+body.theme-dark .shadow, body.theme-dark .shadow-sm,
+body.theme-dark .shadow-md, body.theme-dark .shadow-lg { box-shadow: var(--hdv-shadow-card); }
+body.theme-dark .shadow-xl, body.theme-dark .shadow-2xl { box-shadow: var(--hdv-shadow-elevated); }
+
+/* ============================================================
+   Dark mode legacy (toggle obsoleto) — alias de theme-dark.
+   El toggle se retira en Fase 5; mantenemos compat de lectura.
+   ============================================================ */
+.dark-mode { background-color: var(--ground); color: var(--ink); }

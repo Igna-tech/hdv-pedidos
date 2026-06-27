@@ -3,13 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0E0F11">
     <title>Panel Admin - HDV Distribuciones</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="dist/tailwind.css">
     <!-- Shoelace Web Components (local, offline-first) -->
-    <link rel="stylesheet" href="assets/lib/shoelace/themes/light.css">
+    <link rel="stylesheet" href="assets/lib/shoelace/themes/dark.css">
     <!-- Leaflet (mini-mapa selector de ubicación) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H" crossorigin="anonymous">
     <script type="module">
@@ -31,19 +32,19 @@
     <style>
         :root {
             --grafito-oscuro: #111827; --grafito-medio: #1f2937; --grafito-claro: #374151;
-            --sidebar-bg: #ffffff;
-            --sidebar-border: #e2e8f0;
-            --sidebar-text: #475569;
-            --sidebar-text-hover: #1e293b;
-            --sidebar-active-bg: rgba(99, 102, 241, 0.08);
-            --sidebar-active-text: #4f46e5;
-            --content-bg: #f1f5f9;
-            --card-bg: #ffffff;
-            --card-border: #e2e8f0;
-            --card-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
-            --heading-color: #0f172a;
+            --sidebar-bg: var(--panel);
+            --sidebar-border: var(--hairline);
+            --sidebar-text: var(--muted);
+            --sidebar-text-hover: var(--ink);
+            --sidebar-active-bg: var(--steel-soft);
+            --sidebar-active-text: var(--steel-bright);
+            --content-bg: var(--ground);
+            --card-bg: var(--panel);
+            --card-border: var(--hairline);
+            --card-shadow: var(--hdv-shadow-card);
+            --heading-color: var(--ink);
         }
-        body { background-color: var(--content-bg); font-family: 'Inter', system-ui, -apple-system, sans-serif; visibility: hidden; }
+        body { background-color: var(--content-bg); color: var(--ink); font-family: var(--hdv-font-sans); visibility: hidden; }
         @keyframes forceVisible { to { visibility: visible; } }
         body { animation: forceVisible 0s 5s forwards; }
 
@@ -266,7 +267,7 @@
 
     </style>
 </head>
-<body class="flex h-screen overflow-hidden text-gray-800">
+<body class="theme-dark flex h-screen overflow-hidden text-gray-800">
 
     <!-- Toast container -->
     <div id="toastContainer"></div>

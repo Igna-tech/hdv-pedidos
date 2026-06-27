@@ -72,7 +72,24 @@
       "Bash(find assets/lib/shoelace -name \"*.d.ts\" -delete)",
       "Bash(do basename:*)",
       "Bash(done)",
-      "mcp__claude_ai_Sentry__update_issue"
+      "mcp__claude_ai_Sentry__update_issue",
+      "Bash(npx tailwindcss:*)",
+      "Bash(git *)",
+      "Bash(Get-Content index.html,app.js,admin.html,admin.js)",
+      "Bash(Measure-Object -Line)",
+      "PowerShell(Get-Command *)",
+      "PowerShell(& \"node_modules\\\\.bin\\\\tailwindcss.cmd\" -i src/input.css -o dist/tailwind.css --minify 2>&1)",
+      "PowerShell(npm run *)",
+      "PowerShell(git push *)",
+      "Bash(cat)",
+      "Bash(chmod +x .git/hooks/pre-commit)",
+      "mcp__claude_ai_Supabase__list_tables",
+      "mcp__claude_ai_Supabase__apply_migration",
+      "mcp__claude_ai_Supabase__deploy_edge_function",
+      "Bash(curl -sL \"https://unpkg.com/leaflet@1.9.4/dist/leaflet.js\")",
+      "Bash(openssl dgst *)",
+      "Bash(openssl base64 *)",
+      "Bash(curl -sL \"https://unpkg.com/leaflet@1.9.4/dist/leaflet.css\")"
     ]
   }
 }

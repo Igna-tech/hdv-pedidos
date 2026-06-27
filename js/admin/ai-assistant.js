@@ -436,7 +436,7 @@
 
         if (isUser) {
             div.innerHTML = `
-                <div style="max-width:85%; background:#4f46e5; color:#fff; border-radius:16px 16px 4px 16px;"
+                <div style="max-width:85%; background:var(--steel); color:#fff; border-radius:16px 16px 4px 16px;"
                     class="px-3 py-2 text-sm leading-relaxed">
                     ${escapeHTML(contenido).replace(/\n/g, '<br>')}
                 </div>`;
@@ -448,7 +448,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                     </svg>
                 </div>
-                <div style="max-width:85%;background:#fff;border:1px solid #e5e7eb;border-radius:4px 16px 16px 16px;"
+                <div style="max-width:85%;background:var(--panel-2);border:1px solid var(--hairline);border-radius:4px 16px 16px 16px;"
                     class="shadow-sm px-3.5 py-2.5 text-sm text-gray-700 leading-relaxed">
                     <p>${_mdToHtml(contenido)}</p>
                 </div>`;
@@ -471,7 +471,7 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                 </svg>
             </div>
-            <div style="background:#fff;border:1px solid #e5e7eb;border-radius:4px 16px 16px 16px;"
+            <div style="background:var(--panel-2);border:1px solid var(--hairline);border-radius:4px 16px 16px 16px;"
                 class="shadow-sm px-4 py-3 flex gap-1 items-center">
                 <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay:0ms"></span>
                 <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay:150ms"></span>

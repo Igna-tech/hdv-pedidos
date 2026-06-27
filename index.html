@@ -152,7 +152,7 @@
         .vpc-ultima { font-size: 9px; color: rgba(255,255,255,0.55); margin-top: 2px; }
         /* Badge cantidad carrito (top-left) */
         .vpc-badge { position: absolute; top: 7px; left: 7px; z-index: 3;
-            background: #4f46e5; color: #fff; font-size: 10px; font-weight: 800;
+            background: var(--steel); color: #fff; font-size: 10px; font-weight: 800;
             min-width: 20px; height: 20px; border-radius: 10px; padding: 0 5px;
             display: none; align-items: center; justify-content: center;
             box-shadow: 0 1px 4px rgba(0,0,0,0.35); }
@@ -163,7 +163,7 @@
             background: rgba(255,255,255,0.92); border: none; cursor: pointer;
             font-size: 17px; font-weight: 900; line-height: 1;
             display: flex; align-items: center; justify-content: center;
-            color: #4f46e5; box-shadow: 0 1px 4px rgba(0,0,0,0.25); transition: transform 0.1s; }
+            color: var(--steel); box-shadow: 0 1px 4px rgba(0,0,0,0.25); transition: transform 0.1s; }
         .vpc-btn:active { transform: scale(0.85); }
         .vpc-qty-num { background: rgba(0,0,0,0.65); color: #fff; font-size: 11px; font-weight: 800;
             min-width: 20px; height: 20px; border-radius: 10px; padding: 0 4px;
@@ -174,7 +174,7 @@
         .subcat-chip { flex-shrink: 0; padding: 4px 12px; border-radius: 99px;
             font-size: 12px; font-weight: 600; cursor: pointer;
             border: 1.5px solid #334155; background: rgba(255,255,255,0.06); color: #94a3b8; transition: all 0.15s; }
-        .subcat-chip.active { background: #4f46e5; color: #fff; border-color: #4f46e5; }
+        .subcat-chip.active { background: var(--steel); color: #fff; border-color: var(--steel); }
         /* List view */
         .vpc-list { display: flex; flex-direction: column; }
         .vpc-list-item { display: flex; gap: 10px; align-items: center;
@@ -194,9 +194,9 @@
         .vpc-list-ultima { font-size: 10px; color: #64748b; margin-top: 2px; }
         .vpc-list-ctrl { display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
         .vpc-list-btn { width: 28px; height: 28px; border-radius: 50%;
-            background: rgba(79,70,229,0.2); border: none; cursor: pointer;
+            background: var(--steel-soft); border: none; cursor: pointer;
             font-size: 18px; font-weight: 900; line-height: 1;
-            display: flex; align-items: center; justify-content: center; color: #818cf8; }
+            display: flex; align-items: center; justify-content: center; color: var(--steel-bright); }
         .vpc-list-btn:active { transform: scale(0.88); }
         .vpc-list-qty { font-size: 13px; font-weight: 800; color: #f1f5f9; min-width: 18px; text-align: center; }
 

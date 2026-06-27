@@ -48,55 +48,8 @@
         @keyframes forceVisible { to { visibility: visible; } }
         body { animation: forceVisible 0s 5s forwards; }
 
-        /* A11Y - Focus visible & Microinteractions */
-        *:focus-visible {
-            outline: 2px solid #6366f1;
-            outline-offset: 2px;
-            border-radius: 4px;
-        }
-        button, [role="button"], a, select, label[for], .cursor-pointer { cursor: pointer; }
-        button:active:not(:disabled) { transform: scale(0.98); }
-
-        input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
-        textarea, select {
-            transition: border-color 0.2s ease, box-shadow 0.2s ease;
-        }
-        input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):focus,
-        textarea:focus, select:focus {
-            border-color: #6366f1 !important;
-            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
-        }
-
-        /* Skeleton loaders */
-        .skeleton {
-            background: #e5e7eb;
-            border-radius: 8px;
-            position: relative;
-            overflow: hidden;
-        }
-        .skeleton::after {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent);
-            animation: shimmer 1.5s infinite;
-        }
-        @keyframes shimmer {
-            0% { transform: translateX(-100%); }
-            100% { transform: translateX(100%); }
-        }
-
-        /* Empty state */
-        .empty-state { display: flex; flex-direction: column; align-items: center; padding: 3rem 1.5rem; }
-        .empty-state svg { width: 140px; height: 140px; margin-bottom: 1.25rem; opacity: 0.5; }
-        .empty-state p { color: #6b7280; font-weight: 600; font-size: 0.9375rem; text-align: center; }
-        .empty-state .empty-sub { color: #9ca3af; font-weight: 400; font-size: 0.8125rem; margin-top: 0.25rem; }
-        .empty-state .empty-action {
-            margin-top: 1rem; padding: 0.625rem 1.5rem; border-radius: 0.75rem;
-            background: var(--grafito-oscuro); color: white; font-weight: 700;
-            font-size: 0.8125rem; transition: background 0.2s;
-        }
-        .empty-state .empty-action:hover { background: var(--grafito-medio); }
+        /* A11Y focus-visible, press feedback, input focus, skeleton, empty-state:
+           definidos (oscuros) en src/input.css (compartido). No duplicar aquí. */
 
         /* ==========================================
            SaaS Sidebar
@@ -116,7 +69,7 @@
             font-weight: 500;
         }
         .nav-item:hover {
-            background-color: #f1f5f9;
+            background-color: var(--panel-2);
             color: var(--sidebar-text-hover);
         }
         .nav-item:hover i { color: var(--sidebar-text-hover) !important; }
@@ -133,9 +86,10 @@
         .tab-content.active { display: block; }
         .unsaved-bar {
             position: fixed; bottom: -100px; left: 50%; transform: translateX(-50%);
-            background: var(--heading-color); color: white; padding: 1rem 2rem;
-            border-radius: 12px; display: flex; align-items: center; gap: 2rem;
-            box-shadow: var(--card-shadow), 0 10px 25px rgba(0,0,0,0.15); transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            background: var(--panel-3); color: var(--ink); padding: 1rem 2rem;
+            border: 1px solid var(--hairline);
+            border-radius: var(--hdv-radius-lg); display: flex; align-items: center; gap: 2rem;
+            box-shadow: var(--hdv-shadow-elevated); transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             z-index: 1000; width: 90%; max-width: 600px;
         }
         .unsaved-bar.visible { bottom: 20px; }
@@ -171,15 +125,15 @@
             position: relative; aspect-ratio: 1 / 1; border-radius: 12px; overflow: hidden;
             cursor: pointer; box-shadow: var(--card-shadow);
             transition: transform 0.25s ease, box-shadow 0.25s ease;
-            background-color: #e5e7eb; background-size: cover; background-position: center;
+            background-color: var(--panel-2); background-size: cover; background-position: center;
         }
         /* Lazy load: skeleton pulse until image loads */
         .catalog-card:not(.catalog-card--loaded) {
             animation: shimmer-bg 1.8s ease-in-out infinite alternate;
         }
         @keyframes shimmer-bg {
-            0% { background-color: #e5e7eb; }
-            100% { background-color: #d1d5db; }
+            0% { background-color: var(--panel-2); }
+            100% { background-color: var(--panel-3); }
         }
         .catalog-card--loaded { background-color: transparent; }
         .catalog-card:hover { transform: scale(1.02); box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
@@ -222,19 +176,19 @@
         /* Global search */
         #globalSearchOverlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 3000; display: none; align-items: flex-start; justify-content: center; padding-top: 10vh; }
         #globalSearchOverlay.show { display: flex; }
-        #globalSearchBox { background: white; border-radius: 16px; width: 90%; max-width: 600px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.3); animation: confirmSlideUp 0.25s ease; }
+        #globalSearchBox { background: var(--panel); border: 1px solid var(--hairline); border-radius: var(--hdv-radius-xl); width: 90%; max-width: 600px; overflow: hidden; box-shadow: var(--hdv-shadow-modal); animation: confirmSlideUp 0.25s var(--ease-out); }
         #globalSearchInput:focus { outline: none; }
 
         /* SaaS Table styling */
         table { border-collapse: separate; border-spacing: 0; }
         thead th { border-bottom: 1px solid var(--card-border); }
         tbody tr { transition: background-color 0.15s ease; }
-        tbody tr:hover { background-color: #f8fafc; }
-        tbody td { border-bottom: 1px solid #f1f5f9; }
+        tbody tr:hover { background-color: var(--panel-2); }
+        tbody td { border-bottom: 1px solid var(--hairline); }
 
         /* Admin list items */
         .divide-y > div { transition: background-color 0.15s ease; }
-        .divide-y > div:hover { background-color: #fafbfc; }
+        .divide-y > div:hover { background-color: var(--panel-2); }
 
         /* SaaS Card containers */
         .saas-card {

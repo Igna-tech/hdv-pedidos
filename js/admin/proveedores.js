@@ -1150,7 +1150,7 @@ function _renderChartVolumen(scoreStats, ocsEsteMes) {
             },
             scales: {
                 x: {
-                    grid: { color: '#f3f4f6' },
+                    grid: { color: 'rgba(255,255,255,0.06)' },
                     ticks: { callback: v => `Gs. ${_fmt(v)}`, font: { size: 10 } },
                 },
                 y: { ticks: { font: { size: 11 } } },
@@ -1207,12 +1207,12 @@ function _renderChartScatter(scoreStats) {
             scales: {
                 x: {
                     title: { display: true, text: 'Lead time promedio (días)', font: { size: 11 } },
-                    grid: { color: '#f3f4f6' },
+                    grid: { color: 'rgba(255,255,255,0.06)' },
                 },
                 y: {
                     title: { display: true, text: '% Entregas a tiempo', font: { size: 11 } },
                     min: 0, max: 100,
-                    grid: { color: '#f3f4f6' },
+                    grid: { color: 'rgba(255,255,255,0.06)' },
                 },
             },
         },

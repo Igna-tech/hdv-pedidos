@@ -14,6 +14,36 @@ let _perfilesMap = {};
 let _metaMap = {};
 
 // ============================================
+// Chart.js — tema oscuro global (command center)
+// Se aplica UNA vez al cargar. Afecta a TODOS los charts del admin
+// (dashboard, creditos, clientes, proveedores) sin tocar cada config.
+// ============================================
+(function _aplicarTemaChartJsOscuro() {
+    if (typeof Chart === 'undefined' || Chart.__hdvDark) return;
+    Chart.__hdvDark = true;
+    const css = getComputedStyle(document.documentElement);
+    const val = (n, f) => (css.getPropertyValue(n) || f).trim();
+    const ink = val('--ink', '#E9E7E1');
+    const muted = val('--muted', '#8A8F98');
+    const panel = val('--panel-2', '#191C21');
+    const hairline = 'rgba(255,255,255,0.09)';
+    Chart.defaults.color = muted;                 // ticks / texto general
+    Chart.defaults.borderColor = hairline;        // grid lines + ejes
+    if (Chart.defaults.font) Chart.defaults.font.family = "'IBM Plex Sans', system-ui, sans-serif";
+    Chart.defaults.plugins = Chart.defaults.plugins || {};
+    if (Chart.defaults.plugins.legend) {
+        Chart.defaults.plugins.legend.labels = Chart.defaults.plugins.legend.labels || {};
+        Chart.defaults.plugins.legend.labels.color = ink;
+    }
+    if (Chart.defaults.plugins.tooltip) {
+        Object.assign(Chart.defaults.plugins.tooltip, {
+            backgroundColor: panel, titleColor: ink, bodyColor: ink,
+            borderColor: hairline, borderWidth: 1
+        });
+    }
+})();
+
+// ============================================
 // DASHBOARD — Carga principal
 // ============================================
 async function cargarDashboard() {
@@ -76,7 +106,7 @@ async function cargarDashboard() {
         prodCount[key] = (prodCount[key] || 0) + (i.cantidad || 1);
     }));
     const top5 = Object.entries(prodCount).sort((a,b) => b[1]-a[1]).slice(0, 5);
-    const coloresDoughnut = ['#111827', '#374151', '#6b7280', '#9ca3af', '#d1d5db'];
+    const coloresDoughnut = ['#5681AE', '#3D5A78', '#8EA9C4', '#5A6068', '#BFC4CC'];
     const ctxTop = document.getElementById('chartTopProductos');
     if (ctxTop) {
         if (chartTopProd) chartTopProd.destroy();
@@ -372,11 +402,11 @@ function _initChartTemporal(periodo) {
                 {
                     label: 'Ventas',
                     data: ventasData,
-                    borderColor: '#111827',
-                    backgroundColor: 'rgba(17,24,39,0.06)',
+                    borderColor: '#5681AE',
+                    backgroundColor: 'rgba(86,129,174,0.10)',
                     fill: true, tension: 0.4, borderWidth: 2,
                     pointRadius: puntos, pointHoverRadius: 5,
-                    pointBackgroundColor: '#111827'
+                    pointBackgroundColor: '#5681AE'
                 },
                 {
                     label: 'Ganancia',
@@ -404,7 +434,7 @@ function _initChartTemporal(periodo) {
                 x: { grid: { display: false }, ticks: { font: { size: 11 }, color: '#9ca3af', maxRotation: 0 } },
                 y: {
                     beginAtZero: true,
-                    grid: { color: 'rgba(0,0,0,0.04)', drawBorder: false },
+                    grid: { color: 'rgba(255,255,255,0.06)', drawBorder: false },
                     ticks: {
                         font: { size: 11 }, color: '#9ca3af',
                         callback: v => v >= 1e6 ? `${(v/1e6).toFixed(1)}M` : v >= 1e3 ? `${(v/1e3).toFixed(0)}K` : v
@@ -715,8 +745,8 @@ async function _cargarIntelProyeccion() {
     if (canvas) {
         if (_chartProyeccion) _chartProyeccion.destroy();
         const datasets = [
-            { label: 'Real', data: real, borderColor: '#111827', backgroundColor: 'rgba(17,24,39,0.07)', fill: true, tension: 0.3, borderWidth: 2, pointRadius: 2, spanGaps: false },
-            { label: 'Proyección', data: proyec, borderColor: '#6366f1', backgroundColor: 'rgba(99,102,241,0.06)', fill: true, tension: 0.3, borderWidth: 2, borderDash: [6, 3], pointRadius: 0, spanGaps: false }
+            { label: 'Real', data: real, borderColor: '#E9E7E1', backgroundColor: 'rgba(233,231,225,0.06)', fill: true, tension: 0.3, borderWidth: 2, pointRadius: 2, spanGaps: false },
+            { label: 'Proyección', data: proyec, borderColor: '#5681AE', backgroundColor: 'rgba(86,129,174,0.08)', fill: true, tension: 0.3, borderWidth: 2, borderDash: [6, 3], pointRadius: 0, spanGaps: false }
         ];
         if (meta) datasets.push({ label: 'Meta', data: meta, borderColor: '#f59e0b', borderWidth: 1.5, borderDash: [4, 4], pointRadius: 0, fill: false });
         _chartProyeccion = new Chart(canvas, {
@@ -731,7 +761,7 @@ async function _cargarIntelProyeccion() {
                 },
                 scales: {
                     x: { grid: { display: false }, ticks: { font: { size: 10 }, color: '#9ca3af', maxTicksLimit: 10 } },
-                    y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.04)' }, ticks: { font: { size: 10 }, color: '#9ca3af', callback: v => v >= 1e6 ? `${(v/1e6).toFixed(1)}M` : v >= 1e3 ? `${(v/1e3).toFixed(0)}K` : v } }
+                    y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.06)' }, ticks: { font: { size: 10 }, color: '#9ca3af', callback: v => v >= 1e6 ? `${(v/1e6).toFixed(1)}M` : v >= 1e3 ? `${(v/1e3).toFixed(0)}K` : v } }
                 }
             }
         });

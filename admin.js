@@ -750,6 +750,8 @@ async function cargarDatosIniciales() {
         productosDataOriginal = JSON.parse(JSON.stringify(productosData));
         productosFiltrados = [...productosData.productos];
         clientesFiltrados = [...productosData.clientes];
+        // Costos pueden haber cambiado → invalidar cache de ganancia
+        if (typeof bumpGananciaCache === 'function') bumpGananciaCache();
 
         const filterCliente = document.getElementById('filtroCliente');
         if (filterCliente) {

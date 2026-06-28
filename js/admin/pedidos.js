@@ -912,7 +912,24 @@ function generarTicketTermico(pedidoId) {
 // ============================================
 // CALCULO DE GANANCIA NETA
 // ============================================
+// Cache de ganancia por pedido (hot path: .find por ítem en productosData).
+// Clave: id + total + nº items + versión. La versión sube cuando cambian
+// datos/catálogo (bumpGananciaCache) → cero riesgo de cifras stale.
+const _gananciaCache = new Map();
+let _gananciaVer = 0;
+function bumpGananciaCache() { _gananciaVer++; if (_gananciaCache.size > 5000) _gananciaCache.clear(); }
+if (typeof window !== 'undefined') window.bumpGananciaCache = bumpGananciaCache;
+
 function calcularGananciaPedido(pedido) {
+    if (!pedido) return { costoTotal: 0, gananciaTotal: 0, margenPromedio: 0, itemsConCosto: 0, itemsTotales: 0 };
+    const _key = pedido.id ? `${pedido.id}:${pedido.total || 0}:${(pedido.items || []).length}:${_gananciaVer}` : null;
+    if (_key) { const _hit = _gananciaCache.get(_key); if (_hit) return _hit; }
+    const _res = _calcGananciaPedidoRaw(pedido);
+    if (_key) _gananciaCache.set(_key, _res);
+    return _res;
+}
+
+function _calcGananciaPedidoRaw(pedido) {
     let costoTotal = 0;
     let ventaTotal = pedido.total || 0;
     let itemsConCosto = 0;

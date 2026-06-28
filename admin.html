@@ -176,7 +176,8 @@
         /* Global search */
         #globalSearchOverlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 3000; display: none; align-items: flex-start; justify-content: center; padding-top: 10vh; }
         #globalSearchOverlay.show { display: flex; }
-        #globalSearchBox { background: var(--panel); border: 1px solid var(--hairline); border-radius: var(--hdv-radius-xl); width: 90%; max-width: 600px; overflow: hidden; box-shadow: var(--hdv-shadow-modal); animation: confirmSlideUp 0.25s var(--ease-out); }
+        /* Command palette: acción de teclado de alta frecuencia → sin animación de apertura (Emil/Raycast) */
+        #globalSearchBox { background: var(--panel); border: 1px solid var(--hairline); border-radius: var(--hdv-radius-xl); width: 90%; max-width: 600px; overflow: hidden; box-shadow: var(--hdv-shadow-modal); }
         #globalSearchInput:focus { outline: none; }
 
         /* SaaS Table styling */
@@ -231,13 +232,13 @@
 
     <!-- Global search overlay -->
     <div id="globalSearchOverlay" data-action="cerrarBusquedaGlobal">
-        <div id="globalSearchBox">
+        <div id="globalSearchBox" role="dialog" aria-modal="true" aria-label="Buscador de comandos">
             <div class="p-4 border-b border-gray-200 flex items-center gap-3">
                 <i data-lucide="search" class="w-5 h-5 text-gray-400"></i>
-                <sl-input type="text" id="globalSearchInput" placeholder="Buscar productos, clientes, pedidos..." class="flex-1" size="large" autofocus no-spin-buttons></sl-input>
+                <sl-input type="text" id="globalSearchInput" aria-label="Buscar productos, clientes, pedidos o ejecutar una acción" aria-controls="globalSearchResults" placeholder="Buscar productos, clientes, pedidos..." class="flex-1" size="large" autofocus no-spin-buttons></sl-input>
                 <kbd class="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded">ESC</kbd>
             </div>
-            <div id="globalSearchResults" class="max-h-[60vh] overflow-y-auto p-2"></div>
+            <div id="globalSearchResults" role="listbox" aria-label="Resultados" class="max-h-[60vh] overflow-y-auto p-2"></div>
         </div>
     </div>
 

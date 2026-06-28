@@ -1494,8 +1494,10 @@ const _GS_ACCIONES = [
     ['Asistente CartónIA', 'sparkles', () => { if (typeof abrirChatIA === 'function') abrirChatIA(); }],
 ];
 let _gsSel = -1; // índice seleccionado para navegación por teclado
+let _gsFocoPrevio = null; // a11y: foco a restaurar al cerrar
 
 function abrirBusquedaGlobal() {
+    _gsFocoPrevio = document.activeElement;
     const overlay = document.getElementById('globalSearchOverlay');
     overlay.classList.add('show');
     const input = document.getElementById('globalSearchInput');
@@ -1507,6 +1509,9 @@ function abrirBusquedaGlobal() {
 function cerrarBusquedaGlobal(e) {
     if (e && e.target !== e.currentTarget) return;
     document.getElementById('globalSearchOverlay').classList.remove('show');
+    // a11y: devolver el foco al elemento que abrió el palette
+    if (_gsFocoPrevio && typeof _gsFocoPrevio.focus === 'function') { try { _gsFocoPrevio.focus(); } catch (_) {} }
+    _gsFocoPrevio = null;
 }
 
 function _gsItem(attrs, icon, titulo, subtitulo) {

@@ -38,6 +38,20 @@ function stockNavegar(nivel) {
     renderizarStockGrid();
 }
 
+// Navegación de stock por data-action (CSP-safe; reemplaza onclick inline)
+function stockNavCategoria(catId) {
+    stockNavCatId = catId;
+    stockNavNivel = 'subcategorias';
+    actualizarBreadcrumbStock();
+    renderizarStockGrid();
+}
+function stockNavSubcategoria(sub) {
+    stockNavSubId = sub || null;
+    stockNavNivel = 'productos';
+    actualizarBreadcrumbStock();
+    renderizarStockGrid();
+}
+
 function actualizarBreadcrumbStock() {
     const cat = document.getElementById('stock-breadcrumb-cat');
     const sub = document.getElementById('stock-breadcrumb-sub');
@@ -108,7 +122,7 @@ function renderizarCategoriasStock(container) {
             const count = productosData.productos.filter(p => p.categoria === cat.id).length;
             const totalStock = productosData.productos.filter(p => p.categoria === cat.id)
                 .reduce((s, p) => s + p.presentaciones.reduce((ss, pr) => ss + (pr.stock || 0), 0), 0);
-            return `<div onclick="stockNavCatId='${cat.id}';stockNavNivel='subcategorias';actualizarBreadcrumbStock();renderizarStockGrid()"
+            return `<div data-action="stockNavCategoria" data-cat="${escapeHTML(cat.id)}"
                 class="bg-white border border-gray-200 rounded-xl p-5 cursor-pointer hover:shadow-md hover:border-gray-400 transition-all">
                 <p class="font-bold text-gray-800 text-lg mb-1">${escapeHTML(cat.nombre)}</p>
                 <p class="text-sm text-gray-500">${count} productos</p>
@@ -120,7 +134,7 @@ function renderizarCategoriasStock(container) {
 
 function renderizarSubcategoriasStock(container, subs, filtro) {
     container.innerHTML = `<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        <div onclick="stockNavSubId=null;stockNavNivel='productos';actualizarBreadcrumbStock();renderizarStockGrid()"
+        <div data-action="stockNavSubcategoria" data-sub=""
             class="bg-gray-50 border border-dashed border-gray-300 rounded-xl p-5 cursor-pointer hover:shadow-md transition-all flex items-center justify-center">
             <p class="font-bold text-gray-500 text-sm">Ver todos</p>
         </div>
@@ -128,7 +142,7 @@ function renderizarSubcategoriasStock(container, subs, filtro) {
             const count = productosData.productos.filter(p => p.categoria === stockNavCatId && p.subcategoria === sub).length;
             const totalStock = productosData.productos.filter(p => p.categoria === stockNavCatId && p.subcategoria === sub)
                 .reduce((s, p) => s + p.presentaciones.reduce((ss, pr) => ss + (pr.stock || 0), 0), 0);
-            return `<div onclick="stockNavSubId='${sub}';stockNavNivel='productos';actualizarBreadcrumbStock();renderizarStockGrid()"
+            return `<div data-action="stockNavSubcategoria" data-sub="${escapeHTML(sub)}"
                 class="bg-white border border-gray-200 rounded-xl p-5 cursor-pointer hover:shadow-md hover:border-gray-400 transition-all">
                 <p class="font-bold text-gray-800 mb-1">${escapeHTML(sub)}</p>
                 <p class="text-sm text-gray-500">${count} productos</p>
@@ -166,15 +180,15 @@ async function renderizarProductosStock(container, prods, filtro) {
             const presRows = prod.presentaciones.map((p, i) => `
                 <div class="flex items-center gap-2 py-1.5 border-b border-gray-50 last:border-0">
                     <span class="text-xs text-gray-500 w-14 shrink-0">${escapeHTML(p.tamano)}</span>
-                    <input type="number" value="${p.precio_base || 0}" onchange="ajustarPrecioInline('${prod.id}','${p.tamano}','precio_base',this.value)"
+                    <input type="number" value="${p.precio_base || 0}" data-action-change="ajustarPrecioInline" data-pid="${escapeHTML(prod.id)}" data-tam="${escapeHTML(p.tamano)}" data-campo="precio_base"
                         class="w-16 text-xs text-right border border-gray-200 rounded px-1 py-0.5 focus:border-blue-400 outline-none" title="Precio">
-                    <input type="number" value="${p.costo || 0}" onchange="ajustarPrecioInline('${prod.id}','${p.tamano}','costo',this.value)"
+                    <input type="number" value="${p.costo || 0}" data-action-change="ajustarPrecioInline" data-pid="${escapeHTML(prod.id)}" data-tam="${escapeHTML(p.tamano)}" data-campo="costo"
                         class="w-14 text-xs text-right border border-gray-200 rounded px-1 py-0.5 focus:border-blue-400 outline-none text-gray-400" title="Costo">
                     <span class="font-bold text-sm w-8 text-center ${(p.stock || 0) <= 0 ? 'text-red-600' : (p.stock || 0) < 10 ? 'text-yellow-600' : 'text-green-600'}">${p.stock || 0}</span>
                     <div class="flex gap-1 ml-auto shrink-0">
-                        <sl-button onclick="ajustarStock('${prod.id}','${p.tamano}',-1)" variant="danger" size="small">−</sl-button>
-                        <sl-button onclick="ajustarStock('${prod.id}','${p.tamano}',1)" variant="success" size="small">+</sl-button>
-                        <sl-button onclick="ajustarStock('${prod.id}','${p.tamano}',10)" variant="primary" size="small">+10</sl-button>
+                        <sl-button data-action="ajustarStock" data-pid="${escapeHTML(prod.id)}" data-tam="${escapeHTML(p.tamano)}" data-delta="-1" variant="danger" size="small">−</sl-button>
+                        <sl-button data-action="ajustarStock" data-pid="${escapeHTML(prod.id)}" data-tam="${escapeHTML(p.tamano)}" data-delta="1" variant="success" size="small">+</sl-button>
+                        <sl-button data-action="ajustarStock" data-pid="${escapeHTML(prod.id)}" data-tam="${escapeHTML(p.tamano)}" data-delta="10" variant="primary" size="small">+10</sl-button>
                     </div>
                 </div>`).join('');
             return `<div class="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-sm transition-all">
@@ -654,9 +668,9 @@ function abrirPerfilProducto(prodId) {
             <span class="text-sm text-gray-600 w-20">${escapeHTML(p.tamano)}</span>
             <span class="font-bold ${(p.stock || 0) <= 0 ? 'text-red-600' : 'text-green-600'}">${p.stock || 0}</span>
             <div class="flex gap-1 ml-auto">
-                <sl-button onclick="ajustarStock('${prodId}','${p.tamano}',-1);abrirPerfilProducto('${prodId}')" variant="danger" size="small">−</sl-button>
-                <sl-button onclick="ajustarStock('${prodId}','${p.tamano}',1);abrirPerfilProducto('${prodId}')" variant="success" size="small">+</sl-button>
-                <sl-button onclick="ajustarStock('${prodId}','${p.tamano}',10);abrirPerfilProducto('${prodId}')" variant="primary" size="small">+10</sl-button>
+                <sl-button data-action="ajustarStock" data-pid="${escapeHTML(prodId)}" data-tam="${escapeHTML(p.tamano)}" data-delta="-1" data-perfil="1" variant="danger" size="small">−</sl-button>
+                <sl-button data-action="ajustarStock" data-pid="${escapeHTML(prodId)}" data-tam="${escapeHTML(p.tamano)}" data-delta="1" data-perfil="1" variant="success" size="small">+</sl-button>
+                <sl-button data-action="ajustarStock" data-pid="${escapeHTML(prodId)}" data-tam="${escapeHTML(p.tamano)}" data-delta="10" data-perfil="1" variant="primary" size="small">+10</sl-button>
             </div>
         </div>`).join('');
 
@@ -802,7 +816,7 @@ function agregarFilaVariante(datos) {
             <input type="checkbox" class="sr-only peer var-activo" ${d.activo !== false ? 'checked' : ''}>
             <div class="relative w-7 h-4 bg-gray-300 rounded-full peer peer-checked:bg-green-500 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:after:translate-x-3"></div>
         </label>
-        <button type="button" onclick="this.closest('.variante-fila').remove()"
+        <button type="button" data-action="quitarFila" data-sel=".variante-fila"
                 class="w-6 text-gray-300 hover:text-red-500 transition-colors shrink-0" title="Eliminar fila">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
         </button>`;
@@ -1033,7 +1047,7 @@ function agregarPresModal() {
         <input type="number" value="0" data-pres-idx="${idx}" data-pres-field="precio" class="w-24 px-2 py-1 text-sm border rounded">
         <label class="text-xs text-gray-400">Costo:</label>
         <input type="number" value="0" data-pres-idx="${idx}" data-pres-field="costo" class="w-24 px-2 py-1 text-sm border rounded">
-        <sl-button onclick="this.parentElement.remove()" variant="text" size="small">x</sl-button>`;
+        <sl-button data-action="quitarFila" data-sel="parent" variant="text" size="small">x</sl-button>`;
     container.querySelector('button:last-child').before(div);
 }
 
@@ -1179,7 +1193,7 @@ function renderizarListaCategorias() {
                 <div class="flex items-center gap-2 flex-1 min-w-0">
                     <span id="cat-nombre-${escapeHTML(cat.id)}" class="font-bold text-gray-800 truncate">${escapeHTML(cat.nombre)}</span>
                     <span class="text-xs text-gray-400 shrink-0">(${escapeHTML(cat.id)})</span>
-                    <button onclick="editarNombreCategoria('${escapeHTML(cat.id)}')" class="text-gray-400 hover:text-indigo-600 transition-colors shrink-0" title="Renombrar">
+                    <button data-action="editarNombreCategoria" data-cat="${escapeHTML(cat.id)}" class="text-gray-400 hover:text-indigo-600 transition-colors shrink-0" title="Renombrar">
                         <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
                     </button>
                     ${!activa ? '<span class="text-[10px] font-bold bg-red-200 text-red-700 px-1.5 py-0.5 rounded">INACTIVA</span>' : ''}
@@ -1187,19 +1201,19 @@ function renderizarListaCategorias() {
                 <div class="flex items-center gap-3 shrink-0">
                     <span class="text-xs text-gray-400">${numProds} prod.</span>
                     <sl-switch size="small" ${activa ? 'checked' : ''} title="${activa ? 'Desactivar categoría' : 'Activar categoría'}"
-                        onsl-change="toggleEstadoCategoria('${escapeHTML(cat.id)}', this.checked)"></sl-switch>
-                    <sl-button onclick="eliminarCategoria('${escapeHTML(cat.id)}')" variant="text" size="small">Eliminar</sl-button>
+                        data-action-slchange="toggleEstadoCategoria" data-cat="${escapeHTML(cat.id)}"></sl-switch>
+                    <sl-button data-action="eliminarCategoria" data-cat="${escapeHTML(cat.id)}" variant="text" size="small">Eliminar</sl-button>
                 </div>
             </div>
             <div class="flex flex-wrap gap-2 mb-2">
                 ${(cat.subcategorias || []).map(s => `
                     <span class="bg-white px-2 py-1 rounded-lg text-xs border border-gray-200 flex items-center gap-1">
-                        ${escapeHTML(s)} <sl-button onclick="eliminarSubcategoria('${escapeHTML(cat.id)}','${escapeHTML(s)}')" variant="text" size="small">x</sl-button>
+                        ${escapeHTML(s)} <sl-button data-action="eliminarSubcategoria" data-cat="${escapeHTML(cat.id)}" data-sub="${escapeHTML(s)}" variant="text" size="small">x</sl-button>
                     </span>`).join('')}
             </div>
             <div class="flex gap-2">
                 <input type="text" id="nuevaSub_${cat.id}" class="flex-1 border border-gray-200 rounded-lg px-2 py-1 text-xs" placeholder="Nueva subcategoria...">
-                <sl-button onclick="agregarSubcategoria('${cat.id}')" variant="neutral" size="small">+</sl-button>
+                <sl-button data-action="agregarSubcategoria" data-cat="${escapeHTML(cat.id)}" variant="neutral" size="small">+</sl-button>
             </div>`;
         container.appendChild(div);
     });

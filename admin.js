@@ -87,6 +87,7 @@ const ACTION_DISPATCH = {
     'cerrarBusquedaGlobal':             ()     => cerrarBusquedaGlobal(),
     'abrirBusquedaGlobal':              ()     => abrirBusquedaGlobal(),
     'abrirChatIA':                      ()     => typeof abrirChatIA === 'function' && abrirChatIA(),
+    'toggleNotificaciones':             ()     => typeof toggleNotificaciones === 'function' && toggleNotificaciones(),
     'forzarActualizacionAdmin':         ()     => forzarActualizacionAdmin(),
     'cerrarSesion':                     ()     => cerrarSesion(),
 
@@ -750,6 +751,8 @@ async function cargarDatosIniciales() {
         productosDataOriginal = JSON.parse(JSON.stringify(productosData));
         productosFiltrados = [...productosData.productos];
         clientesFiltrados = [...productosData.clientes];
+        // Costos pueden haber cambiado → invalidar cache de ganancia
+        if (typeof bumpGananciaCache === 'function') bumpGananciaCache();
 
         const filterCliente = document.getElementById('filtroCliente');
         if (filterCliente) {
@@ -1465,91 +1468,159 @@ function toggleSidebar() {
 // ============================================
 // BUSQUEDA GLOBAL (Ctrl+K)
 // ============================================
+// Command palette: secciones navegables + acciones rápidas
+const _GS_SECCIONES = [
+    ['dashboard', 'Dashboard', 'layout-dashboard'],
+    ['pedidos', 'Pedidos', 'clipboard-list'],
+    ['ventas', 'Ventas', 'receipt'],
+    ['dtes', 'Mis DTEs', 'file-text'],
+    ['creditos', 'Créditos', 'hand-coins'],
+    ['reportes', 'Reportes', 'bar-chart-3'],
+    ['stock', 'Stock', 'boxes'],
+    ['productos', 'Productos', 'package'],
+    ['clientes', 'Clientes', 'users'],
+    ['promociones', 'Promociones', 'tag'],
+    ['proveedores', 'Proveedores', 'truck'],
+    ['rendiciones', 'Rendiciones', 'wallet'],
+    ['metas', 'Metas', 'target'],
+    ['inactivos', 'Clientes inactivos', 'user-x'],
+    ['cierre', 'Cierre mensual', 'calendar-check'],
+    ['sifen-estado', 'Estado SIFEN', 'shield-check'],
+    ['forense', 'Forense', 'search'],
+    ['herramientas', 'Herramientas', 'wrench'],
+];
+const _GS_ACCIONES = [
+    ['Actualizar datos', 'refresh-cw', () => { if (typeof forzarActualizacionAdmin === 'function') forzarActualizacionAdmin(); }],
+    ['Asistente CartónIA', 'sparkles', () => { if (typeof abrirChatIA === 'function') abrirChatIA(); }],
+];
+let _gsSel = -1; // índice seleccionado para navegación por teclado
+let _gsFocoPrevio = null; // a11y: foco a restaurar al cerrar
+
 function abrirBusquedaGlobal() {
+    _gsFocoPrevio = document.activeElement;
     const overlay = document.getElementById('globalSearchOverlay');
     overlay.classList.add('show');
     const input = document.getElementById('globalSearchInput');
     input.value = '';
+    ejecutarBusquedaGlobal();   // pinta acciones + secciones de entrada
     input.focus();
-    document.getElementById('globalSearchResults').innerHTML = '<p class="p-6 text-center text-gray-500 text-sm">Escribe para buscar en productos, clientes y pedidos</p>';
 }
 
 function cerrarBusquedaGlobal(e) {
     if (e && e.target !== e.currentTarget) return;
     document.getElementById('globalSearchOverlay').classList.remove('show');
+    // a11y: devolver el foco al elemento que abrió el palette
+    if (_gsFocoPrevio && typeof _gsFocoPrevio.focus === 'function') { try { _gsFocoPrevio.focus(); } catch (_) {} }
+    _gsFocoPrevio = null;
+}
+
+function _gsItem(attrs, icon, titulo, subtitulo) {
+    return `<sl-button ${attrs} variant="text" size="small" class="gs-item w-full text-left px-4 py-3 rounded-lg flex items-center gap-3">
+        <i data-lucide="${icon}" class="w-5 h-5 text-gray-400"></i>
+        <div><p class="font-medium text-gray-800 text-sm">${escapeHTML(titulo)}</p>${subtitulo ? `<p class="text-xs text-gray-400">${escapeHTML(subtitulo)}</p>` : ''}</div>
+    </sl-button>`;
 }
 
 function ejecutarBusquedaGlobal() {
     const q = document.getElementById('globalSearchInput').value.toLowerCase().trim();
     const results = document.getElementById('globalSearchResults');
-    if (q.length < 2) {
-        results.innerHTML = '<p class="p-6 text-center text-gray-500 text-sm">Escribe al menos 2 caracteres</p>';
-        return;
-    }
-
     let html = '';
 
-    // Buscar productos (A-07: data-attributes en lugar de inline onclick)
-    const prods = (productosData.productos || []).filter(p => p.nombre.toLowerCase().includes(q) || p.id.toLowerCase().includes(q)).slice(0, 5);
-    if (prods.length > 0) {
-        html += '<p class="px-4 py-2 text-xs font-bold text-gray-500 uppercase">Productos</p>';
-        prods.forEach(p => {
-            html += `<sl-button data-search-type="producto" data-search-nombre="${escapeHTML(p.nombre)}" variant="text" size="small" class="w-full text-left px-4 py-3 hover:bg-gray-100 rounded-lg flex items-center gap-3">
-                <i data-lucide="package" class="w-5 h-5 text-gray-400"></i>
-                <div><p class="font-medium text-gray-800 text-sm">${escapeHTML(p.nombre)}</p><p class="text-xs text-gray-400">${escapeHTML(p.id)} - ${escapeHTML(p.categoria)}</p></div>
-            </sl-button>`;
+    // Acciones rápidas (siempre que coincidan o query vacío)
+    const accs = _GS_ACCIONES.filter(a => !q || a[0].toLowerCase().includes(q));
+    if (accs.length > 0) {
+        html += '<p class="px-4 py-2 text-xs font-bold text-gray-500 uppercase">Acciones</p>';
+        accs.forEach(a => {
+            const idx = _GS_ACCIONES.indexOf(a);
+            html += _gsItem(`data-gs-action="${idx}"`, a[1], a[0], '');
         });
     }
 
-    // Buscar clientes (A-07: data-attributes en lugar de inline onclick)
-    const clis = (productosData.clientes || []).filter(c => (c.razon_social || c.nombre || '').toLowerCase().includes(q) || (c.ruc || '').includes(q) || (c.telefono || '').includes(q)).slice(0, 5);
-    if (clis.length > 0) {
-        html += '<p class="px-4 py-2 text-xs font-bold text-gray-500 uppercase">Clientes</p>';
-        clis.forEach(c => {
-            html += `<sl-button data-search-type="cliente" data-search-id="${escapeHTML(c.id)}" variant="text" size="small" class="w-full text-left px-4 py-3 hover:bg-gray-100 rounded-lg flex items-center gap-3">
-                <i data-lucide="user" class="w-5 h-5 text-gray-400"></i>
-                <div><p class="font-medium text-gray-800 text-sm">${escapeHTML(c.razon_social || c.nombre)}</p><p class="text-xs text-gray-400">${escapeHTML(c.zona || '')} - ${escapeHTML(c.telefono || '')}</p></div>
-            </sl-button>`;
+    // Navegar a sección
+    const secs = _GS_SECCIONES.filter(s => !q || s[1].toLowerCase().includes(q) || s[0].includes(q));
+    if (secs.length > 0) {
+        html += '<p class="px-4 py-2 text-xs font-bold text-gray-500 uppercase">Ir a sección</p>';
+        secs.slice(0, q ? 6 : 18).forEach(s => {
+            html += _gsItem(`data-gs-nav="${escapeHTML(s[0])}"`, s[2], s[1], '');
         });
     }
 
-    // Buscar pedidos
-    const peds = (todosLosPedidos || []).filter(p => p.id?.toLowerCase().includes(q) || (p.cliente?.nombre || '').toLowerCase().includes(q)).slice(0, 5);
-    if (peds.length > 0) {
-        html += '<p class="px-4 py-2 text-xs font-bold text-gray-500 uppercase">Pedidos</p>';
-        peds.forEach(p => {
-            html += `<sl-button data-search-type="pedido" variant="text" size="small" class="w-full text-left px-4 py-3 hover:bg-gray-100 rounded-lg flex items-center gap-3">
-                <i data-lucide="clipboard-list" class="w-5 h-5 text-gray-400"></i>
-                <div><p class="font-medium text-gray-800 text-sm">${escapeHTML(p.cliente?.nombre || 'N/A')}</p><p class="text-xs text-gray-400">${escapeHTML(p.id)} - ${formatearGuaranies(p.total)}</p></div>
-            </sl-button>`;
-        });
+    if (q.length >= 2) {
+        // Productos
+        const prods = (productosData.productos || []).filter(p => p.nombre.toLowerCase().includes(q) || p.id.toLowerCase().includes(q)).slice(0, 5);
+        if (prods.length > 0) {
+            html += '<p class="px-4 py-2 text-xs font-bold text-gray-500 uppercase">Productos</p>';
+            prods.forEach(p => {
+                html += _gsItem(`data-search-type="producto" data-search-nombre="${escapeHTML(p.nombre)}"`, 'package', p.nombre, `${p.id} · ${p.categoria}`);
+            });
+        }
+        // Clientes
+        const clis = (productosData.clientes || []).filter(c => (c.razon_social || c.nombre || '').toLowerCase().includes(q) || (c.ruc || '').includes(q) || (c.telefono || '').includes(q)).slice(0, 5);
+        if (clis.length > 0) {
+            html += '<p class="px-4 py-2 text-xs font-bold text-gray-500 uppercase">Clientes</p>';
+            clis.forEach(c => {
+                html += _gsItem(`data-search-type="cliente" data-search-id="${escapeHTML(c.id)}"`, 'user', c.razon_social || c.nombre, `${c.zona || ''} ${c.telefono || ''}`.trim());
+            });
+        }
+        // Pedidos
+        const peds = (todosLosPedidos || []).filter(p => p.id?.toLowerCase().includes(q) || (p.cliente?.nombre || '').toLowerCase().includes(q)).slice(0, 5);
+        if (peds.length > 0) {
+            html += '<p class="px-4 py-2 text-xs font-bold text-gray-500 uppercase">Pedidos</p>';
+            peds.forEach(p => {
+                html += _gsItem(`data-search-type="pedido"`, 'clipboard-list', p.cliente?.nombre || 'N/A', `${p.id} · ${formatearGuaranies(p.total)}`);
+            });
+        }
     }
 
-    if (!html) html = '<p class="p-6 text-center text-gray-500 text-sm font-medium">Sin resultados para esta busqueda</p>';
+    if (!html) html = '<p class="p-6 text-center text-gray-500 text-sm font-medium">Sin resultados</p>';
     results.innerHTML = html;
     lucide.createIcons();
 
-    // A-07: Event delegation para resultados de busqueda global
-    results.querySelectorAll('[data-search-type]').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const type = this.getAttribute('data-search-type');
-            cerrarBusquedaGlobal(null);
-            if (type === 'producto') {
-                cambiarSeccion('productos');
-                const nombre = this.getAttribute('data-search-nombre');
-                setTimeout(() => {
-                    const input = document.getElementById('buscarProducto');
-                    if (input) { input.value = nombre; filtrarProductos(); }
-                }, 100);
-            } else if (type === 'cliente') {
-                cambiarSeccion('clientes');
-                const clienteId = this.getAttribute('data-search-id');
-                setTimeout(() => abrirPerfilCliente(clienteId), 200);
-            } else if (type === 'pedido') {
-                cambiarSeccion('pedidos');
-            }
-        });
+    // Activación (click o Enter) — event delegation
+    results.querySelectorAll('.gs-item').forEach(btn => {
+        btn.addEventListener('click', () => _gsActivar(btn));
     });
+
+    // Reset de selección de teclado al primer item
+    _gsSel = -1;
+    _gsMover(1);
+}
+
+function _gsActivar(btn) {
+    if (!btn) return;
+    const navSec = btn.getAttribute('data-gs-nav');
+    const accIdx = btn.getAttribute('data-gs-action');
+    const type = btn.getAttribute('data-search-type');
+    cerrarBusquedaGlobal(null);
+    if (navSec) { cambiarSeccion(navSec); return; }
+    if (accIdx != null) { const a = _GS_ACCIONES[parseInt(accIdx, 10)]; if (a && a[2]) a[2](); return; }
+    if (type === 'producto') {
+        cambiarSeccion('productos');
+        const nombre = btn.getAttribute('data-search-nombre');
+        setTimeout(() => { const input = document.getElementById('buscarProducto'); if (input) { input.value = nombre; filtrarProductos(); } }, 100);
+    } else if (type === 'cliente') {
+        cambiarSeccion('clientes');
+        const clienteId = btn.getAttribute('data-search-id');
+        setTimeout(() => abrirPerfilCliente(clienteId), 200);
+    } else if (type === 'pedido') {
+        cambiarSeccion('pedidos');
+    }
+}
+
+function _gsMover(delta) {
+    const items = Array.from(document.querySelectorAll('#globalSearchResults .gs-item'));
+    if (items.length === 0) { _gsSel = -1; return; }
+    if (_gsSel >= 0 && items[_gsSel]) items[_gsSel].classList.remove('gs-selected');
+    _gsSel = (_gsSel + delta + items.length) % items.length;
+    const sel = items[_gsSel];
+    sel.classList.add('gs-selected');
+    sel.scrollIntoView({ block: 'nearest' });
+}
+
+function _gsActivarSeleccionado() {
+    const items = document.querySelectorAll('#globalSearchResults .gs-item');
+    if (_gsSel >= 0 && items[_gsSel]) _gsActivar(items[_gsSel]);
+    else if (items[0]) _gsActivar(items[0]);
 }
 
 // ============================================
@@ -1562,6 +1633,13 @@ document.addEventListener('keydown', (e) => {
         if (overlay.classList.contains('show')) cerrarBusquedaGlobal(null);
         else abrirBusquedaGlobal();
     }
+    // Command palette: navegación por teclado cuando está abierto
+    const gsOverlay = document.getElementById('globalSearchOverlay');
+    if (gsOverlay && gsOverlay.classList.contains('show')) {
+        if (e.key === 'ArrowDown') { e.preventDefault(); _gsMover(1); return; }
+        if (e.key === 'ArrowUp') { e.preventDefault(); _gsMover(-1); return; }
+        if (e.key === 'Enter') { e.preventDefault(); _gsActivarSeleccionado(); return; }
+    }
     if ((e.ctrlKey || e.metaKey) && e.key === 's') {
         e.preventDefault();
         if (cambiosSinGuardar > 0) {
@@ -1573,6 +1651,7 @@ document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
         const search = document.getElementById('globalSearchOverlay');
         if (search.classList.contains('show')) { cerrarBusquedaGlobal(null); return; }
+        if (typeof _notifPanelAbierto !== 'undefined' && _notifPanelAbierto) { toggleNotificaciones(true); return; }
     }
 });
 

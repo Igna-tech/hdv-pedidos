@@ -73,7 +73,7 @@
             color: var(--sidebar-text-hover);
         }
         .nav-item:hover i { color: var(--sidebar-text-hover) !important; }
-        .nav-item:focus-visible { outline: 2px solid #818cf8; outline-offset: -2px; }
+        .nav-item:focus-visible { outline: 2px solid var(--steel-bright); outline-offset: -2px; }
         .nav-item.active {
             background-color: var(--sidebar-active-bg);
             color: var(--sidebar-active-text);
@@ -176,7 +176,8 @@
         /* Global search */
         #globalSearchOverlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 3000; display: none; align-items: flex-start; justify-content: center; padding-top: 10vh; }
         #globalSearchOverlay.show { display: flex; }
-        #globalSearchBox { background: var(--panel); border: 1px solid var(--hairline); border-radius: var(--hdv-radius-xl); width: 90%; max-width: 600px; overflow: hidden; box-shadow: var(--hdv-shadow-modal); animation: confirmSlideUp 0.25s var(--ease-out); }
+        /* Command palette: acción de teclado de alta frecuencia → sin animación de apertura (Emil/Raycast) */
+        #globalSearchBox { background: var(--panel); border: 1px solid var(--hairline); border-radius: var(--hdv-radius-xl); width: 90%; max-width: 600px; overflow: hidden; box-shadow: var(--hdv-shadow-modal); }
         #globalSearchInput:focus { outline: none; }
 
         /* SaaS Table styling */
@@ -231,13 +232,13 @@
 
     <!-- Global search overlay -->
     <div id="globalSearchOverlay" data-action="cerrarBusquedaGlobal">
-        <div id="globalSearchBox">
+        <div id="globalSearchBox" role="dialog" aria-modal="true" aria-label="Buscador de comandos">
             <div class="p-4 border-b border-gray-200 flex items-center gap-3">
                 <i data-lucide="search" class="w-5 h-5 text-gray-400"></i>
-                <sl-input type="text" id="globalSearchInput" placeholder="Buscar productos, clientes, pedidos..." class="flex-1" size="large" autofocus no-spin-buttons></sl-input>
+                <sl-input type="text" id="globalSearchInput" aria-label="Buscar productos, clientes, pedidos o ejecutar una acción" aria-controls="globalSearchResults" placeholder="Buscar productos, clientes, pedidos..." class="flex-1" size="large" autofocus no-spin-buttons></sl-input>
                 <kbd class="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded">ESC</kbd>
             </div>
-            <div id="globalSearchResults" class="max-h-[60vh] overflow-y-auto p-2"></div>
+            <div id="globalSearchResults" role="listbox" aria-label="Resultados" class="max-h-[60vh] overflow-y-auto p-2"></div>
         </div>
     </div>
 
@@ -344,7 +345,7 @@
     </aside>
 
     <!-- MAIN CONTENT -->
-    <main class="flex-1 h-screen flex flex-col overflow-hidden bg-[#f1f5f9]">
+    <main class="flex-1 h-screen flex flex-col overflow-hidden bg-ground">
         <header class="bg-white border-b border-gray-200/80 h-14 flex items-center justify-between px-4 md:px-8 shrink-0">
             <div class="flex items-center gap-3">
                 <sl-icon-button id="hamburgerBtn" name="list" data-action="toggleSidebar" label="Menu" class="hidden" style="font-size:1.25rem; color:#6b7280;"></sl-icon-button>
@@ -353,12 +354,20 @@
             <div class="flex items-center gap-1.5 md:gap-3">
                 <sl-icon-button name="search" label="Buscar (Ctrl+K)" data-action="abrirBusquedaGlobal" style="font-size:1rem;"></sl-icon-button>
                 <button id="aiBtnHeader" data-action="abrirChatIA" title="CartónIA"
-                    class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gradient-to-r from-indigo-500 to-purple-600 text-white text-xs font-semibold hover:from-indigo-600 hover:to-purple-700 transition-all shadow-sm">
+                    class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gradient-to-r from-steel to-steel-bright text-white text-xs font-semibold hover:from-steel-bright hover:to-steel transition-all shadow-sm">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                     </svg>
                     <span class="hidden md:inline">CartónIA</span>
                 </button>
+                <div class="relative flex items-center">
+                    <sl-icon-button id="btnNotificaciones" name="bell" label="Notificaciones" data-action="toggleNotificaciones" style="font-size:1.05rem;"></sl-icon-button>
+                    <span id="notifBadge" class="hidden">0</span>
+                    <div id="notifPanel" class="hidden" role="dialog" aria-label="Notificaciones">
+                        <div class="notif-head"><span class="eyebrow-label">Notificaciones</span></div>
+                        <div id="notifLista" class="notif-lista"></div>
+                    </div>
+                </div>
                 <div id="status-badge" class="text-[10px] uppercase tracking-wider font-semibold flex items-center text-gray-400 mr-1">
                     <span class="w-2 h-2 bg-green-500 rounded-full mr-1.5"></span> <span class="hidden md:inline">En linea</span>
                 </div>
@@ -432,8 +441,12 @@
                 <!-- ROW 1 — KPI MENSUAL -->
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div class="saas-card p-6">
-                        <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Ventas del Mes</p>
+                        <div class="flex items-center justify-between mb-1">
+                            <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Ventas del Mes</p>
+                            <span id="dashVentasSparkline" class="shrink-0"></span>
+                        </div>
                         <p class="text-2xl font-bold text-green-700 tabular-nums" id="dashVentasMes">Gs. 0</p>
+                        <p class="text-xs text-gray-400 mt-1" id="dashVentasMesTrend">— vs mes anterior · últimos 14 días</p>
                     </div>
                     <div class="saas-card p-6">
                         <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Pedidos del Mes</p>
@@ -869,7 +882,7 @@
                     <sl-button data-action="agregarCreditoManual" variant="neutral" size="small">+ Credito Manual</sl-button>
                     <sl-button data-action="editarMensajeRecordatorio" variant="success" size="small">Editar Mensaje WhatsApp</sl-button>
                     <sl-button data-action="toggleVistaCreditos" data-arg="resumen" variant="primary" size="small">Resumen por Cliente</sl-button>
-                    <sl-button data-action="toggleVistaCreditos" data-arg="graficos" variant="neutral" size="small" style="--sl-color-neutral-600:#9333ea;--sl-color-neutral-700:#7e22ce;">Graficos</sl-button>
+                    <sl-button data-action="toggleVistaCreditos" data-arg="graficos" variant="neutral" size="small" style="--sl-color-neutral-600:#3D5A78;--sl-color-neutral-700:#345070;">Graficos</sl-button>
                     <sl-button data-action="toggleVistaCreditos" data-arg="lista" variant="neutral" size="small">Ver Lista</sl-button>
                     <sl-button data-action="toggleVistaCreditos" data-arg="historial" variant="neutral" size="small" style="--sl-color-neutral-600:#6b7280;--sl-color-neutral-700:#4b5563;">Historial</sl-button>
                 </div>
@@ -1689,7 +1702,7 @@
                                     </div>
                                 </div>
                                 <p class="text-sm text-gray-500 mb-4">Descarga un archivo ZIP con el KuDE (PDF) y el XML de cada factura y nota de credito emitida en el periodo. Listo para enviar a la contadora.</p>
-                                <sl-button data-action="exportarPaqueteZIP" id="btnZIP" variant="neutral" class="w-full" style="--sl-color-neutral-600:#9333ea;--sl-color-neutral-700:#7e22ce;">
+                                <sl-button data-action="exportarPaqueteZIP" id="btnZIP" variant="neutral" class="w-full" style="--sl-color-neutral-600:#3D5A78;--sl-color-neutral-700:#345070;">
                                     <i data-lucide="file-archive" class="w-4 h-4"></i> Descargar Paquete Tributario (ZIP)
                                 </sl-button>
                             </div>
@@ -2654,6 +2667,9 @@
     <script src="js/utils/dialogs.js"></script>
     <script src="js/utils/helpers.js"></script>
     <script src="js/utils/formatters.js"></script>
+    <script src="js/utils/memo.js"></script>
+    <script src="js/utils/async-ui.js"></script>
+    <script src="js/utils/virtual-list.js"></script>
     <script src="js/utils/printer.js"></script>
     <script src="js/utils/pdf-generator.js"></script>
     <!-- Compartido vendedor + admin -->
@@ -2666,13 +2682,14 @@
     <script src="js/admin/clientes.js"></script>
     <script src="js/admin/creditos.js"></script>
     <script src="js/admin/reportes-vendedor.js"></script>
+    <script src="js/admin/notificaciones.js"></script>
     <script src="js/modules/ventas/ventas-data.js"></script>
     <!-- IA CHAT DRAWER -->
     <sl-drawer id="aiChatDrawer" placement="end" style="--size: 430px;" no-header>
-        <div class="flex flex-col h-full bg-[#f8f9fc]" style="height:100vh;">
+        <div class="flex flex-col h-full bg-ground" style="height:100vh;">
 
             <!-- Header del chat -->
-            <div class="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 shrink-0">
+            <div class="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-steel to-steel-bright shrink-0">
                 <div class="flex items-center gap-2.5">
                     <div class="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center">
                         <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">

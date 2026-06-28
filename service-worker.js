@@ -1,4 +1,4 @@
-const VERSION = '74.7';
+const VERSION = '75.5';
 const CACHE_NAME = `hdv-pedidos-v${VERSION}`;
 
 const urlsToCache = [
@@ -32,11 +32,15 @@ const urlsToCache = [
     './js/admin/creditos.js',
     './js/admin/dtes.js',
     './js/admin/reportes-vendedor.js',
+    './js/admin/notificaciones.js',
     './services/supabase.js',
     './js/utils/storage.js',
     './js/utils/sanitizer.js',
     './js/utils/dialogs.js',
     './js/utils/helpers.js',
+    './js/utils/memo.js',
+    './js/utils/async-ui.js',
+    './js/utils/virtual-list.js',
     './js/utils/constants.js',
     './js/services/sync.js',
     './supabase-config.js',
@@ -78,6 +82,7 @@ const networkFirstFiles = [
     'admin/creditos.js',
     'admin/dtes.js',
     'admin/reportes-vendedor.js',
+    'admin/notificaciones.js',
     'login.js',
     'guard.js',
     'supabase-init.js',
@@ -86,6 +91,9 @@ const networkFirstFiles = [
     'js/utils/sanitizer.js',
     'js/utils/dialogs.js',
     'js/utils/helpers.js',
+    'js/utils/memo.js',
+    'js/utils/async-ui.js',
+    'js/utils/virtual-list.js',
     'js/utils/constants.js',
     'js/services/sync.js',
     'supabase-config.js',

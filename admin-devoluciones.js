@@ -438,7 +438,7 @@ function construirA4NC(nc, clienteInfo) {
         </div>
         <table style="width:100%; border-collapse:collapse; margin-bottom:16px;">
             <thead>
-                <tr style="background:#fef2f2; border-bottom:2px solid #dc2626;">
+                <tr style="background:rgba(239,68,68,0.12); border-bottom:2px solid #dc2626;">
                     <th style="padding:8px 12px; text-align:left; font-size:11px; text-transform:uppercase;">#</th>
                     <th style="padding:8px 12px; text-align:left; font-size:11px; text-transform:uppercase;">Descripcion</th>
                     <th style="padding:8px 12px; text-align:center; font-size:11px; text-transform:uppercase;">Cant.</th>

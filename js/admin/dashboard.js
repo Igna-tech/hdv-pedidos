@@ -74,6 +74,35 @@ async function cargarDashboard() {
     el('dashClientesActivos', clientesActivosMes);
     el('dashTicketPromedio', formatearGuaranies(ticketPromedio));
 
+    // Sparkline 14 días + delta mes-a-mes (al mismo día del mes)
+    const _serie14 = [];
+    for (let i = 13; i >= 0; i--) {
+        const d = new Date(hoy); d.setDate(hoy.getDate() - i);
+        const k = d.toISOString().slice(0, 10);
+        _serie14.push(pedidos.filter(p => (p.fecha || '').slice(0, 10) === k).reduce((s, p) => s + (p.total || 0), 0));
+    }
+    const _spark = document.getElementById('dashVentasSparkline');
+    if (_spark) _spark.innerHTML = _sparklineSVG(_serie14, { color: '#5681AE' });
+
+    const _diaHoy = hoy.getDate();
+    const _inicioMesAnt = new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1);
+    const _ventasMesAntMTD = pedidos.filter(p => {
+        const f = new Date(p.fecha);
+        return f >= _inicioMesAnt && f < inicioMes && f.getDate() <= _diaHoy;
+    }).reduce((s, p) => s + (p.total || 0), 0);
+    const _trEl = document.getElementById('dashVentasMesTrend');
+    if (_trEl) {
+        if (_ventasMesAntMTD === 0) {
+            _trEl.textContent = 'Sin datos del mes anterior';
+            _trEl.className = 'text-xs text-gray-400 mt-1';
+        } else {
+            const pct = Math.round((ventasMes - _ventasMesAntMTD) / _ventasMesAntMTD * 100);
+            const sube = pct >= 0;
+            _trEl.textContent = `${sube ? '↑' : '↓'} ${Math.abs(pct)}% vs mes anterior (al día ${_diaHoy})`;
+            _trEl.className = `text-xs mt-1 font-semibold ${sube ? 'text-emerald-600' : 'text-red-500'}`;
+        }
+    }
+
     // Ganancia Neta del Mes
     const gananciaMes = calcularGananciaPedidos(pedidosMes);
     el('dashGananciaNeta', formatearGuaranies(gananciaMes.gananciaTotal));
@@ -227,6 +256,29 @@ function _animarValor(id, target, fmt) {
         if (p < 1) requestAnimationFrame(step);
     };
     requestAnimationFrame(step);
+}
+
+// Sparkline SVG inline (sin Chart.js): tendencia compacta para tarjetas KPI.
+// Valores numéricos → polilínea + punto final con color semántico.
+function _sparklineSVG(valores, opts = {}) {
+    const w = opts.w || 116, h = opts.h || 28, pad = 3;
+    if (!valores || valores.length < 2) return '';
+    const max = Math.max(...valores), min = Math.min(...valores);
+    const rango = (max - min) || 1;
+    const n = valores.length;
+    const dx = (w - pad * 2) / (n - 1);
+    const pts = valores.map((v, i) => {
+        const x = pad + i * dx;
+        const y = h - pad - ((v - min) / rango) * (h - pad * 2);
+        return `${x.toFixed(1)},${y.toFixed(1)}`;
+    });
+    const color = opts.color || '#5681AE';
+    const sube = valores[n - 1] >= valores[n - 2];
+    const [lx, ly] = pts[pts.length - 1].split(',');
+    return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" class="hdv-sparkline" aria-hidden="true">
+        <polyline points="${pts.join(' ')}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
+        <circle cx="${lx}" cy="${ly}" r="2.4" fill="${sube ? '#34D399' : '#E05252'}"/>
+    </svg>`;
 }
 
 // ============================================
@@ -1188,10 +1240,10 @@ function _renderChartRFM(rows) {
     const segColores = {
         'Campeones':     'rgba(16,185,129,0.7)',
         'Leales':        'rgba(59,130,246,0.7)',
-        'Potencial fiel':'rgba(99,102,241,0.7)',
+        'Potencial fiel':'rgba(86,129,174,0.7)',
         'En riesgo':     'rgba(245,158,11,0.7)',
         'Hibernando':    'rgba(249,115,22,0.7)',
-        'Nuevos':        'rgba(139,92,246,0.7)',
+        'Nuevos':        'rgba(61,90,120,0.7)',
         'Perdidos':      'rgba(239,68,68,0.7)',
     };
     const segs = [...new Set(rows.map(r => r.segmento))];

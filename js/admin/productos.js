@@ -356,11 +356,43 @@ function actualizarBreadcrumbProductos() {
     }
 }
 
+// Score de calidad del catálogo: % de productos con imagen/costo/categoría/IVA.
+// Incentiva completar datos → impacta la Ganancia Neta real del dashboard.
+function _ccBar(label, pct) {
+    return `<div class="cc-bar"><span class="cc-bar-l">${escapeHTML(label)}</span><span class="cc-bar-track"><span class="cc-bar-fill" style="width:${pct}%"></span></span><span class="cc-bar-v">${pct}%</span></div>`;
+}
+function _renderCalidadCatalogo() {
+    const cont = document.getElementById('catalogoCalidad');
+    if (!cont) return;
+    const prods = (productosData.productos || []).filter(p => !p.oculto);
+    const total = prods.length;
+    if (total === 0) { cont.classList.add('hidden'); cont.innerHTML = ''; return; }
+    let conImg = 0, conCosto = 0, conCat = 0, conIva = 0;
+    prods.forEach(p => {
+        if (p.imagen_url || p.imagen) conImg++;
+        if ((p.presentaciones || []).some(pr => (pr.costo || 0) > 0)) conCosto++;
+        if (p.categoria) conCat++;
+        if (p.tipo_impuesto) conIva++;
+    });
+    const pct = (n) => Math.round(n / total * 100);
+    const pImg = pct(conImg), pCosto = pct(conCosto), pCat = pct(conCat), pIva = pct(conIva);
+    const score = Math.round((pImg + pCosto + pCat + pIva) / 4);
+    const color = score >= 80 ? 'var(--ok)' : score >= 50 ? 'var(--warn)' : 'var(--alert)';
+    cont.classList.remove('hidden');
+    cont.innerHTML = `
+      <div class="cc-score" style="--cc:${color}">
+        <div class="cc-ring" style="background:conic-gradient(var(--cc) ${score * 3.6}deg, var(--panel-3) 0)"><span>${score}</span></div>
+        <div class="cc-meta"><p class="cc-title">Calidad del catálogo</p><p class="cc-sub">${total} productos activos</p></div>
+        <div class="cc-bars">${_ccBar('Imagen', pImg)}${_ccBar('Costo', pCosto)}${_ccBar('Categoría', pCat)}${_ccBar('IVA', pIva)}</div>
+      </div>`;
+}
+
 async function mostrarProductosGestion() {
     const container = document.getElementById('productosGridContainer');
     if (!container) return;
     _initProductosGridDelegation(container);
     poblarFiltroCategorias();
+    _renderCalidadCatalogo();
 
     const busqueda = document.getElementById('buscarProducto')?.value.toLowerCase() || '';
     const catFiltro = document.getElementById('filtroCategoria')?.value || '';

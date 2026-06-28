@@ -312,6 +312,44 @@ body.theme-dark ::-webkit-scrollbar-thumb:hover { background: #353b44; }
 .keep-paper, .keep-paper * { background-color: #fff !important; color: #111 !important; border-color: #ddd !important; }
 
 /* ============================================================
+   Centro de notificaciones (admin header)
+   ============================================================ */
+#notifBadge {
+  position: absolute; top: -2px; right: -2px; min-width: 16px; height: 16px;
+  padding: 0 4px; border-radius: 999px; background: var(--alert); color: #fff;
+  font-size: 10px; font-weight: 800; line-height: 16px; text-align: center;
+  font-family: var(--hdv-font-mono); pointer-events: none;
+  box-shadow: 0 0 0 2px var(--panel);
+}
+#notifPanel {
+  position: absolute; top: calc(100% + 10px); right: 0; width: 340px; max-width: 92vw;
+  max-height: 70vh; overflow-y: auto; z-index: 3000;
+  background: var(--panel); border: 1px solid var(--hairline);
+  border-radius: var(--hdv-radius-lg); box-shadow: var(--hdv-shadow-modal);
+  opacity: 0; transform: translateY(-6px); transition: opacity 0.16s var(--ease-out), transform 0.16s var(--ease-out);
+}
+#notifPanel.notif-open { opacity: 1; transform: translateY(0); }
+.notif-head { padding: 0.85rem 1rem 0.5rem; border-bottom: 1px solid var(--hairline); position: sticky; top: 0; background: var(--panel); }
+.notif-lista { padding: 0.35rem; display: flex; flex-direction: column; gap: 2px; }
+.notif-item {
+  display: flex; align-items: center; gap: 0.6rem; width: 100%; text-align: left;
+  padding: 0.6rem 0.65rem; border-radius: var(--hdv-radius-md); background: none; border: none;
+  cursor: pointer; transition: background 0.12s var(--ease-out);
+}
+.notif-item:hover { background: var(--panel-2); }
+.notif-item.notif-no-leida { background: var(--steel-soft); }
+.notif-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.notif-ico { color: var(--muted); display: flex; }
+.notif-ico svg { width: 16px; height: 16px; }
+.notif-txt { display: flex; flex-direction: column; min-width: 0; }
+.notif-titulo { color: var(--ink); font-size: 0.8125rem; font-weight: 600; }
+.notif-detalle { color: var(--muted); font-size: 0.72rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.notif-empty { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; padding: 2.5rem 1rem; color: var(--muted); }
+.notif-empty svg { width: 32px; height: 32px; color: var(--ok); opacity: 0.7; }
+.notif-empty p { font-size: 0.8125rem; font-weight: 600; }
+@media (prefers-reduced-motion: reduce) { #notifPanel { transition: opacity 0.12s linear; transform: none; } }
+
+/* ============================================================
    Command palette (búsqueda global Ctrl+K)
    ============================================================ */
 .gs-item::part(base) { justify-content: flex-start; transition: background 0.12s var(--ease-out); }

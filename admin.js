@@ -87,6 +87,7 @@ const ACTION_DISPATCH = {
     'cerrarBusquedaGlobal':             ()     => cerrarBusquedaGlobal(),
     'abrirBusquedaGlobal':              ()     => abrirBusquedaGlobal(),
     'abrirChatIA':                      ()     => typeof abrirChatIA === 'function' && abrirChatIA(),
+    'toggleNotificaciones':             ()     => typeof toggleNotificaciones === 'function' && toggleNotificaciones(),
     'forzarActualizacionAdmin':         ()     => forzarActualizacionAdmin(),
     'cerrarSesion':                     ()     => cerrarSesion(),
 
@@ -1645,6 +1646,7 @@ document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
         const search = document.getElementById('globalSearchOverlay');
         if (search.classList.contains('show')) { cerrarBusquedaGlobal(null); return; }
+        if (typeof _notifPanelAbierto !== 'undefined' && _notifPanelAbierto) { toggleNotificaciones(true); return; }
     }
 });
 

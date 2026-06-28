@@ -359,6 +359,14 @@
                     </svg>
                     <span class="hidden md:inline">CartónIA</span>
                 </button>
+                <div class="relative flex items-center">
+                    <sl-icon-button id="btnNotificaciones" name="bell" label="Notificaciones" data-action="toggleNotificaciones" style="font-size:1.05rem;"></sl-icon-button>
+                    <span id="notifBadge" class="hidden">0</span>
+                    <div id="notifPanel" class="hidden" role="dialog" aria-label="Notificaciones">
+                        <div class="notif-head"><span class="eyebrow-label">Notificaciones</span></div>
+                        <div id="notifLista" class="notif-lista"></div>
+                    </div>
+                </div>
                 <div id="status-badge" class="text-[10px] uppercase tracking-wider font-semibold flex items-center text-gray-400 mr-1">
                     <span class="w-2 h-2 bg-green-500 rounded-full mr-1.5"></span> <span class="hidden md:inline">En linea</span>
                 </div>
@@ -2673,6 +2681,7 @@
     <script src="js/admin/clientes.js"></script>
     <script src="js/admin/creditos.js"></script>
     <script src="js/admin/reportes-vendedor.js"></script>
+    <script src="js/admin/notificaciones.js"></script>
     <script src="js/modules/ventas/ventas-data.js"></script>
     <!-- IA CHAT DRAWER -->
     <sl-drawer id="aiChatDrawer" placement="end" style="--size: 430px;" no-header>

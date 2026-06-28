@@ -44,8 +44,11 @@ PWA mobile-first para vendedores de calle + panel admin de escritorio.
 ├── js/utils/storage.js     → HDVStorage: wrapper IndexedDB blindado (persistent storage, quota monitoring, eviction detection)
 ├── js/utils/sanitizer.js   → escapeHTML() para prevencion XSS
 ├── js/utils/dialogs.js     → Toast (sl-alert), confirm modal (sl-dialog), input modal (sl-dialog) — compartido entre vendedor y admin
-├── js/utils/helpers.js     → Utilidades compartidas (debounce, etc.)
+├── js/utils/helpers.js     → Utilidades compartidas (debounce, throttle, withButtonLock)
 ├── js/utils/formatters.js  → Formateo de moneda, fechas, etc.
+├── js/utils/memo.js        → Memoizacion por clave con TTL + invalidacion por prefijo (memoizarPorClave, invalidarMemo). Usado para cifras del dashboard.
+├── js/utils/async-ui.js    → Patron unico de carga: renderSkeletonLista, renderEstadoError (reintento CSP-safe), withCarga (skeleton→pinta/error+retry). Reusa .skeleton de input.css.
+├── js/utils/virtual-list.js → Windowing client-side para listas grandes (montarListaVirtual, altura fija, delegacion). Infra disponible; las listas actuales (pedidos/clientes/ventas) ya paginan.
 ├── js/utils/kude-generator.js → Generador KuDE PDF: generarKudePDF(pedidoId) abre blob HTML con layout fiel a e-Kuatia'i (encabezado empresa+logo, receptor, tabla items IVA, footer QR+CDC). Requiere ventas-data.js, sanitizer.js. Logo embebido como base64 via fetch(). QR via QRCode.js cargado dinamicamente.
 ├── js/utils/printer.js     → Impresion de tickets de trabajo INTERNOS (vendedor app.js, admin pedidos.js). NO se usa para documentos cliente.
 ├── js/utils/pdf-generator.js → Generacion de PDFs con jsPDF
@@ -53,7 +56,8 @@ PWA mobile-first para vendedores de calle + panel admin de escritorio.
 ├── js/vendedor/cart.js     → Logica de carrito del vendedor
 ├── js/vendedor/cobros.js   → Cobros en campo (creditos = pedidos entregados con saldo): abrirCobrosCliente(clienteId), registrarPagoCobro(pedidoId) [cierra el pedido a saldo 0 → cobrado_sin_factura], cobrarTodoEfectivo(clienteId). Escribe en libro unificado hdv_pagos_credito + historial via helpers de entrega.js. Creditos manuales desacoplados (no los cobra el vendedor).
 ├── js/admin/pedidos.js     → Modulo admin: pedidos con filtros vendedor/estado, badges fraude/tipo/editado, desglose IVA, CSV enriquecido
-├── js/admin/dashboard.js   → Modulo admin: dashboard con Chart.js
+├── js/admin/dashboard.js   → Modulo admin: dashboard con Chart.js. KPIs con tendencia (deltas vs ayer/mes) + sparkline SVG inline (_sparklineSVG, serie 14 dias). Ganancia por pedido memoizada (cache id+total+items+version; bumpGananciaCache al recargar catalogo).
+├── js/admin/notificaciones.js → Centro de notificaciones in-app (campana header + panel): feed unificado fraude/pedidos sin finalizar/creditos por revisar. Estado leido/no-leido en IndexedDB (hdv_notif_leidas). Solo lee y navega (cambiarSeccion). toggleNotificaciones(), renderNotificaciones().
 ├── js/admin/productos.js   → Modulo admin: CRUD de productos y variantes
 ├── js/admin/clientes.js    → Modulo admin: CRUD de clientes
 ├── js/admin/creditos.js    → Modulo admin: creditos = pedidos ENTREGADOS (con saldo) por su numero. registrarPagoCredito() escribe libro unificado + cierra a cobrado_sin_factura al saldar. Creditos manuales = recordatorios personales AISLADOS (no entran en stats/balance/historial/badge).
@@ -92,10 +96,10 @@ PWA mobile-first para vendedores de calle + panel admin de escritorio.
 ## Orden de carga de scripts
 
 **index.html (vendedor):**
-supabase CDN → supabase-init.js → **js/utils/constants.js** → services/supabase.js → js/utils/storage.js → guard.js → supabase-config.js → js/services/sync.js → [core/state, sanitizer, **dialogs**, helpers, formatters, printer, pdf-generator, **js/shared/entrega.js**, vendedor/ui.js, vendedor/cart.js, **vendedor/cobros.js**] → app.js → checkout.js
+supabase CDN → supabase-init.js → **js/utils/constants.js** → services/supabase.js → js/utils/storage.js → guard.js → supabase-config.js → js/services/sync.js → [core/state, sanitizer, **dialogs**, helpers, formatters, **memo, async-ui, virtual-list**, printer, pdf-generator, **js/shared/entrega.js**, vendedor/ui.js, vendedor/cart.js, **vendedor/cobros.js**] → app.js → checkout.js
 
 **admin.html:**
-supabase CDN → Chart.js → supabase-init.js → **js/utils/constants.js** → services/supabase.js → js/utils/storage.js → guard.js → supabase-config.js → [core/state, sanitizer, **dialogs**, helpers, formatters, printer, pdf-generator, **js/shared/entrega.js**] → admin.js → [admin modules] → **js/utils/kude-generator.js** → admin-ventas.js → admin-devoluciones.js → admin-contabilidad.js → **js/admin/proveedores.js** → js/admin/sifen-estado.js → js/admin/dtes.js
+supabase CDN → Chart.js → supabase-init.js → **js/utils/constants.js** → services/supabase.js → js/utils/storage.js → guard.js → supabase-config.js → [core/state, sanitizer, **dialogs**, helpers, formatters, **memo, async-ui, virtual-list**, printer, pdf-generator, **js/shared/entrega.js**] → admin.js → [admin modules + **js/admin/notificaciones.js**] → **js/utils/kude-generator.js** → admin-ventas.js → admin-devoluciones.js → admin-contabilidad.js → **js/admin/proveedores.js** → js/admin/sifen-estado.js → js/admin/dtes.js
 
 **login.html:**
 supabase CDN → supabase-init.js → js/utils/storage.js → login.js

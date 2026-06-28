@@ -277,6 +277,30 @@ sl-select:focus-within::part(combobox) {
 }
 .empty-state .empty-action:hover { background: var(--steel-bright); }
 
+/* ============================================================
+   Estado de error recuperable (async-ui.js)
+   ============================================================ */
+.hdv-error-state {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 2.5rem 1rem; text-align: center; gap: 0.25rem;
+}
+.hdv-error-icon {
+  width: 56px; height: 56px; margin-bottom: 0.5rem; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(224,82,82,0.12); color: var(--alert);
+}
+.hdv-error-icon svg { width: 26px; height: 26px; }
+.hdv-error-msg { color: var(--ink-2); font-weight: 600; font-size: 0.875rem; }
+.hdv-error-detalle { color: var(--faint); font-size: 0.72rem; font-family: var(--hdv-font-mono); margin-top: 0.15rem; }
+.hdv-error-retry {
+  margin-top: 1rem; display: inline-flex; align-items: center; gap: 0.4rem;
+  padding: 0.55rem 1.25rem; border-radius: var(--hdv-radius-md);
+  background: var(--steel); color: #fff; font-weight: 700; font-size: 0.8125rem;
+  transition: background 0.15s var(--ease-out), transform 0.12s var(--ease-out);
+}
+.hdv-error-retry:hover { background: var(--steel-bright); }
+.hdv-error-retry:active { transform: scale(0.97); }
+
 /* Scrollbar */
 .no-scrollbar::-webkit-scrollbar { display: none; }
 body.theme-dark ::-webkit-scrollbar { width: 10px; height: 10px; }

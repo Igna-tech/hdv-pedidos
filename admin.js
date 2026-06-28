@@ -174,6 +174,7 @@ const ACTION_DISPATCH = {
     'eliminarSubcategoria':             (btn)  => typeof eliminarSubcategoria === 'function' && eliminarSubcategoria(btn.dataset.cat, btn.dataset.sub),
     'agregarSubcategoria':              (btn)  => typeof agregarSubcategoria === 'function' && agregarSubcategoria(btn.dataset.cat),
     'quitarFila':                       (btn)  => { const s = btn.dataset.sel; (s === 'parent' ? btn.parentElement : btn.closest(s))?.remove(); },
+    'quickAddProducto':                 ()     => typeof quickAddProducto === 'function' && quickAddProducto(),
     'guardarStock':                     ()     => typeof guardarStock === 'function' && guardarStock(),
     'guardarStockDesdePerfilProducto':  ()     => typeof guardarStockDesdePerfilProducto === 'function' && guardarStockDesdePerfilProducto(),
     'cerrarPerfilProducto':             ()     => typeof cerrarPerfilProducto === 'function' && cerrarPerfilProducto(),
@@ -392,6 +393,13 @@ document.addEventListener('sl-change', function(e) {
 
 // Bindings para eventos que no son click (oninput, onchange)
 document.addEventListener('DOMContentLoaded', () => {
+    // Carga rápida de productos: Enter agrega y sigue
+    ['qaNombre', 'qaPrecio', 'qaStock'].forEach(id => {
+        document.getElementById(id)?.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && typeof quickAddProducto === 'function') { e.preventDefault(); quickAddProducto(); }
+        });
+    });
+
     // oninput en sl-input usa el evento 'sl-input' de Shoelace
     document.getElementById('globalSearchInput')
         ?.addEventListener('sl-input', () => ejecutarBusquedaGlobalDebounced());

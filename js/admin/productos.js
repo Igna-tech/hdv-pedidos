@@ -387,11 +387,44 @@ function _renderCalidadCatalogo() {
       </div>`;
 }
 
+// Carga rápida (quick-add): crea un producto con 1 presentación y re-enfoca.
+function _poblarQuickAddCategorias() {
+    const sel = document.getElementById('qaCategoria');
+    if (!sel || sel.options.length > 0) return;
+    sel.innerHTML = (productosData.categorias || [])
+        .map(c => `<option value="${escapeHTML(c.id)}">${escapeHTML(c.nombre)}</option>`).join('');
+}
+function quickAddProducto() {
+    const nombreEl = document.getElementById('qaNombre');
+    const nombre = (nombreEl?.value || '').trim();
+    if (!nombre) { mostrarToast('Ingresá un nombre', 'error'); nombreEl?.focus(); return; }
+    const categoria = document.getElementById('qaCategoria')?.value || (productosData.categorias[0]?.id) || null;
+    const precio = parseInt(document.getElementById('qaPrecio')?.value, 10) || 0;
+    const stock = parseInt(document.getElementById('qaStock')?.value, 10) || 0;
+    const ultimoId = Math.max(...productosData.productos.map(p => parseInt(p.id.replace(/\D/g, '')) || 0), 0);
+    const nuevo = {
+        id: `P${String(ultimoId + 1).padStart(3, '0')}`,
+        nombre, categoria, subcategoria: 'General',
+        imagen_url: '', imagen: '', estado: 'disponible', oculto: false, tipo_impuesto: '10',
+        presentaciones: [{ tamano: 'Unidad', precio_base: precio, costo: 0, stock, activo: true }]
+    };
+    productosData.productos.push(nuevo);
+    if (typeof productosFiltrados !== 'undefined') productosFiltrados.push(nuevo);
+    registrarCambio();
+    mostrarProductosGestion();
+    if (nombreEl) nombreEl.value = '';
+    const pEl = document.getElementById('qaPrecio'); if (pEl) pEl.value = '';
+    const sEl = document.getElementById('qaStock'); if (sEl) sEl.value = '';
+    mostrarToast(`"${nombre}" agregado — recordá Guardar y Sincronizar`, 'success');
+    nombreEl?.focus();
+}
+
 async function mostrarProductosGestion() {
     const container = document.getElementById('productosGridContainer');
     if (!container) return;
     _initProductosGridDelegation(container);
     poblarFiltroCategorias();
+    _poblarQuickAddCategorias();
     _renderCalidadCatalogo();
 
     const busqueda = document.getElementById('buscarProducto')?.value.toLowerCase() || '';

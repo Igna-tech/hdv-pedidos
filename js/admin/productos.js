@@ -696,8 +696,8 @@ function clonarProducto(prodId) {
         if (!zone) return;
         zone.addEventListener('dragover', (e) => {
             e.preventDefault();
-            zone.style.borderColor = '#6366f1';
-            zone.style.background = '#eef2ff';
+            zone.style.borderColor = '#5681AE';
+            zone.style.background = 'rgba(61,90,120,0.18)';
         });
         zone.addEventListener('dragleave', () => {
             zone.style.borderColor = '';

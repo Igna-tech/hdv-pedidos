@@ -1188,10 +1188,10 @@ function _renderChartRFM(rows) {
     const segColores = {
         'Campeones':     'rgba(16,185,129,0.7)',
         'Leales':        'rgba(59,130,246,0.7)',
-        'Potencial fiel':'rgba(99,102,241,0.7)',
+        'Potencial fiel':'rgba(86,129,174,0.7)',
         'En riesgo':     'rgba(245,158,11,0.7)',
         'Hibernando':    'rgba(249,115,22,0.7)',
-        'Nuevos':        'rgba(139,92,246,0.7)',
+        'Nuevos':        'rgba(61,90,120,0.7)',
         'Perdidos':      'rgba(239,68,68,0.7)',
     };
     const segs = [...new Set(rows.map(r => r.segmento))];

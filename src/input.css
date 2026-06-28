@@ -400,12 +400,106 @@ body.theme-dark .hover\:bg-indigo-50:hover, body.theme-dark .hover\:bg-indigo-10
 body.theme-dark .hover\:bg-indigo-600:hover, body.theme-dark .hover\:bg-indigo-700:hover { background-color: var(--steel-bright); }
 
 body.theme-dark .border-indigo-200, body.theme-dark .border-indigo-300,
+body.theme-dark .border-indigo-400,
 body.theme-dark .border-indigo-500, body.theme-dark .border-indigo-600 { border-color: var(--steel); }
 body.theme-dark .focus-within\:border-indigo-300:focus-within { border-color: var(--steel); }
 body.theme-dark .ring-indigo-300, body.theme-dark .ring-indigo-500,
 body.theme-dark .ring-indigo-600 { --tw-ring-color: var(--steel); }
+/* focus/hover de inputs (proveedores, productos, DTEs, chat IA) */
+body.theme-dark .focus\:ring-indigo-300:focus,
+body.theme-dark .focus\:ring-indigo-400:focus,
+body.theme-dark .focus\:ring-indigo-500:focus,
+body.theme-dark .focus-visible\:ring-indigo-400:focus-visible { --tw-ring-color: var(--steel); }
+body.theme-dark .focus\:border-indigo-300:focus,
+body.theme-dark .focus\:border-indigo-400:focus,
+body.theme-dark .hover\:border-indigo-400:hover { border-color: var(--steel); }
 
-/* Verdes esmeralda (cobros/ok) y otros acentos se conservan: ya legibles en oscuro */
+/* ============================================================
+   REMAPEO DE ACENTOS DE COLOR (claro → tinte oscuro)
+   Las cards/badges de acento usan bg-{hue}-50/100/200 + texto
+   oscuro (text-{hue}-600..900), pensadas para fondo CLARO. En el
+   tema oscuro se traducen a un tinte translúcido + texto brillante,
+   preservando la semántica del color (verde=ok, rojo=alerta, etc.).
+   Los sólidos vivos (bg-{hue}-400/500/600, dots, barras) se conservan.
+   ============================================================ */
+body.theme-dark .bg-blue-50,   body.theme-dark .bg-blue-100   { background-color: rgba(59,130,246,0.14); }
+body.theme-dark .bg-blue-200   { background-color: rgba(59,130,246,0.22); }
+body.theme-dark .border-blue-100,  body.theme-dark .border-blue-200,  body.theme-dark .border-blue-300  { border-color: rgba(59,130,246,0.30); }
+body.theme-dark .text-blue-600,  body.theme-dark .text-blue-700,  body.theme-dark .text-blue-800,  body.theme-dark .text-blue-900  { color: #93c5fd; }
+
+body.theme-dark .bg-sky-50,    body.theme-dark .bg-sky-100    { background-color: rgba(14,165,233,0.14); }
+body.theme-dark .border-sky-100,   body.theme-dark .border-sky-200,   body.theme-dark .border-sky-300   { border-color: rgba(14,165,233,0.30); }
+body.theme-dark .text-sky-600,   body.theme-dark .text-sky-700,   body.theme-dark .text-sky-800   { color: #7dd3fc; }
+
+body.theme-dark .bg-cyan-50,   body.theme-dark .bg-cyan-100   { background-color: rgba(6,182,212,0.14); }
+body.theme-dark .border-cyan-100,  body.theme-dark .border-cyan-200,  body.theme-dark .border-cyan-300  { border-color: rgba(6,182,212,0.30); }
+body.theme-dark .text-cyan-600,  body.theme-dark .text-cyan-700,  body.theme-dark .text-cyan-800  { color: #67e8f9; }
+
+body.theme-dark .bg-teal-50,   body.theme-dark .bg-teal-100   { background-color: rgba(20,184,166,0.14); }
+body.theme-dark .border-teal-100,  body.theme-dark .border-teal-200,  body.theme-dark .border-teal-300  { border-color: rgba(20,184,166,0.30); }
+body.theme-dark .text-teal-600,  body.theme-dark .text-teal-700,  body.theme-dark .text-teal-800  { color: #5eead4; }
+
+body.theme-dark .bg-emerald-50,  body.theme-dark .bg-emerald-100  { background-color: rgba(16,185,129,0.14); }
+body.theme-dark .bg-emerald-200  { background-color: rgba(16,185,129,0.22); }
+body.theme-dark .border-emerald-100, body.theme-dark .border-emerald-200, body.theme-dark .border-emerald-300 { border-color: rgba(16,185,129,0.30); }
+body.theme-dark .text-emerald-600, body.theme-dark .text-emerald-700, body.theme-dark .text-emerald-800 { color: #6ee7b7; }
+
+body.theme-dark .bg-green-50,  body.theme-dark .bg-green-100  { background-color: rgba(34,197,94,0.14); }
+body.theme-dark .bg-green-200  { background-color: rgba(34,197,94,0.22); }
+body.theme-dark .border-green-100, body.theme-dark .border-green-200, body.theme-dark .border-green-300 { border-color: rgba(34,197,94,0.30); }
+body.theme-dark .text-green-600, body.theme-dark .text-green-700, body.theme-dark .text-green-800, body.theme-dark .text-green-900 { color: #86efac; }
+
+body.theme-dark .bg-yellow-50, body.theme-dark .bg-yellow-100 { background-color: rgba(234,179,8,0.14); }
+body.theme-dark .bg-yellow-200 { background-color: rgba(234,179,8,0.22); }
+body.theme-dark .border-yellow-100, body.theme-dark .border-yellow-200, body.theme-dark .border-yellow-300 { border-color: rgba(234,179,8,0.30); }
+body.theme-dark .text-yellow-600, body.theme-dark .text-yellow-700, body.theme-dark .text-yellow-800 { color: #fde047; }
+
+body.theme-dark .bg-amber-50,  body.theme-dark .bg-amber-100  { background-color: rgba(245,158,11,0.14); }
+body.theme-dark .bg-amber-200  { background-color: rgba(245,158,11,0.22); }
+body.theme-dark .border-amber-100, body.theme-dark .border-amber-200, body.theme-dark .border-amber-300 { border-color: rgba(245,158,11,0.30); }
+body.theme-dark .text-amber-600, body.theme-dark .text-amber-700, body.theme-dark .text-amber-800 { color: #fcd34d; }
+
+body.theme-dark .bg-orange-50, body.theme-dark .bg-orange-100 { background-color: rgba(249,115,22,0.14); }
+body.theme-dark .bg-orange-200 { background-color: rgba(249,115,22,0.22); }
+body.theme-dark .border-orange-100, body.theme-dark .border-orange-200, body.theme-dark .border-orange-300 { border-color: rgba(249,115,22,0.30); }
+body.theme-dark .text-orange-600, body.theme-dark .text-orange-700, body.theme-dark .text-orange-800 { color: #fdba74; }
+
+body.theme-dark .bg-red-50,    body.theme-dark .bg-red-100    { background-color: rgba(239,68,68,0.14); }
+body.theme-dark .bg-red-200    { background-color: rgba(239,68,68,0.22); }
+body.theme-dark .border-red-100,   body.theme-dark .border-red-200,   body.theme-dark .border-red-300   { border-color: rgba(239,68,68,0.30); }
+body.theme-dark .text-red-600,   body.theme-dark .text-red-700,   body.theme-dark .text-red-800,   body.theme-dark .text-red-900   { color: #fca5a5; }
+
+body.theme-dark .bg-rose-50,   body.theme-dark .bg-rose-100   { background-color: rgba(244,63,94,0.14); }
+body.theme-dark .border-rose-100,  body.theme-dark .border-rose-200,  body.theme-dark .border-rose-300  { border-color: rgba(244,63,94,0.30); }
+body.theme-dark .text-rose-600,  body.theme-dark .text-rose-700,  body.theme-dark .text-rose-800  { color: #fda4af; }
+
+body.theme-dark .bg-pink-50,   body.theme-dark .bg-pink-100   { background-color: rgba(236,72,153,0.14); }
+body.theme-dark .border-pink-100,  body.theme-dark .border-pink-200,  body.theme-dark .border-pink-300  { border-color: rgba(236,72,153,0.30); }
+body.theme-dark .text-pink-600,  body.theme-dark .text-pink-700,  body.theme-dark .text-pink-800  { color: #f9a8d4; }
+
+/* Púrpura y violeta → ACERO (color predeterminado del sistema, sin morados) */
+body.theme-dark .bg-purple-50, body.theme-dark .bg-purple-100,
+body.theme-dark .bg-violet-50, body.theme-dark .bg-violet-100 { background-color: var(--steel-soft); }
+body.theme-dark .bg-purple-200, body.theme-dark .bg-violet-200 { background-color: rgba(61,90,120,0.30); }
+body.theme-dark .border-purple-100, body.theme-dark .border-purple-200, body.theme-dark .border-purple-300,
+body.theme-dark .border-violet-100, body.theme-dark .border-violet-200, body.theme-dark .border-violet-300 { border-color: var(--steel); }
+body.theme-dark .text-purple-600, body.theme-dark .text-purple-700, body.theme-dark .text-purple-800, body.theme-dark .text-purple-900,
+body.theme-dark .text-violet-600, body.theme-dark .text-violet-700, body.theme-dark .text-violet-800 { color: var(--steel-bright); }
+/* Sólidos púrpura/violeta (dots, barras, badges -400/500/600) → acero */
+body.theme-dark .bg-purple-400, body.theme-dark .bg-purple-500, body.theme-dark .bg-purple-600,
+body.theme-dark .bg-violet-400, body.theme-dark .bg-violet-500, body.theme-dark .bg-violet-600 { background-color: var(--steel); }
+
+/* Gradientes claros (hero/stat cards) → tinte oscuro translúcido.
+   --tw-gradient-stops referencia var(--tw-gradient-from/to); basta reescribir las vars. */
+body.theme-dark .from-green-50  { --tw-gradient-from: rgba(34,197,94,0.10) var(--tw-gradient-from-position); }
+body.theme-dark .from-blue-50   { --tw-gradient-from: rgba(59,130,246,0.10) var(--tw-gradient-from-position); }
+body.theme-dark .from-orange-50 { --tw-gradient-from: rgba(249,115,22,0.10) var(--tw-gradient-from-position); }
+body.theme-dark .from-yellow-50 { --tw-gradient-from: rgba(234,179,8,0.10) var(--tw-gradient-from-position); }
+body.theme-dark .from-red-50    { --tw-gradient-from: rgba(239,68,68,0.10) var(--tw-gradient-from-position); }
+body.theme-dark .to-emerald-50  { --tw-gradient-to: rgba(16,185,129,0.10) var(--tw-gradient-to-position); }
+body.theme-dark .to-indigo-50   { --tw-gradient-to: var(--steel-soft) var(--tw-gradient-to-position); }
+body.theme-dark .to-amber-50    { --tw-gradient-to: rgba(245,158,11,0.10) var(--tw-gradient-to-position); }
+body.theme-dark .to-orange-50   { --tw-gradient-to: rgba(249,115,22,0.10) var(--tw-gradient-to-position); }
 
 /* — Sombras: suavizar en oscuro — */
 body.theme-dark .shadow, body.theme-dark .shadow-sm,

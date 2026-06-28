@@ -12,7 +12,7 @@ const HDVMapa = (() => {
     let _clienteParaUbicar = null;
 
     const ZONA_COLORES = [
-        '#6366f1','#10b981','#f59e0b','#ef4444','#8b5cf6',
+        '#5681AE','#10b981','#f59e0b','#ef4444','#3D5A78',
         '#06b6d4','#f97316','#84cc16','#ec4899','#14b8a6'
     ];
     let _zonaColorMap = {};

@@ -312,6 +312,13 @@ body.theme-dark ::-webkit-scrollbar-thumb:hover { background: #353b44; }
 .keep-paper, .keep-paper * { background-color: #fff !important; color: #111 !important; border-color: #ddd !important; }
 
 /* ============================================================
+   Command palette (búsqueda global Ctrl+K)
+   ============================================================ */
+.gs-item::part(base) { justify-content: flex-start; transition: background 0.12s var(--ease-out); }
+.gs-item:hover::part(base) { background: var(--panel-2); }
+.gs-item.gs-selected::part(base) { background: var(--steel-soft); box-shadow: inset 2px 0 0 var(--steel); }
+
+/* ============================================================
    Accordion para tarjetas de pedido
    ============================================================ */
 .pedido-accordion-body { max-height: 0; overflow: hidden; transition: max-height 0.22s var(--ease-out); }

@@ -372,8 +372,21 @@ async function mostrarProductos() {
     }
 }
 
+// Botón "Repetir último pedido" (order-pad): aparece cuando hay cliente.
+function _renderBotonPedidoHabitual(container) {
+    if (!clienteActual) return;
+    const btn = document.createElement('button');
+    btn.className = 'pedido-habitual-btn';
+    btn.innerHTML = `<span class="ph-ico"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></span>
+        <span class="ph-txt"><span class="ph-title">Repetir último pedido</span><span class="ph-sub">${escapeHTML(clienteActual.razon_social || clienteActual.nombre)}</span></span>
+        <span class="ph-arrow"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></span>`;
+    btn.onclick = () => { if (typeof cargarPedidoHabitual === 'function') cargarPedidoHabitual(); };
+    container.appendChild(btn);
+}
+
 async function renderizarCategoriasVendedor(container) {
     container.innerHTML = '';
+    _renderBotonPedidoHabitual(container);
 
     // Productos frecuentes del cliente actual
     if (clienteActual) {
@@ -487,6 +500,7 @@ async function renderizarProductosVendedor(container, busqueda) {
     }
 
     container.innerHTML = '';
+    _renderBotonPedidoHabitual(container);
 
     // --- Barra superior (dentro de categoría) ---
     if (categoriaSeleccionada && categoriaActual === 'todas') {
@@ -707,6 +721,12 @@ async function renderizarProductosVendedor(container, busqueda) {
             meta.appendChild(pEl);
         }
 
+        const stockTotalLista = presActivas.reduce((s, p) => s + (p.stock || 0), 0);
+        const stEl = document.createElement('div');
+        stEl.className = 'vpc-list-stock' + (stockTotalLista <= 0 ? ' is-zero' : '');
+        stEl.textContent = stockTotalLista > 0 ? `Stock: ${stockTotalLista}` : 'Sin stock';
+        meta.appendChild(stEl);
+
         const ultQty = ultimasQtys[prod.id];
         if (ultQty) {
             const ultEl = document.createElement('div');
@@ -911,7 +931,13 @@ function _setSubcat(s) {
 
 function _toggleVistaCatalogo() {
     _vistaProductos = _vistaProductos === 'grid' ? 'list' : 'grid';
+    try { HDVStorage.setItem('hdv_vista_catalogo', _vistaProductos); } catch (_e) {}
     if (typeof mostrarProductos === 'function') mostrarProductos();
+}
+
+// Inicializa la vista de catálogo desde la preferencia guardada (order-pad recordado)
+function _initVistaProductos(v) {
+    if (v === 'list' || v === 'grid') _vistaProductos = v;
 }
 
 // ============================================

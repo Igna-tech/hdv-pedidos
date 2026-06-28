@@ -411,8 +411,9 @@
     <!-- FAB Carrito (solo en vista Catálogo) -->
     <div id="cartFabWrapper" class="fixed bottom-0 left-0 right-0 flex justify-center pb-5 z-40 pointer-events-none">
         <button data-action="mostrarModalCarrito" id="viewCartBtn" aria-label="Ver carrito de compras"
-            class="pointer-events-auto relative bg-indigo-600 text-white p-4 rounded-full shadow-2xl border-4 border-white disabled:opacity-50 disabled:bg-slate-400 hover:bg-indigo-700 active:scale-95 transition-all">
-            <i data-lucide="shopping-cart" class="w-6 h-6"></i>
+            class="pointer-events-auto relative bg-indigo-600 text-white px-5 py-4 rounded-full shadow-2xl border-4 border-white disabled:opacity-50 disabled:bg-slate-400 hover:bg-indigo-700 active:scale-95 transition-all flex items-center gap-2.5">
+            <i data-lucide="shopping-cart" class="w-6 h-6 shrink-0"></i>
+            <span id="cartPillText" class="hidden font-bold text-sm tabular-nums whitespace-nowrap"></span>
             <span id="cartItems" class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center border-2 border-white">0</span>
         </button>
     </div>

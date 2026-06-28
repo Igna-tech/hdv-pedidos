@@ -11,6 +11,7 @@
 let _notifLeidas = new Set();
 let _notifActuales = [];
 let _notifPanelAbierto = false;
+let _notifHideTimer = null;
 
 const _NOTIF_AGING_PENDIENTE_DIAS = 2;
 const _NOTIF_VENC_DIAS = 30; // fallback si no hay config
@@ -144,6 +145,8 @@ async function toggleNotificaciones(forzarCerrar) {
     const abrir = forzarCerrar ? false : !_notifPanelAbierto;
     _notifPanelAbierto = abrir;
     if (abrir) {
+        // Interrumpe un cierre en curso (evita que el timeout viejo oculte el panel reabierto)
+        if (_notifHideTimer) { clearTimeout(_notifHideTimer); _notifHideTimer = null; }
         renderNotificaciones();
         panel.classList.remove('hidden');
         requestAnimationFrame(() => panel.classList.add('notif-open'));
@@ -154,7 +157,8 @@ async function toggleNotificaciones(forzarCerrar) {
         if (badge) badge.classList.add('hidden');
     } else {
         panel.classList.remove('notif-open');
-        setTimeout(() => panel.classList.add('hidden'), 160);
+        if (_notifHideTimer) clearTimeout(_notifHideTimer);
+        _notifHideTimer = setTimeout(() => { panel.classList.add('hidden'); _notifHideTimer = null; }, 160);
     }
 }
 

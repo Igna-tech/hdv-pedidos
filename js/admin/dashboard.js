@@ -247,7 +247,7 @@ function _animarValor(id, target, fmt) {
     const start = parseFloat(el.dataset.valor || '0');
     el.dataset.valor = target;
     if (start === target) { el.textContent = fmt ? fmt(target) : target; return; }
-    const dur = 550, t0 = performance.now();
+    const dur = 400, t0 = performance.now();
     const step = (now) => {
         const p = Math.min((now - t0) / dur, 1);
         const ease = 1 - Math.pow(1 - p, 3);

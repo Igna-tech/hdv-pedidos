@@ -90,6 +90,8 @@ const ACTION_DISPATCH = {
     'toggleNotificaciones':             ()     => typeof toggleNotificaciones === 'function' && toggleNotificaciones(),
     'forzarActualizacionAdmin':         ()     => forzarActualizacionAdmin(),
     'cerrarSesion':                     ()     => cerrarSesion(),
+    'guardarCambiosHeader':             ()     => { if (cambiosSinGuardar > 0) guardarTodosCambios(); },
+    'cambiarContrasena':                ()     => cambiarContrasenaAdmin(),
 
     // === Dashboard / Cierre mensual ===
     'cambiarPeriodoChart':              (_, a) => typeof _cambiarPeriodoChart === 'function' && _cambiarPeriodoChart(a),
@@ -367,6 +369,8 @@ document.addEventListener('click', function(e) {
     const arg = btn.getAttribute('data-arg') ?? undefined;
     if (ACTION_DISPATCH[action]) {
         ACTION_DISPATCH[action](btn, arg);
+        // Cerrar el menu de usuario tras elegir una opcion
+        if (btn.closest('.user-menu-panel')) btn.closest('sl-dropdown')?.hide();
     } else {
         console.warn('[Admin] Accion no registrada:', action);
     }
@@ -392,6 +396,56 @@ document.addEventListener('sl-change', function(e) {
 });
 
 // Bindings para eventos que no son click (oninput, onchange)
+// ── Saludo dinámico + fecha/hora en vivo (sidebar header) ──
+function _actualizarSaludoAdmin() {
+    const h = new Date().getHours();
+    const saludo = h < 6 ? 'Buenas noches'
+        : h < 12 ? 'Buenos días'
+        : h < 19 ? 'Buenas tardes'
+        : 'Buenas noches';
+    const elSaludo = document.getElementById('adminSaludo');
+    const elNombre = document.getElementById('adminSaludoNombre');
+    if (elSaludo) elSaludo.textContent = saludo;
+    const nombre = (window.hdvUsuario?.nombre || '').trim();
+    const email = (window.hdvUsuario?.email || '').trim();
+    if (elNombre) {
+        // Solo el primer nombre, para que entre en el sidebar
+        elNombre.textContent = nombre ? nombre.split(/\s+/)[0] : 'HDV Admin';
+    }
+    // Menu de usuario (avatar + datos)
+    const avatar = document.getElementById('adminAvatar');
+    if (avatar) {
+        const partes = nombre ? nombre.split(/\s+/).filter(Boolean) : [];
+        const ini = partes.length >= 2 ? (partes[0][0] + partes[partes.length - 1][0])
+            : (nombre || email || 'A').slice(0, 2);
+        avatar.textContent = ini.toUpperCase();
+    }
+    const menuNombre = document.getElementById('adminMenuNombre');
+    const menuEmail = document.getElementById('adminMenuEmail');
+    if (menuNombre) menuNombre.textContent = nombre || 'Administrador';
+    if (menuEmail) menuEmail.textContent = email || '—';
+}
+
+function _actualizarFechaHoraAdmin() {
+    const el = document.getElementById('adminFechaHora');
+    if (!el) return;
+    const ahora = new Date();
+    const dias = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+    const meses = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+    const hh = String(ahora.getHours()).padStart(2, '0');
+    const mm = String(ahora.getMinutes()).padStart(2, '0');
+    el.textContent = `${dias[ahora.getDay()]} ${ahora.getDate()} ${meses[ahora.getMonth()]} · ${hh}:${mm}`;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    _actualizarSaludoAdmin();
+    _actualizarFechaHoraAdmin();
+    // hdvUsuario se resuelve async en guard.js → reintentos cortos hasta que llegue el nombre
+    [600, 1500, 3000].forEach(t => setTimeout(_actualizarSaludoAdmin, t));
+    // Refrescar el reloj cada 30s y revalidar el saludo (cruce de franja horaria)
+    setInterval(() => { _actualizarFechaHoraAdmin(); _actualizarSaludoAdmin(); }, 30000);
+});
+
 document.addEventListener('DOMContentLoaded', () => {
     // Carga rápida de productos: Enter agrega y sigue
     ['qaNombre', 'qaPrecio', 'qaStock'].forEach(id => {
@@ -595,12 +649,65 @@ function actualizarBarraCambios() {
         if (cambiosSinGuardar > 0) { bar.classList.add('visible'); badge.textContent = cambiosSinGuardar; }
         else { bar.classList.remove('visible'); }
     }
+    _actualizarSaveStatus();
+}
+
+// Badge de estado de guardado en el header. modo: 'auto' (lee cambiosSinGuardar) | 'saving'
+function _actualizarSaveStatus(modo = 'auto') {
+    const wrap = document.getElementById('saveStatusBadge');
+    const dot = document.getElementById('saveStatusDot');
+    const txt = document.getElementById('saveStatusText');
+    if (!wrap || !dot || !txt) return;
+    wrap.classList.remove('bg-panel-2', 'text-gray-400', 'bg-amber-500/10', 'text-amber-600', 'cursor-pointer');
+    dot.classList.remove('bg-emerald-500', 'bg-amber-500', 'animate-pulse');
+    if (modo === 'saving') {
+        wrap.classList.add('bg-amber-500/10', 'text-amber-600');
+        dot.classList.add('bg-amber-500', 'animate-pulse');
+        txt.textContent = 'Guardando...';
+    } else if (cambiosSinGuardar > 0) {
+        wrap.classList.add('bg-amber-500/10', 'text-amber-600', 'cursor-pointer');
+        dot.classList.add('bg-amber-500', 'animate-pulse');
+        txt.textContent = `${cambiosSinGuardar} sin guardar`;
+    } else {
+        wrap.classList.add('bg-panel-2', 'text-gray-400');
+        dot.classList.add('bg-emerald-500');
+        txt.textContent = 'Guardado';
+    }
+}
+
+// Cambio de contrasena del admin (Supabase Auth)
+async function cambiarContrasenaAdmin() {
+    const datos = await mostrarInputModal({
+        titulo: 'Cambiar contrasena',
+        icono: 'key-round',
+        subtitulo: 'Minimo 8 caracteres, con mayuscula, numero y simbolo.',
+        textoConfirmar: 'Actualizar',
+        campos: [
+            { key: 'p1', label: 'Nueva contrasena', tipo: 'password', requerido: true },
+            { key: 'p2', label: 'Repetir contrasena', tipo: 'password', requerido: true },
+        ]
+    });
+    if (!datos) return;
+    if (datos.p1 !== datos.p2) { mostrarToast('Las contrasenas no coinciden.', 'error'); return; }
+    if (!/^(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/.test(datos.p1)) {
+        mostrarToast('No cumple los requisitos: 8+ caracteres, 1 mayuscula, 1 numero, 1 simbolo.', 'error');
+        return;
+    }
+    try {
+        const { error } = await supabaseClient.auth.updateUser({ password: datos.p1 });
+        if (error) throw error;
+        mostrarToast('Contrasena actualizada correctamente.', 'success');
+    } catch (err) {
+        console.error('[Admin] Error cambiando contrasena:', err);
+        mostrarToast('No se pudo cambiar la contrasena: ' + (err.message || 'error'), 'error');
+    }
 }
 
 async function guardarTodosCambios() {
     await withButtonLock('btnGuardarSync', async () => {
         cambiosSinGuardar = 0;
         actualizarBarraCambios();
+        _actualizarSaveStatus('saving'); // override tras reset, durante la sincronizacion
         productosDataOriginal = JSON.parse(JSON.stringify(productosData));
 
         const dataLimpia = { categorias: productosData.categorias, productos: productosData.productos, clientes: productosData.clientes };
@@ -621,6 +728,7 @@ async function guardarTodosCambios() {
             console.error('[Admin] guardarCatalogo no esta definida. supabase-config.js puede tener un error de carga.');
             mostrarToast('Error: modulo de sincronizacion no cargado. Cambios guardados localmente.', 'error');
         }
+        _actualizarSaveStatus('auto'); // vuelve a "Guardado"
     }, 'Sincronizando...')();
 }
 

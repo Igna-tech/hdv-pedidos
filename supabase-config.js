@@ -34,8 +34,8 @@ function actualizarIndicadorConexion(conectado) {
     const badge = document.getElementById('status-badge');
     if (!badge) return;
     const enLinea = navigator.onLine;
-    // Detectar si estamos en admin (tiene clase con mr-1.5) o vendedor (mr-2)
-    const dotMr = badge.closest('header.bg-white') ? 'mr-1.5' : 'mr-2';
+    // Admin: badge en sidebar/header → punto compacto (mr-1.5). Vendedor: header → mr-2.
+    const dotMr = (badge.closest('header.bg-white') || badge.closest('#sidebar')) ? 'mr-1.5' : 'mr-2';
     if (conectado && enLinea) {
         badge.innerHTML = `<span class="w-2 h-2 bg-green-500 rounded-full ${dotMr}"></span> Sincronizado`;
         badge.style.color = '';

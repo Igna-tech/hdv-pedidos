@@ -244,89 +244,96 @@
 
     <!-- SIDEBAR -->
     <aside id="sidebar" class="sidebar w-64 flex-shrink-0 flex flex-col" role="navigation" aria-label="Menu principal">
-        <div class="p-5 border-b border-gray-100">
+        <div class="p-4 border-b border-gray-100">
             <div class="flex items-center gap-3">
-                <img id="adminSidebarLogo" src="" alt="Logo empresa" class="w-10 h-10 object-contain rounded-lg hidden">
-                <svg id="adminSidebarLogoSvg" width="40" height="40" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                <img id="adminSidebarLogo" src="" alt="Logo empresa" class="w-9 h-9 object-contain rounded-lg hidden shrink-0">
+                <svg id="adminSidebarLogoSvg" width="36" height="36" class="shrink-0" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
                     <rect width="100" height="100" rx="16" fill="#111827"/>
                     <rect x="4" y="4" width="92" height="92" rx="12" fill="none" stroke="#DC2626" stroke-width="2.5"/>
                     <text x="50" y="52" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="38" fill="#DC2626" text-anchor="middle" dominant-baseline="central" letter-spacing="2">HDV</text>
                     <text x="50" y="78" font-family="Arial, sans-serif" font-weight="700" font-size="9.5" fill="#FFFFFF" text-anchor="middle" letter-spacing="4">DISTRIBUCIONES</text>
                 </svg>
-                <div>
-                    <h1 class="text-base font-bold tracking-tight leading-tight text-gray-900">HDV Admin</h1>
-                    <p class="text-[10px] text-gray-400 mt-0.5 uppercase tracking-wider">Panel de Gestion</p>
+                <div class="min-w-0 flex-1">
+                    <p id="adminSaludo" class="text-[10px] text-gray-400 uppercase tracking-wider font-semibold leading-none">Bienvenido</p>
+                    <h1 id="adminSaludoNombre" class="text-base font-bold tracking-tight leading-tight text-gray-900 truncate mt-0.5">HDV Admin</h1>
                 </div>
+                <sl-icon-button name="arrow-clockwise" label="Forzar actualizacion" data-action="forzarActualizacionAdmin" class="shrink-0 -mr-1" style="font-size:0.95rem; color:#9ca3af;"></sl-icon-button>
+            </div>
+            <div class="flex items-center justify-between gap-2 mt-3">
+                <div id="status-badge" class="text-[10px] uppercase tracking-wider font-semibold inline-flex items-center px-2 py-1 rounded-md bg-panel-2 text-gray-400">
+                    <span class="w-2 h-2 bg-green-500 rounded-full mr-1.5"></span> Sincronizado
+                </div>
+                <span id="adminFechaHora" class="text-[10px] text-gray-400 tabular-nums font-medium whitespace-nowrap"></span>
             </div>
         </div>
 
         <nav class="flex-1 overflow-y-auto py-4 px-2">
-            <div class="px-3 mb-2 text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Datos</div>
-            <button data-section="dashboard" class="nav-item w-full flex items-center text-sm">
-                <i data-lucide="layout-dashboard" class="w-4 h-4 mr-3 text-gray-400"></i> Dashboard
+            <div class="px-3 mb-2 text-[11px] font-semibold text-gray-400 uppercase tracking-widest">Datos</div>
+            <button data-section="dashboard" class="nav-item w-full flex items-center text-[15px]">
+                <i data-lucide="layout-dashboard" class="w-[18px] h-[18px] mr-3 text-gray-400"></i> Dashboard
             </button>
-            <button data-section="pedidos" class="nav-item w-full flex items-center text-sm active">
-                <i data-lucide="package" class="w-4 h-4 mr-3 text-gray-400"></i> Pedidos Entrantes
+            <button data-section="pedidos" class="nav-item w-full flex items-center text-[15px] active">
+                <i data-lucide="package" class="w-[18px] h-[18px] mr-3 text-gray-400"></i> Pedidos Entrantes
             </button>
-            <button data-section="ventas" class="nav-item w-full flex items-center text-sm">
-                <i data-lucide="receipt" class="w-4 h-4 mr-3 text-gray-400"></i> Ventas
+            <button data-section="ventas" class="nav-item w-full flex items-center text-[15px]">
+                <i data-lucide="receipt" class="w-[18px] h-[18px] mr-3 text-gray-400"></i> Ventas
             </button>
-            <button data-section="dtes" class="nav-item w-full flex items-center text-sm">
-                <i data-lucide="file-plus-2" class="w-4 h-4 mr-3 text-gray-400"></i> Mis DTEs
+            <button data-section="dtes" class="nav-item w-full flex items-center text-[15px]">
+                <i data-lucide="file-plus-2" class="w-[18px] h-[18px] mr-3 text-gray-400"></i> Mis DTEs
             </button>
-            <button data-section="creditos" class="nav-item w-full flex items-center text-sm">
-                <i data-lucide="credit-card" class="w-4 h-4 mr-3 text-gray-400"></i> Creditos
+            <button data-section="creditos" class="nav-item w-full flex items-center text-[15px]">
+                <i data-lucide="credit-card" class="w-[18px] h-[18px] mr-3 text-gray-400"></i> Creditos
                 <span id="badgeCreditosVencer" class="ml-auto text-[10px] font-bold bg-red-500 text-white rounded-full px-1.5 py-0.5 hidden"></span>
             </button>
-            <button data-section="reportes" class="nav-item w-full flex items-center text-sm">
-                <i data-lucide="bar-chart-3" class="w-4 h-4 mr-3 text-gray-400"></i> Reportes
+            <button data-section="reportes" class="nav-item w-full flex items-center text-[15px]">
+                <i data-lucide="bar-chart-3" class="w-[18px] h-[18px] mr-3 text-gray-400"></i> Reportes
             </button>
-            <button data-section="stock" class="nav-item w-full flex items-center text-sm">
-                <i data-lucide="database" class="w-4 h-4 mr-3 text-gray-400"></i> Stock
+            <button data-section="stock" class="nav-item w-full flex items-center text-[15px]">
+                <i data-lucide="database" class="w-[18px] h-[18px] mr-3 text-gray-400"></i> Stock
             </button>
 
-            <div class="px-3 mt-5 mb-2 text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Gestion</div>
-            <button data-section="productos" class="nav-item w-full flex items-center text-sm">
-                <i data-lucide="tag" class="w-4 h-4 mr-3 text-gray-400"></i> Productos
+            <div class="px-3 mt-5 mb-2 text-[11px] font-semibold text-gray-400 uppercase tracking-widest">Gestion</div>
+            <button data-section="productos" class="nav-item w-full flex items-center text-[15px]">
+                <i data-lucide="tag" class="w-[18px] h-[18px] mr-3 text-gray-400"></i> Productos
             </button>
-            <button data-section="clientes" class="nav-item w-full flex items-center text-sm">
-                <i data-lucide="users" class="w-4 h-4 mr-3 text-gray-400"></i> Clientes
+            <button data-section="clientes" class="nav-item w-full flex items-center text-[15px]">
+                <i data-lucide="users" class="w-[18px] h-[18px] mr-3 text-gray-400"></i> Clientes
             </button>
-            <button data-section="promociones" class="nav-item w-full flex items-center text-sm">
-                <i data-lucide="gift" class="w-4 h-4 mr-3 text-gray-400"></i> Promociones
+            <button data-section="promociones" class="nav-item w-full flex items-center text-[15px]">
+                <i data-lucide="gift" class="w-[18px] h-[18px] mr-3 text-gray-400"></i> Promociones
             </button>
-            <button data-section="proveedores" class="nav-item w-full flex items-center text-sm">
-                <i data-lucide="truck" class="w-4 h-4 mr-3 text-gray-400"></i> Proveedores
+            <button data-section="proveedores" class="nav-item w-full flex items-center text-[15px]">
+                <i data-lucide="truck" class="w-[18px] h-[18px] mr-3 text-gray-400"></i> Proveedores
                 <span id="badgeProvCxP" class="ml-auto text-[10px] font-bold bg-red-500 text-white rounded-full px-1.5 py-0.5 hidden"></span>
             </button>
 
-            <div class="px-3 mt-5 mb-2 text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Vendedores</div>
-            <button data-section="rendiciones" class="nav-item w-full flex items-center text-sm">
-                <i data-lucide="wallet" class="w-4 h-4 mr-3 text-gray-400"></i> Rendiciones
+            <div class="px-3 mt-5 mb-2 text-[11px] font-semibold text-gray-400 uppercase tracking-widest">Vendedores</div>
+            <button data-section="rendiciones" class="nav-item w-full flex items-center text-[15px]">
+                <i data-lucide="wallet" class="w-[18px] h-[18px] mr-3 text-gray-400"></i> Rendiciones
             </button>
-            <button data-section="metas" class="nav-item w-full flex items-center text-sm">
-                <i data-lucide="target" class="w-4 h-4 mr-3 text-gray-400"></i> Metas
+            <button data-section="metas" class="nav-item w-full flex items-center text-[15px]">
+                <i data-lucide="target" class="w-[18px] h-[18px] mr-3 text-gray-400"></i> Metas
             </button>
-            <button data-section="inactivos" class="nav-item w-full flex items-center text-sm">
-                <i data-lucide="alert-triangle" class="w-4 h-4 mr-3 text-gray-400"></i> Clientes en Riesgo
-            </button>
-
-            <div class="px-3 mt-5 mb-2 text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Contabilidad</div>
-            <button data-section="cierre" class="nav-item w-full flex items-center text-sm">
-                <i data-lucide="calculator" class="w-4 h-4 mr-3 text-gray-400"></i> Cierre Mensual
-            </button>
-            <button data-section="sifen-estado" class="nav-item w-full flex items-center text-sm">
-                <i data-lucide="file-check-2" class="w-4 h-4 mr-3 text-gray-400"></i> Consulta DTE / SIFEN
+            <button data-section="inactivos" class="nav-item w-full flex items-center text-[15px]">
+                <i data-lucide="alert-triangle" class="w-[18px] h-[18px] mr-3 text-gray-400"></i> Clientes en Riesgo
             </button>
 
-            <div class="px-3 mt-5 mb-2 text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Seguridad</div>
-            <button data-section="forense" class="nav-item w-full flex items-center text-sm">
-                <i data-lucide="shield-alert" class="w-4 h-4 mr-3 text-red-400"></i> Seguridad / Forense
+            <div class="px-3 mt-5 mb-2 text-[11px] font-semibold text-gray-400 uppercase tracking-widest">Contabilidad</div>
+            <button data-section="cierre" class="nav-item w-full flex items-center text-[15px]">
+                <i data-lucide="calculator" class="w-[18px] h-[18px] mr-3 text-gray-400"></i> Cierre Mensual
+            </button>
+            <button data-section="sifen-estado" class="nav-item w-full flex items-center text-[15px]">
+                <i data-lucide="file-check-2" class="w-[18px] h-[18px] mr-3 text-gray-400"></i> Consulta DTE / SIFEN
             </button>
 
-            <div class="px-3 mt-5 mb-2 text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Opciones</div>
-            <button data-section="herramientas" class="nav-item w-full flex items-center text-sm">
-                <i data-lucide="settings" class="w-4 h-4 mr-3 text-gray-400"></i> Herramientas
+            <div class="px-3 mt-5 mb-2 text-[11px] font-semibold text-gray-400 uppercase tracking-widest">Seguridad</div>
+            <button data-section="forense" class="nav-item w-full flex items-center text-[15px]">
+                <i data-lucide="shield-alert" class="w-[18px] h-[18px] mr-3 text-red-400"></i> Seguridad / Forense
+            </button>
+
+            <div class="px-3 mt-5 mb-2 text-[11px] font-semibold text-gray-400 uppercase tracking-widest">Opciones</div>
+            <button data-section="herramientas" class="nav-item w-full flex items-center text-[15px]">
+                <i data-lucide="settings" class="w-[18px] h-[18px] mr-3 text-gray-400"></i> Herramientas
             </button>
         </nav>
 
@@ -337,9 +344,6 @@
                 </div>
                 <span class="text-xs text-gray-600 font-medium truncate" id="sidebar-user-name"></span>
             </div>
-            <sl-button data-action="cerrarSesion" variant="danger" outline size="small" class="w-full">
-                <i data-lucide="log-out" class="w-4 h-4"></i> Cerrar Sesion
-            </sl-button>
             <span class="block text-[10px] text-gray-400 font-medium text-center">Version 7.5 - 2026</span>
         </div>
     </aside>
@@ -351,37 +355,71 @@
                 <sl-icon-button id="hamburgerBtn" name="list" data-action="toggleSidebar" label="Menu" class="hidden" style="font-size:1.25rem; color:#6b7280;"></sl-icon-button>
                 <h2 class="text-base font-semibold text-gray-900" id="currentSectionTitle">Gestion de Pedidos</h2>
             </div>
-            <div class="flex items-center gap-1.5 md:gap-3">
-                <sl-icon-button name="search" label="Buscar (Ctrl+K)" data-action="abrirBusquedaGlobal" style="font-size:1rem;"></sl-icon-button>
-                <button id="aiBtnHeader" data-action="abrirChatIA" title="CartónIA"
-                    class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-steel text-white text-xs font-semibold hover:opacity-90 transition-all shadow-sm">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-                    </svg>
-                    <span class="hidden md:inline">CartónIA</span>
+            <div class="flex items-center gap-2 md:gap-3">
+                <!-- Buscador (pill ⌘K) -->
+                <button data-action="abrirBusquedaGlobal" title="Buscar (Ctrl+K)"
+                    class="hidden md:flex items-center gap-2 pl-3 pr-2 py-1.5 rounded-lg bg-panel-2 border border-gray-200 text-gray-400 hover:bg-panel-3 hover:text-gray-500 active:scale-[0.98] transition-all">
+                    <i data-lucide="search" class="w-4 h-4"></i>
+                    <span class="text-sm">Buscar...</span>
+                    <kbd class="text-[10px] font-semibold text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded ml-2">Ctrl K</kbd>
                 </button>
+                <sl-icon-button class="md:hidden" name="search" label="Buscar" data-action="abrirBusquedaGlobal" style="font-size:1.05rem;"></sl-icon-button>
+
+                <!-- Estado de guardado -->
+                <button id="saveStatusBadge" data-action="guardarCambiosHeader" title="Estado de cambios"
+                    class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all bg-panel-2 text-gray-400">
+                    <span id="saveStatusDot" class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                    <span id="saveStatusText" class="hidden md:inline">Guardado</span>
+                </button>
+
+                <!-- Notificaciones -->
                 <div class="relative flex items-center">
-                    <sl-icon-button id="btnNotificaciones" name="bell" label="Notificaciones" data-action="toggleNotificaciones" style="font-size:1.05rem;"></sl-icon-button>
+                    <sl-icon-button id="btnNotificaciones" name="bell" label="Notificaciones" data-action="toggleNotificaciones" style="font-size:1.2rem;"></sl-icon-button>
                     <span id="notifBadge" class="hidden">0</span>
                     <div id="notifPanel" class="hidden" role="dialog" aria-label="Notificaciones">
                         <div class="notif-head"><span class="eyebrow-label">Notificaciones</span></div>
                         <div id="notifLista" class="notif-lista"></div>
                     </div>
                 </div>
-                <div id="status-badge" class="text-[10px] uppercase tracking-wider font-semibold flex items-center text-gray-400 mr-1">
-                    <span class="w-2 h-2 bg-green-500 rounded-full mr-1.5"></span> <span class="hidden md:inline">En linea</span>
-                </div>
-                <sl-icon-button name="arrow-clockwise" label="Forzar actualizacion" data-action="forzarActualizacionAdmin" style="font-size:1rem;"></sl-icon-button>
-                <div class="h-6 w-px bg-gray-200 mx-1"></div>
-                <div class="flex items-center gap-2">
-                    <img id="adminHeaderLogo" src="" alt="Logo empresa" class="w-6 h-6 object-contain rounded hidden">
-                    <svg id="adminHeaderLogoSvg" width="24" height="24" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                        <rect width="100" height="100" rx="16" fill="#111827"/>
-                        <rect x="4" y="4" width="92" height="92" rx="12" fill="none" stroke="#DC2626" stroke-width="3"/>
-                        <text x="50" y="55" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="42" fill="#DC2626" text-anchor="middle" dominant-baseline="central" letter-spacing="2">HDV</text>
+
+                <!-- CartónIA -->
+                <button id="aiBtnHeader" data-action="abrirChatIA" title="CartónIA — Asistente IA"
+                    class="flex items-center gap-2 px-4 py-2 rounded-lg bg-steel text-white text-sm font-semibold hover:opacity-90 active:scale-[0.97] transition-all shadow-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                     </svg>
-                    <span class="text-sm font-medium text-gray-500 hidden md:inline">HDV Distribuciones</span>
-                </div>
+                    <span>CartónIA</span>
+                </button>
+
+                <div class="h-6 w-px bg-gray-200 mx-1"></div>
+
+                <!-- Menu de usuario -->
+                <sl-dropdown placement="bottom-end" distance="8" hoist>
+                    <button slot="trigger" title="Mi cuenta"
+                        class="flex items-center gap-2 pl-1 pr-1.5 py-1 rounded-lg hover:bg-panel-2 active:scale-[0.98] transition-all">
+                        <span id="adminAvatar" class="w-8 h-8 rounded-full bg-steel text-white text-xs font-bold flex items-center justify-center shrink-0">··</span>
+                        <i data-lucide="chevron-down" class="w-4 h-4 text-gray-400 hidden md:block"></i>
+                    </button>
+                    <div class="user-menu-panel bg-white rounded-xl shadow-xl border border-gray-200 w-60 overflow-hidden">
+                        <div class="px-4 py-3 border-b border-gray-100">
+                            <p id="adminMenuNombre" class="text-sm font-semibold text-gray-900 truncate">—</p>
+                            <p id="adminMenuEmail" class="text-xs text-gray-400 truncate mt-0.5">—</p>
+                        </div>
+                        <div class="p-1.5">
+                            <button data-action="cambiarSeccion" data-arg="herramientas" class="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 rounded-md hover:bg-panel-2 transition-all text-left">
+                                <i data-lucide="settings" class="w-4 h-4 text-gray-400"></i> Configuracion
+                            </button>
+                            <button data-action="cambiarContrasena" class="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 rounded-md hover:bg-panel-2 transition-all text-left">
+                                <i data-lucide="key-round" class="w-4 h-4 text-gray-400"></i> Cambiar contrasena
+                            </button>
+                        </div>
+                        <div class="p-1.5 border-t border-gray-100">
+                            <button data-action="cerrarSesion" class="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-red-500 rounded-md hover:bg-red-500/10 transition-all text-left">
+                                <i data-lucide="log-out" class="w-4 h-4"></i> Cerrar sesion
+                            </button>
+                        </div>
+                    </div>
+                </sl-dropdown>
             </div>
         </header>
 

@@ -655,3 +655,38 @@ sl-select:focus-within::part(combobox) {
 @media (prefers-reduced-motion: reduce) {
   .saas-card, .card, .vpc, .catalog-card, .prod, .vendor-cat-card { transform: none !important; }
 }
+
+/* ============================================================
+   Toast estilo Sonner (reemplaza sl-alert) — apilado + swipe
+   ============================================================ */
+.hdv-toast {
+  pointer-events: auto;
+  display: flex; align-items: flex-start; gap: .6rem;
+  background: hsl(var(--popover)); color: hsl(var(--popover-foreground));
+  border: 1px solid hsl(var(--border)); border-radius: calc(var(--radius) - 2px);
+  box-shadow: 0 8px 24px -8px rgb(0 0 0 / .45);
+  padding: .8rem .95rem; font-size: .85rem; font-weight: 500;
+  max-width: 360px; margin-bottom: 8px;
+  transform: translateX(16px); opacity: 0;
+  transition: transform .28s var(--ease-out), opacity .28s var(--ease-out);
+  touch-action: pan-y; cursor: grab;
+}
+.hdv-toast.show { transform: none; opacity: 1; }
+.hdv-toast.out  { transform: translateX(120%); opacity: 0; }
+.hdv-toast-ico { flex-shrink: 0; width: 1.05rem; height: 1.05rem; margin-top: 1px; }
+.hdv-toast-ico svg { width: 100%; height: 100%; }
+.hdv-toast-msg { line-height: 1.35; }
+.hdv-toast-success .hdv-toast-ico { color: hsl(var(--success)); }
+.hdv-toast-error   .hdv-toast-ico { color: hsl(var(--destructive)); }
+.hdv-toast-warning .hdv-toast-ico { color: hsl(var(--warning)); }
+.hdv-toast-info    .hdv-toast-ico { color: hsl(var(--ring)); }
+@media (prefers-reduced-motion: reduce) { .hdv-toast { transition: opacity .15s linear; transform: none; } }
+
+/* ============================================================
+   View Transitions — crossfade entre secciones (admin)
+   ============================================================ */
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-old(root), ::view-transition-new(root) {
+    animation-duration: .22s; animation-timing-function: var(--ease-out);
+  }
+}

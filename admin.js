@@ -471,20 +471,21 @@ function _hdvRefrescarSeccionActiva(docId) {
 
 function cambiarSeccion(seccionId) {
     _seccionActiva = seccionId;
-    document.querySelectorAll('.tab-content').forEach(el => {
-        el.classList.remove('active');
-        el.style.display = 'none';
-    });
-    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-
-    const seccion = document.getElementById(`seccion-${seccionId}`);
-    if (seccion) { seccion.classList.add('active'); seccion.style.display = 'block'; }
-
-    const contentArea = document.getElementById('adminContentArea');
-    if (contentArea) contentArea.scrollTop = 0;
-
-    const btn = document.querySelector(`button[data-section="${seccionId}"]`);
-    if (btn) btn.classList.add('active');
+    const _swap = () => {
+        document.querySelectorAll('.tab-content').forEach(el => {
+            el.classList.remove('active');
+            el.style.display = 'none';
+        });
+        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+        const seccion = document.getElementById(`seccion-${seccionId}`);
+        if (seccion) { seccion.classList.add('active'); seccion.style.display = 'block'; }
+        const contentArea = document.getElementById('adminContentArea');
+        if (contentArea) contentArea.scrollTop = 0;
+        const btn = document.querySelector(`button[data-section="${seccionId}"]`);
+        if (btn) btn.classList.add('active');
+    };
+    // View Transitions API (crossfade moderno; feature-detect)
+    if (document.startViewTransition) document.startViewTransition(_swap); else _swap();
 
     const titulos = {
         'dashboard': 'Dashboard', 'pedidos': 'Pedidos Entrantes', 'ventas': 'Ventas',

@@ -46,8 +46,9 @@
   --muted:  hsl(var(--muted-foreground));   /* TEXTO terciario (misma semántica que antes) */
   --faint:  hsl(240 5% 45%);
 
-  /* acento monocromático shadcn: primario = blanco; superficie de acento = zinc */
-  --steel:        hsl(var(--primary));
+  /* acento monocromático shadcn. --steel = relleno neutro (texto blanco legible);
+     el BLANCO real shadcn (primario) se aplica solo en botones via ::part. */
+  --steel:        #3f3f46;   /* zinc-700 — fills de acento legacy con texto blanco */
   --steel-bright: hsl(var(--foreground));
   --steel-soft:   hsl(var(--accent));
 
@@ -148,9 +149,6 @@ sl-button[variant="neutral"]::part(base) {
 sl-button[variant="default"]::part(base):hover,
 sl-button[variant="neutral"]::part(base):hover { background: hsl(var(--accent)); }
 
-/* Texto oscuro sobre fills primarios (antes era #fff sobre acero) */
-.empty-state .empty-action, .hdv-error-retry,
-.chart-tab.active, .intel-tab.active { color: hsl(var(--primary-foreground)) !important; }
 ::selection { background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
 
 /* ============================================================

@@ -64,8 +64,19 @@ const _vendedorActionMap = {
         const nombreEl = document.getElementById('sidebarNombre');
         const emailEl = document.getElementById('sidebarEmail');
         if (avatarEl) avatarEl.textContent = nombre.charAt(0).toUpperCase();
-        if (nombreEl) nombreEl.textContent = nombre;
+        if (nombreEl) nombreEl.textContent = nombre.split(/\s+/)[0] || nombre;
         if (emailEl) emailEl.textContent = email;
+        // Saludo segun horario + fecha/hora (igual a admin)
+        const h = new Date().getHours();
+        const saludoEl = document.getElementById('sidebarSaludo');
+        if (saludoEl) saludoEl.textContent = h < 6 ? 'Buenas noches' : h < 12 ? 'Buenos días' : h < 19 ? 'Buenas tardes' : 'Buenas noches';
+        const fhEl = document.getElementById('sidebarFechaHora');
+        if (fhEl) {
+            const n = new Date();
+            const dias = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+            const meses = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+            fhEl.textContent = `${dias[n.getDay()]} ${n.getDate()} ${meses[n.getMonth()]} · ${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}`;
+        }
         if (typeof _actualizarBadgeCreditos === 'function') _actualizarBadgeCreditos();
         sidebar.show();
     },

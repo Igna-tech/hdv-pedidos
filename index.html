@@ -233,15 +233,31 @@
                     <text x="50" y="52" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="38" fill="#DC2626" text-anchor="middle" dominant-baseline="central" letter-spacing="2">HDV</text>
                     <text x="50" y="78" font-family="Arial, sans-serif" font-weight="700" font-size="9.5" fill="#FFFFFF" text-anchor="middle" letter-spacing="4">DISTRIBUCIONES</text>
                 </svg>
-                <div>
-                    <h1 class="text-sm font-bold text-slate-900 leading-tight">HDV Pedidos</h1>
-                    <div id="status-badge" class="text-[10px] uppercase tracking-wider font-semibold text-slate-400 flex items-center">
-                        <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full mr-1.5"></span> En linea
+            </div>
+            <div class="flex items-center gap-1.5">
+                <!-- Busqueda global -->
+                <button data-action="abrirBusquedaGlobal" class="header-icon-btn p-1.5 rounded-lg hover:bg-slate-100 transition-colors" aria-label="Buscar">
+                    <i data-lucide="search" class="w-5 h-5"></i>
+                </button>
+                <!-- Notificaciones -->
+                <div class="relative flex items-center">
+                    <button id="btnNotificaciones" data-action="toggleNotificaciones" class="header-icon-btn p-1.5 rounded-lg hover:bg-slate-100 transition-colors" aria-label="Notificaciones">
+                        <i data-lucide="bell" class="w-5 h-5"></i>
+                    </button>
+                    <span id="notifBadge" class="hidden">0</span>
+                    <div id="notifPanel" class="hidden" role="dialog" aria-label="Notificaciones">
+                        <div class="notif-head"><span class="eyebrow-label">Notificaciones</span></div>
+                        <div id="notifLista" class="notif-lista"></div>
                     </div>
                 </div>
-            </div>
-            <div class="flex gap-0.5">
-                <sl-icon-button name="arrow-clockwise" label="Forzar actualizacion" data-action="forzarActualizacion" class="header-icon-btn"></sl-icon-button>
+                <!-- CartonIA -->
+                <button id="aiBtnHeader" data-action="abrirChatIA" title="CartonIA — Asistente IA"
+                    class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-steel text-white text-sm font-semibold hover:opacity-90 active:scale-[0.97] transition-all shadow-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    </svg>
+                    <span class="hidden sm:inline">CartonIA</span>
+                </button>
             </div>
         </div>
 
@@ -509,11 +525,24 @@
 
     <!-- SIDEBAR MENU -->
     <sl-drawer id="sidebarMenu" placement="start" style="--size: 17rem;" no-header>
-        <!-- Perfil del vendedor -->
-        <div class="bg-gradient-to-br from-slate-800 to-slate-900 px-5 py-6">
-            <div id="sidebarAvatar" class="w-11 h-11 rounded-full bg-indigo-500 flex items-center justify-center text-white text-lg font-black mb-3">V</div>
-            <p id="sidebarNombre" class="text-white font-bold text-sm leading-snug">Vendedor</p>
-            <p id="sidebarEmail" class="text-slate-400 text-xs mt-0.5 truncate"></p>
+        <!-- Sidebar header: saludo + estado + version (igual a admin) -->
+        <div class="bg-gradient-to-br from-slate-800 to-slate-900 px-4 py-4">
+            <div class="flex items-center gap-3">
+                <div id="sidebarAvatar" class="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center text-white text-sm font-black shrink-0">V</div>
+                <div class="min-w-0 flex-1">
+                    <p id="sidebarSaludo" class="text-[10px] text-slate-400 uppercase tracking-wider font-semibold leading-none">Bienvenido</p>
+                    <p id="sidebarNombre" class="text-white font-bold text-sm leading-tight truncate mt-0.5">Vendedor</p>
+                    <p id="sidebarEmail" class="text-slate-400 text-[11px] truncate leading-tight"></p>
+                </div>
+                <sl-icon-button name="arrow-clockwise" label="Forzar actualizacion" data-action="forzarActualizacion" class="shrink-0 -mr-1" style="font-size:0.95rem; color:#94a3b8;"></sl-icon-button>
+            </div>
+            <div class="flex items-center justify-between gap-2 mt-3">
+                <div id="status-badge" class="text-[10px] uppercase tracking-wider font-semibold inline-flex items-center px-2 py-1 rounded-md bg-slate-700/50 text-slate-300">
+                    <span class="w-2 h-2 bg-emerald-500 rounded-full mr-1.5"></span> En linea
+                </div>
+                <span id="sidebarFechaHora" class="text-[10px] text-slate-400 tabular-nums font-medium whitespace-nowrap"></span>
+            </div>
+            <p class="text-[10px] text-slate-500 font-medium mono mt-2" style="letter-spacing:0.08em">HDV ERP · v0.9.0 · BETA</p>
         </div>
 
         <!-- Nav principal -->

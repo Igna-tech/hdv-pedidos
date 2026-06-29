@@ -133,8 +133,9 @@
         sl-input::part(prefix) { color: var(--faint); }
 
         /* Botón ENTRAR: primario shadcn (blanco + texto oscuro, redondeado) */
-        .btn-enter { --sl-input-height-large: 3.6rem; }
+        .btn-enter { --sl-input-height-large: 3.6rem; width: 15rem; max-width: 100%; }
         .btn-enter::part(base) {
+            width: 100%; justify-content: center;
             background: var(--steel); border: 1px solid transparent; border-radius: 0.6rem; color: var(--on-primary);
             font-weight: 600; letter-spacing: 0; font-size: 1.1rem;
             transition: background 150ms var(--ease-out), transform 120ms var(--ease-out), opacity 150ms var(--ease-out);
@@ -253,7 +254,7 @@
                 <form id="login-form">
                     <div class="field reveal d2">
                         <label for="email">Correo electrónico</label>
-                        <sl-input type="email" id="email" required autocomplete="email" placeholder="tu@correo.com" size="large"></sl-input>
+                        <sl-input type="email" id="email" required autocomplete="email" placeholder="nombre@empresa.com" size="large"></sl-input>
                     </div>
                     <div class="field reveal d3">
                         <label for="password">Contraseña</label>
@@ -266,8 +267,8 @@
                     <div class="row reveal d3">
                         <sl-checkbox id="remember-device" size="small">Recordar este dispositivo</sl-checkbox>
                     </div>
-                    <div class="reveal d4" style="margin-top:1.25rem">
-                        <sl-button type="submit" id="btn-login" size="large" class="w-full btn-enter">Entrar</sl-button>
+                    <div class="reveal d4" style="margin-top:1.25rem;display:flex;justify-content:center">
+                        <sl-button type="submit" id="btn-login" size="large" class="btn-enter">Entrar</sl-button>
                     </div>
                 </form>
 

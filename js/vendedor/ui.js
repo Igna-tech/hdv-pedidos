@@ -438,17 +438,9 @@ async function mostrarProductos() {
     }
 }
 
-// Botón "Repetir último pedido" (order-pad): aparece cuando hay cliente.
-function _renderBotonPedidoHabitual(container) {
-    if (!clienteActual) return;
-    const btn = document.createElement('button');
-    btn.className = 'pedido-habitual-btn';
-    btn.innerHTML = `<span class="ph-ico"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></span>
-        <span class="ph-txt"><span class="ph-title">Repetir último pedido</span><span class="ph-sub">${escapeHTML(clienteActual.razon_social || clienteActual.nombre)}</span></span>
-        <span class="ph-arrow"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></span>`;
-    btn.onclick = () => { if (typeof cargarPedidoHabitual === 'function') cargarPedidoHabitual(); };
-    container.appendChild(btn);
-}
+// "Repetir último pedido" se movió a un botón pequeño dentro del Historial del
+// cliente (esquina superior). Ya no se muestra como badge en el catálogo.
+function _renderBotonPedidoHabitual(_container) { /* no-op */ }
 
 async function renderizarCategoriasVendedor(container) {
     container.innerHTML = '';
@@ -1787,10 +1779,13 @@ async function mostrarHistorialCliente(clienteId) {
             <button data-action="cerrarHistorialCliente" class="text-gray-400 hover:text-gray-600 p-1 -ml-1">
                 <i data-lucide="arrow-left" class="w-5 h-5"></i>
             </button>
-            <div class="flex-1">
-                <p class="font-bold text-gray-800 text-sm">${escapeHTML(cliente.razon_social || cliente.nombre)}</p>
+            <div class="flex-1 min-w-0">
+                <p class="font-bold text-gray-800 text-sm truncate">${escapeHTML(cliente.razon_social || cliente.nombre)}</p>
                 <p class="text-[11px] text-gray-400">Historial de pedidos</p>
             </div>
+            ${ultimoPedido ? `<button data-action="repetirUltimoPedido" data-arg="${ultimoPedido.id}" title="Repetir último pedido al carrito" class="shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-indigo-500 text-white text-xs font-semibold hover:bg-indigo-600 active:scale-95 transition-all">
+                <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> Repetir
+            </button>` : ''}
         </div>
         <div class="grid grid-cols-3 bg-slate-50 border-b border-slate-100">
             <div class="text-center py-3">
@@ -1806,11 +1801,6 @@ async function mostrarHistorialCliente(clienteId) {
                 <p class="text-[10px] text-gray-400 uppercase tracking-wider">deuda</p>
             </div>
         </div>
-        ${ultimoPedido ? `<div class="px-4 py-3 border-b border-slate-100">
-            <sl-button data-action="repetirUltimoPedido" data-arg="${ultimoPedido.id}" variant="primary" class="w-full">
-                Repetir último pedido (${(ultimoPedido.items || []).length} productos)
-            </sl-button>
-        </div>` : ''}
         <div class="flex-1 overflow-y-auto px-4 pt-4 pb-24">
             <p class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-3">Todos los pedidos (${totalPedidos})</p>
             ${listaPedidos}

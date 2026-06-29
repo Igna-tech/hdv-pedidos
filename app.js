@@ -18,6 +18,7 @@ const _vendedorActionMap = {
     'abrirChatIA':                    () => typeof abrirChatIA === 'function' && abrirChatIA(),
     'cerrarChatIAVendedor':           () => document.getElementById('aiChatDrawerVendedor')?.hide(),
     'toggleCatDropdown':              () => typeof toggleCatDropdown === 'function' && toggleCatDropdown(),
+    'cerrarClienteInfo':              () => document.getElementById('clienteInfo')?.classList.add('hidden'),
     // Bottom nav
     'cambiarVistaVendedor':           (_, a) => typeof cambiarVistaVendedor === 'function' && cambiarVistaVendedor(a),
     'mostrarModalCarrito':            () => typeof mostrarModalCarrito === 'function' && mostrarModalCarrito(),
@@ -485,6 +486,13 @@ function cambiarVistaVendedor(vista) {
     // FAB carrito: solo visible en catálogo
     const cartFab = document.getElementById('cartFabWrapper');
     if (cartFab) cartFab.style.display = vista === 'lista' ? '' : 'none';
+
+    // Tarjeta del cliente (mini-perfil): SOLO en catálogo
+    const _cInfo = document.getElementById('clienteInfo');
+    if (_cInfo) {
+        if (vista === 'lista' && clienteActual) _cInfo.classList.remove('hidden');
+        else _cInfo.classList.add('hidden');
+    }
 
     // Cerrar sidebar
     const sidebar = document.getElementById('sidebarMenu');

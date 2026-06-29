@@ -8,72 +8,95 @@
    Acento ACERO (no índigo). IBM Plex. Esquinas rectas.
    ============================================================ */
 :root {
-  /* — Superficies (warm-black + acero) — */
-  --ground:    #0E0F11;
-  --panel:     #15171B;
-  --panel-2:   #191C21;
-  --panel-3:   #22262c;
-  --hairline:  rgba(255,255,255,0.09);
-  --hairline-strong: rgba(255,255,255,0.16);
+  /* ===== shadcn/ui — paleta zinc (dark). Tokens HSL semánticos ===== */
+  --background:240 10% 3.9%;
+  --foreground:0 0% 98%;
+  --card:240 6% 8%;
+  --card-foreground:0 0% 98%;
+  --popover:240 6% 9%;
+  --popover-foreground:0 0% 98%;
+  --primary:0 0% 98%;
+  --primary-foreground:240 6% 10%;
+  --secondary:240 4% 14%;
+  --secondary-foreground:0 0% 98%;
+  --muted-surface:240 4% 14%;
+  --muted-foreground:240 5% 65%;
+  --accent:240 4% 16%;
+  --accent-foreground:0 0% 98%;
+  --destructive:0 62.8% 50.6%;
+  --destructive-foreground:0 0% 98%;
+  --success:142 70% 45%;
+  --warning:38 92% 50%;
+  --border:240 4% 16%;
+  --input:240 4% 16%;
+  --ring:240 5% 84%;
+  --radius:0.625rem;
 
-  /* — Tinta (alto contraste para legibilidad al sol) — */
-  --ink:    #E9E7E1;   /* texto principal (hueso) */
-  --ink-2:  #BFC4CC;   /* texto secundario */
-  --muted:  #8A8F98;   /* terciario / labels */
-  --faint:  #5A6068;   /* deshabilitado / metadatos */
+  /* ===== Aliases command-center → shadcn (compat con TODO el CSS/markup existente).
+     Repuntear los valores re-pinta el sistema entero sin renombrar nada. ===== */
+  --ground:   hsl(var(--background));
+  --panel:    hsl(var(--card));
+  --panel-2:  hsl(var(--muted-surface));
+  --panel-3:  hsl(var(--accent));
+  --hairline: hsl(var(--border));
+  --hairline-strong: hsl(240 4% 24%);
 
-  /* — Acento acero — */
-  --steel:        #3D5A78;
-  --steel-bright: #5681AE;
-  --steel-soft:   rgba(61,90,120,0.18);
+  --ink:    hsl(var(--foreground));
+  --ink-2:  hsl(0 0% 85%);
+  --muted:  hsl(var(--muted-foreground));   /* TEXTO terciario (misma semántica que antes) */
+  --faint:  hsl(240 5% 45%);
 
-  /* — Estados — */
-  --ok:    #34D399;
-  --warn:  #E0A800;
-  --alert: #E05252;
+  /* acento monocromático shadcn: primario = blanco; superficie de acento = zinc */
+  --steel:        hsl(var(--primary));
+  --steel-bright: hsl(var(--foreground));
+  --steel-soft:   hsl(var(--accent));
+
+  --ok:    hsl(var(--success));
+  --warn:  hsl(var(--warning));
+  --alert: hsl(var(--destructive));
 
   /* — Movimiento (Emil): PROHIBIDO ease-in en UI — */
-  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);   /* entradas */
-  --ease-io:  cubic-bezier(0.77, 0, 0.175, 1);  /* on-screen */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-io:  cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
 
-  /* — Border-radius: command center = rectas — */
-  --hdv-radius-sm: 2px;
-  --hdv-radius-md: 3px;
-  --hdv-radius-lg: 4px;
-  --hdv-radius-xl: 6px;
+  /* — Border-radius shadcn (redondeado) — */
+  --hdv-radius-sm: 0.375rem;
+  --hdv-radius-md: 0.5rem;
+  --hdv-radius-lg: var(--radius);
+  --hdv-radius-xl: 0.85rem;
 
-  /* — Sombras (profundas, sin glow de color) — */
-  --hdv-shadow-card: 0 1px 0 rgba(255,255,255,0.03) inset, 0 1px 2px rgba(0,0,0,0.4);
-  --hdv-shadow-elevated: 0 12px 32px -16px rgba(0,0,0,0.75);
-  --hdv-shadow-modal: 0 24px 60px -30px rgba(0,0,0,0.85);
+  --hdv-shadow-card: 0 1px 2px 0 rgb(0 0 0 / .25);
+  --hdv-shadow-elevated: 0 12px 32px -16px rgb(0 0 0 / .6);
+  --hdv-shadow-modal: 0 24px 50px -12px rgb(0 0 0 / .55);
 
-  /* — Fuentes — */
-  --hdv-font-sans: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
-  --hdv-font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+  /* — Fuentes: Geist — */
+  --hdv-font-sans: 'Geist', system-ui, -apple-system, sans-serif;
+  --hdv-font-mono: 'Geist Mono', ui-monospace, monospace;
 
-  /* ===== Shoelace overrides (tema oscuro + acero) ===== */
+  /* ===== Shoelace → shadcn ===== */
   --sl-border-radius-small: var(--hdv-radius-sm);
   --sl-border-radius-medium: var(--hdv-radius-md);
   --sl-border-radius-large: var(--hdv-radius-lg);
   --sl-border-radius-x-large: var(--hdv-radius-xl);
   --sl-input-border-radius-small: var(--hdv-radius-md);
   --sl-input-border-radius-medium: var(--hdv-radius-md);
-  --sl-input-border-radius-large: var(--hdv-radius-md);
+  --sl-input-border-radius-large: var(--hdv-radius-lg);
 
-  /* Primary = ACERO (mapeo escala 50→950, oscuro→claro alineado al acento) */
-  --sl-color-primary-50:  #0f1620;
-  --sl-color-primary-100: #15202e;
-  --sl-color-primary-200: #1d2d3f;
-  --sl-color-primary-300: #284058;
-  --sl-color-primary-400: #345070;
-  --sl-color-primary-500: #3D5A78;
-  --sl-color-primary-600: #4a6c90;
-  --sl-color-primary-700: #5681AE;
-  --sl-color-primary-800: #7ba0c6;
-  --sl-color-primary-900: #a9c3dc;
-  --sl-color-primary-950: #d4e2ef;
+  /* Primary = escala zinc (oscuro→claro); el botón primario shadcn se fuerza por ::part */
+  --sl-color-primary-50:  #18181b;
+  --sl-color-primary-100: #27272a;
+  --sl-color-primary-200: #3f3f46;
+  --sl-color-primary-300: #52525b;
+  --sl-color-primary-400: #71717a;
+  --sl-color-primary-500: #a1a1aa;
+  --sl-color-primary-600: #d4d4d8;
+  --sl-color-primary-700: #e4e4e7;
+  --sl-color-primary-800: #f4f4f5;
+  --sl-color-primary-900: #fafafa;
+  --sl-color-primary-950: #ffffff;
 
-  --sl-focus-ring-color: var(--steel);
+  --sl-focus-ring-color: hsl(var(--ring));
   --sl-focus-ring-width: 2px;
   --sl-focus-ring-offset: 2px;
 
@@ -92,21 +115,43 @@
    ganamos por especificidad sin depender del orden de carga.
    ============================================================ */
 html.sl-theme-dark, body.theme-dark {
-  --sl-color-primary-50:  #0f1620;
-  --sl-color-primary-100: #15202e;
-  --sl-color-primary-200: #1d2d3f;
-  --sl-color-primary-300: #284058;
-  --sl-color-primary-400: #345070;
-  --sl-color-primary-500: #3D5A78;
-  --sl-color-primary-600: #4a6c90;
-  --sl-color-primary-700: #5681AE;
-  --sl-color-primary-800: #7ba0c6;
-  --sl-color-primary-900: #a9c3dc;
-  --sl-color-primary-950: #d4e2ef;
-  --sl-focus-ring-color: var(--steel);
+  --sl-color-primary-50:  #18181b;
+  --sl-color-primary-100: #27272a;
+  --sl-color-primary-200: #3f3f46;
+  --sl-color-primary-300: #52525b;
+  --sl-color-primary-400: #71717a;
+  --sl-color-primary-500: #a1a1aa;
+  --sl-color-primary-600: #d4d4d8;
+  --sl-color-primary-700: #e4e4e7;
+  --sl-color-primary-800: #f4f4f5;
+  --sl-color-primary-900: #fafafa;
+  --sl-color-primary-950: #ffffff;
+  --sl-focus-ring-color: hsl(var(--ring));
   --sl-font-sans: var(--hdv-font-sans);
   --sl-font-mono: var(--hdv-font-mono);
 }
+
+/* ============================================================
+   shadcn — botón primario (blanco + texto oscuro) y secundario (zinc)
+   sobreescribe el default de Shoelace para el look shadcn real
+   ============================================================ */
+sl-button[variant="primary"]::part(base) {
+  background: hsl(var(--primary)); color: hsl(var(--primary-foreground));
+  border-color: transparent; font-weight: 500;
+}
+sl-button[variant="primary"]::part(base):hover { background: hsl(var(--primary) / .9); }
+sl-button[variant="default"]::part(base),
+sl-button[variant="neutral"]::part(base) {
+  background: hsl(var(--secondary)); color: hsl(var(--secondary-foreground));
+  border-color: hsl(var(--border));
+}
+sl-button[variant="default"]::part(base):hover,
+sl-button[variant="neutral"]::part(base):hover { background: hsl(var(--accent)); }
+
+/* Texto oscuro sobre fills primarios (antes era #fff sobre acero) */
+.empty-state .empty-action, .hdv-error-retry,
+.chart-tab.active, .intel-tab.active { color: hsl(var(--primary-foreground)) !important; }
+::selection { background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
 
 /* ============================================================
    Tipografía utilitaria

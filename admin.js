@@ -440,6 +440,7 @@ function _actualizarFechaHoraAdmin() {
 document.addEventListener('DOMContentLoaded', () => {
     _actualizarSaludoAdmin();
     _actualizarFechaHoraAdmin();
+    if (typeof actualizarBarraCambios === 'function') actualizarBarraCambios(); // normaliza barra (oculta si 0)
     // hdvUsuario se resuelve async en guard.js → reintentos cortos hasta que llegue el nombre
     [600, 1500, 3000].forEach(t => setTimeout(_actualizarSaludoAdmin, t));
     // Refrescar el reloj cada 30s y revalidar el saludo (cruce de franja horaria)

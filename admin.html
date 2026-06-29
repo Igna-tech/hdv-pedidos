@@ -48,6 +48,11 @@
         @keyframes forceVisible { to { visibility: visible; } }
         body { animation: forceVisible 0s 5s forwards; }
 
+        /* Layout full-bleed: el sistema ocupa TODO el ancho del navegador */
+        html, body { width: 100%; max-width: 100%; overflow-x: hidden; }
+        main { flex: 1 1 0%; min-width: 0; }   /* llena el espacio y permite ajustar sin desbordar */
+        #adminContentArea > .tab-content { width: 100%; }
+
         /* A11Y focus-visible, press feedback, input focus, skeleton, empty-state:
            definidos (oscuros) en src/input.css (compartido). No duplicar aquí. */
 
@@ -85,14 +90,15 @@
         .tab-content { display: none; }
         .tab-content.active { display: block; }
         .unsaved-bar {
-            position: fixed; bottom: -100px; left: 50%; transform: translateX(-50%);
-            background: var(--panel-3); color: var(--ink); padding: 1rem 2rem;
+            position: fixed; bottom: -120px; right: 20px; left: auto; transform: none;
+            background: var(--panel-3); color: var(--ink); padding: 0.55rem 0.7rem 0.55rem 0.9rem;
             border: 1px solid var(--hairline);
-            border-radius: var(--hdv-radius-lg); display: flex; align-items: center; gap: 2rem;
-            box-shadow: var(--hdv-shadow-elevated); transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            z-index: 1000; width: 90%; max-width: 600px;
+            border-radius: 12px; display: flex; align-items: center; gap: 1rem;
+            box-shadow: var(--hdv-shadow-elevated); transition: bottom 0.35s var(--ease-out), opacity 0.35s var(--ease-out);
+            z-index: 1000; width: auto; max-width: calc(100vw - 40px);
         }
         .unsaved-bar.visible { bottom: 20px; }
+        @media (max-width: 640px) { .unsaved-bar { right: 12px; left: 12px; } }
 
         /* sl-button layout, toast base — in src/input.css (shared) */
 
@@ -2209,13 +2215,13 @@
 
     <!-- BARRA CAMBIOS SIN GUARDAR -->
     <div class="unsaved-bar" id="unsavedBar">
-        <div class="flex items-center gap-3">
-            <div class="bg-white text-gray-900 w-8 h-8 rounded-full flex items-center justify-center font-bold" id="unsavedCount">0</div>
-            <span class="font-medium">Cambios pendientes</span>
+        <div class="flex items-center gap-2">
+            <div class="bg-amber-500 text-white w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs shrink-0" id="unsavedCount">0</div>
+            <span class="font-medium text-sm whitespace-nowrap">sin guardar</span>
         </div>
-        <div class="flex gap-2">
+        <div class="flex gap-1.5 items-center">
             <sl-button variant="text" size="small" data-action="descartarCambios" style="--sl-color-neutral-700:#9ca3af;">Descartar</sl-button>
-            <sl-button id="btnGuardarSync" variant="default" size="small" data-action="guardarTodosCambios"><i data-lucide="save" class="w-4 h-4"></i> Guardar y Sincronizar</sl-button>
+            <sl-button id="btnGuardarSync" variant="default" size="small" data-action="guardarTodosCambios"><i data-lucide="save" class="w-4 h-4"></i> Guardar</sl-button>
         </div>
     </div>
 

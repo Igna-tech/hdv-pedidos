@@ -1,4 +1,4 @@
-const VERSION = '77.3';
+const VERSION = '77.4';
 const CACHE_NAME = `hdv-pedidos-v${VERSION}`;
 
 const urlsToCache = [
@@ -26,6 +26,7 @@ const urlsToCache = [
     './js/vendedor/ui.js',
     './js/vendedor/cart.js',
     './js/vendedor/buscador-global.js',
+    './js/vendedor/notificaciones.js',
     './js/admin/pedidos.js',
     './js/admin/dashboard.js',
     './js/admin/productos.js',
@@ -77,6 +78,7 @@ const networkFirstFiles = [
     'vendedor/ui.js',
     'vendedor/cart.js',
     'vendedor/buscador-global.js',
+    'vendedor/notificaciones.js',
     'admin/pedidos.js',
     'admin/dashboard.js',
     'admin/productos.js',

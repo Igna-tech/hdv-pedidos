@@ -14,6 +14,7 @@ const _vendedorActionMap = {
     'cerrarSesion':                   () => typeof cerrarSesion === 'function' && cerrarSesion(),
     'abrirBusquedaGlobal':            () => typeof abrirBusquedaGlobal === 'function' && abrirBusquedaGlobal(),
     'cerrarBusquedaGlobal':           () => typeof cerrarBusquedaGlobal === 'function' && cerrarBusquedaGlobal(),
+    'toggleNotificaciones':           () => typeof toggleNotificaciones === 'function' && toggleNotificaciones(),
     // Bottom nav
     'cambiarVistaVendedor':           (_, a) => typeof cambiarVistaVendedor === 'function' && cambiarVistaVendedor(a),
     'mostrarModalCarrito':            () => typeof mostrarModalCarrito === 'function' && mostrarModalCarrito(),
@@ -290,6 +291,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (typeof mostrarToast === 'function') {
                     mostrarToast('Catalogo actualizado', 'info');
                 }
+                if (typeof notifVendedorCatalogo === 'function') notifVendedorCatalogo();
             }
         });
     }
@@ -299,6 +301,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         escucharPedidosRealtimeVendedor({
             onEstadoCambiado: (pedidoId, nuevoEstado, datos) => {
                 console.log(`[Vendedor RT] Pedido ${pedidoId} -> ${nuevoEstado}`);
+                // Notificacion in-app
+                if (typeof notifVendedorAgregar === 'function') {
+                    const num = datos?.numero_pedido != null ? '#' + String(datos.numero_pedido).padStart(7, '0') : (pedidoId || '').slice(0, 10);
+                    const esCredito = nuevoEstado === 'cobrado_sin_factura' || nuevoEstado === 'entregado';
+                    const labelEstado = nuevoEstado === 'entregado' ? 'Entregado'
+                        : nuevoEstado === 'cobrado_sin_factura' ? 'Cobrado'
+                        : nuevoEstado === 'anulado' ? 'Anulado' : nuevoEstado;
+                    notifVendedorAgregar(esCredito ? 'credito' : 'pedido', `Pedido ${num}: ${labelEstado}`, 'Actualizado por el administrador.');
+                }
                 // Actualizar tarjeta en el DOM si la vista de pedidos esta activa
                 if (vistaActual === 'pedidos' && typeof actualizarTarjetaPedidoDOM === 'function') {
                     const updated = actualizarTarjetaPedidoDOM(pedidoId, nuevoEstado);
@@ -313,6 +324,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             },
             onPedidoEliminado: (pedidoId) => {
                 console.log(`[Vendedor RT] Pedido eliminado: ${pedidoId}`);
+                if (typeof notifVendedorAgregar === 'function') notifVendedorAgregar('pedido', 'Pedido eliminado', 'El administrador eliminó un pedido.');
                 if (vistaActual === 'pedidos' && typeof eliminarTarjetaPedidoDOM === 'function') {
                     eliminarTarjetaPedidoDOM(pedidoId);
                     mostrarToast('Un pedido fue eliminado por el administrador', 'warning');

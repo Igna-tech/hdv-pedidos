@@ -442,7 +442,7 @@
                 </div>`;
         } else {
             div.innerHTML = `
-                <div style="width:24px;height:24px;border-radius:8px;background:linear-gradient(135deg,#5681AE,#3D5A78);flex-shrink:0;"
+                <div style="width:24px;height:24px;border-radius:8px;background:linear-gradient(135deg,#3f3f46,#27272a);flex-shrink:0;"
                     class="flex items-center justify-center mb-0.5">
                     <svg style="width:12px;height:12px;color:#fff;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"/>
@@ -465,7 +465,7 @@
         div.id = 'aiTypingDot';
         div.className = 'flex justify-start gap-2 items-end';
         div.innerHTML = `
-            <div style="width:24px;height:24px;border-radius:8px;background:linear-gradient(135deg,#5681AE,#3D5A78);"
+            <div style="width:24px;height:24px;border-radius:8px;background:linear-gradient(135deg,#3f3f46,#27272a);"
                 class="flex items-center justify-center shrink-0">
                 <svg style="width:12px;height:12px;color:#fff;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"/>

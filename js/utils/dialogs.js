@@ -35,18 +35,34 @@ function mostrarToast(mensaje, tipo = 'info', duracion = 3500) {
     }, 500);
 }
 
+const _TOAST_ICONS = {
+    success: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>',
+    error:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>',
+    warning: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>',
+    info:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>'
+};
+
+// Toast estilo Sonner: apilado, entrada suave, swipe-to-dismiss. CSS en src/input.css (.hdv-toast)
 function _renderToast(container, mensaje, tipo, duracion) {
-    const variantMap = { success: 'success', error: 'danger', info: 'neutral', warning: 'warning' };
-    const iconMap = { success: 'check2-circle', error: 'exclamation-octagon', info: 'info-circle', warning: 'exclamation-triangle' };
-    const alert = document.createElement('sl-alert');
-    alert.variant = variantMap[tipo] || 'neutral';
-    alert.closable = true;
-    alert.duration = duracion;
-    alert.open = true;
-    alert.style.marginBottom = '8px';
-    alert.innerHTML = `<sl-icon name="${iconMap[tipo] || 'info-circle'}" slot="icon"></sl-icon>${escapeHTML(mensaje)}`;
-    container.appendChild(alert);
-    alert.addEventListener('sl-after-hide', () => alert.remove(), { once: true });
+    const t = document.createElement('div');
+    t.className = 'hdv-toast hdv-toast-' + (tipo || 'info');
+    t.setAttribute('role', tipo === 'error' ? 'alert' : 'status');
+    t.innerHTML = `<span class="hdv-toast-ico">${_TOAST_ICONS[tipo] || _TOAST_ICONS.info}</span><span class="hdv-toast-msg">${escapeHTML(mensaje)}</span>`;
+    container.appendChild(t);
+    requestAnimationFrame(() => t.classList.add('show'));
+
+    let hideTimer = setTimeout(dismiss, duracion || 3500);
+    function dismiss() {
+        clearTimeout(hideTimer);
+        t.classList.add('out');
+        t.addEventListener('transitionend', () => t.remove(), { once: true });
+        setTimeout(() => t.remove(), 400);
+    }
+    // Swipe horizontal para descartar
+    let startX = 0, dragging = false, dx = 0;
+    t.addEventListener('pointerdown', (e) => { dragging = true; startX = e.clientX; t.style.transition = 'none'; try { t.setPointerCapture(e.pointerId); } catch (_) {} clearTimeout(hideTimer); });
+    t.addEventListener('pointermove', (e) => { if (!dragging) return; dx = e.clientX - startX; if (dx < 0) dx = 0; t.style.transform = `translateX(${dx}px)`; t.style.opacity = String(Math.max(0, 1 - dx / 200)); });
+    t.addEventListener('pointerup', () => { dragging = false; t.style.transition = ''; if (dx > 90) dismiss(); else { t.style.transform = ''; t.style.opacity = ''; hideTimer = setTimeout(dismiss, 2500); } dx = 0; });
 }
 
 function mostrarExito(msg) {

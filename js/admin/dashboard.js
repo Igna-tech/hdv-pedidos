@@ -29,7 +29,7 @@ let _metaMap = {};
     const hairline = 'rgba(255,255,255,0.09)';
     Chart.defaults.color = muted;                 // ticks / texto general
     Chart.defaults.borderColor = hairline;        // grid lines + ejes
-    if (Chart.defaults.font) Chart.defaults.font.family = "'IBM Plex Sans', system-ui, sans-serif";
+    if (Chart.defaults.font) Chart.defaults.font.family = "'Geist', system-ui, sans-serif";
     Chart.defaults.plugins = Chart.defaults.plugins || {};
     if (Chart.defaults.plugins.legend) {
         Chart.defaults.plugins.legend.labels = Chart.defaults.plugins.legend.labels || {};
@@ -82,7 +82,7 @@ async function cargarDashboard() {
         _serie14.push(pedidos.filter(p => (p.fecha || '').slice(0, 10) === k).reduce((s, p) => s + (p.total || 0), 0));
     }
     const _spark = document.getElementById('dashVentasSparkline');
-    if (_spark) _spark.innerHTML = _sparklineSVG(_serie14, { color: '#5681AE' });
+    if (_spark) _spark.innerHTML = _sparklineSVG(_serie14, { color: '#e4e4e7' });
 
     const _diaHoy = hoy.getDate();
     const _inicioMesAnt = new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1);
@@ -135,7 +135,7 @@ async function cargarDashboard() {
         prodCount[key] = (prodCount[key] || 0) + (i.cantidad || 1);
     }));
     const top5 = Object.entries(prodCount).sort((a,b) => b[1]-a[1]).slice(0, 5);
-    const coloresDoughnut = ['#5681AE', '#3D5A78', '#8EA9C4', '#5A6068', '#BFC4CC'];
+    const coloresDoughnut = ['#fafafa', '#a1a1aa', '#71717a', '#52525b', '#3f3f46'];
     const ctxTop = document.getElementById('chartTopProductos');
     if (ctxTop) {
         if (chartTopProd) chartTopProd.destroy();
@@ -272,7 +272,7 @@ function _sparklineSVG(valores, opts = {}) {
         const y = h - pad - ((v - min) / rango) * (h - pad * 2);
         return `${x.toFixed(1)},${y.toFixed(1)}`;
     });
-    const color = opts.color || '#5681AE';
+    const color = opts.color || '#e4e4e7';
     const sube = valores[n - 1] >= valores[n - 2];
     const [lx, ly] = pts[pts.length - 1].split(',');
     return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" class="hdv-sparkline" aria-hidden="true">
@@ -454,11 +454,11 @@ function _initChartTemporal(periodo) {
                 {
                     label: 'Ventas',
                     data: ventasData,
-                    borderColor: '#5681AE',
-                    backgroundColor: 'rgba(86,129,174,0.10)',
+                    borderColor: '#fafafa',
+                    backgroundColor: 'rgba(250,250,250,0.08)',
                     fill: true, tension: 0.4, borderWidth: 2,
                     pointRadius: puntos, pointHoverRadius: 5,
-                    pointBackgroundColor: '#5681AE'
+                    pointBackgroundColor: '#fafafa'
                 },
                 {
                     label: 'Ganancia',
@@ -798,7 +798,7 @@ async function _cargarIntelProyeccion() {
         if (_chartProyeccion) _chartProyeccion.destroy();
         const datasets = [
             { label: 'Real', data: real, borderColor: '#E9E7E1', backgroundColor: 'rgba(233,231,225,0.06)', fill: true, tension: 0.3, borderWidth: 2, pointRadius: 2, spanGaps: false },
-            { label: 'Proyección', data: proyec, borderColor: '#5681AE', backgroundColor: 'rgba(86,129,174,0.08)', fill: true, tension: 0.3, borderWidth: 2, borderDash: [6, 3], pointRadius: 0, spanGaps: false }
+            { label: 'Proyección', data: proyec, borderColor: '#a1a1aa', backgroundColor: 'rgba(161,161,170,0.08)', fill: true, tension: 0.3, borderWidth: 2, borderDash: [6, 3], pointRadius: 0, spanGaps: false }
         ];
         if (meta) datasets.push({ label: 'Meta', data: meta, borderColor: '#f59e0b', borderWidth: 1.5, borderDash: [4, 4], pointRadius: 0, fill: false });
         _chartProyeccion = new Chart(canvas, {

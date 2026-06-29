@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#0E0F11">
+    <meta name="theme-color" content="#09090b">
     <title>Acceso · HDV Distribuciones</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="dist/tailwind.css">
     <!-- Shoelace Web Components (local, offline-first) -->
     <link rel="stylesheet" href="assets/lib/shoelace/themes/dark.css">
@@ -21,18 +21,22 @@
 
     <style>
         :root {
-            --ground: #0E0F11;
-            --panel: #15171B;
-            --panel-2: #191C21;
-            --hairline: rgba(255,255,255,0.09);
-            --ink: #E9E7E1;
-            --muted: #8A8F98;
-            --faint: #5A6068;
-            --steel: #3D5A78;
-            --steel-bright: #5681AE;
-            --steel-soft: rgba(61,90,120,0.18);
-            --ok: #34D399;
-            --alert: #E05252;
+            /* shadcn/ui zinc (dark) */
+            --ground: #09090b;
+            --panel: #101012;
+            --panel-2: #18181b;
+            --hairline: #26262b;
+            --ink: #fafafa;
+            --muted: #a1a1aa;
+            --faint: #52525b;
+            --steel: #fafafa;            /* primario = blanco */
+            --steel-bright: #fafafa;
+            --steel-soft: #27272a;       /* superficie de acento */
+            --on-primary: #18181b;       /* texto sobre fill blanco */
+            --ring: #d4d4d8;
+            --ok: #22c55e;
+            --alert: #ef4444;
+            --radius: 0.625rem;
             --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
             --ease-io: cubic-bezier(0.77, 0, 0.175, 1);
         }
@@ -40,13 +44,13 @@
         html, body { height: 100%; }
         body {
             margin: 0;
-            font-family: 'IBM Plex Sans', system-ui, sans-serif;
+            font-family: 'Geist', system-ui, sans-serif;
             background: var(--ground);
             color: var(--ink);
             min-height: 100vh;
         }
-        ::selection { background: var(--steel); color: #fff; }
-        .mono { font-family: 'IBM Plex Mono', monospace; }
+        ::selection { background: var(--steel); color: var(--on-primary); }
+        .mono { font-family: 'Geist Mono', monospace; }
 
         /* Grano + grilla sutil (sin glow ni mesh) */
         body::before {
@@ -87,12 +91,12 @@
         /* Centro: módulo de acceso, alineado izquierda */
         .stage { flex: 1; display: flex; align-items: center; padding: 2rem 1.5rem; }
         .module {
-            width: 100%; max-width: 420px;
+            width: 100%; max-width: 500px;
             border: 1px solid var(--hairline); background: var(--panel);
-            border-radius: 2px; padding: 2rem;
-            box-shadow: 0 1px 0 rgba(255,255,255,0.03) inset, 0 24px 60px -30px rgba(0,0,0,0.8);
+            border-radius: var(--radius); padding: 2.5rem;
+            box-shadow: 0 24px 50px -12px rgba(0,0,0,0.55);
         }
-        @media (min-width: 768px) { .stage { padding-left: 6vw; } .module { padding: 2.5rem; } }
+        @media (min-width: 768px) { .stage { padding-left: 6vw; } .module { padding: 3rem; } }
 
         .reveal { opacity: 0; transform: translateY(8px); animation: reveal 240ms var(--ease-out) forwards; }
         .reveal.d1 { animation-delay: 40ms; } .reveal.d2 { animation-delay: 90ms; }
@@ -102,35 +106,42 @@
         /* Logo tile (recto, sin gradiente) */
         .logo-tile {
             width: 46px; height: 46px; border: 1px solid var(--hairline); background: var(--panel-2);
-            display: flex; align-items: center; justify-content: center; border-radius: 2px; overflow: hidden;
+            display: flex; align-items: center; justify-content: center; border-radius: 0.5rem; overflow: hidden;
         }
         .logo-tile img { width: 100%; height: 100%; object-fit: contain; padding: 6px; background: #fff; display: none; }
         .logo-tile .mono { font-weight: 700; font-size: 1rem; color: var(--ink); letter-spacing: 0.02em; }
 
-        .eyebrow { font-size: 0.66rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--faint); }
-        .card-title { font-size: 1.6rem; font-weight: 600; letter-spacing: -0.01em; color: var(--ink); margin: 0.15rem 0 0; }
-        .subtitle { color: var(--muted); font-size: 0.85rem; margin-top: 0.4rem; }
+        .eyebrow { font-size: 0.78rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--faint); }
+        .card-title { font-size: 2.1rem; font-weight: 600; letter-spacing: -0.02em; color: var(--ink); margin: 0.25rem 0 0; }
+        .subtitle { color: var(--muted); font-size: 1rem; margin-top: 0.5rem; }
 
         /* Campos: label mono arriba, solo borde, esquinas rectas */
-        .field { margin-top: 1.1rem; }
-        .field > label { display: block; font-family: 'IBM Plex Mono', monospace; font-size: 0.64rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.4rem; }
+        .field { margin-top: 1.4rem; }
+        .field > label { display: block; font-size: 1rem; font-weight: 500; color: var(--ink); margin-bottom: 0.55rem; }
         sl-input::part(base) {
-            background: var(--panel-2); border: 1px solid var(--hairline); border-radius: 2px;
+            background: var(--panel-2); border: 1px solid var(--hairline); border-radius: 0.6rem;
             transition: border-color 150ms var(--ease-out), box-shadow 150ms var(--ease-out);
         }
-        sl-input::part(base):hover { border-color: rgba(255,255,255,0.16); }
-        sl-input:focus-within::part(base) { border-color: var(--steel); box-shadow: 0 0 0 3px var(--steel-soft); }
-        sl-input { --sl-input-color: var(--ink); --sl-input-placeholder-color: var(--faint); --sl-input-spacing-medium: 0.85rem; }
+        sl-input::part(base):hover { border-color: #3f3f46; }
+        sl-input:focus-within::part(base) { border-color: var(--ring); box-shadow: 0 0 0 3px rgba(212,212,216,0.25); }
+        sl-input {
+            --sl-input-color: var(--ink); --sl-input-placeholder-color: var(--faint);
+            --sl-input-height-large: 3.6rem;
+            --sl-input-font-size-large: 1.1rem;
+            --sl-input-spacing-large: 1.15rem;
+        }
         sl-input::part(prefix) { color: var(--faint); }
 
-        /* Botón ENTRAR: sólido acero, mono, esquinas rectas */
+        /* Botón ENTRAR: primario shadcn (blanco + texto oscuro, redondeado) */
+        .btn-enter { --sl-input-height-large: 3.6rem; width: 15rem; max-width: 100%; }
         .btn-enter::part(base) {
-            background: var(--steel); border: 1px solid var(--steel); border-radius: 2px; color: #fff;
-            font-family: 'IBM Plex Mono', monospace; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase;
-            transition: background 150ms var(--ease-out), border-color 150ms var(--ease-out), transform 120ms var(--ease-out);
+            width: 100%; justify-content: center;
+            background: var(--steel); border: 1px solid transparent; border-radius: 0.6rem; color: var(--on-primary);
+            font-weight: 600; letter-spacing: 0; font-size: 1.1rem;
+            transition: background 150ms var(--ease-out), transform 120ms var(--ease-out), opacity 150ms var(--ease-out);
         }
         @media (hover: hover) and (pointer: fine) {
-            .btn-enter::part(base):hover { background: var(--steel-bright); border-color: var(--steel-bright); }
+            .btn-enter::part(base):hover { background: var(--steel); opacity: 0.9; }
         }
         .btn-enter::part(base):active { transform: scale(0.97); }
         sl-button.w-full { display: block; } sl-button.w-full::part(base) { width: 100%; }
@@ -138,16 +149,16 @@
         .row { display: flex; align-items: center; justify-content: space-between; margin-top: 1rem; }
         sl-checkbox { --sl-input-label-color: var(--muted); --sl-toggle-size-small: 16px; font-size: 0.8rem; }
         sl-checkbox::part(control) { width: 16px; height: 16px; flex: 0 0 16px; font-size: 11px; border-radius: 2px; }
-        sl-checkbox::part(control--checked) { background: var(--steel); border-color: var(--steel); color: #fff; }
-        sl-checkbox::part(label) { font-size: 0.78rem; color: var(--muted); margin-inline-start: 0.5rem; }
-        .meta { font-family: 'IBM Plex Mono', monospace; font-size: 0.64rem; letter-spacing: 0.1em; color: var(--faint); }
-        .link { color: var(--steel-bright); font-size: 0.75rem; font-weight: 500; text-decoration: none; transition: color 150ms var(--ease-out); }
+        sl-checkbox::part(control--checked) { background: var(--steel); border-color: var(--steel); color: var(--on-primary); }
+        sl-checkbox::part(label) { font-size: 0.9rem; color: var(--muted); margin-inline-start: 0.5rem; }
+        .meta { font-family: 'Geist Mono', monospace; font-size: 0.74rem; letter-spacing: 0.08em; color: var(--faint); }
+        .link { color: var(--steel-bright); font-size: 0.88rem; font-weight: 500; text-decoration: none; transition: color 150ms var(--ease-out); }
         .link:hover { color: var(--ink); }
-        .footnote { display: flex; align-items: center; gap: 0.45rem; color: var(--faint); font-size: 0.68rem; margin-top: 1.5rem; padding-top: 1.1rem; border-top: 1px solid var(--hairline); }
+        .footnote { display: flex; align-items: center; gap: 0.45rem; color: var(--faint); font-size: 0.8rem; margin-top: 1.75rem; padding-top: 1.25rem; border-top: 1px solid var(--hairline); }
         .sys-version { margin-left: auto; color: var(--faint); letter-spacing: 0.08em; }
 
         /* Aviso Bloq Mayús */
-        .caps-hint { display: flex; align-items: center; gap: 0.35rem; margin-top: 0.45rem; font-family: 'IBM Plex Mono', monospace; font-size: 0.62rem; letter-spacing: 0.06em; text-transform: uppercase; color: #E0A800; animation: reveal 160ms var(--ease-out); }
+        .caps-hint { display: flex; align-items: center; gap: 0.35rem; margin-top: 0.45rem; font-family: 'Geist Mono', monospace; font-size: 0.62rem; letter-spacing: 0.06em; text-transform: uppercase; color: #E0A800; animation: reveal 160ms var(--ease-out); }
 
         /* Press feedback en todos los botones + crossfade entre pantallas */
         sl-button::part(base) { transition: transform 120ms var(--ease-out), background 150ms var(--ease-out), border-color 150ms var(--ease-out); }
@@ -155,7 +166,7 @@
         .screen-in { animation: screenFade 200ms var(--ease-out); }
         @keyframes screenFade { from { opacity: 0; } to { opacity: 1; } }
 
-        .mfa-code-input::part(input) { text-align: center; font-size: 1.5rem; letter-spacing: 0.5em; font-family: 'IBM Plex Mono', monospace; }
+        .mfa-code-input::part(input) { text-align: center; font-size: 1.5rem; letter-spacing: 0.5em; font-family: 'Geist Mono', monospace; }
 
         /* Splash / boot */
         #loading-screen {
@@ -168,10 +179,10 @@
         @keyframes scan { 0% { transform: translateX(-120%);} 100% { transform: translateX(320%);} }
 
         /* Indicador de entorno + banner offline */
-        #env-badge { position: fixed; top: 0.85rem; right: 1.5rem; z-index: 55; font-family: 'IBM Plex Mono', monospace; font-size: 0.6rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; padding: 0.2rem 0.55rem; border: 1px solid var(--hairline); border-radius: 2px; display: none; }
+        #env-badge { position: fixed; top: 0.85rem; right: 1.5rem; z-index: 55; font-family: 'Geist Mono', monospace; font-size: 0.6rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; padding: 0.2rem 0.55rem; border: 1px solid var(--hairline); border-radius: 2px; display: none; }
         #offline-banner {
             display: none; position: fixed; top: 0; left: 0; right: 0; z-index: 60;
-            background: var(--alert); color: #fff; font-family: 'IBM Plex Mono', monospace;
+            background: var(--alert); color: #fff; font-family: 'Geist Mono', monospace;
             font-size: 0.72rem; letter-spacing: 0.05em; text-align: center; padding: 0.55rem 1rem;
             transition: transform 200ms var(--ease-out);
         }
@@ -243,15 +254,11 @@
                 <form id="login-form">
                     <div class="field reveal d2">
                         <label for="email">Correo electrónico</label>
-                        <sl-input type="email" id="email" required autocomplete="email" placeholder="tu@correo.com" size="large">
-                            <sl-icon slot="prefix" name="envelope"></sl-icon>
-                        </sl-input>
+                        <sl-input type="email" id="email" required autocomplete="email" placeholder="nombre@empresa.com" size="large"></sl-input>
                     </div>
                     <div class="field reveal d3">
                         <label for="password">Contraseña</label>
-                        <sl-input type="password" id="password" required autocomplete="current-password" placeholder="••••••••" size="large" password-toggle>
-                            <sl-icon slot="prefix" name="lock"></sl-icon>
-                        </sl-input>
+                        <sl-input type="password" id="password" required autocomplete="current-password" placeholder="Tu contraseña" size="large" password-toggle></sl-input>
                         <div id="capsHint" class="caps-hint" style="display:none">
                             <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 5l7 7h-4v4H9v-4H5l7-7z"/></svg>
                             Bloq Mayús activado
@@ -260,8 +267,8 @@
                     <div class="row reveal d3">
                         <sl-checkbox id="remember-device" size="small">Recordar este dispositivo</sl-checkbox>
                     </div>
-                    <div class="reveal d4" style="margin-top:1.25rem">
-                        <sl-button type="submit" id="btn-login" size="large" class="w-full btn-enter">Entrar</sl-button>
+                    <div class="reveal d4" style="margin-top:1.25rem;display:flex;justify-content:center">
+                        <sl-button type="submit" id="btn-login" size="large" class="btn-enter">Entrar</sl-button>
                     </div>
                 </form>
 
@@ -335,7 +342,7 @@
                 <p class="eyebrow mono" style="margin-top:1.1rem;color:var(--alert)">Acceso suspendido</p>
                 <h2 class="card-title">Cuenta desactivada</h2>
                 <p class="subtitle">El acceso de este dispositivo fue suspendido por seguridad. Si creés que es un error, comunicate con el administrador para reactivar tu cuenta.</p>
-                <a id="blocked-support" href="#" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:0.45rem;margin-top:1.4rem;background:#25D366;color:#fff;font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:0.78rem;letter-spacing:0.05em;padding:0.65rem 1.2rem;border-radius:2px;text-decoration:none">
+                <a id="blocked-support" href="#" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:0.45rem;margin-top:1.4rem;background:#25D366;color:#fff;font-family:'Geist Mono',monospace;font-weight:600;font-size:0.78rem;letter-spacing:0.05em;padding:0.65rem 1.2rem;border-radius:2px;text-decoration:none">
                     <svg width="15" height="15" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163a11.867 11.867 0 01-1.587-5.945C.16 5.335 5.495 0 12.05 0a11.82 11.82 0 018.413 3.488 11.82 11.82 0 013.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 01-5.688-1.448L.057 24z"/></svg>
                     Contactar al administrador
                 </a>

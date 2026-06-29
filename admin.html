@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#0E0F11">
+    <meta name="theme-color" content="#09090b">
     <title>Panel Admin - HDV Distribuciones</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="dist/tailwind.css">
     <!-- Shoelace Web Components (local, offline-first) -->
     <link rel="stylesheet" href="assets/lib/shoelace/themes/dark.css">
@@ -354,7 +354,7 @@
             <div class="flex items-center gap-1.5 md:gap-3">
                 <sl-icon-button name="search" label="Buscar (Ctrl+K)" data-action="abrirBusquedaGlobal" style="font-size:1rem;"></sl-icon-button>
                 <button id="aiBtnHeader" data-action="abrirChatIA" title="CartónIA"
-                    class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gradient-to-r from-steel to-steel-bright text-white text-xs font-semibold hover:from-steel-bright hover:to-steel transition-all shadow-sm">
+                    class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-steel text-white text-xs font-semibold hover:opacity-90 transition-all shadow-sm">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                     </svg>
@@ -882,7 +882,7 @@
                     <sl-button data-action="agregarCreditoManual" variant="neutral" size="small">+ Credito Manual</sl-button>
                     <sl-button data-action="editarMensajeRecordatorio" variant="success" size="small">Editar Mensaje WhatsApp</sl-button>
                     <sl-button data-action="toggleVistaCreditos" data-arg="resumen" variant="primary" size="small">Resumen por Cliente</sl-button>
-                    <sl-button data-action="toggleVistaCreditos" data-arg="graficos" variant="neutral" size="small" style="--sl-color-neutral-600:#3D5A78;--sl-color-neutral-700:#345070;">Graficos</sl-button>
+                    <sl-button data-action="toggleVistaCreditos" data-arg="graficos" variant="neutral" size="small">Graficos</sl-button>
                     <sl-button data-action="toggleVistaCreditos" data-arg="lista" variant="neutral" size="small">Ver Lista</sl-button>
                     <sl-button data-action="toggleVistaCreditos" data-arg="historial" variant="neutral" size="small" style="--sl-color-neutral-600:#6b7280;--sl-color-neutral-700:#4b5563;">Historial</sl-button>
                 </div>
@@ -1717,7 +1717,7 @@
                                     </div>
                                 </div>
                                 <p class="text-sm text-gray-500 mb-4">Descarga un archivo ZIP con el KuDE (PDF) y el XML de cada factura y nota de credito emitida en el periodo. Listo para enviar a la contadora.</p>
-                                <sl-button data-action="exportarPaqueteZIP" id="btnZIP" variant="neutral" class="w-full" style="--sl-color-neutral-600:#3D5A78;--sl-color-neutral-700:#345070;">
+                                <sl-button data-action="exportarPaqueteZIP" id="btnZIP" variant="neutral" class="w-full">
                                     <i data-lucide="file-archive" class="w-4 h-4"></i> Descargar Paquete Tributario (ZIP)
                                 </sl-button>
                             </div>
@@ -2704,7 +2704,7 @@
         <div class="flex flex-col h-full bg-ground" style="height:100vh;">
 
             <!-- Header del chat -->
-            <div class="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-steel to-steel-bright shrink-0">
+            <div class="flex items-center justify-between px-4 py-3 bg-steel shrink-0">
                 <div class="flex items-center gap-2.5">
                     <div class="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center">
                         <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">

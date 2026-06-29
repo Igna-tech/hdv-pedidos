@@ -2150,10 +2150,6 @@ async function _renderResumenHoy(container) {
             <i data-lucide="wallet" class="w-8 h-8 text-blue-300"></i>
         </div>
 
-        <sl-button data-action="enviarCierreWA" data-arg="${JSON.stringify({ vendedor: vendedorNombre, ventas: ventasHoy, cobros: cobrosHoy, gastos: gastosHoy, pedidos: pedidosHoy.length, metaPct, aRendir: netoRendir })}" variant="default" class="w-full mb-3 sl-btn-whatsapp" style="--sl-color-neutral-600:#25D366;--sl-color-neutral-700:#1da851;">
-            <i data-lucide="message-circle" class="w-4 h-4 mr-1"></i> Enviar cierre al jefe
-        </sl-button>
-
         <div class="bg-white rounded-xl p-4 shadow-sm border border-slate-100 mb-3">
             <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Pedidos de hoy (${pedidosHoy.length})</p>
             ${listaPedidosHoy}

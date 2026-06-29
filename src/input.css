@@ -312,6 +312,49 @@ body.theme-dark ::-webkit-scrollbar-thumb:hover { background: #353b44; }
 .keep-paper, .keep-paper * { background-color: #fff !important; color: #111 !important; border-color: #ddd !important; }
 
 /* ============================================================
+   Score de calidad del catálogo (admin)
+   ============================================================ */
+#catalogoCalidad .cc-score {
+  display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap;
+  background: var(--panel); border: 1px solid var(--hairline);
+  border-radius: var(--hdv-radius-lg); padding: 0.9rem 1.1rem;
+}
+.cc-ring {
+  width: 56px; height: 56px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; position: relative;
+}
+.cc-ring::after { content: ''; position: absolute; inset: 5px; border-radius: 50%; background: var(--panel); }
+.cc-ring span { position: relative; z-index: 1; font-family: var(--hdv-font-mono); font-weight: 700; font-size: 1.05rem; color: var(--ink); }
+.cc-meta .cc-title { font-weight: 700; font-size: 0.875rem; color: var(--ink); }
+.cc-meta .cc-sub { font-size: 0.72rem; color: var(--muted); }
+.cc-bars { display: flex; flex-direction: column; gap: 0.3rem; flex: 1; min-width: 220px; }
+.cc-bar { display: flex; align-items: center; gap: 0.6rem; font-size: 0.72rem; }
+.cc-bar-l { width: 70px; color: var(--muted); flex-shrink: 0; }
+.cc-bar-track { flex: 1; height: 6px; background: var(--panel-3); border-radius: 3px; overflow: hidden; }
+.cc-bar-fill { display: block; height: 100%; background: var(--steel-bright); border-radius: 3px; transition: width 0.4s var(--ease-out); }
+.cc-bar-v { width: 34px; text-align: right; font-family: var(--hdv-font-mono); color: var(--ink-2); }
+
+/* ============================================================
+   Order-pad vendedor — Pedido habitual + stock en lista
+   ============================================================ */
+.pedido-habitual-btn {
+  width: 100%; display: flex; align-items: center; gap: 0.75rem;
+  padding: 0.7rem 0.9rem; margin-bottom: 0.85rem; border-radius: var(--hdv-radius-lg);
+  background: var(--steel-soft); border: 1px solid var(--steel); color: var(--ink);
+  text-align: left; cursor: pointer;
+  transition: background 0.15s var(--ease-out), transform 0.12s var(--ease-out);
+}
+.pedido-habitual-btn:hover { background: rgba(61,90,120,0.28); }
+.pedido-habitual-btn:active { transform: scale(0.99); }
+.pedido-habitual-btn .ph-ico,
+.pedido-habitual-btn .ph-arrow { color: var(--steel-bright); display: flex; flex-shrink: 0; }
+.pedido-habitual-btn .ph-txt { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.pedido-habitual-btn .ph-title { font-weight: 700; font-size: 0.875rem; }
+.pedido-habitual-btn .ph-sub { font-size: 0.72rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vpc-list-stock { font-size: 0.68rem; color: var(--muted); }
+.vpc-list-stock.is-zero { color: var(--alert); }
+
+/* ============================================================
    Centro de notificaciones (admin header)
    ============================================================ */
 #notifBadge {

@@ -1042,6 +1042,21 @@
                         <sl-button data-action="abrirModalProducto" variant="neutral" size="small">+ Nuevo</sl-button>
                     </div>
                 </div>
+                <!-- Carga rápida de productos -->
+                <div class="saas-card p-3 flex flex-wrap items-end gap-2" id="quickAddRow">
+                    <div class="flex flex-col gap-0.5">
+                        <label class="text-[10px] uppercase tracking-wide text-gray-400 font-semibold">Carga rápida</label>
+                        <input id="qaNombre" type="text" placeholder="Nombre del producto" autocomplete="off"
+                            class="border border-gray-200 rounded-lg px-2 py-1.5 text-sm" style="width:16rem;background:var(--panel-2);color:var(--ink)">
+                    </div>
+                    <select id="qaCategoria" class="border border-gray-200 rounded-lg px-2 py-1.5 text-sm" style="background:var(--panel-2);color:var(--ink)"></select>
+                    <input id="qaPrecio" type="number" min="0" placeholder="Precio" class="border border-gray-200 rounded-lg px-2 py-1.5 text-sm w-24 text-right" style="background:var(--panel-2);color:var(--ink)">
+                    <input id="qaStock" type="number" min="0" placeholder="Stock" class="border border-gray-200 rounded-lg px-2 py-1.5 text-sm w-20 text-right" style="background:var(--panel-2);color:var(--ink)">
+                    <sl-button data-action="quickAddProducto" variant="primary" size="small">Agregar</sl-button>
+                    <span class="text-[11px] text-gray-400">Enter para agregar y seguir</span>
+                </div>
+                <!-- Score de calidad del catálogo -->
+                <div id="catalogoCalidad" class="hidden"></div>
                 <!-- Banner de stock crítico (auto-visible cuando hay productos críticos) -->
                 <div id="alertaStockCritico" class="hidden bg-red-50 border border-red-200 rounded-xl px-4 py-2.5 flex items-center justify-between gap-3">
                     <div class="flex items-center gap-2 text-sm text-red-700">

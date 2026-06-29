@@ -351,6 +351,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function cargarDatos() {
     await HDVStorage.ready();
+    // Preferencia de vista de catálogo (grid/lista) recordada
+    try {
+        const _v = await HDVStorage.getItem('hdv_vista_catalogo');
+        if (_v && typeof _initVistaProductos === 'function') _initVistaProductos(_v);
+    } catch (_e) {}
     try {
         // Prioridad 1: Supabase (datos mas recientes en la nube)
         let data = null;

@@ -88,8 +88,33 @@ function _recolectarNotificaciones() {
         }
     });
 
+    // 4) Stock bajo / quiebre (admin: productosData)
+    const UMBRAL_STOCK = 5;
+    if (typeof productosData !== 'undefined' && productosData && productosData.productos) {
+        let nStock = 0;
+        for (const prod of productosData.productos) {
+            if (prod.oculto || nStock >= 20) continue;
+            for (const pres of (prod.presentaciones || [])) {
+                if (pres.activo === false) continue;
+                const st = pres.stock || 0;
+                if (st <= UMBRAL_STOCK) {
+                    items.push({
+                        id: `stock:${prod.id}:${pres.tamano}`,
+                        tipo: st <= 0 ? 'alert' : 'warn',
+                        icono: 'package',
+                        titulo: st <= 0 ? 'Sin stock' : 'Stock bajo',
+                        detalle: `${prod.nombre} · ${pres.tamano} · ${st} u`,
+                        ts: 1, // estado persistente: ordena debajo de eventos con fecha
+                        seccion: 'stock'
+                    });
+                    if (++nStock >= 20) break;
+                }
+            }
+        }
+    }
+
     items.sort((a, b) => b.ts - a.ts);
-    return items.slice(0, 50);
+    return items.slice(0, 60);
 }
 
 function _notifColor(tipo) {

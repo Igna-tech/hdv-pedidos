@@ -162,6 +162,19 @@ const ACTION_DISPATCH = {
 
     // === Stock ===
     'stockNavegar':                     (_, a) => typeof stockNavegar === 'function' && stockNavegar(a),
+    'stockNavCategoria':                (btn)  => typeof stockNavCategoria === 'function' && stockNavCategoria(btn.dataset.cat),
+    'stockNavSubcategoria':             (btn)  => typeof stockNavSubcategoria === 'function' && stockNavSubcategoria(btn.dataset.sub),
+    'ajustarStock':                     (btn)  => {
+        if (typeof ajustarStock !== 'function') return;
+        ajustarStock(btn.dataset.pid, btn.dataset.tam, parseInt(btn.dataset.delta, 10));
+        if (btn.dataset.perfil && typeof abrirPerfilProducto === 'function') abrirPerfilProducto(btn.dataset.pid);
+    },
+    'editarNombreCategoria':            (btn)  => typeof editarNombreCategoria === 'function' && editarNombreCategoria(btn.dataset.cat),
+    'eliminarCategoria':                (btn)  => typeof eliminarCategoria === 'function' && eliminarCategoria(btn.dataset.cat),
+    'eliminarSubcategoria':             (btn)  => typeof eliminarSubcategoria === 'function' && eliminarSubcategoria(btn.dataset.cat, btn.dataset.sub),
+    'agregarSubcategoria':              (btn)  => typeof agregarSubcategoria === 'function' && agregarSubcategoria(btn.dataset.cat),
+    'quitarFila':                       (btn)  => { const s = btn.dataset.sel; (s === 'parent' ? btn.parentElement : btn.closest(s))?.remove(); },
+    'quickAddProducto':                 ()     => typeof quickAddProducto === 'function' && quickAddProducto(),
     'guardarStock':                     ()     => typeof guardarStock === 'function' && guardarStock(),
     'guardarStockDesdePerfilProducto':  ()     => typeof guardarStockDesdePerfilProducto === 'function' && guardarStockDesdePerfilProducto(),
     'cerrarPerfilProducto':             ()     => typeof cerrarPerfilProducto === 'function' && cerrarPerfilProducto(),
@@ -359,8 +372,34 @@ document.addEventListener('click', function(e) {
     }
 });
 
+// Delegación de cambios en inputs dinámicos (edición inline) — CSP-safe
+document.addEventListener('change', function(e) {
+    const el = e.target.closest('[data-action-change]');
+    if (!el) return;
+    const act = el.getAttribute('data-action-change');
+    if (act === 'ajustarPrecioInline' && typeof ajustarPrecioInline === 'function') {
+        ajustarPrecioInline(el.dataset.pid, el.dataset.tam, el.dataset.campo, el.value);
+    }
+});
+
+// Delegación de sl-change (Shoelace) para toggles dinámicos — CSP-safe
+document.addEventListener('sl-change', function(e) {
+    const el = e.target.closest('[data-action-slchange]');
+    if (!el) return;
+    if (el.getAttribute('data-action-slchange') === 'toggleEstadoCategoria' && typeof toggleEstadoCategoria === 'function') {
+        toggleEstadoCategoria(el.dataset.cat, e.target.checked);
+    }
+});
+
 // Bindings para eventos que no son click (oninput, onchange)
 document.addEventListener('DOMContentLoaded', () => {
+    // Carga rápida de productos: Enter agrega y sigue
+    ['qaNombre', 'qaPrecio', 'qaStock'].forEach(id => {
+        document.getElementById(id)?.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && typeof quickAddProducto === 'function') { e.preventDefault(); quickAddProducto(); }
+        });
+    });
+
     // oninput en sl-input usa el evento 'sl-input' de Shoelace
     document.getElementById('globalSearchInput')
         ?.addEventListener('sl-input', () => ejecutarBusquedaGlobalDebounced());

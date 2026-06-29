@@ -65,8 +65,17 @@ function agregarAlCarrito(productoId, presIdx) {
 function actualizarContadorCarrito() {
     const badge = document.getElementById('cartItems');
     const totalItems = carrito.reduce((sum, item) => sum + item.cantidad, 0);
-    badge.textContent = totalItems;
-    badge.style.display = totalItems > 0 ? 'flex' : 'none';
+    if (badge) {
+        badge.textContent = totalItems;
+        badge.style.display = totalItems > 0 ? 'flex' : 'none';
+    }
+    // Píldora de total en el FAB (running total)
+    const pill = document.getElementById('cartPillText');
+    if (pill) {
+        const totalGs = carrito.reduce((sum, item) => sum + (item.subtotal || 0), 0);
+        if (totalItems > 0) { pill.textContent = formatearGuaranies(totalGs); pill.classList.remove('hidden'); }
+        else pill.classList.add('hidden');
+    }
     if (typeof _actualizarBadgesCarritoEnCatalogo === 'function') _actualizarBadgesCarritoEnCatalogo();
 }
 
@@ -235,6 +244,61 @@ async function guardarNuevoClienteDesdeVendedor() {
 
     cerrarModalSinCliente();
     mostrarExito('Cliente enviado para aprobacion del administrador');
+}
+
+// ============================================
+// PEDIDO HABITUAL (repeat-order)
+// Carga al carrito el último pedido del cliente (o sus frecuentes como
+// fallback), recalculando precios actuales. Merge no destructivo.
+// ============================================
+async function cargarPedidoHabitual() {
+    if (!clienteActual) { mostrarToast('Elegí un cliente primero', 'warning'); return; }
+
+    const allPedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
+    const delCliente = allPedidos
+        .filter(p => p.cliente?.id === clienteActual.id)
+        .sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+
+    let items = [];
+    if (delCliente.length > 0 && (delCliente[0].items || []).length > 0) {
+        items = delCliente[0].items.map(it => ({ productoId: it.productoId, presentacion: it.presentacion, cantidad: it.cantidad }));
+    } else {
+        const frec = (typeof obtenerProductosFrecuentes === 'function')
+            ? await obtenerProductosFrecuentes(clienteActual.id, 12) : [];
+        items = frec.map(f => ({ productoId: f.productoId, cantidad: f.cantidad }));
+    }
+
+    if (items.length === 0) { mostrarToast('Este cliente no tiene pedidos previos', 'info'); return; }
+
+    let agregados = 0;
+    items.forEach(it => {
+        const prod = productos.find(p => p.id === it.productoId);
+        if (!prod) return;
+        const presActivas = (prod.presentaciones || []).filter(p => p.activo !== false);
+        if (presActivas.length === 0) return;
+        const pres = presActivas.find(p => p.tamano === it.presentacion) || presActivas[0];
+        const precio = obtenerPrecio(prod.id, pres);
+        const cantidad = Math.max(1, parseInt(it.cantidad) || 1);
+        const existente = carrito.findIndex(item => item.productoId === prod.id && item.presentacion === pres.tamano);
+        if (existente >= 0) {
+            carrito[existente].cantidad += cantidad;
+            carrito[existente].subtotal = carrito[existente].cantidad * carrito[existente].precio;
+        } else {
+            carrito.push({
+                productoId: prod.id, nombre: prod.nombre, presentacion: pres.tamano,
+                precio, cantidad, subtotal: precio * cantidad,
+                precioEspecial: precio !== pres.precio_base, tipo_impuesto: prod.tipo_impuesto || '10'
+            });
+        }
+        agregados += cantidad;
+    });
+
+    if (agregados === 0) { mostrarToast('No se pudieron cargar los productos (ya no existen)', 'warning'); return; }
+
+    actualizarContadorCarrito();
+    guardarCarrito();
+    if (typeof _actualizarBadgesCarritoEnCatalogo === 'function') _actualizarBadgesCarritoEnCatalogo();
+    mostrarExito(`Pedido habitual cargado: ${agregados} unidad${agregados !== 1 ? 'es' : ''}`);
 }
 
 // ============================================

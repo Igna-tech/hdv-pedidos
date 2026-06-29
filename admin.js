@@ -83,6 +83,7 @@ function generarAdminEmptyState(svgIcon, titulo, subtitulo, botonTexto, botonOnc
 const ACTION_DISPATCH = {
     // === Navegación ===
     'cambiarSeccion':                   (_, a) => cambiarSeccion(a),
+    'toggleNavGroup':                   (_, a) => typeof toggleNavGroup === 'function' && toggleNavGroup(a),
     'toggleSidebar':                    ()     => toggleSidebar(),
     'cerrarBusquedaGlobal':             ()     => cerrarBusquedaGlobal(),
     'abrirBusquedaGlobal':              ()     => abrirBusquedaGlobal(),
@@ -395,6 +396,29 @@ document.addEventListener('sl-change', function(e) {
 });
 
 // Bindings para eventos que no son click (oninput, onchange)
+// ── Grupos colapsables del sidebar ──
+async function _initNavGroups() {
+    let collapsed;
+    try { collapsed = await HDVStorage.getItem('hdv_admin_nav_collapsed'); } catch (e) {}
+    // Default: solo "Operación" abierta
+    if (!Array.isArray(collapsed)) collapsed = ['catalogo', 'relaciones', 'equipo', 'facturacion', 'sistema'];
+    document.querySelectorAll('.nav-group').forEach(g => {
+        g.classList.toggle('collapsed', collapsed.includes(g.dataset.group));
+    });
+    // El grupo de la sección activa siempre visible
+    const act = document.querySelector('.nav-item.active');
+    const grp = act && act.closest('.nav-group');
+    if (grp) grp.classList.remove('collapsed');
+}
+
+async function toggleNavGroup(group) {
+    const g = document.querySelector(`.nav-group[data-group="${group}"]`);
+    if (!g) return;
+    g.classList.toggle('collapsed');
+    const collapsed = [...document.querySelectorAll('.nav-group.collapsed')].map(x => x.dataset.group);
+    try { await HDVStorage.setItem('hdv_admin_nav_collapsed', collapsed); } catch (e) {}
+}
+
 // ── Saludo dinámico + fecha/hora en vivo (sidebar header) ──
 function _actualizarSaludoAdmin() {
     const h = new Date().getHours();
@@ -440,6 +464,7 @@ document.addEventListener('DOMContentLoaded', () => {
     _actualizarSaludoAdmin();
     _actualizarFechaHoraAdmin();
     if (typeof actualizarBarraCambios === 'function') actualizarBarraCambios(); // normaliza barra (oculta si 0)
+    _initNavGroups();
     // Logo actual desde el bucket (misma fuente que el login)
     if (typeof aplicarLogoEmpresa === 'function' && typeof _aplicarLogoHeaders === 'function') aplicarLogoEmpresa(_aplicarLogoHeaders);
     // hdvUsuario se resuelve async en guard.js → reintentos cortos hasta que llegue el nombre
@@ -577,7 +602,11 @@ function cambiarSeccion(seccionId) {
         const contentArea = document.getElementById('adminContentArea');
         if (contentArea) contentArea.scrollTop = 0;
         const btn = document.querySelector(`button[data-section="${seccionId}"]`);
-        if (btn) btn.classList.add('active');
+        if (btn) {
+            btn.classList.add('active');
+            const grp = btn.closest('.nav-group');
+            if (grp) grp.classList.remove('collapsed'); // mostrar el grupo de la seccion activa
+        }
     };
     // View Transitions API (crossfade moderno; feature-detect)
     if (document.startViewTransition) document.startViewTransition(_swap); else _swap();

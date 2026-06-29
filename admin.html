@@ -68,11 +68,29 @@
             cursor: pointer;
             transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
             border-radius: 6px;
-            margin: 1px 12px;
-            padding: 9px 12px;
+            margin: 1px 10px;
+            padding: 8px 12px;
             color: var(--sidebar-text);
             font-weight: 500;
+            font-size: 13.5px;
+            letter-spacing: 0.012em;
         }
+        /* Grupos colapsables del sidebar */
+        .nav-group { display: flex; flex-direction: column; }
+        .nav-group--system { margin-top: auto; }
+        .nav-group-header {
+            display: flex; align-items: center; justify-content: space-between;
+            width: 100%; padding: 8px 16px 6px; margin-top: 4px;
+            font-size: 10px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase;
+            color: var(--faint); cursor: pointer; background: none; border: none;
+            font-family: var(--hdv-font-sans); transition: color 0.15s;
+        }
+        .nav-group-header:hover { color: var(--muted); }
+        .nav-group-chevron { width: 13px; height: 13px; opacity: 0.55; transition: transform 0.2s cubic-bezier(0.4,0,0.2,1); }
+        .nav-group.collapsed .nav-group-chevron { transform: rotate(-90deg); }
+        .nav-group-body { overflow: hidden; max-height: 420px; transition: max-height 0.26s cubic-bezier(0.4,0,0.2,1), opacity 0.18s; }
+        .nav-group.collapsed .nav-group-body { max-height: 0; opacity: 0; }
+        @media (prefers-reduced-motion: reduce) { .nav-group-body, .nav-group-chevron { transition: none; } }
         .nav-item:hover {
             background-color: var(--panel-2);
             color: var(--sidebar-text-hover);
@@ -260,74 +278,116 @@
             <p class="text-[10px] text-gray-400 font-medium mono mt-2" style="letter-spacing:0.08em">HDV ERP · v0.9.0 · BETA</p>
         </div>
 
-        <nav class="flex-1 overflow-y-auto overflow-x-hidden py-4 px-2">
-            <div class="px-3 mb-2 text-[11px] font-semibold text-gray-400 uppercase tracking-widest">Datos</div>
-            <button data-section="dashboard" class="nav-item w-full flex items-center text-[15px]">
-                <i data-lucide="layout-dashboard" class="w-[18px] h-[18px] mr-3 text-gray-400"></i> Dashboard
-            </button>
-            <button data-section="pedidos" class="nav-item w-full flex items-center text-[15px] active">
-                <i data-lucide="package" class="w-[18px] h-[18px] mr-3 text-gray-400"></i> Pedidos Entrantes
-            </button>
-            <button data-section="ventas" class="nav-item w-full flex items-center text-[15px]">
-                <i data-lucide="receipt" class="w-[18px] h-[18px] mr-3 text-gray-400"></i> Ventas
-            </button>
-            <button data-section="dtes" class="nav-item w-full flex items-center text-[15px]">
-                <i data-lucide="file-plus-2" class="w-[18px] h-[18px] mr-3 text-gray-400"></i> Mis DTEs
-            </button>
-            <button data-section="creditos" class="nav-item w-full flex items-center text-[15px]">
-                <i data-lucide="credit-card" class="w-[18px] h-[18px] mr-3 text-gray-400"></i> Creditos
-                <span id="badgeCreditosVencer" class="ml-auto text-[10px] font-bold bg-red-500 text-white rounded-full px-1.5 py-0.5 hidden"></span>
-            </button>
-            <button data-section="reportes" class="nav-item w-full flex items-center text-[15px]">
-                <i data-lucide="bar-chart-3" class="w-[18px] h-[18px] mr-3 text-gray-400"></i> Reportes
-            </button>
-            <button data-section="stock" class="nav-item w-full flex items-center text-[15px]">
-                <i data-lucide="database" class="w-[18px] h-[18px] mr-3 text-gray-400"></i> Stock
-            </button>
+        <nav class="flex-1 overflow-y-auto overflow-x-hidden py-3 px-2 flex flex-col">
+            <!-- OPERACIÓN -->
+            <div class="nav-group" data-group="operacion">
+                <button class="nav-group-header" data-action="toggleNavGroup" data-arg="operacion">
+                    <span>Operación</span><i data-lucide="chevron-down" class="nav-group-chevron"></i>
+                </button>
+                <div class="nav-group-body">
+                    <button data-section="dashboard" class="nav-item w-full flex items-center active">
+                        <i data-lucide="layout-dashboard" class="w-[18px] h-[18px] mr-3 text-gray-400"></i> Dashboard
+                    </button>
+                    <button data-section="pedidos" class="nav-item w-full flex items-center">
+                        <i data-lucide="package" class="w-[18px] h-[18px] mr-3 text-gray-400"></i> Pedidos Entrantes
+                    </button>
+                    <button data-section="ventas" class="nav-item w-full flex items-center">
+                        <i data-lucide="receipt" class="w-[18px] h-[18px] mr-3 text-gray-400"></i> Ventas
+                    </button>
+                    <button data-section="creditos" class="nav-item w-full flex items-center">
+                        <i data-lucide="credit-card" class="w-[18px] h-[18px] mr-3 text-gray-400"></i> Creditos
+                        <span id="badgeCreditosVencer" class="ml-auto text-[10px] font-bold bg-red-500 text-white rounded-full px-1.5 py-0.5 hidden"></span>
+                    </button>
+                </div>
+            </div>
 
-            <div class="px-3 mt-5 mb-2 text-[11px] font-semibold text-gray-400 uppercase tracking-widest">Gestion</div>
-            <button data-section="productos" class="nav-item w-full flex items-center text-[15px]">
-                <i data-lucide="tag" class="w-[18px] h-[18px] mr-3 text-gray-400"></i> Productos
-            </button>
-            <button data-section="clientes" class="nav-item w-full flex items-center text-[15px]">
-                <i data-lucide="users" class="w-[18px] h-[18px] mr-3 text-gray-400"></i> Clientes
-            </button>
-            <button data-section="promociones" class="nav-item w-full flex items-center text-[15px]">
-                <i data-lucide="gift" class="w-[18px] h-[18px] mr-3 text-gray-400"></i> Promociones
-            </button>
-            <button data-section="proveedores" class="nav-item w-full flex items-center text-[15px]">
-                <i data-lucide="truck" class="w-[18px] h-[18px] mr-3 text-gray-400"></i> Proveedores
-                <span id="badgeProvCxP" class="ml-auto text-[10px] font-bold bg-red-500 text-white rounded-full px-1.5 py-0.5 hidden"></span>
-            </button>
+            <!-- CATÁLOGO -->
+            <div class="nav-group" data-group="catalogo">
+                <button class="nav-group-header" data-action="toggleNavGroup" data-arg="catalogo">
+                    <span>Catálogo</span><i data-lucide="chevron-down" class="nav-group-chevron"></i>
+                </button>
+                <div class="nav-group-body">
+                    <button data-section="productos" class="nav-item w-full flex items-center">
+                        <i data-lucide="tag" class="w-[18px] h-[18px] mr-3 text-gray-400"></i> Productos
+                    </button>
+                    <button data-section="stock" class="nav-item w-full flex items-center">
+                        <i data-lucide="database" class="w-[18px] h-[18px] mr-3 text-gray-400"></i> Stock
+                    </button>
+                    <button data-section="promociones" class="nav-item w-full flex items-center">
+                        <i data-lucide="gift" class="w-[18px] h-[18px] mr-3 text-gray-400"></i> Promociones
+                    </button>
+                </div>
+            </div>
 
-            <div class="px-3 mt-5 mb-2 text-[11px] font-semibold text-gray-400 uppercase tracking-widest">Vendedores</div>
-            <button data-section="rendiciones" class="nav-item w-full flex items-center text-[15px]">
-                <i data-lucide="wallet" class="w-[18px] h-[18px] mr-3 text-gray-400"></i> Rendiciones
-            </button>
-            <button data-section="metas" class="nav-item w-full flex items-center text-[15px]">
-                <i data-lucide="target" class="w-[18px] h-[18px] mr-3 text-gray-400"></i> Metas
-            </button>
-            <button data-section="inactivos" class="nav-item w-full flex items-center text-[15px]">
-                <i data-lucide="alert-triangle" class="w-[18px] h-[18px] mr-3 text-gray-400"></i> Clientes en Riesgo
-            </button>
+            <!-- RELACIONES -->
+            <div class="nav-group" data-group="relaciones">
+                <button class="nav-group-header" data-action="toggleNavGroup" data-arg="relaciones">
+                    <span>Relaciones</span><i data-lucide="chevron-down" class="nav-group-chevron"></i>
+                </button>
+                <div class="nav-group-body">
+                    <button data-section="clientes" class="nav-item w-full flex items-center">
+                        <i data-lucide="users" class="w-[18px] h-[18px] mr-3 text-gray-400"></i> Clientes
+                    </button>
+                    <button data-section="inactivos" class="nav-item w-full flex items-center">
+                        <i data-lucide="alert-triangle" class="w-[18px] h-[18px] mr-3 text-gray-400"></i> Clientes en Riesgo
+                    </button>
+                    <button data-section="proveedores" class="nav-item w-full flex items-center">
+                        <i data-lucide="truck" class="w-[18px] h-[18px] mr-3 text-gray-400"></i> Proveedores
+                        <span id="badgeProvCxP" class="ml-auto text-[10px] font-bold bg-red-500 text-white rounded-full px-1.5 py-0.5 hidden"></span>
+                    </button>
+                </div>
+            </div>
 
-            <div class="px-3 mt-5 mb-2 text-[11px] font-semibold text-gray-400 uppercase tracking-widest">Contabilidad</div>
-            <button data-section="cierre" class="nav-item w-full flex items-center text-[15px]">
-                <i data-lucide="calculator" class="w-[18px] h-[18px] mr-3 text-gray-400"></i> Cierre Mensual
-            </button>
-            <button data-section="sifen-estado" class="nav-item w-full flex items-center text-[15px]">
-                <i data-lucide="file-check-2" class="w-[18px] h-[18px] mr-3 text-gray-400"></i> Consulta DTE / SIFEN
-            </button>
+            <!-- EQUIPO -->
+            <div class="nav-group" data-group="equipo">
+                <button class="nav-group-header" data-action="toggleNavGroup" data-arg="equipo">
+                    <span>Equipo</span><i data-lucide="chevron-down" class="nav-group-chevron"></i>
+                </button>
+                <div class="nav-group-body">
+                    <button data-section="rendiciones" class="nav-item w-full flex items-center">
+                        <i data-lucide="wallet" class="w-[18px] h-[18px] mr-3 text-gray-400"></i> Rendiciones
+                    </button>
+                    <button data-section="metas" class="nav-item w-full flex items-center">
+                        <i data-lucide="target" class="w-[18px] h-[18px] mr-3 text-gray-400"></i> Metas
+                    </button>
+                </div>
+            </div>
 
-            <div class="px-3 mt-5 mb-2 text-[11px] font-semibold text-gray-400 uppercase tracking-widest">Seguridad</div>
-            <button data-section="forense" class="nav-item w-full flex items-center text-[15px]">
-                <i data-lucide="shield-alert" class="w-[18px] h-[18px] mr-3 text-red-400"></i> Seguridad / Forense
-            </button>
+            <!-- FACTURACIÓN -->
+            <div class="nav-group" data-group="facturacion">
+                <button class="nav-group-header" data-action="toggleNavGroup" data-arg="facturacion">
+                    <span>Facturación</span><i data-lucide="chevron-down" class="nav-group-chevron"></i>
+                </button>
+                <div class="nav-group-body">
+                    <button data-section="dtes" class="nav-item w-full flex items-center">
+                        <i data-lucide="file-plus-2" class="w-[18px] h-[18px] mr-3 text-gray-400"></i> Mis DTEs
+                    </button>
+                    <button data-section="sifen-estado" class="nav-item w-full flex items-center">
+                        <i data-lucide="file-check-2" class="w-[18px] h-[18px] mr-3 text-gray-400"></i> Consulta DTE / SIFEN
+                    </button>
+                    <button data-section="cierre" class="nav-item w-full flex items-center">
+                        <i data-lucide="calculator" class="w-[18px] h-[18px] mr-3 text-gray-400"></i> Cierre Mensual
+                    </button>
+                </div>
+            </div>
 
-            <div class="px-3 mt-5 mb-2 text-[11px] font-semibold text-gray-400 uppercase tracking-widest">Opciones</div>
-            <button data-section="herramientas" class="nav-item w-full flex items-center text-[15px]">
-                <i data-lucide="settings" class="w-[18px] h-[18px] mr-3 text-gray-400"></i> Herramientas
-            </button>
+            <!-- SISTEMA (al fondo) -->
+            <div class="nav-group nav-group--system" data-group="sistema">
+                <button class="nav-group-header" data-action="toggleNavGroup" data-arg="sistema">
+                    <span>Sistema</span><i data-lucide="chevron-down" class="nav-group-chevron"></i>
+                </button>
+                <div class="nav-group-body">
+                    <button data-section="reportes" class="nav-item w-full flex items-center">
+                        <i data-lucide="bar-chart-3" class="w-[18px] h-[18px] mr-3 text-gray-400"></i> Reportes
+                    </button>
+                    <button data-section="forense" class="nav-item w-full flex items-center">
+                        <i data-lucide="shield-alert" class="w-[18px] h-[18px] mr-3 text-red-400"></i> Seguridad / Forense
+                    </button>
+                    <button data-section="herramientas" class="nav-item w-full flex items-center">
+                        <i data-lucide="settings" class="w-[18px] h-[18px] mr-3 text-gray-400"></i> Herramientas
+                    </button>
+                </div>
+            </div>
         </nav>
 
     </aside>

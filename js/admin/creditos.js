@@ -178,7 +178,7 @@ async function cargarCreditos() {
                 </div>
             </div>
             <div class="grid grid-cols-3 gap-4 mb-3 text-sm">
-                <div><span class="text-gray-500">Total:</span> <strong>${formatearGuaranies(p.total)}</strong></div>
+                <div><span class="text-gray-500">Total:</span> <strong class="text-gray-900">${formatearGuaranies(p.total)}</strong></div>
                 <div><span class="text-gray-500">Pagado:</span> <strong class="text-green-600">${formatearGuaranies(totalPagado)}</strong></div>
                 <div><span class="text-gray-500">Saldo:</span> <strong class="text-red-600">${formatearGuaranies(saldo)}</strong></div>
             </div>
@@ -228,7 +228,7 @@ async function cargarCreditos() {
                 </div>
             </div>
             <div class="grid grid-cols-3 gap-4 mb-3 text-sm">
-                <div><span class="text-gray-500">Total:</span> <strong>${formatearGuaranies(c.monto)}</strong></div>
+                <div><span class="text-gray-500">Total:</span> <strong class="text-gray-900">${formatearGuaranies(c.monto)}</strong></div>
                 <div><span class="text-gray-500">Pagado:</span> <strong class="text-green-600">${formatearGuaranies(totalPagado)}</strong></div>
                 <div><span class="text-gray-500">Saldo:</span> <strong class="text-red-600">${formatearGuaranies(saldo)}</strong></div>
             </div>
@@ -771,7 +771,7 @@ async function cargarHistorialCreditos() {
                 </div>
             </div>
             <div class="grid grid-cols-3 gap-4 mb-3 text-sm">
-                <div><span class="text-gray-500">Total:</span> <strong>${formatearGuaranies(c.monto)}</strong></div>
+                <div><span class="text-gray-500">Total:</span> <strong class="text-gray-900">${formatearGuaranies(c.monto)}</strong></div>
                 <div><span class="text-gray-500">Pagado:</span> <strong class="text-green-600">${formatearGuaranies(c.totalPagado)}</strong></div>
                 <div><span class="text-gray-500">Saldo final:</span> <strong class="${c.monto - c.totalPagado > 0 ? 'text-red-600' : 'text-green-600'}">${formatearGuaranies(Math.max(0, c.monto - c.totalPagado))}</strong></div>
             </div>
@@ -814,7 +814,7 @@ async function mostrarDetalleCredito(creditoId) {
                 <div class="flex-1">
                     <p class="font-bold text-gray-800 text-sm">${accionLabels[e.accion] || e.accion}</p>
                     <p class="text-xs text-gray-500">${new Date(e.fecha).toLocaleString('es-PY')}</p>
-                    ${e.monto > 0 ? `<p class="text-sm text-gray-700 mt-1">Monto: <strong>${formatearGuaranies(e.monto)}</strong></p>` : ''}
+                    ${e.monto > 0 ? `<p class="text-sm text-gray-700 mt-1">Monto: <strong class="text-gray-900">${formatearGuaranies(e.monto)}</strong></p>` : ''}
                     ${e.saldoAnterior !== undefined && e.accion !== 'credito_creado' && e.accion !== 'marcado_pagado' ? `<p class="text-xs text-gray-500">Saldo: ${formatearGuaranies(e.saldoAnterior)} → ${formatearGuaranies(e.saldoNuevo)}</p>` : ''}
                     ${e.nota ? `<p class="text-xs text-gray-400 italic mt-0.5">${escapeHTML(e.nota)}</p>` : ''}
                 </div>

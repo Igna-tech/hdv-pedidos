@@ -90,7 +90,6 @@ const ACTION_DISPATCH = {
     'toggleNotificaciones':             ()     => typeof toggleNotificaciones === 'function' && toggleNotificaciones(),
     'forzarActualizacionAdmin':         ()     => forzarActualizacionAdmin(),
     'cerrarSesion':                     ()     => cerrarSesion(),
-    'guardarCambiosHeader':             ()     => { if (cambiosSinGuardar > 0) guardarTodosCambios(); },
     'cambiarContrasena':                ()     => cambiarContrasenaAdmin(),
 
     // === Dashboard / Cierre mensual ===
@@ -644,35 +643,14 @@ function registrarCambio() {
 }
 
 function actualizarBarraCambios() {
-    const bar = document.getElementById('unsavedBar');
+    // Grupo contextual en el header (Descartar / Guardar N) — solo visible si hay cambios
+    const grupo = document.getElementById('headerCambios');
     const badge = document.getElementById('unsavedCount');
-    if (bar && badge) {
-        if (cambiosSinGuardar > 0) { bar.classList.add('visible'); badge.textContent = cambiosSinGuardar; }
-        else { bar.classList.remove('visible'); }
-    }
-    _actualizarSaveStatus();
-}
-
-// Badge de estado de guardado en el header. modo: 'auto' (lee cambiosSinGuardar) | 'saving'
-function _actualizarSaveStatus(modo = 'auto') {
-    const wrap = document.getElementById('saveStatusBadge');
-    const dot = document.getElementById('saveStatusDot');
-    const txt = document.getElementById('saveStatusText');
-    if (!wrap || !dot || !txt) return;
-    wrap.classList.remove('bg-panel-2', 'text-gray-400', 'bg-amber-500/10', 'text-amber-600', 'cursor-pointer');
-    dot.classList.remove('bg-emerald-500', 'bg-amber-500', 'animate-pulse');
-    if (modo === 'saving') {
-        wrap.classList.add('bg-amber-500/10', 'text-amber-600');
-        dot.classList.add('bg-amber-500', 'animate-pulse');
-        txt.textContent = 'Guardando...';
-    } else if (cambiosSinGuardar > 0) {
-        wrap.classList.add('bg-amber-500/10', 'text-amber-600', 'cursor-pointer');
-        dot.classList.add('bg-amber-500', 'animate-pulse');
-        txt.textContent = `${cambiosSinGuardar} sin guardar`;
-    } else {
-        wrap.classList.add('bg-panel-2', 'text-gray-400');
-        dot.classList.add('bg-emerald-500');
-        txt.textContent = 'Guardado';
+    if (grupo) {
+        const hay = cambiosSinGuardar > 0;
+        grupo.classList.toggle('hidden', !hay);
+        grupo.classList.toggle('flex', hay);
+        if (badge && hay) badge.textContent = cambiosSinGuardar;
     }
 }
 
@@ -708,7 +686,6 @@ async function guardarTodosCambios() {
     await withButtonLock('btnGuardarSync', async () => {
         cambiosSinGuardar = 0;
         actualizarBarraCambios();
-        _actualizarSaveStatus('saving'); // override tras reset, durante la sincronizacion
         productosDataOriginal = JSON.parse(JSON.stringify(productosData));
 
         const dataLimpia = { categorias: productosData.categorias, productos: productosData.productos, clientes: productosData.clientes };
@@ -729,7 +706,6 @@ async function guardarTodosCambios() {
             console.error('[Admin] guardarCatalogo no esta definida. supabase-config.js puede tener un error de carga.');
             mostrarToast('Error: modulo de sincronizacion no cargado. Cambios guardados localmente.', 'error');
         }
-        _actualizarSaveStatus('auto'); // vuelve a "Guardado"
     }, 'Sincronizando...')();
 }
 

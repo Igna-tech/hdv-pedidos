@@ -89,16 +89,6 @@
 
         .tab-content { display: none; }
         .tab-content.active { display: block; }
-        .unsaved-bar {
-            position: fixed; bottom: -120px; right: 20px; left: auto; transform: none;
-            background: var(--panel-3); color: var(--ink); padding: 0.55rem 0.7rem 0.55rem 0.9rem;
-            border: 1px solid var(--hairline);
-            border-radius: 12px; display: flex; align-items: center; gap: 1rem;
-            box-shadow: var(--hdv-shadow-elevated); transition: bottom 0.35s var(--ease-out), opacity 0.35s var(--ease-out);
-            z-index: 1000; width: auto; max-width: calc(100vw - 40px);
-        }
-        .unsaved-bar.visible { bottom: 20px; }
-        @media (max-width: 640px) { .unsaved-bar { right: 12px; left: 12px; } }
 
         /* sl-button layout, toast base — in src/input.css (shared) */
 
@@ -228,7 +218,7 @@
 
     </style>
 </head>
-<body class="theme-dark flex h-screen overflow-hidden text-gray-800">
+<body class="theme-dark h-screen overflow-hidden text-gray-800">
 
     <!-- Toast container -->
     <div id="toastContainer"></div>
@@ -247,6 +237,9 @@
             <div id="globalSearchResults" role="listbox" aria-label="Resultados" class="max-h-[60vh] overflow-y-auto p-2"></div>
         </div>
     </div>
+
+    <!-- APP SHELL: sidebar + contenido (flex aislado para garantizar ancho completo) -->
+    <div id="appShell" class="flex h-screen w-full overflow-hidden">
 
     <!-- SIDEBAR -->
     <aside id="sidebar" class="sidebar w-[17rem] flex-shrink-0 flex flex-col" role="navigation" aria-label="Menu principal">
@@ -271,7 +264,7 @@
                 </div>
                 <span id="adminFechaHora" class="text-[10px] text-gray-400 tabular-nums font-medium whitespace-nowrap"></span>
             </div>
-            <p class="text-[10px] text-gray-400 font-medium mt-2">Version 7.5 · 2026</p>
+            <p class="text-[10px] text-gray-400 font-medium mono mt-2" style="letter-spacing:0.08em">HDV ERP · v0.9.0 · BETA</p>
         </div>
 
         <nav class="flex-1 overflow-y-auto overflow-x-hidden py-4 px-2">
@@ -354,6 +347,14 @@
                 <h2 class="text-base font-semibold text-gray-900" id="currentSectionTitle">Gestion de Pedidos</h2>
             </div>
             <div class="flex items-center gap-2 md:gap-3">
+                <!-- Cambios sin guardar (contextual: solo al editar) -->
+                <div id="headerCambios" class="hidden items-center gap-1.5 mr-1">
+                    <sl-button class="hidden sm:inline-flex" variant="text" size="small" data-action="descartarCambios" style="--sl-color-neutral-700:#9ca3af;">Descartar</sl-button>
+                    <sl-button id="btnGuardarSync" variant="primary" size="small" data-action="guardarTodosCambios">
+                        <i data-lucide="save" class="w-4 h-4"></i> Guardar <span id="unsavedCount" class="ml-1 font-bold">0</span>
+                    </sl-button>
+                </div>
+
                 <!-- Buscador (pill ⌘K) -->
                 <button data-action="abrirBusquedaGlobal" title="Buscar (Ctrl+K)"
                     class="hidden md:flex items-center gap-2 pl-3 pr-2 py-1.5 rounded-lg bg-panel-2 border border-gray-200 text-gray-400 hover:bg-panel-3 hover:text-gray-500 active:scale-[0.98] transition-all">
@@ -2160,6 +2161,8 @@
         </div>
     </main>
 
+    </div><!-- /appShell -->
+
     <!-- DRAWER: EMITIR DTE -->
     <sl-drawer id="drawerEmitirDTE" placement="end" style="--size: 62%;" no-header>
         <div class="flex items-center justify-between px-5 py-4 border-b border-gray-200">
@@ -2214,16 +2217,6 @@
     </sl-drawer>
 
     <!-- BARRA CAMBIOS SIN GUARDAR -->
-    <div class="unsaved-bar" id="unsavedBar">
-        <div class="flex items-center gap-2">
-            <div class="bg-amber-500 text-white w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs shrink-0" id="unsavedCount">0</div>
-            <span class="font-medium text-sm whitespace-nowrap">sin guardar</span>
-        </div>
-        <div class="flex gap-1.5 items-center">
-            <sl-button variant="text" size="small" data-action="descartarCambios" style="--sl-color-neutral-700:#9ca3af;">Descartar</sl-button>
-            <sl-button id="btnGuardarSync" variant="default" size="small" data-action="guardarTodosCambios"><i data-lucide="save" class="w-4 h-4"></i> Guardar</sl-button>
-        </div>
-    </div>
 
     <!-- MODAL PRODUCTO (Crear/Editar) -->
     <sl-dialog id="modalProducto" style="--width: 32rem;">

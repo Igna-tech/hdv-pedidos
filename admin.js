@@ -90,6 +90,7 @@ const ACTION_DISPATCH = {
     'toggleNotificaciones':             ()     => typeof toggleNotificaciones === 'function' && toggleNotificaciones(),
     'forzarActualizacionAdmin':         ()     => forzarActualizacionAdmin(),
     'cerrarSesion':                     ()     => cerrarSesion(),
+    'cambiarContrasena':                ()     => cambiarContrasenaAdmin(),
 
     // === Dashboard / Cierre mensual ===
     'cambiarPeriodoChart':              (_, a) => typeof _cambiarPeriodoChart === 'function' && _cambiarPeriodoChart(a),
@@ -367,6 +368,8 @@ document.addEventListener('click', function(e) {
     const arg = btn.getAttribute('data-arg') ?? undefined;
     if (ACTION_DISPATCH[action]) {
         ACTION_DISPATCH[action](btn, arg);
+        // Cerrar el menu de usuario tras elegir una opcion
+        if (btn.closest('.user-menu-panel')) btn.closest('sl-dropdown')?.hide();
     } else {
         console.warn('[Admin] Accion no registrada:', action);
     }
@@ -392,6 +395,59 @@ document.addEventListener('sl-change', function(e) {
 });
 
 // Bindings para eventos que no son click (oninput, onchange)
+// ── Saludo dinámico + fecha/hora en vivo (sidebar header) ──
+function _actualizarSaludoAdmin() {
+    const h = new Date().getHours();
+    const saludo = h < 6 ? 'Buenas noches'
+        : h < 12 ? 'Buenos días'
+        : h < 19 ? 'Buenas tardes'
+        : 'Buenas noches';
+    const elSaludo = document.getElementById('adminSaludo');
+    const elNombre = document.getElementById('adminSaludoNombre');
+    if (elSaludo) elSaludo.textContent = saludo;
+    const nombre = (window.hdvUsuario?.nombre || '').trim();
+    const email = (window.hdvUsuario?.email || '').trim();
+    if (elNombre) {
+        // Solo el primer nombre, para que entre en el sidebar
+        elNombre.textContent = nombre ? nombre.split(/\s+/)[0] : 'HDV Admin';
+    }
+    // Menu de usuario (avatar + datos)
+    const avatar = document.getElementById('adminAvatar');
+    if (avatar) {
+        const partes = nombre ? nombre.split(/\s+/).filter(Boolean) : [];
+        const ini = partes.length >= 2 ? (partes[0][0] + partes[partes.length - 1][0])
+            : (nombre || email || 'A').slice(0, 2);
+        avatar.textContent = ini.toUpperCase();
+    }
+    const menuNombre = document.getElementById('adminMenuNombre');
+    const menuEmail = document.getElementById('adminMenuEmail');
+    if (menuNombre) menuNombre.textContent = nombre || 'Administrador';
+    if (menuEmail) menuEmail.textContent = email || '—';
+}
+
+function _actualizarFechaHoraAdmin() {
+    const el = document.getElementById('adminFechaHora');
+    if (!el) return;
+    const ahora = new Date();
+    const dias = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+    const meses = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+    const hh = String(ahora.getHours()).padStart(2, '0');
+    const mm = String(ahora.getMinutes()).padStart(2, '0');
+    el.textContent = `${dias[ahora.getDay()]} ${ahora.getDate()} ${meses[ahora.getMonth()]} · ${hh}:${mm}`;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    _actualizarSaludoAdmin();
+    _actualizarFechaHoraAdmin();
+    if (typeof actualizarBarraCambios === 'function') actualizarBarraCambios(); // normaliza barra (oculta si 0)
+    // Logo actual desde el bucket (misma fuente que el login)
+    if (typeof aplicarLogoEmpresa === 'function' && typeof _aplicarLogoHeaders === 'function') aplicarLogoEmpresa(_aplicarLogoHeaders);
+    // hdvUsuario se resuelve async en guard.js → reintentos cortos hasta que llegue el nombre
+    [600, 1500, 3000].forEach(t => setTimeout(_actualizarSaludoAdmin, t));
+    // Refrescar el reloj cada 30s y revalidar el saludo (cruce de franja horaria)
+    setInterval(() => { _actualizarFechaHoraAdmin(); _actualizarSaludoAdmin(); }, 30000);
+});
+
 document.addEventListener('DOMContentLoaded', () => {
     // Carga rápida de productos: Enter agrega y sigue
     ['qaNombre', 'qaPrecio', 'qaStock'].forEach(id => {
@@ -589,11 +645,42 @@ function registrarCambio() {
 }
 
 function actualizarBarraCambios() {
-    const bar = document.getElementById('unsavedBar');
+    // Grupo contextual en el header (Descartar / Guardar N) — solo visible si hay cambios
+    const grupo = document.getElementById('headerCambios');
     const badge = document.getElementById('unsavedCount');
-    if (bar && badge) {
-        if (cambiosSinGuardar > 0) { bar.classList.add('visible'); badge.textContent = cambiosSinGuardar; }
-        else { bar.classList.remove('visible'); }
+    if (grupo) {
+        const hay = cambiosSinGuardar > 0;
+        grupo.classList.toggle('hidden', !hay);
+        grupo.classList.toggle('flex', hay);
+        if (badge && hay) badge.textContent = cambiosSinGuardar;
+    }
+}
+
+// Cambio de contrasena del admin (Supabase Auth)
+async function cambiarContrasenaAdmin() {
+    const datos = await mostrarInputModal({
+        titulo: 'Cambiar contrasena',
+        icono: 'key-round',
+        subtitulo: 'Minimo 8 caracteres, con mayuscula, numero y simbolo.',
+        textoConfirmar: 'Actualizar',
+        campos: [
+            { key: 'p1', label: 'Nueva contrasena', tipo: 'password', requerido: true },
+            { key: 'p2', label: 'Repetir contrasena', tipo: 'password', requerido: true },
+        ]
+    });
+    if (!datos) return;
+    if (datos.p1 !== datos.p2) { mostrarToast('Las contrasenas no coinciden.', 'error'); return; }
+    if (!/^(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/.test(datos.p1)) {
+        mostrarToast('No cumple los requisitos: 8+ caracteres, 1 mayuscula, 1 numero, 1 simbolo.', 'error');
+        return;
+    }
+    try {
+        const { error } = await supabaseClient.auth.updateUser({ password: datos.p1 });
+        if (error) throw error;
+        mostrarToast('Contrasena actualizada correctamente.', 'success');
+    } catch (err) {
+        console.error('[Admin] Error cambiando contrasena:', err);
+        mostrarToast('No se pudo cambiar la contrasena: ' + (err.message || 'error'), 'error');
     }
 }
 
@@ -1383,8 +1470,9 @@ function _aplicarLogoHeaders(url) {
     [['adminSidebarLogo', 'adminSidebarLogoSvg'], ['adminHeaderLogo', 'adminHeaderLogoSvg']].forEach(([imgId, svgId]) => {
         const img = document.getElementById(imgId);
         const svg = document.getElementById(svgId);
-        if (img) { img.src = url; img.classList.remove('hidden'); }
-        if (svg) svg.classList.add('hidden');
+        if (!img) return;
+        img.onload = () => { img.classList.remove('hidden'); if (svg) svg.classList.add('hidden'); };
+        img.src = url;
     });
 }
 

@@ -12,6 +12,13 @@ const _vendedorActionMap = {
     // Header
     'forzarActualizacion':            () => typeof forzarActualizacion === 'function' && forzarActualizacion(),
     'cerrarSesion':                   () => typeof cerrarSesion === 'function' && cerrarSesion(),
+    'abrirBusquedaGlobal':            () => typeof abrirBusquedaGlobal === 'function' && abrirBusquedaGlobal(),
+    'cerrarBusquedaGlobal':           () => typeof cerrarBusquedaGlobal === 'function' && cerrarBusquedaGlobal(),
+    'toggleNotificaciones':           () => typeof toggleNotificaciones === 'function' && toggleNotificaciones(),
+    'abrirChatIA':                    () => typeof abrirChatIA === 'function' && abrirChatIA(),
+    'cerrarChatIAVendedor':           () => document.getElementById('aiChatDrawerVendedor')?.hide(),
+    'toggleCatDropdown':              () => typeof toggleCatDropdown === 'function' && toggleCatDropdown(),
+    'cerrarClienteInfo':              () => document.getElementById('clienteInfo')?.classList.add('hidden'),
     // Bottom nav
     'cambiarVistaVendedor':           (_, a) => typeof cambiarVistaVendedor === 'function' && cambiarVistaVendedor(a),
     'mostrarModalCarrito':            () => typeof mostrarModalCarrito === 'function' && mostrarModalCarrito(),
@@ -64,8 +71,19 @@ const _vendedorActionMap = {
         const nombreEl = document.getElementById('sidebarNombre');
         const emailEl = document.getElementById('sidebarEmail');
         if (avatarEl) avatarEl.textContent = nombre.charAt(0).toUpperCase();
-        if (nombreEl) nombreEl.textContent = nombre;
+        if (nombreEl) nombreEl.textContent = nombre.split(/\s+/)[0] || nombre;
         if (emailEl) emailEl.textContent = email;
+        // Saludo segun horario + fecha/hora (igual a admin)
+        const h = new Date().getHours();
+        const saludoEl = document.getElementById('sidebarSaludo');
+        if (saludoEl) saludoEl.textContent = h < 6 ? 'Buenas noches' : h < 12 ? 'Buenos días' : h < 19 ? 'Buenas tardes' : 'Buenas noches';
+        const fhEl = document.getElementById('sidebarFechaHora');
+        if (fhEl) {
+            const n = new Date();
+            const dias = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+            const meses = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+            fhEl.textContent = `${dias[n.getDay()]} ${n.getDate()} ${meses[n.getMonth()]} · ${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}`;
+        }
         if (typeof _actualizarBadgeCreditos === 'function') _actualizarBadgeCreditos();
         sidebar.show();
     },
@@ -213,16 +231,19 @@ window._hdvAppReady = false;
 // INICIALIZACION
 // ============================================
 async function _cargarLogoVendedor() {
-    try {
-        const { data } = await SupabaseService.fetchConfigEmpresa();
-        if (data?.logo_url) {
-            window._empresaLogoUrl = data.logo_url;
-            const img = document.getElementById('vendorHeaderLogo');
-            const svg = document.getElementById('vendorHeaderLogoSvg');
-            if (img) { img.src = data.logo_url; img.classList.remove('hidden'); }
-            if (svg) svg.classList.add('hidden');
+    // Fuente unica (bucket empresa_assets, mas reciente) — igual que el login
+    const aplicar = (url) => {
+        if (!url) return;
+        window._empresaLogoUrl = url;
+        const img = document.getElementById('vendorHeaderLogo');
+        const svg = document.getElementById('vendorHeaderLogoSvg');
+        if (img) {
+            img.onload = () => { img.classList.remove('hidden'); if (svg) svg.classList.add('hidden'); };
+            img.src = url;
         }
-    } catch (_e) { /* silencioso si no hay logo configurado */ }
+    };
+    if (typeof aplicarLogoEmpresa === 'function') { await aplicarLogoEmpresa(aplicar); return; }
+    try { const { data } = await SupabaseService.fetchConfigEmpresa(); if (data?.logo_url) aplicar(data.logo_url); } catch (_e) {}
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -277,6 +298,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (typeof mostrarToast === 'function') {
                     mostrarToast('Catalogo actualizado', 'info');
                 }
+                if (typeof notifVendedorCatalogo === 'function') notifVendedorCatalogo();
             }
         });
     }
@@ -286,6 +308,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         escucharPedidosRealtimeVendedor({
             onEstadoCambiado: (pedidoId, nuevoEstado, datos) => {
                 console.log(`[Vendedor RT] Pedido ${pedidoId} -> ${nuevoEstado}`);
+                // Notificacion in-app
+                if (typeof notifVendedorAgregar === 'function') {
+                    const num = datos?.numero_pedido != null ? '#' + String(datos.numero_pedido).padStart(7, '0') : (pedidoId || '').slice(0, 10);
+                    const esCredito = nuevoEstado === 'cobrado_sin_factura' || nuevoEstado === 'entregado';
+                    const labelEstado = nuevoEstado === 'entregado' ? 'Entregado'
+                        : nuevoEstado === 'cobrado_sin_factura' ? 'Cobrado'
+                        : nuevoEstado === 'anulado' ? 'Anulado' : nuevoEstado;
+                    notifVendedorAgregar(esCredito ? 'credito' : 'pedido', `Pedido ${num}: ${labelEstado}`, 'Actualizado por el administrador.');
+                }
                 // Actualizar tarjeta en el DOM si la vista de pedidos esta activa
                 if (vistaActual === 'pedidos' && typeof actualizarTarjetaPedidoDOM === 'function') {
                     const updated = actualizarTarjetaPedidoDOM(pedidoId, nuevoEstado);
@@ -300,6 +331,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             },
             onPedidoEliminado: (pedidoId) => {
                 console.log(`[Vendedor RT] Pedido eliminado: ${pedidoId}`);
+                if (typeof notifVendedorAgregar === 'function') notifVendedorAgregar('pedido', 'Pedido eliminado', 'El administrador eliminó un pedido.');
                 if (vistaActual === 'pedidos' && typeof eliminarTarjetaPedidoDOM === 'function') {
                     eliminarTarjetaPedidoDOM(pedidoId);
                     mostrarToast('Un pedido fue eliminado por el administrador', 'warning');
@@ -458,6 +490,13 @@ function cambiarVistaVendedor(vista) {
     const cartFab = document.getElementById('cartFabWrapper');
     if (cartFab) cartFab.style.display = vista === 'lista' ? '' : 'none';
 
+    // Tarjeta del cliente (mini-perfil): SOLO en catálogo
+    const _cInfo = document.getElementById('clienteInfo');
+    if (_cInfo) {
+        if (vista === 'lista' && clienteActual) _cInfo.classList.remove('hidden');
+        else _cInfo.classList.add('hidden');
+    }
+
     // Cerrar sidebar
     const sidebar = document.getElementById('sidebarMenu');
     if (sidebar) sidebar.hide();
@@ -475,7 +514,10 @@ function cambiarVistaVendedor(vista) {
         vistaCatalogo = 'categorias';
         categoriaSeleccionada = null;
         categoriaActual = 'todas';
+        if (typeof _subcatSeleccionada !== 'undefined') _subcatSeleccionada = null;
         document.getElementById('searchInput').value = '';
+        const catLbl = document.getElementById('catDropdownLabel');
+        if (catLbl) catLbl.textContent = 'Categorías';
         mostrarProductos();
     } else if (vista === 'pedidos') {
         if (clienteSearch) clienteSearch.style.display = 'none';

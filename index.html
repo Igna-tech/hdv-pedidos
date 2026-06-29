@@ -69,8 +69,8 @@
         }
 
         /* Smart client search */
-        #clienteSearchInput { border: none; outline: none; background: transparent; flex: 1; font-size: 14px; color: #111827; min-width: 0; padding: 0; }
-        #clienteSearchInput::placeholder { color: #9ca3af; }
+        #clienteSearchInput { border: none; outline: none; background: transparent; flex: 1; font-size: 13px; color: var(--ink); min-width: 0; padding: 0; }
+        #clienteSearchInput::placeholder { color: var(--muted); }
         #clienteDropdown, #zonaPickerDropdown { box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
         #zonaFilterLabel { max-width: 88px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; }
         /* Shoelace: cart quantity buttons 44px touch target */
@@ -221,62 +221,43 @@
 <body class="theme-dark pb-24 transition-colors duration-200">
 
     <header class="bg-white border-b border-slate-200 px-4 pt-3 pb-2 sticky top-0 z-50 shadow-sm">
-        <div class="flex justify-between items-center mb-3">
-            <div class="flex items-center gap-2">
-                <button data-action="abrirSidebar" class="header-icon-btn p-1.5 -ml-1.5 rounded-lg hover:bg-slate-100 transition-colors" aria-label="Menu">
-                    <i data-lucide="menu" class="w-5 h-5"></i>
-                </button>
-                <img id="vendorHeaderLogo" src="" alt="Logo empresa" class="w-9 h-9 object-contain rounded-lg hidden">
-                <svg id="vendorHeaderLogoSvg" width="36" height="36" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <div class="flex items-center gap-3">
+            <button data-action="abrirSidebar" class="header-icon-btn p-1.5 -ml-1 rounded-lg hover:bg-slate-100 transition-colors shrink-0" aria-label="Menu">
+                <i data-lucide="menu" class="w-5 h-5"></i>
+            </button>
+
+            <!-- Logo empresa (PNG transparente) flotando sobre el header oscuro -->
+            <span class="flex items-center shrink-0" aria-label="HDV Distribuciones">
+                <img id="vendorHeaderLogo" src="" alt="HDV Distribuciones" class="h-12 w-auto max-w-[200px] object-contain object-left hidden">
+                <svg id="vendorHeaderLogoSvg" width="32" height="32" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
                     <rect width="100" height="100" rx="16" fill="#111827"/>
                     <rect x="4" y="4" width="92" height="92" rx="12" fill="none" stroke="#DC2626" stroke-width="2.5"/>
                     <text x="50" y="52" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="38" fill="#DC2626" text-anchor="middle" dominant-baseline="central" letter-spacing="2">HDV</text>
                     <text x="50" y="78" font-family="Arial, sans-serif" font-weight="700" font-size="9.5" fill="#FFFFFF" text-anchor="middle" letter-spacing="4">DISTRIBUCIONES</text>
                 </svg>
-                <div>
-                    <h1 class="text-sm font-bold text-slate-900 leading-tight">HDV Pedidos</h1>
-                    <div id="status-badge" class="text-[10px] uppercase tracking-wider font-semibold text-slate-400 flex items-center">
-                        <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full mr-1.5"></span> En linea
-                    </div>
-                </div>
-            </div>
-            <div class="flex gap-0.5">
-                <sl-icon-button name="arrow-clockwise" label="Forzar actualizacion" data-action="forzarActualizacion" class="header-icon-btn"></sl-icon-button>
-            </div>
-        </div>
+            </span>
 
-        <!-- Smart client search -->
-        <div id="clienteSearchWrapper" class="relative">
-            <div id="clienteSearchBox" class="flex items-center gap-2.5 bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 transition-colors focus-within:border-indigo-300 focus-within:bg-white">
-                <i data-lucide="search" class="w-4 h-4 text-slate-400 shrink-0"></i>
-                <input id="clienteSearchInput" type="text" placeholder="Buscar cliente..." autocomplete="off" autocorrect="off" spellcheck="false" />
-                <div class="flex items-center gap-1 shrink-0 border-l border-slate-200 pl-2.5">
-                    <button id="zonaFilterBtn" data-action="toggleZonaPicker" class="flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-slate-700 leading-none">
-                        <span id="zonaFilterLabel">Todas</span>
-                        <i data-lucide="chevron-down" class="w-3 h-3 shrink-0"></i>
-                    </button>
-                    <button id="zonaFilterClear" data-action="limpiarZona" class="hidden text-slate-400 hover:text-red-400 leading-none ml-0.5">
-                        <i data-lucide="x" class="w-3.5 h-3.5"></i>
-                    </button>
-                </div>
-            </div>
-            <div id="clienteSelectedChip" class="hidden flex items-center gap-2.5 bg-indigo-50 border border-indigo-200 rounded-xl px-3.5 py-2.5">
-                <div id="clienteChipAvatar" class="w-7 h-7 rounded-full bg-slate-300 text-slate-600 flex items-center justify-center text-xs font-bold shrink-0"></div>
-                <div class="flex-1 min-w-0">
-                    <p id="clienteChipNombre" class="text-sm font-semibold text-gray-800 truncate leading-tight"></p>
-                    <p id="clienteChipZona" class="text-xs text-indigo-500 leading-tight"></p>
-                </div>
-                <button data-action="limpiarClienteSeleccionado" class="text-slate-400 hover:text-slate-600 p-0.5 shrink-0 leading-none">
-                    <i data-lucide="x" class="w-4 h-4"></i>
+            <div class="flex-1"></div>
+
+            <!-- Notificaciones -->
+            <div class="relative flex items-center shrink-0">
+                <button id="btnNotificaciones" data-action="toggleNotificaciones" class="w-9 h-9 flex items-center justify-center rounded-lg bg-panel-2 border border-hairline text-ink hover:bg-panel-3 active:scale-[0.97] transition-all" aria-label="Notificaciones">
+                    <i data-lucide="bell" class="w-[18px] h-[18px]"></i>
                 </button>
+                <span id="notifBadge" class="hidden">0</span>
+                <div id="notifPanel" class="hidden" role="dialog" aria-label="Notificaciones">
+                    <div class="notif-head"><span class="eyebrow-label">Notificaciones</span></div>
+                    <div id="notifLista" class="notif-lista"></div>
+                </div>
             </div>
-            <div id="clienteDropdown" class="hidden absolute left-0 right-0 top-full mt-1 bg-white rounded-xl border border-slate-200 z-50 overflow-hidden">
-                <div id="clienteDropdownListado" class="overflow-y-auto max-h-[240px]"></div>
-                <div id="clienteDropdownPie" class="hidden text-center text-xs text-slate-400 py-2 border-t border-slate-100 bg-slate-50 px-3"></div>
-            </div>
-            <div id="zonaPickerDropdown" class="hidden absolute left-0 right-0 top-full mt-1 bg-white rounded-xl border border-slate-200 z-50 overflow-hidden">
-                <div id="zonaPickerListado" class="overflow-y-auto max-h-[220px] py-1"></div>
-            </div>
+
+            <!-- Cartón -->
+            <button id="aiBtnHeader" data-action="abrirChatIA" title="Cartón — Asistente" aria-label="Cartón"
+                class="w-9 h-9 shrink-0 flex items-center justify-center rounded-lg bg-steel text-white hover:opacity-90 active:scale-[0.97] transition-all shadow-sm">
+                <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                </svg>
+            </button>
         </div>
     </header>
 
@@ -286,9 +267,12 @@
         <strong>Modo Offline</strong> — Los pedidos se sincronizaran al reconectar
     </sl-alert>
 
-    <!-- Mini-perfil del cliente seleccionado -->
-    <div id="clienteInfo" class="hidden mx-3 mt-2 bg-white border border-slate-200 rounded-xl p-3 shadow-sm">
-        <div class="flex items-center justify-between">
+    <!-- Mini-perfil del cliente seleccionado (solo en catalogo) -->
+    <div id="clienteInfo" class="hidden relative mx-3 mt-2 bg-white border border-slate-200 rounded-xl p-3 shadow-sm">
+        <button data-action="cerrarClienteInfo" aria-label="Cerrar tarjeta" class="absolute top-1.5 right-1.5 text-slate-300 hover:text-slate-500 p-1 leading-none z-10">
+            <i data-lucide="x" class="w-3.5 h-3.5"></i>
+        </button>
+        <div class="flex items-center justify-between pr-5">
             <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-2">
                     <span id="clienteInfoNombre" class="text-sm font-bold text-gray-800 truncate"></span>
@@ -316,11 +300,55 @@
     <!-- Filtros de categoria ocultos (controlados por JS) -->
     <div class="hidden" id="categoryFilters"></div>
 
-    <div class="px-3 pt-3 pb-1" id="searchContainer">
-        <div class="relative">
-            <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"></i>
-            <sl-input type="text" id="searchInput" placeholder="Buscar producto..." disabled aria-label="Buscar producto"
-                   class="w-full" size="medium"></sl-input>
+    <div class="px-3 pt-3 pb-1 space-y-2" id="searchContainer">
+        <!-- Buscador de CLIENTES (con filtro de zona) -->
+        <div id="clienteSearchWrapper" class="relative">
+            <div id="clienteSearchBox" class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3.5 py-2 transition-colors focus-within:border-indigo-300 focus-within:bg-white">
+                <input id="clienteSearchInput" type="text" placeholder="Buscar cliente por nombre o zona" autocomplete="off" autocorrect="off" spellcheck="false" />
+                <div class="flex items-center gap-1 shrink-0 border-l border-slate-200 pl-2.5">
+                    <button id="zonaFilterBtn" data-action="toggleZonaPicker" class="flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-slate-700 leading-none">
+                        <span id="zonaFilterLabel">Todas</span>
+                        <i data-lucide="chevron-down" class="w-3 h-3 shrink-0"></i>
+                    </button>
+                    <button id="zonaFilterClear" data-action="limpiarZona" class="hidden text-slate-400 hover:text-red-400 leading-none ml-0.5">
+                        <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                    </button>
+                </div>
+            </div>
+            <div id="clienteSelectedChip" class="hidden flex items-center gap-2.5 bg-indigo-50 border border-indigo-200 rounded-lg px-3.5 py-2">
+                <div id="clienteChipAvatar" class="w-7 h-7 rounded-full bg-slate-300 text-slate-600 flex items-center justify-center text-xs font-bold shrink-0"></div>
+                <div class="flex-1 min-w-0">
+                    <p id="clienteChipNombre" class="text-sm font-semibold text-gray-800 truncate leading-tight"></p>
+                    <p id="clienteChipZona" class="text-xs text-indigo-500 leading-tight"></p>
+                </div>
+                <button data-action="limpiarClienteSeleccionado" class="text-slate-400 hover:text-slate-600 p-0.5 shrink-0 leading-none">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+            <div id="clienteDropdown" class="hidden absolute left-0 right-0 top-full mt-1 bg-white rounded-xl border border-slate-200 z-50 overflow-hidden">
+                <div id="clienteDropdownListado" class="overflow-y-auto max-h-[240px]"></div>
+                <div id="clienteDropdownPie" class="hidden text-center text-xs text-slate-400 py-2 border-t border-slate-100 bg-slate-50 px-3"></div>
+            </div>
+            <div id="zonaPickerDropdown" class="hidden absolute left-0 right-0 top-full mt-1 bg-white rounded-xl border border-slate-200 z-50 overflow-hidden">
+                <div id="zonaPickerListado" class="overflow-y-auto max-h-[220px] py-1"></div>
+            </div>
+        </div>
+
+        <!-- Buscador de PRODUCTO + Dropdown de categorias -->
+        <div class="flex items-stretch gap-2">
+            <div class="relative flex-1 min-w-0">
+                <sl-input type="text" id="searchInput" placeholder="Buscar producto por nombre" disabled aria-label="Buscar producto"
+                       class="w-full" size="small"></sl-input>
+            </div>
+            <div id="catDropdownWrapper" class="relative shrink-0">
+                <button id="catDropdownBtn" data-action="toggleCatDropdown" type="button"
+                    class="flex items-center gap-1.5 h-full px-3 rounded-lg bg-slate-50 border border-slate-200 text-sm font-medium text-slate-600 hover:bg-white active:scale-[0.98] transition-all whitespace-nowrap">
+                    <i data-lucide="layout-grid" class="w-4 h-4 text-slate-400 shrink-0"></i>
+                    <span id="catDropdownLabel" class="max-w-[110px] truncate">Categorías</span>
+                    <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400 shrink-0"></i>
+                </button>
+                <div id="catDropdownMenu" class="hidden absolute right-0 top-full mt-1 w-60 max-h-[60vh] overflow-y-auto bg-white rounded-xl border border-slate-200 shadow-xl z-50 p-1.5"></div>
+            </div>
         </div>
     </div>
 
@@ -508,12 +536,63 @@
     </sl-drawer>
 
     <!-- SIDEBAR MENU -->
+    <!-- Buscador global (command palette) -->
+    <div id="vendorSearchOverlay" class="hidden fixed inset-0 z-[3000] bg-black/50 items-start justify-center pt-[12vh] px-4">
+        <div id="vendorSearchBox" class="w-full max-w-lg bg-panel border border-hairline rounded-2xl overflow-hidden shadow-2xl">
+            <div class="flex items-center gap-3 p-3.5 border-b border-hairline">
+                <i data-lucide="search" class="w-5 h-5 text-slate-400 shrink-0"></i>
+                <input id="vendorSearchInput" type="text" placeholder="Buscar productos, clientes, pedidos..." autocomplete="off" autocorrect="off" spellcheck="false" class="flex-1 bg-transparent outline-none text-sm text-ink placeholder:text-slate-500" />
+                <kbd class="text-[10px] text-slate-400 bg-panel-2 px-1.5 py-0.5 rounded shrink-0">ESC</kbd>
+            </div>
+            <div id="vendorSearchResults" class="max-h-[60vh] overflow-y-auto p-2"></div>
+        </div>
+    </div>
+
+    <!-- Cartón — asistente del vendedor -->
+    <sl-drawer id="aiChatDrawerVendedor" placement="end" style="--size: 400px;" no-header>
+        <div class="flex flex-col h-full">
+            <div class="flex items-center justify-between px-4 py-3 border-b border-hairline">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-lg bg-steel flex items-center justify-center">
+                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                    </div>
+                    <div>
+                        <p class="text-sm font-bold text-ink leading-tight">Cartón</p>
+                        <p class="text-[10px] text-slate-400 leading-tight">Tu asistente</p>
+                    </div>
+                </div>
+                <sl-icon-button name="x-lg" label="Cerrar" data-action="cerrarChatIAVendedor"></sl-icon-button>
+            </div>
+            <div id="aiVendChatMsgs" class="flex-1 overflow-y-auto p-4 space-y-3"></div>
+            <div id="aiVendSugerencias" class="flex gap-2 px-3 py-2 overflow-x-auto border-t border-hairline"></div>
+            <form id="aiVendForm" class="flex items-center gap-2 p-3 border-t border-hairline">
+                <input id="aiVendInput" type="text" autocomplete="off" placeholder="Preguntame algo..." class="flex-1 bg-panel-2 border border-hairline rounded-lg px-3 py-2 text-sm text-ink outline-none focus:border-steel" />
+                <button type="submit" class="bg-steel text-white rounded-lg px-3 py-2 active:scale-[0.97] transition-transform" aria-label="Enviar">
+                    <i data-lucide="send" class="w-4 h-4"></i>
+                </button>
+            </form>
+        </div>
+    </sl-drawer>
+
     <sl-drawer id="sidebarMenu" placement="start" style="--size: 17rem;" no-header>
-        <!-- Perfil del vendedor -->
-        <div class="bg-gradient-to-br from-slate-800 to-slate-900 px-5 py-6">
-            <div id="sidebarAvatar" class="w-11 h-11 rounded-full bg-indigo-500 flex items-center justify-center text-white text-lg font-black mb-3">V</div>
-            <p id="sidebarNombre" class="text-white font-bold text-sm leading-snug">Vendedor</p>
-            <p id="sidebarEmail" class="text-slate-400 text-xs mt-0.5 truncate"></p>
+        <!-- Sidebar header: saludo + estado + version (igual a admin) -->
+        <div class="bg-gradient-to-br from-slate-800 to-slate-900 px-4 py-4">
+            <div class="flex items-center gap-3">
+                <div id="sidebarAvatar" class="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center text-white text-sm font-black shrink-0">V</div>
+                <div class="min-w-0 flex-1">
+                    <p id="sidebarSaludo" class="text-[10px] text-slate-400 uppercase tracking-wider font-semibold leading-none">Bienvenido</p>
+                    <p id="sidebarNombre" class="text-white font-bold text-sm leading-tight truncate mt-0.5">Vendedor</p>
+                    <p id="sidebarEmail" class="text-slate-400 text-[11px] truncate leading-tight"></p>
+                </div>
+                <sl-icon-button name="arrow-clockwise" label="Forzar actualizacion" data-action="forzarActualizacion" class="shrink-0 -mr-1" style="font-size:0.95rem; color:#94a3b8;"></sl-icon-button>
+            </div>
+            <div class="flex items-center justify-between gap-2 mt-3">
+                <div id="status-badge" class="text-[10px] uppercase tracking-wider font-semibold inline-flex items-center px-2 py-1 rounded-md bg-slate-700/50 text-slate-300">
+                    <span class="w-2 h-2 bg-emerald-500 rounded-full mr-1.5"></span> En linea
+                </div>
+                <span id="sidebarFechaHora" class="text-[10px] text-slate-400 tabular-nums font-medium whitespace-nowrap"></span>
+            </div>
+            <p class="text-[10px] text-slate-500 font-medium mono mt-2" style="letter-spacing:0.08em">HDV ERP · v0.9.0 · BETA</p>
         </div>
 
         <!-- Nav principal -->
@@ -680,6 +759,9 @@
     <script src="js/vendedor/cart.js"></script>
     <script src="js/vendedor/cobros.js"></script>
     <script src="js/vendedor/mapa.js"></script>
+    <script src="js/vendedor/buscador-global.js"></script>
+    <script src="js/vendedor/notificaciones.js"></script>
+    <script src="js/vendedor/cartonia.js"></script>
     <!-- App -->
     <script src="app.js"></script>
     <script src="checkout.js"></script>

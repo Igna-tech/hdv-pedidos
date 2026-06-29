@@ -126,14 +126,14 @@
         sl-input:focus-within::part(base) { border-color: var(--ring); box-shadow: 0 0 0 3px rgba(212,212,216,0.25); }
         sl-input {
             --sl-input-color: var(--ink); --sl-input-placeholder-color: var(--faint);
-            --sl-input-height-medium: 3.25rem;
-            --sl-input-font-size-medium: 1.1rem;
-            --sl-input-spacing-medium: 1.1rem;
+            --sl-input-height-large: 3.6rem;
+            --sl-input-font-size-large: 1.1rem;
+            --sl-input-spacing-large: 1.15rem;
         }
         sl-input::part(prefix) { color: var(--faint); }
 
         /* Botón ENTRAR: primario shadcn (blanco + texto oscuro, redondeado) */
-        .btn-enter { --sl-input-height-medium: 3.4rem; }
+        .btn-enter { --sl-input-height-large: 3.6rem; }
         .btn-enter::part(base) {
             background: var(--steel); border: 1px solid transparent; border-radius: 0.6rem; color: var(--on-primary);
             font-weight: 600; letter-spacing: 0; font-size: 1.1rem;
@@ -253,15 +253,11 @@
                 <form id="login-form">
                     <div class="field reveal d2">
                         <label for="email">Correo electrónico</label>
-                        <sl-input type="email" id="email" required autocomplete="email" placeholder="tu@correo.com" size="large">
-                            <sl-icon slot="prefix" name="envelope"></sl-icon>
-                        </sl-input>
+                        <sl-input type="email" id="email" required autocomplete="email" placeholder="tu@correo.com" size="large"></sl-input>
                     </div>
                     <div class="field reveal d3">
                         <label for="password">Contraseña</label>
-                        <sl-input type="password" id="password" required autocomplete="current-password" placeholder="••••••••" size="large" password-toggle>
-                            <sl-icon slot="prefix" name="lock"></sl-icon>
-                        </sl-input>
+                        <sl-input type="password" id="password" required autocomplete="current-password" placeholder="Tu contraseña" size="large" password-toggle></sl-input>
                         <div id="capsHint" class="caps-hint" style="display:none">
                             <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 5l7 7h-4v4H9v-4H5l7-7z"/></svg>
                             Bloq Mayús activado

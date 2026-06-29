@@ -69,7 +69,7 @@
         }
 
         /* Smart client search */
-        #clienteSearchInput { border: none; outline: none; background: transparent; flex: 1; font-size: 14px; color: #111827; min-width: 0; padding: 0; }
+        #clienteSearchInput { border: none; outline: none; background: transparent; flex: 1; font-size: 13px; color: #111827; min-width: 0; padding: 0; }
         #clienteSearchInput::placeholder { color: #9ca3af; }
         #clienteDropdown, #zonaPickerDropdown { box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
         #zonaFilterLabel { max-width: 88px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; }
@@ -235,14 +235,14 @@
                 </svg>
             </div>
             <div class="flex items-center gap-1.5">
-                <!-- Busqueda global -->
-                <button data-action="abrirBusquedaGlobal" class="header-icon-btn p-1.5 rounded-lg hover:bg-slate-100 transition-colors" aria-label="Buscar">
-                    <i data-lucide="search" class="w-5 h-5"></i>
+                <!-- Busqueda global (cuadrado, como admin) -->
+                <button data-action="abrirBusquedaGlobal" class="w-9 h-9 flex items-center justify-center rounded-lg bg-panel-2 border border-hairline text-ink hover:bg-panel-3 active:scale-[0.97] transition-all" aria-label="Buscar">
+                    <i data-lucide="search" class="w-[18px] h-[18px]"></i>
                 </button>
                 <!-- Notificaciones -->
                 <div class="relative flex items-center">
-                    <button id="btnNotificaciones" data-action="toggleNotificaciones" class="header-icon-btn p-1.5 rounded-lg hover:bg-slate-100 transition-colors" aria-label="Notificaciones">
-                        <i data-lucide="bell" class="w-5 h-5"></i>
+                    <button id="btnNotificaciones" data-action="toggleNotificaciones" class="w-9 h-9 flex items-center justify-center rounded-lg bg-panel-2 border border-hairline text-ink hover:bg-panel-3 active:scale-[0.97] transition-all" aria-label="Notificaciones">
+                        <i data-lucide="bell" class="w-[18px] h-[18px]"></i>
                     </button>
                     <span id="notifBadge" class="hidden">0</span>
                     <div id="notifPanel" class="hidden" role="dialog" aria-label="Notificaciones">
@@ -250,20 +250,20 @@
                         <div id="notifLista" class="notif-lista"></div>
                     </div>
                 </div>
-                <!-- CartonIA -->
-                <button id="aiBtnHeader" data-action="abrirChatIA" title="CartonIA — Asistente IA"
+                <!-- Cartón -->
+                <button id="aiBtnHeader" data-action="abrirChatIA" title="Cartón — Asistente"
                     class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-steel text-white text-sm font-semibold hover:opacity-90 active:scale-[0.97] transition-all shadow-sm">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                     </svg>
-                    <span class="hidden sm:inline">CartonIA</span>
+                    <span class="hidden sm:inline">Cartón</span>
                 </button>
             </div>
         </div>
 
         <!-- Smart client search -->
         <div id="clienteSearchWrapper" class="relative">
-            <div id="clienteSearchBox" class="flex items-center gap-2.5 bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 transition-colors focus-within:border-indigo-300 focus-within:bg-white">
+            <div id="clienteSearchBox" class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 transition-colors focus-within:border-indigo-300 focus-within:bg-white">
                 <i data-lucide="search" class="w-4 h-4 text-slate-400 shrink-0"></i>
                 <input id="clienteSearchInput" type="text" placeholder="Buscar cliente..." autocomplete="off" autocorrect="off" spellcheck="false" />
                 <div class="flex items-center gap-1 shrink-0 border-l border-slate-200 pl-2.5">
@@ -276,7 +276,7 @@
                     </button>
                 </div>
             </div>
-            <div id="clienteSelectedChip" class="hidden flex items-center gap-2.5 bg-indigo-50 border border-indigo-200 rounded-xl px-3.5 py-2.5">
+            <div id="clienteSelectedChip" class="hidden flex items-center gap-2.5 bg-indigo-50 border border-indigo-200 rounded-lg px-3 py-1.5">
                 <div id="clienteChipAvatar" class="w-7 h-7 rounded-full bg-slate-300 text-slate-600 flex items-center justify-center text-xs font-bold shrink-0"></div>
                 <div class="flex-1 min-w-0">
                     <p id="clienteChipNombre" class="text-sm font-semibold text-gray-800 truncate leading-tight"></p>
@@ -336,7 +336,7 @@
         <div class="relative">
             <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"></i>
             <sl-input type="text" id="searchInput" placeholder="Buscar producto..." disabled aria-label="Buscar producto"
-                   class="w-full" size="medium"></sl-input>
+                   class="w-full" size="small"></sl-input>
         </div>
     </div>
 
@@ -536,7 +536,7 @@
         </div>
     </div>
 
-    <!-- CartonIA — asistente del vendedor -->
+    <!-- Cartón — asistente del vendedor -->
     <sl-drawer id="aiChatDrawerVendedor" placement="end" style="--size: 400px;" no-header>
         <div class="flex flex-col h-full">
             <div class="flex items-center justify-between px-4 py-3 border-b border-hairline">
@@ -545,7 +545,7 @@
                         <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
                     </div>
                     <div>
-                        <p class="text-sm font-bold text-ink leading-tight">CartonIA</p>
+                        <p class="text-sm font-bold text-ink leading-tight">Cartón</p>
                         <p class="text-[10px] text-slate-400 leading-tight">Tu asistente</p>
                     </div>
                 </div>

@@ -1,5 +1,5 @@
 // ============================================
-// HDV Vendedor — CartónIA (asistente acotado al vendedor)
+// HDV Vendedor — Cartón (asistente acotado al vendedor)
 // SOLO datos del propio vendedor: sus pedidos, cobros, créditos, meta, y
 // consulta de stock/precio (SIN costos ni datos del negocio global).
 // Determinístico (sin LLM), CSP-safe. Requiere: HDVStorage, formatearGuaranies,
@@ -101,7 +101,7 @@
             }).join('<br><br>');
         }
         // Ayuda / fallback
-        return 'Soy CartónIA 🤖, tu asistente. Puedo ayudarte con <b>tus</b> números:<br>' +
+        return 'Soy Cartón 🤖, tu asistente. Puedo ayudarte con <b>tus</b> números:<br>' +
             '• Cuánto vendiste / cobraste hoy<br>• Pedidos pendientes<br>• Quién te debe (créditos)<br>• Cómo vas con tu meta<br>• Precio y stock de un producto';
     }
 
@@ -150,7 +150,7 @@
         if (!drawer) return;
         if (!_iniciado) {
             const nombre = (window.hdvUsuario?.nombre || '').split(/\s+/)[0] || '';
-            _push('bot', `¡Hola${nombre ? ' ' + _esc(nombre) : ''}! Soy <b>CartónIA</b> 🤖. Preguntame por tus ventas, cobros, créditos o el precio de un producto.`);
+            _push('bot', `¡Hola${nombre ? ' ' + _esc(nombre) : ''}! Soy <b>Cartón</b> 🤖. Preguntame por tus ventas, cobros, créditos o el precio de un producto.`);
             _renderSugerencias();
             _iniciado = true;
         }

@@ -53,6 +53,13 @@
                .slice(0, 6)
                .forEach(c => res.push({ tipo: 'cliente', id: c.id, label: c.nombre || 'Sin nombre', sub: c.zona || c.ruc || '', icon: 'user' }));
 
+            // Zonas
+            if (typeof obtenerZonasUnicas === 'function') {
+                obtenerZonasUnicas().filter(z => (z.zona || '').toLowerCase().includes(q))
+                    .slice(0, 5)
+                    .forEach(z => res.push({ tipo: 'zona', id: z.zona, label: z.zona, sub: `${z.cantidad} cliente${z.cantidad === 1 ? '' : 's'}`, icon: 'map-pin' }));
+            }
+
             // Productos
             const prod = (typeof productos !== 'undefined' && Array.isArray(productos)) ? productos : [];
             prod.filter(p => (p.nombre || '').toLowerCase().includes(q))
@@ -86,7 +93,7 @@
             cont.innerHTML = `<p class="text-center text-slate-400 text-sm py-6">Sin resultados</p>`;
             return;
         }
-        const TIPO_LABEL = { nav: 'Ir a', cliente: 'Cliente', producto: 'Producto', pedido: 'Pedido' };
+        const TIPO_LABEL = { nav: 'Ir a', cliente: 'Cliente', zona: 'Zona', producto: 'Producto', pedido: 'Pedido' };
         cont.innerHTML = _items.map((it, i) => `
             <button type="button" data-vsi="${i}" class="vendor-search-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors ${i === _idx ? 'bg-panel-2' : ''}">
                 <i data-lucide="${_esc(it.icon)}" class="w-4 h-4 text-slate-400 shrink-0"></i>
@@ -108,6 +115,9 @@
         } else if (it.tipo === 'cliente') {
             if (typeof cambiarVistaVendedor === 'function') cambiarVistaVendedor('lista');
             if (typeof _seleccionarCliente === 'function') _seleccionarCliente(it.id);
+        } else if (it.tipo === 'zona') {
+            if (typeof cambiarVistaVendedor === 'function') cambiarVistaVendedor('lista');
+            if (typeof seleccionarZona === 'function') seleccionarZona(it.id);
         } else if (it.tipo === 'producto') {
             if (typeof cambiarVistaVendedor === 'function') cambiarVistaVendedor('lista');
             // El buscador de catalogo (sl-input) esta deshabilitado hasta elegir cliente

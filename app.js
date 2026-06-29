@@ -15,6 +15,8 @@ const _vendedorActionMap = {
     'abrirBusquedaGlobal':            () => typeof abrirBusquedaGlobal === 'function' && abrirBusquedaGlobal(),
     'cerrarBusquedaGlobal':           () => typeof cerrarBusquedaGlobal === 'function' && cerrarBusquedaGlobal(),
     'toggleNotificaciones':           () => typeof toggleNotificaciones === 'function' && toggleNotificaciones(),
+    'abrirChatIA':                    () => typeof abrirChatIA === 'function' && abrirChatIA(),
+    'cerrarChatIAVendedor':           () => document.getElementById('aiChatDrawerVendedor')?.hide(),
     // Bottom nav
     'cambiarVistaVendedor':           (_, a) => typeof cambiarVistaVendedor === 'function' && cambiarVistaVendedor(a),
     'mostrarModalCarrito':            () => typeof mostrarModalCarrito === 'function' && mostrarModalCarrito(),

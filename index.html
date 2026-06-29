@@ -536,6 +536,32 @@
         </div>
     </div>
 
+    <!-- CartonIA — asistente del vendedor -->
+    <sl-drawer id="aiChatDrawerVendedor" placement="end" style="--size: 400px;" no-header>
+        <div class="flex flex-col h-full">
+            <div class="flex items-center justify-between px-4 py-3 border-b border-hairline">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-lg bg-steel flex items-center justify-center">
+                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                    </div>
+                    <div>
+                        <p class="text-sm font-bold text-ink leading-tight">CartonIA</p>
+                        <p class="text-[10px] text-slate-400 leading-tight">Tu asistente</p>
+                    </div>
+                </div>
+                <sl-icon-button name="x-lg" label="Cerrar" data-action="cerrarChatIAVendedor"></sl-icon-button>
+            </div>
+            <div id="aiVendChatMsgs" class="flex-1 overflow-y-auto p-4 space-y-3"></div>
+            <div id="aiVendSugerencias" class="flex gap-2 px-3 py-2 overflow-x-auto border-t border-hairline"></div>
+            <form id="aiVendForm" class="flex items-center gap-2 p-3 border-t border-hairline">
+                <input id="aiVendInput" type="text" autocomplete="off" placeholder="Preguntame algo..." class="flex-1 bg-panel-2 border border-hairline rounded-lg px-3 py-2 text-sm text-ink outline-none focus:border-steel" />
+                <button type="submit" class="bg-steel text-white rounded-lg px-3 py-2 active:scale-[0.97] transition-transform" aria-label="Enviar">
+                    <i data-lucide="send" class="w-4 h-4"></i>
+                </button>
+            </form>
+        </div>
+    </sl-drawer>
+
     <sl-drawer id="sidebarMenu" placement="start" style="--size: 17rem;" no-header>
         <!-- Sidebar header: saludo + estado + version (igual a admin) -->
         <div class="bg-gradient-to-br from-slate-800 to-slate-900 px-4 py-4">
@@ -723,6 +749,7 @@
     <script src="js/vendedor/mapa.js"></script>
     <script src="js/vendedor/buscador-global.js"></script>
     <script src="js/vendedor/notificaciones.js"></script>
+    <script src="js/vendedor/cartonia.js"></script>
     <!-- App -->
     <script src="app.js"></script>
     <script src="checkout.js"></script>

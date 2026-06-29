@@ -231,16 +231,19 @@ window._hdvAppReady = false;
 // INICIALIZACION
 // ============================================
 async function _cargarLogoVendedor() {
-    try {
-        const { data } = await SupabaseService.fetchConfigEmpresa();
-        if (data?.logo_url) {
-            window._empresaLogoUrl = data.logo_url;
-            const img = document.getElementById('vendorHeaderLogo');
-            const svg = document.getElementById('vendorHeaderLogoSvg');
-            if (img) { img.src = data.logo_url; img.classList.remove('hidden'); }
-            if (svg) svg.classList.add('hidden');
+    // Fuente unica (bucket empresa_assets, mas reciente) — igual que el login
+    const aplicar = (url) => {
+        if (!url) return;
+        window._empresaLogoUrl = url;
+        const img = document.getElementById('vendorHeaderLogo');
+        const svg = document.getElementById('vendorHeaderLogoSvg');
+        if (img) {
+            img.onload = () => { img.classList.remove('hidden'); if (svg) svg.classList.add('hidden'); };
+            img.src = url;
         }
-    } catch (_e) { /* silencioso si no hay logo configurado */ }
+    };
+    if (typeof aplicarLogoEmpresa === 'function') { await aplicarLogoEmpresa(aplicar); return; }
+    try { const { data } = await SupabaseService.fetchConfigEmpresa(); if (data?.logo_url) aplicar(data.logo_url); } catch (_e) {}
 }
 
 document.addEventListener('DOMContentLoaded', async () => {

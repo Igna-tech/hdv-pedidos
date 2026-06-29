@@ -440,6 +440,8 @@ document.addEventListener('DOMContentLoaded', () => {
     _actualizarSaludoAdmin();
     _actualizarFechaHoraAdmin();
     if (typeof actualizarBarraCambios === 'function') actualizarBarraCambios(); // normaliza barra (oculta si 0)
+    // Logo actual desde el bucket (misma fuente que el login)
+    if (typeof aplicarLogoEmpresa === 'function' && typeof _aplicarLogoHeaders === 'function') aplicarLogoEmpresa(_aplicarLogoHeaders);
     // hdvUsuario se resuelve async en guard.js → reintentos cortos hasta que llegue el nombre
     [600, 1500, 3000].forEach(t => setTimeout(_actualizarSaludoAdmin, t));
     // Refrescar el reloj cada 30s y revalidar el saludo (cruce de franja horaria)
@@ -1468,8 +1470,9 @@ function _aplicarLogoHeaders(url) {
     [['adminSidebarLogo', 'adminSidebarLogoSvg'], ['adminHeaderLogo', 'adminHeaderLogoSvg']].forEach(([imgId, svgId]) => {
         const img = document.getElementById(imgId);
         const svg = document.getElementById(svgId);
-        if (img) { img.src = url; img.classList.remove('hidden'); }
-        if (svg) svg.classList.add('hidden');
+        if (!img) return;
+        img.onload = () => { img.classList.remove('hidden'); if (svg) svg.classList.add('hidden'); };
+        img.src = url;
     });
 }
 

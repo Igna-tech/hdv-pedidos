@@ -63,6 +63,33 @@ window.addEventListener('online', () => {
 window.addEventListener('offline', () => actualizarIndicadorConexion(false));
 
 // ============================================
+// LOGO DE EMPRESA (fuente unica: bucket empresa_assets, mas reciente + cache)
+// Misma logica que el login, para que admin/vendedor muestren el logo actual.
+// applyFn(url) recibe la URL publica del logo.
+// ============================================
+async function aplicarLogoEmpresa(applyFn) {
+    if (typeof applyFn !== 'function' || typeof supabaseClient === 'undefined') return;
+    // 1. Cache local (instantaneo, sirve offline)
+    try { const c = await HDVStorage.getItem('hdv_logo_empresa_url'); if (c) applyFn(c); } catch (e) {}
+    // 2. Bucket publico: tomar el logo mas reciente
+    try {
+        const { data, error } = await supabaseClient.storage.from('empresa_assets')
+            .list('', { limit: 100, sortBy: { column: 'created_at', order: 'desc' } });
+        if (!error && Array.isArray(data) && data.length) {
+            const logo = data.find(f => /^logo_.*\.(webp|png|jpe?g)$/i.test(f.name)) || data.find(f => f.name && !f.name.startsWith('.'));
+            if (logo) {
+                const { data: pub } = supabaseClient.storage.from('empresa_assets').getPublicUrl(logo.name);
+                if (pub?.publicUrl) {
+                    applyFn(pub.publicUrl);
+                    try { await HDVStorage.setItem('hdv_logo_empresa_url', pub.publicUrl); } catch (e) {}
+                }
+            }
+        }
+    } catch (e) { /* se mantiene el fallback */ }
+}
+window.aplicarLogoEmpresa = aplicarLogoEmpresa;
+
+// ============================================
 // FUNCIONES PARA PEDIDOS
 // ============================================
 

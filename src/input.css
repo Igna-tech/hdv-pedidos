@@ -625,3 +625,35 @@ body.theme-dark .shadow-xl, body.theme-dark .shadow-2xl { box-shadow: var(--hdv-
    El toggle se retira en Fase 5; mantenemos compat de lectura.
    ============================================================ */
 .dark-mode { background-color: var(--ground); color: var(--ink); }
+
+/* ============================================================
+   MOTION amplificado (shadcn + Emil) — micro-interacciones globales
+   Hover-lift en cards, press en pills/tabs/nav, focus ring shadcn.
+   Solo transform/opacity; hover gateado para touch; reduced-motion seguro.
+   ============================================================ */
+@media (hover: hover) and (pointer: fine) {
+  .saas-card, .card, .vpc, .catalog-card, .prod, .vendor-cat-card {
+    transition: transform .18s var(--ease-out), box-shadow .18s var(--ease-out), border-color .15s var(--ease-out);
+  }
+  .saas-card:hover, .card:hover, .prod:hover, .vendor-cat-card:hover {
+    transform: translateY(-2px); box-shadow: var(--hdv-shadow-elevated);
+  }
+  .vpc:hover, .catalog-card:hover { transform: translateY(-3px); box-shadow: var(--hdv-shadow-elevated); }
+}
+/* Transiciones + press en pills/chips/tabs/nav (todo lo interactuable) */
+.subcat-chip, .chart-tab, .intel-tab, .prov-tab, .nav-item, .sidebar-nav-item, .rfm-chip {
+  transition: background .15s var(--ease-out), color .15s var(--ease-out),
+              transform .12s var(--ease-out), border-color .15s var(--ease-out);
+}
+.subcat-chip:active, .chart-tab:active, .intel-tab:active, .prov-tab:active,
+.nav-item:active, .sidebar-nav-item:active { transform: scale(.96); }
+a { transition: color .15s var(--ease-out); }
+/* Foco shadcn (ring) en inputs Shoelace — gana por orden */
+sl-input:focus-within::part(base),
+sl-textarea:focus-within::part(base),
+sl-select:focus-within::part(combobox) {
+  border-color: hsl(var(--ring)); box-shadow: 0 0 0 3px rgba(212,212,216,0.22);
+}
+@media (prefers-reduced-motion: reduce) {
+  .saas-card, .card, .vpc, .catalog-card, .prod, .vendor-cat-card { transform: none !important; }
+}

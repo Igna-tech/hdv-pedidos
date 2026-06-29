@@ -12,6 +12,8 @@ const _vendedorActionMap = {
     // Header
     'forzarActualizacion':            () => typeof forzarActualizacion === 'function' && forzarActualizacion(),
     'cerrarSesion':                   () => typeof cerrarSesion === 'function' && cerrarSesion(),
+    'abrirBusquedaGlobal':            () => typeof abrirBusquedaGlobal === 'function' && abrirBusquedaGlobal(),
+    'cerrarBusquedaGlobal':           () => typeof cerrarBusquedaGlobal === 'function' && cerrarBusquedaGlobal(),
     // Bottom nav
     'cambiarVistaVendedor':           (_, a) => typeof cambiarVistaVendedor === 'function' && cambiarVistaVendedor(a),
     'mostrarModalCarrito':            () => typeof mostrarModalCarrito === 'function' && mostrarModalCarrito(),

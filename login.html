@@ -21,18 +21,22 @@
 
     <style>
         :root {
-            --ground: #0E0F11;
-            --panel: #15171B;
-            --panel-2: #191C21;
-            --hairline: rgba(255,255,255,0.09);
-            --ink: #E9E7E1;
-            --muted: #8A8F98;
-            --faint: #5A6068;
-            --steel: #3D5A78;
-            --steel-bright: #5681AE;
-            --steel-soft: rgba(61,90,120,0.18);
-            --ok: #34D399;
-            --alert: #E05252;
+            /* shadcn/ui zinc (dark) */
+            --ground: #09090b;
+            --panel: #101012;
+            --panel-2: #18181b;
+            --hairline: #26262b;
+            --ink: #fafafa;
+            --muted: #a1a1aa;
+            --faint: #52525b;
+            --steel: #fafafa;            /* primario = blanco */
+            --steel-bright: #fafafa;
+            --steel-soft: #27272a;       /* superficie de acento */
+            --on-primary: #18181b;       /* texto sobre fill blanco */
+            --ring: #d4d4d8;
+            --ok: #22c55e;
+            --alert: #ef4444;
+            --radius: 0.625rem;
             --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
             --ease-io: cubic-bezier(0.77, 0, 0.175, 1);
         }
@@ -45,7 +49,7 @@
             color: var(--ink);
             min-height: 100vh;
         }
-        ::selection { background: var(--steel); color: #fff; }
+        ::selection { background: var(--steel); color: var(--on-primary); }
         .mono { font-family: 'Geist Mono', monospace; }
 
         /* Grano + grilla sutil (sin glow ni mesh) */
@@ -89,8 +93,8 @@
         .module {
             width: 100%; max-width: 420px;
             border: 1px solid var(--hairline); background: var(--panel);
-            border-radius: 2px; padding: 2rem;
-            box-shadow: 0 1px 0 rgba(255,255,255,0.03) inset, 0 24px 60px -30px rgba(0,0,0,0.8);
+            border-radius: var(--radius); padding: 2rem;
+            box-shadow: 0 24px 50px -12px rgba(0,0,0,0.55);
         }
         @media (min-width: 768px) { .stage { padding-left: 6vw; } .module { padding: 2.5rem; } }
 
@@ -102,7 +106,7 @@
         /* Logo tile (recto, sin gradiente) */
         .logo-tile {
             width: 46px; height: 46px; border: 1px solid var(--hairline); background: var(--panel-2);
-            display: flex; align-items: center; justify-content: center; border-radius: 2px; overflow: hidden;
+            display: flex; align-items: center; justify-content: center; border-radius: 0.5rem; overflow: hidden;
         }
         .logo-tile img { width: 100%; height: 100%; object-fit: contain; padding: 6px; background: #fff; display: none; }
         .logo-tile .mono { font-weight: 700; font-size: 1rem; color: var(--ink); letter-spacing: 0.02em; }
@@ -113,24 +117,24 @@
 
         /* Campos: label mono arriba, solo borde, esquinas rectas */
         .field { margin-top: 1.1rem; }
-        .field > label { display: block; font-family: 'Geist Mono', monospace; font-size: 0.64rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.4rem; }
+        .field > label { display: block; font-size: 0.875rem; font-weight: 500; color: var(--ink); margin-bottom: 0.45rem; }
         sl-input::part(base) {
-            background: var(--panel-2); border: 1px solid var(--hairline); border-radius: 2px;
+            background: var(--panel-2); border: 1px solid var(--hairline); border-radius: 0.5rem;
             transition: border-color 150ms var(--ease-out), box-shadow 150ms var(--ease-out);
         }
-        sl-input::part(base):hover { border-color: rgba(255,255,255,0.16); }
-        sl-input:focus-within::part(base) { border-color: var(--steel); box-shadow: 0 0 0 3px var(--steel-soft); }
+        sl-input::part(base):hover { border-color: #3f3f46; }
+        sl-input:focus-within::part(base) { border-color: var(--ring); box-shadow: 0 0 0 3px rgba(212,212,216,0.25); }
         sl-input { --sl-input-color: var(--ink); --sl-input-placeholder-color: var(--faint); --sl-input-spacing-medium: 0.85rem; }
         sl-input::part(prefix) { color: var(--faint); }
 
-        /* Botón ENTRAR: sólido acero, mono, esquinas rectas */
+        /* Botón ENTRAR: primario shadcn (blanco + texto oscuro, redondeado) */
         .btn-enter::part(base) {
-            background: var(--steel); border: 1px solid var(--steel); border-radius: 2px; color: #fff;
-            font-family: 'Geist Mono', monospace; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase;
-            transition: background 150ms var(--ease-out), border-color 150ms var(--ease-out), transform 120ms var(--ease-out);
+            background: var(--steel); border: 1px solid transparent; border-radius: 0.5rem; color: var(--on-primary);
+            font-weight: 500; letter-spacing: 0;
+            transition: background 150ms var(--ease-out), transform 120ms var(--ease-out), opacity 150ms var(--ease-out);
         }
         @media (hover: hover) and (pointer: fine) {
-            .btn-enter::part(base):hover { background: var(--steel-bright); border-color: var(--steel-bright); }
+            .btn-enter::part(base):hover { background: var(--steel); opacity: 0.9; }
         }
         .btn-enter::part(base):active { transform: scale(0.97); }
         sl-button.w-full { display: block; } sl-button.w-full::part(base) { width: 100%; }
@@ -138,7 +142,7 @@
         .row { display: flex; align-items: center; justify-content: space-between; margin-top: 1rem; }
         sl-checkbox { --sl-input-label-color: var(--muted); --sl-toggle-size-small: 16px; font-size: 0.8rem; }
         sl-checkbox::part(control) { width: 16px; height: 16px; flex: 0 0 16px; font-size: 11px; border-radius: 2px; }
-        sl-checkbox::part(control--checked) { background: var(--steel); border-color: var(--steel); color: #fff; }
+        sl-checkbox::part(control--checked) { background: var(--steel); border-color: var(--steel); color: var(--on-primary); }
         sl-checkbox::part(label) { font-size: 0.78rem; color: var(--muted); margin-inline-start: 0.5rem; }
         .meta { font-family: 'Geist Mono', monospace; font-size: 0.64rem; letter-spacing: 0.1em; color: var(--faint); }
         .link { color: var(--steel-bright); font-size: 0.75rem; font-weight: 500; text-decoration: none; transition: color 150ms var(--ease-out); }

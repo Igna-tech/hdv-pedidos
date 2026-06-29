@@ -353,6 +353,72 @@ function volverACategorias() {
 }
 
 // ============================================
+// DROPDOWN DE CATEGORIAS (filtro del catalogo) — vendedor
+// Lista categorias + subcategorias; filtra el catalogo al elegir.
+// ============================================
+function _renderCatDropdown() {
+    const menu = document.getElementById('catDropdownMenu');
+    if (!menu) return;
+    const base = 'cat-dd-item w-full flex items-center gap-2 py-2 rounded-md text-left text-sm transition-colors';
+    let html = `<button type="button" class="${base} px-2.5 ${categoriaActual === 'todas' && !_subcatSeleccionada ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-slate-600 hover:bg-slate-50'}" data-cat="todas">
+        <i data-lucide="layout-grid" class="w-3.5 h-3.5 text-slate-400 shrink-0"></i><span>Todas las categorías</span></button>`;
+    (categorias || []).forEach(cat => {
+        const activoCat = categoriaActual === cat.id && !_subcatSeleccionada;
+        html += `<button type="button" class="${base} px-2.5 ${activoCat ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-slate-700 hover:bg-slate-50'}" data-cat="${escapeHTML(cat.id)}">
+            <i data-lucide="folder" class="w-3.5 h-3.5 text-slate-400 shrink-0"></i><span class="truncate">${escapeHTML(cat.nombre)}</span></button>`;
+        (cat.subcategorias || []).filter(Boolean).forEach(sub => {
+            const activoSub = categoriaActual === cat.id && _subcatSeleccionada === sub;
+            html += `<button type="button" class="${base} pl-8 pr-2.5 ${activoSub ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-slate-500 hover:bg-slate-50'}" data-cat="${escapeHTML(cat.id)}" data-sub="${escapeHTML(sub)}">
+                <span class="text-slate-300">›</span><span class="truncate">${escapeHTML(sub)}</span></button>`;
+        });
+    });
+    menu.innerHTML = html;
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function toggleCatDropdown(forzarCerrar) {
+    const menu = document.getElementById('catDropdownMenu');
+    if (!menu) return;
+    const abierto = !menu.classList.contains('hidden');
+    if (abierto || forzarCerrar === true) { menu.classList.add('hidden'); return; }
+    _renderCatDropdown();
+    menu.classList.remove('hidden');
+}
+
+function _aplicarFiltroCatDropdown(catId, sub) {
+    categoriaActual = catId || 'todas';
+    categoriaSeleccionada = null;
+    _subcatSeleccionada = sub || null;
+    vistaCatalogo = (catId && catId !== 'todas') ? 'productos' : 'categorias';
+    const lbl = document.getElementById('catDropdownLabel');
+    if (lbl) {
+        if (sub) lbl.textContent = sub;
+        else if (catId && catId !== 'todas') lbl.textContent = (categorias.find(c => c.id === catId)?.nombre || 'Categorías');
+        else lbl.textContent = 'Categorías';
+    }
+    toggleCatDropdown(true);
+    mostrarProductos();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const menu = document.getElementById('catDropdownMenu');
+    if (menu) {
+        menu.addEventListener('click', (e) => {
+            const b = e.target.closest('.cat-dd-item');
+            if (b) _aplicarFiltroCatDropdown(b.dataset.cat, b.dataset.sub);
+        });
+    }
+    document.addEventListener('click', (e) => {
+        const m = document.getElementById('catDropdownMenu');
+        if (!m || m.classList.contains('hidden')) return;
+        if (e.target.closest('#catDropdownWrapper')) return;
+        m.classList.add('hidden');
+    });
+});
+
+window.toggleCatDropdown = toggleCatDropdown;
+
+// ============================================
 // PRODUCTOS UI
 // ============================================
 async function mostrarProductos() {

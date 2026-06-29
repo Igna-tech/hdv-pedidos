@@ -17,6 +17,7 @@ const _vendedorActionMap = {
     'toggleNotificaciones':           () => typeof toggleNotificaciones === 'function' && toggleNotificaciones(),
     'abrirChatIA':                    () => typeof abrirChatIA === 'function' && abrirChatIA(),
     'cerrarChatIAVendedor':           () => document.getElementById('aiChatDrawerVendedor')?.hide(),
+    'toggleCatDropdown':              () => typeof toggleCatDropdown === 'function' && toggleCatDropdown(),
     // Bottom nav
     'cambiarVistaVendedor':           (_, a) => typeof cambiarVistaVendedor === 'function' && cambiarVistaVendedor(a),
     'mostrarModalCarrito':            () => typeof mostrarModalCarrito === 'function' && mostrarModalCarrito(),
@@ -502,7 +503,10 @@ function cambiarVistaVendedor(vista) {
         vistaCatalogo = 'categorias';
         categoriaSeleccionada = null;
         categoriaActual = 'todas';
+        if (typeof _subcatSeleccionada !== 'undefined') _subcatSeleccionada = null;
         document.getElementById('searchInput').value = '';
+        const catLbl = document.getElementById('catDropdownLabel');
+        if (catLbl) catLbl.textContent = 'Categorías';
         mostrarProductos();
     } else if (vista === 'pedidos') {
         if (clienteSearch) clienteSearch.style.display = 'none';

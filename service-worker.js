@@ -1,4 +1,4 @@
-const VERSION = '77.6';
+const VERSION = '77.7';
 const CACHE_NAME = `hdv-pedidos-v${VERSION}`;
 
 const urlsToCache = [

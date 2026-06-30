@@ -60,6 +60,8 @@
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-io:  cubic-bezier(0.77, 0, 0.175, 1);
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+  --dur-fast: 140ms; --dur: 220ms; --dur-slow: 320ms;
 
   /* — Border-radius shadcn (redondeado) — */
   --hdv-radius-sm: 0.375rem;
@@ -213,10 +215,50 @@ button:active:not(:disabled) { transform: scale(0.97); }
 sl-button::part(base) { transition: transform 120ms var(--ease-out), background 150ms var(--ease-out), border-color 150ms var(--ease-out); }
 sl-button::part(base):active { transform: scale(0.97); }
 
+/* ============================================================
+   MOTION PREMIUM — utilidades compartidas (vendedor + admin)
+   ============================================================ */
+@keyframes hdvFadeRise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes hdvBlurIn   { from { opacity: 0; filter: blur(8px); } to { opacity: 1; filter: blur(0); } }
+@keyframes hdvViewSlide{ from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes hdvPop      { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: scale(1); } }
+@keyframes hdvPanelIn  { from { opacity: 0; transform: translateY(-8px) scale(.98); } to { opacity: 1; transform: none; } }
+@keyframes hdvBounceIn { 0% { opacity: 0; transform: scale(.85) translateY(6px); } 60% { opacity: 1; transform: scale(1.04); } 100% { transform: scale(1); } }
+@keyframes hdvSheetUp  { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes hdvRiseSpring { from { opacity: 0; transform: translateY(10px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
+
+.hdv-in        { animation: hdvFadeRise var(--dur) var(--ease-out) backwards; }
+.hdv-blur-in   { animation: hdvBlurIn .4s var(--ease-out) both; }
+.hdv-view-slide{ animation: hdvViewSlide .3s var(--ease-out) both; }
+.hdv-pop-in    { animation: hdvPop .22s var(--ease-out) both; }
+.hdv-panel-in  { animation: hdvPanelIn .2s var(--ease-out) both; }
+.hdv-bar-fill  { transition: width .9s var(--ease-out); }
+.hdv-sheet-in  { animation: hdvSheetUp .34s var(--ease-drawer) both; }
+@keyframes hdvBadgePop { 0% { transform: scale(1); } 40% { transform: scale(1.45); } 100% { transform: scale(1); } }
+.hdv-badge-pop { animation: hdvBadgePop .38s var(--ease-spring); }
+
+/* Stagger genérico (cap 12; el resto entra sin delay) */
+.hdv-stag > * { animation: hdvRiseSpring .34s var(--ease-spring) backwards; }
+.hdv-stag > *:nth-child(1){animation-delay:.02s} .hdv-stag > *:nth-child(2){animation-delay:.05s}
+.hdv-stag > *:nth-child(3){animation-delay:.08s} .hdv-stag > *:nth-child(4){animation-delay:.11s}
+.hdv-stag > *:nth-child(5){animation-delay:.14s} .hdv-stag > *:nth-child(6){animation-delay:.17s}
+.hdv-stag > *:nth-child(7){animation-delay:.20s} .hdv-stag > *:nth-child(8){animation-delay:.23s}
+.hdv-stag > *:nth-child(9){animation-delay:.26s} .hdv-stag > *:nth-child(10){animation-delay:.29s}
+.hdv-stag > *:nth-child(11){animation-delay:.32s} .hdv-stag > *:nth-child(12){animation-delay:.35s}
+
+/* Hover de tarjetas/filas (solo dispositivos con hover real) */
+@media (hover: hover) {
+  .hdv-hover-lift { transition: transform .18s var(--ease-out), box-shadow .18s var(--ease-out), border-color .18s var(--ease-out); }
+  .hdv-hover-lift:hover { transform: translateY(-2px); box-shadow: 0 10px 26px rgba(0,0,0,0.34); }
+  tr.hdv-row-hover { transition: background-color .12s var(--ease-out); }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .reveal, .screen-in, .feed-item, .product-card { animation: none !important; opacity: 1 !important; transform: none !important; }
+  .reveal, .screen-in, .feed-item, .product-card,
+  .hdv-in, .hdv-blur-in, .hdv-view-slide, .hdv-pop-in, .hdv-panel-in, .hdv-sheet-in,
+  .hdv-stag > * { animation: none !important; opacity: 1 !important; transform: none !important; filter: none !important; }
   .pip { animation: none !important; }
-  *, *::before, *::after { transition-duration: 0.01ms !important; }
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
 }
 
 /* ============================================================

@@ -598,7 +598,10 @@ function cambiarSeccion(seccionId) {
         });
         document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
         const seccion = document.getElementById(`seccion-${seccionId}`);
-        if (seccion) { seccion.classList.add('active'); seccion.style.display = 'block'; }
+        if (seccion) {
+            seccion.classList.add('active'); seccion.style.display = 'block';
+            seccion.classList.remove('hdv-view-slide'); void seccion.offsetWidth; seccion.classList.add('hdv-view-slide');
+        }
         const contentArea = document.getElementById('adminContentArea');
         if (contentArea) contentArea.scrollTop = 0;
         const btn = document.querySelector(`button[data-section="${seccionId}"]`);

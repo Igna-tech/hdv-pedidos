@@ -2030,10 +2030,28 @@ async function calcularAlmacenamiento() {
 // ============================================
 let _vistaClientesModo = 'todos'; // 'todos' | 'riesgo'
 let _clientesVendQuery = '';
+let _clientesVendZona = '';
+let _clientesVendPagina = 1;
+const _CLIENTES_POR_PAGINA = 25;
+let _clZonaListener = false;
 
 function setClientesModo(modo) {
     _vistaClientesModo = modo;
+    _clientesVendPagina = 1;
     mostrarClientesVendedor();
+}
+function setClientesZona(zona) {
+    _clientesVendZona = zona || '';
+    _clientesVendPagina = 1;
+    mostrarClientesVendedor();
+}
+function toggleClientesZona() {
+    document.getElementById('clientesVendZonaMenu')?.classList.toggle('hidden');
+}
+function clientesVendPaginaCambiar(arg) {
+    _clientesVendPagina = arg === 'prev' ? Math.max(1, _clientesVendPagina - 1) : _clientesVendPagina + 1;
+    _renderClientesVendLista();
+    document.getElementById('productsContainer')?.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function _toggleClientesHTML() {
@@ -2049,10 +2067,24 @@ function _toggleClientesHTML() {
 async function mostrarClientesVendedor() {
     const container = document.getElementById('productsContainer');
     if (!container) return;
+    const zonas = (typeof obtenerZonasUnicas === 'function') ? obtenerZonasUnicas() : [];
+    const zonaItem = (val, txt, cant) => `<button data-action="setClientesZona" data-arg="${escapeHTML(val)}" class="w-full flex items-center justify-between px-2.5 py-2 rounded-md text-sm ${_clientesVendZona === val ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-slate-600 hover:bg-slate-50'}"><span class="truncate">${escapeHTML(txt)}</span>${cant != null ? `<span class="text-[10px] text-gray-400 ml-2">${cant}</span>` : ''}</button>`;
+    const zonaMenuHtml = zonaItem('', 'Todas las zonas', null) + zonas.map(z => zonaItem(z.zona, z.zona, z.cantidad)).join('');
+
     container.innerHTML = _toggleClientesHTML() + `
-        <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3.5 py-2 mb-3 focus-within:border-indigo-300 focus-within:bg-white transition-colors">
-            <i data-lucide="search" class="w-4 h-4 text-slate-400 shrink-0"></i>
-            <input id="clientesVendBuscar" type="text" placeholder="Buscar cliente por nombre o zona" autocomplete="off" autocorrect="off" spellcheck="false" class="flex-1 bg-transparent outline-none text-sm text-ink" style="min-width:0">
+        <div class="flex items-stretch gap-2 mb-3">
+            <div class="flex-1 flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 focus-within:border-indigo-300 focus-within:bg-white transition-colors min-w-0">
+                <i data-lucide="search" class="w-4 h-4 text-slate-400 shrink-0"></i>
+                <input id="clientesVendBuscar" type="text" placeholder="Buscar cliente" autocomplete="off" autocorrect="off" spellcheck="false" class="flex-1 bg-transparent outline-none text-sm text-ink" style="min-width:0">
+            </div>
+            <div id="clientesVendZonaWrap" class="relative shrink-0">
+                <button data-action="toggleClientesZona" type="button" class="flex items-center gap-1 h-full px-2.5 rounded-lg bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-white transition-colors max-w-[120px]">
+                    <i data-lucide="map-pin" class="w-3.5 h-3.5 text-slate-400 shrink-0"></i>
+                    <span class="truncate">${escapeHTML(_clientesVendZona || 'Todas')}</span>
+                    <i data-lucide="chevron-down" class="w-3 h-3 shrink-0"></i>
+                </button>
+                <div id="clientesVendZonaMenu" class="hidden absolute right-0 top-full mt-1 w-48 max-h-[50vh] overflow-y-auto bg-white rounded-xl border border-slate-200 shadow-xl z-50 p-1.5">${zonaMenuHtml}</div>
+            </div>
         </div>
         <div id="clientesVendLista"></div>
     `;
@@ -2060,7 +2092,17 @@ async function mostrarClientesVendedor() {
     const inp = document.getElementById('clientesVendBuscar');
     if (inp) {
         inp.value = _clientesVendQuery;
-        inp.addEventListener('input', () => { _clientesVendQuery = inp.value; _renderClientesVendLista(); });
+        inp.addEventListener('input', () => { _clientesVendQuery = inp.value; _clientesVendPagina = 1; _renderClientesVendLista(); });
+    }
+    // cerrar dropdown de zona al click afuera (una sola vez)
+    if (!_clZonaListener) {
+        document.addEventListener('click', (e) => {
+            const menu = document.getElementById('clientesVendZonaMenu');
+            if (!menu || menu.classList.contains('hidden')) return;
+            if (e.target.closest('#clientesVendZonaWrap')) return;
+            menu.classList.add('hidden');
+        });
+        _clZonaListener = true;
     }
     await _renderClientesVendLista();
 }
@@ -2069,30 +2111,30 @@ function _clienteCardHtml(c, dias, nivel) {
     const id = c.id;
     const nombre = c.razon_social || c.nombre || 'Cliente';
     const inicial = (nombre || 'C').charAt(0).toUpperCase();
-    const zona = c.zona || '';
     const tel = (c.telefono || '').replace(/\D/g, '');
-    const sub = [zona, c.telefono].filter(Boolean).join(' · ');
+    const sub = [c.zona, c.telefono].filter(Boolean).join(' · ');
     const chip = { atencion: 'bg-yellow-100 text-yellow-700', riesgo: 'bg-orange-100 text-orange-700', perdido: 'bg-red-100 text-red-700' };
     const label = { atencion: 'Atención', riesgo: 'Riesgo', perdido: 'Perdido' };
     const right = nivel
-        ? `<span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${chip[nivel]}">${label[nivel]} · ${dias}d</span>`
-        : `<span class="text-[10px] text-gray-400 shrink-0 whitespace-nowrap">${dias != null && dias < 999 ? 'hace ' + dias + 'd' : 'sin compras'}</span>`;
+        ? `<span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${chip[nivel]}">${label[nivel]} ${dias}d</span>`
+        : `<span class="text-[10px] text-gray-400 shrink-0 whitespace-nowrap">${dias != null && dias < 999 ? dias + 'd' : '—'}</span>`;
+    const btnBase = 'flex items-center justify-center gap-1 text-[10px] font-semibold py-1 rounded-md transition-colors';
     const waBtn = tel
-        ? `<a href="https://wa.me/${tel}" target="_blank" rel="noopener" class="flex-1 flex items-center justify-center gap-1 text-[11px] font-semibold text-[#1da851] py-1.5 rounded-lg hover:bg-green-50 transition-colors"><i data-lucide="message-circle" class="w-3.5 h-3.5"></i> WhatsApp</a>`
+        ? `<a href="https://wa.me/${tel}" target="_blank" rel="noopener" class="${btnBase} flex-1 text-[#1da851] bg-green-50 hover:bg-green-100"><i data-lucide="message-circle" class="w-3 h-3"></i> WhatsApp</a>`
         : '';
-    return `<div class="bg-white rounded-xl p-3 shadow-sm border border-slate-100 mb-2">
-        <div class="flex items-center gap-2.5">
-            <div class="w-9 h-9 rounded-full bg-slate-200 text-slate-600 text-sm font-bold flex items-center justify-center shrink-0">${escapeHTML(inicial)}</div>
+    return `<div class="bg-white rounded-lg p-2.5 shadow-sm border border-slate-100 mb-1.5">
+        <div class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-full bg-slate-200 text-slate-600 text-xs font-bold flex items-center justify-center shrink-0">${escapeHTML(inicial)}</div>
             <div class="min-w-0 flex-1">
-                <p class="text-sm font-bold text-gray-800 truncate">${escapeHTML(nombre)}</p>
-                <p class="text-[11px] text-gray-400 truncate">${escapeHTML(sub) || 'Sin datos de contacto'}</p>
+                <p class="text-[13px] font-bold text-gray-800 truncate leading-tight">${escapeHTML(nombre)}</p>
+                <p class="text-[10px] text-gray-400 truncate leading-tight">${escapeHTML(sub) || 'Sin contacto'}</p>
             </div>
             ${right}
         </div>
-        <div class="flex gap-1.5 mt-2.5 pt-2.5 border-t border-slate-50">
+        <div class="flex gap-1 mt-2">
             ${waBtn}
-            <button data-action="mostrarHistorialCliente" data-arg="${escapeHTML(id)}" class="flex-1 flex items-center justify-center gap-1 text-[11px] font-semibold text-indigo-600 py-1.5 rounded-lg hover:bg-indigo-50 transition-colors"><i data-lucide="clock" class="w-3.5 h-3.5"></i> Historial</button>
-            <button data-action="crearPedidoDesdeCliente" data-arg="${escapeHTML(id)}" class="flex-1 flex items-center justify-center gap-1 text-[11px] font-semibold text-white py-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-600 transition-colors"><i data-lucide="shopping-cart" class="w-3.5 h-3.5"></i> Pedido</button>
+            <button data-action="mostrarHistorialCliente" data-arg="${escapeHTML(id)}" class="${btnBase} flex-1 text-indigo-600 bg-indigo-50 hover:bg-indigo-100"><i data-lucide="clock" class="w-3 h-3"></i> Historial</button>
+            <button data-action="crearPedidoDesdeCliente" data-arg="${escapeHTML(id)}" class="${btnBase} flex-1 text-white bg-indigo-500 hover:bg-indigo-600"><i data-lucide="shopping-cart" class="w-3 h-3"></i> Pedido</button>
         </div>
     </div>`;
 }
@@ -2105,7 +2147,6 @@ async function _renderClientesVendLista() {
     const pedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
     const hoy = new Date();
 
-    // Última compra por cliente (cualquier pedido)
     const lastByCliente = {};
     pedidos.forEach(p => {
         const id = p.cliente?.id; if (!id || !p.fecha) return;
@@ -2115,28 +2156,46 @@ async function _renderClientesVendLista() {
     const _dias = (id) => lastByCliente[id] ? Math.floor((hoy - lastByCliente[id]) / 86400000) : 999;
     const _nivel = (d) => d >= 60 ? 'perdido' : d >= 30 ? 'riesgo' : d >= 15 ? 'atencion' : 'activo';
 
-    let items = lista;
-    if (q) items = items.filter(c => (c.nombre || '').toLowerCase().includes(q) || (c.razon_social || '').toLowerCase().includes(q) || (c.zona || '').toLowerCase().includes(q) || (c.ruc || '').toLowerCase().includes(q));
+    let base = lista;
+    if (_clientesVendZona) base = base.filter(c => c.zona === _clientesVendZona);
+    if (q) base = base.filter(c => (c.nombre || '').toLowerCase().includes(q) || (c.razon_social || '').toLowerCase().includes(q) || (c.zona || '').toLowerCase().includes(q) || (c.ruc || '').toLowerCase().includes(q));
 
+    // Construir la lista final segun modo: [{c, d, n}]
+    let registros;
+    let cabecera = '';
     if (_vistaClientesModo === 'riesgo') {
-        const conRiesgo = items.map(c => ({ c, d: _dias(c.id), n: _nivel(_dias(c.id)) })).filter(x => x.n !== 'activo').sort((a, b) => b.d - a.d);
-        const cAt = conRiesgo.filter(x => x.n === 'atencion').length;
-        const cRi = conRiesgo.filter(x => x.n === 'riesgo').length;
-        const cPe = conRiesgo.filter(x => x.n === 'perdido').length;
-        const resumen = `<div class="grid grid-cols-3 gap-2 mb-3">
+        registros = base.map(c => ({ c, d: _dias(c.id), n: _nivel(_dias(c.id)) })).filter(x => x.n !== 'activo').sort((a, b) => b.d - a.d);
+        const cAt = registros.filter(x => x.n === 'atencion').length;
+        const cRi = registros.filter(x => x.n === 'riesgo').length;
+        const cPe = registros.filter(x => x.n === 'perdido').length;
+        cabecera = `<div class="grid grid-cols-3 gap-2 mb-3">
             <div class="bg-yellow-50 rounded-lg p-2 text-center"><p class="text-base font-bold text-yellow-700">${cAt}</p><p class="text-[9px] text-gray-500 font-bold uppercase">Atención</p></div>
             <div class="bg-orange-50 rounded-lg p-2 text-center"><p class="text-base font-bold text-orange-700">${cRi}</p><p class="text-[9px] text-gray-500 font-bold uppercase">Riesgo</p></div>
             <div class="bg-red-50 rounded-lg p-2 text-center"><p class="text-base font-bold text-red-600">${cPe}</p><p class="text-[9px] text-gray-500 font-bold uppercase">Perdido</p></div>
         </div>`;
-        cont.innerHTML = resumen + (conRiesgo.length
-            ? conRiesgo.map(x => _clienteCardHtml(x.c, x.d, x.n)).join('')
-            : `<p class="text-sm text-gray-400 text-center py-6">Sin clientes en riesgo ✓</p>`);
     } else {
-        items = items.slice().sort((a, b) => (a.razon_social || a.nombre || '').localeCompare(b.razon_social || b.nombre || ''));
-        cont.innerHTML = items.length
-            ? `<p class="text-[11px] text-gray-400 mb-2">${items.length} cliente${items.length === 1 ? '' : 's'}</p>` + items.slice(0, 200).map(c => _clienteCardHtml(c, _dias(c.id), null)).join('')
-            : `<p class="text-sm text-gray-400 text-center py-6">Sin clientes</p>`;
+        registros = base.slice().sort((a, b) => (a.razon_social || a.nombre || '').localeCompare(b.razon_social || b.nombre || '')).map(c => ({ c, d: _dias(c.id), n: null }));
     }
+
+    const total = registros.length;
+    if (total === 0) {
+        cont.innerHTML = cabecera + `<p class="text-sm text-gray-400 text-center py-6">${_vistaClientesModo === 'riesgo' ? 'Sin clientes en riesgo ✓' : 'Sin clientes'}</p>`;
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+        return;
+    }
+
+    const totalPag = Math.ceil(total / _CLIENTES_POR_PAGINA);
+    if (_clientesVendPagina > totalPag) _clientesVendPagina = totalPag;
+    const ini = (_clientesVendPagina - 1) * _CLIENTES_POR_PAGINA;
+    const pageItems = registros.slice(ini, ini + _CLIENTES_POR_PAGINA);
+
+    const paginacion = totalPag > 1 ? `<div class="flex items-center justify-between mt-3 mb-1">
+        <button data-action="clientesVendPagina" data-arg="prev" class="px-3 py-1.5 rounded-lg text-xs font-semibold ${_clientesVendPagina <= 1 ? 'text-slate-300 pointer-events-none' : 'text-indigo-600 bg-indigo-50 hover:bg-indigo-100'} transition-colors">‹ Anterior</button>
+        <span class="text-[11px] text-gray-400">Pág. ${_clientesVendPagina} de ${totalPag} · ${total}</span>
+        <button data-action="clientesVendPagina" data-arg="next" class="px-3 py-1.5 rounded-lg text-xs font-semibold ${_clientesVendPagina >= totalPag ? 'text-slate-300 pointer-events-none' : 'text-indigo-600 bg-indigo-50 hover:bg-indigo-100'} transition-colors">Siguiente ›</button>
+    </div>` : `<p class="text-[11px] text-gray-400 mt-2 mb-1 text-center">${total} cliente${total === 1 ? '' : 's'}</p>`;
+
+    cont.innerHTML = cabecera + pageItems.map(x => _clienteCardHtml(x.c, x.d, x.n)).join('') + paginacion;
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 

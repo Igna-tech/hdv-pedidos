@@ -94,6 +94,9 @@ const _vendedorActionMap = {
     'sincronizarAhora':               () => typeof sincronizarAhoraVendedor === 'function' && sincronizarAhoraVendedor(),
     // Clientes (vendedor)
     'setClientesModo':                (_, m) => typeof setClientesModo === 'function' && setClientesModo(m),
+    'setClientesZona':                (_, z) => typeof setClientesZona === 'function' && setClientesZona(z),
+    'toggleClientesZona':             () => typeof toggleClientesZona === 'function' && toggleClientesZona(),
+    'clientesVendPagina':             (_, a) => typeof clientesVendPaginaCambiar === 'function' && clientesVendPaginaCambiar(a),
     'crearPedidoDesdeCliente':        (_, id) => {
         if (typeof _seleccionarCliente === 'function') _seleccionarCliente(id);
         if (typeof cambiarVistaVendedor === 'function') cambiarVistaVendedor('lista');

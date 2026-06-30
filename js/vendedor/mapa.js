@@ -137,38 +137,59 @@ const HDVMapa = (() => {
         }
     }
 
-    // ── Filtros chips ─────────────────────────────────────────
+    // ── Filtro (dropdown compacto que abre hacia arriba) ──────
+    const _FILTRO_OPTS = [
+        { key: 'todos',         label: 'Todos',      icon: 'users' },
+        { key: 'deuda',         label: 'Con deuda',  icon: 'alert-circle' },
+        { key: 'sin-visita',    label: 'Sin visita', icon: 'clock' },
+        { key: 'sin-ubicacion', label: 'Sin ubicar', icon: 'map-pin-off' },
+    ];
 
-    function _renderFiltroChips() {
+    function _filtroCounts() {
         const clts = (window.clientes || []);
         const conUbic = clts.filter(c => c.lat && c.lng);
-        const counts = {
+        return {
             todos: conUbic.length,
             deuda: conUbic.filter(c => _deudaCliente(c.id) > 0).length,
             'sin-visita': conUbic.filter(c => { const d = _diasSinContacto(c.id); return d === null || d >= 15; }).length,
             'sin-ubicacion': clts.filter(c => !c.lat || !c.lng).length,
         };
-        const opts = [
-            { key: 'todos',         label: 'Todos',      icon: 'users' },
-            { key: 'deuda',         label: 'Deuda',      icon: 'alert-circle' },
-            { key: 'sin-visita',    label: 'Sin visita', icon: 'clock' },
-            { key: 'sin-ubicacion', label: 'Sin ubicar', icon: 'map-pin-off' },
-        ];
-        return opts.map(o => {
-            const act = _filtroActivo === o.key;
-            const n = counts[o.key] || 0;
-            return `<button data-action="setFiltroMapa" data-arg="${o.key}"
-                class="flex-1 flex flex-col items-center gap-0.5 py-1.5 px-0.5 rounded-xl transition-colors ${act ? 'bg-steel text-white' : 'text-slate-500 active:bg-slate-100'}">
-                <i data-lucide="${o.icon}" class="w-[18px] h-[18px]"></i>
-                <span class="text-[9px] font-bold leading-none">${escapeHTML(o.label)}</span>
-                <span class="text-[11px] font-extrabold leading-none ${act ? 'text-white' : 'text-slate-700'}">${n}</span>
-            </button>`;
-        }).join('');
     }
 
     function _actualizarFiltrosUI() {
-        const el = document.getElementById('mapaFiltrosChips');
-        if (el) { el.innerHTML = _renderFiltroChips(); if (typeof lucide !== 'undefined') lucide.createIcons(); }
+        const counts = _filtroCounts();
+        const active = _FILTRO_OPTS.find(o => o.key === _filtroActivo) || _FILTRO_OPTS[0];
+        const lbl = document.getElementById('mapaFiltroLabel');
+        const cnt = document.getElementById('mapaFiltroCount');
+        if (lbl) lbl.textContent = active.label;
+        if (cnt) cnt.textContent = counts[active.key] || 0;
+        const menu = document.getElementById('mapaFiltroMenu');
+        if (menu) {
+            menu.innerHTML = _FILTRO_OPTS.map(o => {
+                const act = _filtroActivo === o.key;
+                return `<button data-action="setFiltroMapa" data-arg="${o.key}" class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-left transition-colors ${act ? 'bg-steel text-white' : 'text-slate-600 active:bg-slate-100'}">
+                    <i data-lucide="${o.icon}" class="w-4 h-4 shrink-0"></i>
+                    <span class="text-sm font-semibold flex-1">${escapeHTML(o.label)}</span>
+                    <span class="text-[11px] font-bold ${act ? 'text-white/80' : 'text-slate-400'}">${counts[o.key] || 0}</span>
+                </button>`;
+            }).join('');
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+    }
+
+    function _toggleMapaFiltro(forceClose) {
+        const menu = document.getElementById('mapaFiltroMenu');
+        const chev = document.getElementById('mapaFiltroChevron');
+        if (!menu) return;
+        const abierto = !menu.classList.contains('invisible');
+        if (abierto || forceClose === true) {
+            menu.classList.add('opacity-0', 'translate-y-2', 'invisible');
+            if (chev) chev.classList.remove('rotate-180');
+        } else {
+            _actualizarFiltrosUI();
+            menu.classList.remove('opacity-0', 'translate-y-2', 'invisible');
+            if (chev) chev.classList.add('rotate-180');
+        }
     }
 
     // ── Bottom sheet ──────────────────────────────────────────
@@ -287,6 +308,7 @@ const HDVMapa = (() => {
 
     // Arrastre del bottom-sheet (swipe hacia abajo para cerrar) — una sola vez
     let _sheetDragSet = false;
+    let _filtroDocSet = false;
     function _setupSheetDrag() {
         if (_sheetDragSet) return;
         const sheet = document.getElementById('mapaBottomSheet');
@@ -550,6 +572,7 @@ const HDVMapa = (() => {
 
     function setFiltroMapa(filtro) {
         _filtroActivo = filtro;
+        _toggleMapaFiltro(true);
         _ocultarBottomSheet();
         _renderMarcadores();
 
@@ -609,6 +632,15 @@ const HDVMapa = (() => {
         }
 
         _setupSheetDrag();
+        if (!_filtroDocSet) {
+            document.addEventListener('click', (e) => {
+                const menu = document.getElementById('mapaFiltroMenu');
+                if (!menu || menu.classList.contains('invisible')) return;
+                if (e.target.closest('#mapaFiltroMenu') || e.target.closest('[data-action="toggleMapaFiltro"]')) return;
+                _toggleMapaFiltro(true);
+            });
+            _filtroDocSet = true;
+        }
         setTimeout(() => {
             _mapa.invalidateSize();
             _renderMarcadores();
@@ -652,6 +684,7 @@ const HDVMapa = (() => {
         toggleLeyenda:         _toggleLeyenda,
         encuadrar:             _encuadrar,
         marcarVisita:          _marcarVisita,
+        toggleFiltro:          _toggleMapaFiltro,
     };
 })();
 

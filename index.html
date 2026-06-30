@@ -420,11 +420,17 @@
             </div>
         </div>
 
-        <!-- Filtros: control segmentado unificado (inferior) -->
-        <div class="absolute bottom-20 left-3 right-3 z-20">
-            <div id="mapaFiltrosChips" class="bg-white rounded-2xl shadow-xl border border-slate-200 p-1 flex gap-0.5">
-                <!-- segmentos inyectados por mapa.js -->
+        <!-- Filtro: dropdown compacto (abajo-izquierda, abre hacia arriba) -->
+        <div class="absolute bottom-20 left-3 z-30">
+            <div id="mapaFiltroMenu" class="absolute bottom-full left-0 mb-2 w-52 bg-white rounded-2xl shadow-xl border border-slate-200 p-1.5 origin-bottom transition duration-200 opacity-0 translate-y-2 invisible">
+                <!-- opciones inyectadas por mapa.js -->
             </div>
+            <button data-action="toggleMapaFiltro" class="flex items-center gap-2 bg-white rounded-full shadow-xl border border-slate-200 pl-3 pr-2.5 py-2 active:scale-95 transition-all">
+                <i data-lucide="sliders-horizontal" class="w-4 h-4 text-steel shrink-0"></i>
+                <span id="mapaFiltroLabel" class="text-xs font-bold text-slate-700 whitespace-nowrap">Todos</span>
+                <span id="mapaFiltroCount" class="text-[10px] font-extrabold bg-slate-100 text-slate-600 rounded-full px-1.5 leading-tight">0</span>
+                <i data-lucide="chevron-down" id="mapaFiltroChevron" class="w-4 h-4 text-slate-400 shrink-0 transition-transform duration-200"></i>
+            </button>
         </div>
 
         <!-- Controles del mapa (panel unificado) -->

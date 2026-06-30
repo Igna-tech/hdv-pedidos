@@ -44,8 +44,10 @@ const HDVMapa = (() => {
 
     function _crearIcono(nivel, inicial, seleccionado) {
         const color = NIVEL_COLOR[nivel] || '#64748b';
+        // Pequeño desfase aleatorio para que los pines "caigan" en cascada, no todos juntos
+        const delay = seleccionado ? 0 : (Math.random() * 0.28).toFixed(2);
         return L.divIcon({
-            html: `<div class="hdv-mk${seleccionado ? ' hdv-mk--sel' : ''}" style="--c:${color}"><span>${escapeHTML(inicial || '?')}</span></div>`,
+            html: `<div class="hdv-mk${seleccionado ? ' hdv-mk--sel' : ''}" style="--c:${color};animation-delay:${delay}s"><span>${escapeHTML(inicial || '?')}</span></div>`,
             className: 'hdv-mk-wrap',
             iconSize: [30, 30],
             iconAnchor: [15, 28],

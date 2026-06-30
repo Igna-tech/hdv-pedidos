@@ -507,7 +507,7 @@ function cambiarVistaVendedor(vista) {
     // Transición suave del contenido (excepto mapa, pantalla aparte)
     if (vista !== 'mapa') {
         const pc = document.getElementById('productsContainer');
-        if (pc) { pc.classList.remove('hdv-view-in'); void pc.offsetWidth; pc.classList.add('hdv-view-in'); }
+        if (pc) { pc.classList.remove('hdv-view-slide'); void pc.offsetWidth; pc.classList.add('hdv-view-slide'); }
     }
 
     const catFilters = document.getElementById('categoryFilters');

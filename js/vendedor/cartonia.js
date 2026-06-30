@@ -111,7 +111,7 @@
         if (!cont) return;
         const esUser = rol === 'user';
         const div = document.createElement('div');
-        div.className = 'flex ' + (esUser ? 'justify-end' : 'justify-start');
+        div.className = 'flex hdv-bubble-in ' + (esUser ? 'justify-end' : 'justify-start');
         div.innerHTML = `<div class="${esUser ? 'bg-steel text-white' : 'bg-panel-2 text-ink'} rounded-2xl px-3.5 py-2 max-w-[80%] text-sm leading-relaxed">${html}</div>`;
         cont.appendChild(div);
         cont.scrollTop = cont.scrollHeight;
@@ -123,8 +123,8 @@
         _push('user', _esc(t));
         const cont = document.getElementById('aiVendChatMsgs');
         const typing = document.createElement('div');
-        typing.className = 'flex justify-start';
-        typing.innerHTML = `<div class="bg-panel-2 text-slate-400 rounded-2xl px-3.5 py-2 text-sm">…</div>`;
+        typing.className = 'flex justify-start hdv-bubble-in';
+        typing.innerHTML = `<div class="bg-panel-2 rounded-2xl px-3.5 py-2.5"><span class="hdv-typing"><span></span><span></span><span></span></span></div>`;
         if (cont) { cont.appendChild(typing); cont.scrollTop = cont.scrollHeight; }
         let resp;
         try { resp = await _responder(t); } catch (e) { resp = 'Uy, no pude calcular eso ahora.'; }

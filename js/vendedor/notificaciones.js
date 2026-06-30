@@ -40,8 +40,13 @@
         const badge = document.getElementById('notifBadge');
         if (!badge) return;
         const n = _noLeidas();
-        if (n > 0) { badge.textContent = n > 9 ? '9+' : String(n); badge.classList.remove('hidden'); }
-        else { badge.classList.add('hidden'); }
+        const previo = parseInt(badge.dataset.n || '0', 10);
+        if (n > 0) {
+            badge.textContent = n > 9 ? '9+' : String(n);
+            badge.classList.remove('hidden');
+            if (n > previo) { badge.classList.remove('badge-pop'); void badge.offsetWidth; badge.classList.add('badge-pop'); }
+        } else { badge.classList.add('hidden'); }
+        badge.dataset.n = String(n);
     }
 
     // Agrega una notificación al feed

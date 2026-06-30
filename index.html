@@ -75,10 +75,16 @@
         #zonaFilterLabel { max-width: 88px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; }
         /* Mapa: marcadores por estado del cliente */
         .hdv-mk-wrap, .hdv-userloc-wrap { background: none !important; border: none !important; }
-        .hdv-mk { width: 28px; height: 28px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); background: var(--c); border: 2px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; }
+        .hdv-mk { width: 28px; height: 28px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); background: var(--c); border: 2px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; animation: hdvPinDrop .26s cubic-bezier(0.34,1.56,0.64,1) both; transition: width .15s, height .15s, box-shadow .15s; }
         .hdv-mk > span { transform: rotate(45deg); color: #fff; font-weight: 800; font-size: 12px; line-height: 1; }
-        .hdv-mk--sel { width: 36px; height: 36px; box-shadow: 0 0 0 6px rgba(86,129,174,.35), 0 3px 10px rgba(0,0,0,.5); }
-        .hdv-mk--sel > span { font-size: 15px; }
+        .hdv-mk--sel { width: 38px; height: 38px; box-shadow: 0 0 0 6px rgba(86,129,174,.35), 0 4px 12px rgba(0,0,0,.5); animation: hdvPinPop .32s cubic-bezier(0.34,1.56,0.64,1) both; }
+        .hdv-mk--sel > span { font-size: 16px; }
+        @keyframes hdvPinDrop { 0% { opacity: 0; transform: rotate(-45deg) translateY(-10px) scale(.4); } 100% { opacity: 1; transform: rotate(-45deg) translateY(0) scale(1); } }
+        @keyframes hdvPinPop { 0% { transform: rotate(-45deg) scale(.7); } 60% { transform: rotate(-45deg) scale(1.12); } 100% { transform: rotate(-45deg) scale(1); } }
+        @media (prefers-reduced-motion: reduce) { .hdv-mk, .hdv-mk--sel { animation: none; } }
+        /* Bottom-sheet draggable */
+        #mapaBottomSheet .hdv-sheet-grab { cursor: grab; touch-action: none; }
+        #mapaBottomSheet .hdv-sheet-grab:active { cursor: grabbing; }
         .hdv-userloc { width: 16px; height: 16px; border-radius: 50%; background: #2563eb; border: 3px solid #fff; box-shadow: 0 0 0 0 rgba(37,99,235,.5); animation: hdvUserPulse 2s infinite; }
         @keyframes hdvUserPulse { 0% { box-shadow: 0 0 0 0 rgba(37,99,235,.5); } 70% { box-shadow: 0 0 0 14px rgba(37,99,235,0); } 100% { box-shadow: 0 0 0 0 rgba(37,99,235,0); } }
         @media (prefers-reduced-motion: reduce) { .hdv-userloc { animation: none; } }

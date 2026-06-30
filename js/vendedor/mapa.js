@@ -183,7 +183,7 @@ const HDVMapa = (() => {
         if (!sheet) return;
 
         sheet.innerHTML = `
-            <div class="w-10 h-1 bg-slate-200 rounded-full mx-auto mb-4"></div>
+            <div class="hdv-sheet-grab -mt-1 pt-2 pb-1"><div class="w-10 h-1.5 bg-slate-300 rounded-full mx-auto mb-3"></div></div>
             <div class="flex items-center gap-3 mb-4">
                 <div class="w-11 h-11 rounded-full flex items-center justify-center text-white font-black text-base shrink-0"
                      style="background:${color}">
@@ -271,6 +271,7 @@ const HDVMapa = (() => {
             </div>
         `;
 
+        sheet.style.transform = '';
         sheet.classList.remove('translate-y-full', 'hidden');
         sheet.classList.add('translate-y-0');
     }
@@ -279,9 +280,31 @@ const HDVMapa = (() => {
         if (_selId) { _selId = null; _renderMarcadores(); } // quita el resaltado
         const sheet = document.getElementById('mapaBottomSheet');
         if (!sheet) return;
+        sheet.style.transform = '';
         sheet.classList.remove('translate-y-0');
         sheet.classList.add('translate-y-full');
         setTimeout(() => sheet.classList.add('hidden'), 300);
+    }
+
+    // Arrastre del bottom-sheet (swipe hacia abajo para cerrar) — una sola vez
+    let _sheetDragSet = false;
+    function _setupSheetDrag() {
+        if (_sheetDragSet) return;
+        const sheet = document.getElementById('mapaBottomSheet');
+        if (!sheet) return;
+        let startY = null, curY = 0;
+        const fromGrab = (e) => { const t = e.target; return t && t.closest && t.closest('.hdv-sheet-grab'); };
+        const getY = (e) => e.touches ? e.touches[0].clientY : e.clientY;
+        const down = (e) => { if (!fromGrab(e)) return; startY = getY(e); curY = 0; sheet.style.transition = 'none'; };
+        const move = (e) => { if (startY === null) return; curY = Math.max(0, getY(e) - startY); sheet.style.transform = `translateY(${curY}px)`; };
+        const up = () => { if (startY === null) return; startY = null; sheet.style.transition = ''; if (curY > 70) _ocultarBottomSheet(); else sheet.style.transform = 'translateY(0)'; };
+        sheet.addEventListener('touchstart', down, { passive: true });
+        sheet.addEventListener('touchmove', move, { passive: true });
+        sheet.addEventListener('touchend', up);
+        sheet.addEventListener('mousedown', down);
+        window.addEventListener('mousemove', move);
+        window.addEventListener('mouseup', up);
+        _sheetDragSet = true;
     }
 
     // ── Sin ubicación list ────────────────────────────────────
@@ -573,6 +596,7 @@ const HDVMapa = (() => {
             });
         }
 
+        _setupSheetDrag();
         setTimeout(() => {
             _mapa.invalidateSize();
             _renderMarcadores();

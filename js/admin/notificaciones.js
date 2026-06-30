@@ -128,10 +128,14 @@ function renderNotificaciones() {
     const badge = document.getElementById('notifBadge');
     if (badge) {
         if (noLeidas.length > 0) {
+            const previo = parseInt(badge.dataset.n || '0', 10);
             badge.textContent = noLeidas.length > 99 ? '99+' : String(noLeidas.length);
             badge.classList.remove('hidden');
+            if (noLeidas.length > previo) { badge.classList.remove('hdv-badge-pop'); void badge.offsetWidth; badge.classList.add('hdv-badge-pop'); }
+            badge.dataset.n = String(noLeidas.length);
         } else {
             badge.classList.add('hidden');
+            badge.dataset.n = '0';
         }
     }
 

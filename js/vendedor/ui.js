@@ -2067,25 +2067,42 @@ async function _renderResumenHoy(container) {
     const pedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
     const gastos = (await HDVStorage.getItem('hdv_gastos', { clone: false })) || [];
     const allPagos = (await HDVStorage.getItem('hdv_pagos_credito', { clone: false })) || [];
-    const metas = (await HDVStorage.getItem('hdv_metas', { clone: false })) || {};
+    const metas = (await HDVStorage.getItem('hdv_metas', { clone: false })) || [];
+    const mesActual = hoy.slice(0, 7); // 'YYYY-MM'
 
     const pedidosHoy = pedidos.filter(p => p.fecha?.startsWith(hoy) && p.vendedor_id === vendedorId);
-    // VENTAS = lo vendido hoy (todos los pedidos del día, sin importar el cobro)
     const ventasHoy = pedidosHoy.reduce((s, p) => s + (p.total || 0), 0);
-    // COBRADO = caja real desde el libro unificado (única fuente: incluye contado y créditos)
+    // COBRADO = caja real desde el libro unificado (incluye contado y créditos)
     const cobrosHoy = allPagos
         .filter(pg => (pg.fecha || '').slice(0, 10) === hoy && (!pg.vendedor_id || pg.vendedor_id === vendedorId))
         .reduce((s, pg) => s + (Number(pg.monto) || 0), 0);
     const gastosHoy = gastos
         .filter(g => g.fecha?.startsWith(hoy) && g.vendedor_id === vendedorId)
         .reduce((s, g) => s + (g.monto || 0), 0);
-    const totalVendido = ventasHoy;            // la meta se mide sobre lo vendido
     const netoRendir = cobrosHoy - gastosHoy;  // a rendir = caja (libro) − gastos
 
-    const metaDiaria = metas.diaria || 0;
-    const metaPct = metaDiaria > 0 ? Math.min(200, Math.round((totalVendido / metaDiaria) * 100)) : 0;
+    // META MENSUAL: la coloca el admin (array por vendedor_id/mes con monto y comision)
+    const metasArr = Array.isArray(metas) ? metas : [];
+    const miMeta = metasArr.find(m => m.activa && m.mes === mesActual && m.vendedor_id === vendedorId)
+                || metasArr.find(m => m.activa && m.vendedor_id === vendedorId);
+    const ventasMes = pedidos
+        .filter(p => p.vendedor_id === vendedorId && (p.fecha || '').startsWith(mesActual))
+        .reduce((s, p) => s + (p.total || 0), 0);
+    const metaMonto = miMeta?.monto || 0;
+    const metaPct = metaMonto > 0 ? Math.min(200, Math.round((ventasMes / metaMonto) * 100)) : 0;
     const metaColor = metaPct >= 100 ? 'bg-green-500' : metaPct >= 70 ? 'bg-amber-400' : 'bg-red-400';
-    const metaIcono = metaPct >= 100 ? '🟢' : metaPct >= 70 ? '🟡' : '🔴';
+    const comisionPct = miMeta?.comision || 0;
+    const comisionEst = Math.round(ventasMes * comisionPct / 100);
+    const nombreMes = new Date().toLocaleDateString('es-PY', { month: 'long' });
+
+    // TOP CLIENTES del vendedor (por monto, histórico)
+    const _porCliente = {};
+    pedidos.filter(p => p.vendedor_id === vendedorId && p.cliente?.id).forEach(p => {
+        const c = _porCliente[p.cliente.id] || (_porCliente[p.cliente.id] = { nombre: p.cliente.nombre || 'N/A', total: 0, count: 0 });
+        c.total += p.total || 0; c.count++;
+    });
+    const topClientes = Object.values(_porCliente).sort((a, b) => b.total - a.total).slice(0, 5);
+    const _maxTop = topClientes[0]?.total || 1;
 
     const fechaLarga = new Date().toLocaleDateString('es-PY', { weekday: 'long', day: 'numeric', month: 'long' });
 
@@ -2115,26 +2132,41 @@ async function _renderResumenHoy(container) {
         }).join('')
         : `<p class="text-sm text-gray-400 text-center py-3">Sin promociones activas</p>`;
 
+    const topClientesHtml = topClientes.length
+        ? topClientes.map((c, i) => `<div class="flex items-center gap-2.5 py-2 border-b border-slate-50 last:border-0">
+            <span class="w-5 h-5 rounded-md bg-slate-100 text-slate-500 text-[10px] font-bold flex items-center justify-center shrink-0">${i + 1}</span>
+            <div class="min-w-0 flex-1">
+                <p class="text-sm font-semibold text-gray-800 truncate">${escapeHTML(c.nombre)}</p>
+                <div class="w-full bg-slate-100 rounded-full h-1 mt-1 overflow-hidden"><div class="bg-indigo-400 h-1 rounded-full" style="width:${Math.round(c.total / _maxTop * 100)}%"></div></div>
+            </div>
+            <span class="text-xs font-bold text-gray-700 tabular-nums shrink-0">${formatearGuaranies(c.total)}</span>
+        </div>`).join('')
+        : `<p class="text-sm text-gray-400 text-center py-3">Aún sin clientes</p>`;
+
     container.innerHTML = _toggleCajaHTML() + `
         <p class="text-xs text-gray-400 -mt-2 mb-3 capitalize">${fechaLarga}</p>
 
-        <!-- HERO: Meta del vendedor en sesión -->
+        <!-- HERO: Meta MENSUAL del vendedor (la pone el admin) -->
         <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-2.5">
             <div class="flex items-center justify-between mb-2 gap-3">
                 <div class="min-w-0">
-                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Tu meta de hoy</p>
+                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Meta de <span class="capitalize">${escapeHTML(nombreMes)}</span></p>
                     <p class="text-sm font-semibold text-gray-700 truncate">${escapeHTML(vendedorNombre)}</p>
                 </div>
-                <span class="text-3xl font-bold tabular-nums shrink-0 ${metaPct >= 100 ? 'text-green-600' : metaPct >= 70 ? 'text-amber-500' : 'text-gray-800'}">${metaDiaria > 0 ? metaPct + '%' : '—'}</span>
+                <span class="text-3xl font-bold tabular-nums shrink-0 ${metaPct >= 100 ? 'text-green-600' : metaPct >= 70 ? 'text-amber-500' : 'text-gray-800'}">${metaMonto > 0 ? metaPct + '%' : '—'}</span>
             </div>
-            ${metaDiaria > 0 ? `
+            ${metaMonto > 0 ? `
             <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
                 <div class="${metaColor} h-2 rounded-full transition-all duration-700" style="width:${Math.min(100, metaPct)}%"></div>
             </div>
             <div class="flex justify-between text-[10px] text-gray-400 mt-1.5">
-                <span class="font-semibold text-gray-600">${formatearGuaranies(totalVendido)}</span>
-                <span>meta ${formatearGuaranies(metaDiaria)}</span>
-            </div>` : `<p class="text-xs text-gray-400">Configurá tu meta diaria para ver tu avance.</p>`}
+                <span class="font-semibold text-gray-600">${formatearGuaranies(ventasMes)}</span>
+                <span>meta ${formatearGuaranies(metaMonto)}</span>
+            </div>
+            ${comisionPct > 0 ? `<div class="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between">
+                <span class="text-[10px] text-gray-400 uppercase tracking-wide font-bold">Comisión estimada</span>
+                <span class="text-sm font-bold text-green-600 tabular-nums">${formatearGuaranies(comisionEst)} <span class="text-[10px] text-gray-400 font-medium">(${comisionPct}%)</span></span>
+            </div>` : ''}` : `<p class="text-xs text-gray-400">El administrador aún no cargó tu meta del mes.</p>`}
         </div>
 
         <!-- HERO: A rendir hoy -->
@@ -2142,7 +2174,7 @@ async function _renderResumenHoy(container) {
             <div class="min-w-0">
                 <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">A rendir hoy</p>
                 <p class="text-3xl font-bold text-gray-900 tabular-nums leading-tight">${formatearGuaranies(netoRendir)}</p>
-                <p class="text-[10px] text-gray-400 mt-0.5">Cobrado ${formatearGuaranies(cobrosHoy)} − Gastos ${formatearGuaranies(gastosHoy)}</p>
+                <p class="text-[10px] text-gray-400 mt-0.5">Cobrado ${formatearGuaranies(cobrosHoy)}${gastosHoy > 0 ? ` − Gastos ${formatearGuaranies(gastosHoy)}` : ''}</p>
             </div>
             <div class="w-11 h-11 rounded-xl bg-indigo-50 flex items-center justify-center shrink-0">
                 <i data-lucide="wallet" class="w-5 h-5 text-indigo-500"></i>
@@ -2152,21 +2184,30 @@ async function _renderResumenHoy(container) {
         <!-- KPIs compactos -->
         <div class="grid grid-cols-2 gap-2 mb-3">
             <div class="bg-indigo-50 rounded-lg px-3 py-2 flex items-center justify-between">
-                <span class="text-[9px] text-gray-500 font-bold uppercase tracking-wide">Pedidos</span>
+                <span class="text-[9px] text-gray-500 font-bold uppercase tracking-wide">Pedidos hoy</span>
                 <span class="text-base font-bold text-indigo-600 tabular-nums">${pedidosHoy.length}</span>
             </div>
             <div class="bg-green-50 rounded-lg px-3 py-2 flex items-center justify-between">
-                <span class="text-[9px] text-gray-500 font-bold uppercase tracking-wide">Ventas</span>
+                <span class="text-[9px] text-gray-500 font-bold uppercase tracking-wide">Ventas hoy</span>
                 <span class="text-[13px] font-bold text-green-700 tabular-nums">${formatearGuaranies(ventasHoy)}</span>
             </div>
             <div class="bg-amber-50 rounded-lg px-3 py-2 flex items-center justify-between">
-                <span class="text-[9px] text-gray-500 font-bold uppercase tracking-wide">Cobros</span>
+                <span class="text-[9px] text-gray-500 font-bold uppercase tracking-wide">Cobros hoy</span>
                 <span class="text-[13px] font-bold text-amber-700 tabular-nums">${formatearGuaranies(cobrosHoy)}</span>
             </div>
-            <div class="bg-red-50 rounded-lg px-3 py-2 flex items-center justify-between">
-                <span class="text-[9px] text-gray-500 font-bold uppercase tracking-wide">Gastos</span>
-                <span class="text-[13px] font-bold text-red-600 tabular-nums">${formatearGuaranies(gastosHoy)}</span>
+            <div class="bg-slate-100 rounded-lg px-3 py-2 flex items-center justify-between">
+                <span class="text-[9px] text-gray-500 font-bold uppercase tracking-wide">Ventas mes</span>
+                <span class="text-[13px] font-bold text-gray-700 tabular-nums">${formatearGuaranies(ventasMes)}</span>
             </div>
+        </div>
+
+        <!-- Top clientes del vendedor -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-3">
+            <div class="flex items-center gap-1.5 mb-1">
+                <i data-lucide="trophy" class="w-3.5 h-3.5 text-amber-500"></i>
+                <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Tus mejores clientes</p>
+            </div>
+            ${topClientesHtml}
         </div>
 
         <!-- Promociones disponibles (del admin) -->
@@ -2178,8 +2219,6 @@ async function _renderResumenHoy(container) {
             </div>
             ${promosHtml}
         </div>
-
-        <sl-button data-action="agregarGastoVendedor" variant="danger" size="small" class="w-full">+ Registrar Gasto</sl-button>
     `;
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }

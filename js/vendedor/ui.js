@@ -1054,14 +1054,14 @@ function mostrarMatrizProducto(producto) {
         const estadoProd = producto.estado || 'disponible';
         const esAgotado = estadoProd === 'agotado';
         return `
-            <div class="matriz-celda bg-white rounded-xl border-2 border-gray-200 p-3 text-center transition-all ${esAgotado ? 'opacity-50' : ''}" id="celda-${producto.id}-${idx}">
-                <p class="text-xs font-bold text-gray-500 mb-1">${escapeHTML(pres.tamano)}</p>
+            <div class="matriz-celda bg-white rounded-lg border border-gray-200 p-2 text-center transition-all ${esAgotado ? 'opacity-50' : ''}" id="celda-${producto.id}-${idx}">
+                <p class="text-[11px] font-bold text-gray-500 mb-1 truncate">${escapeHTML(pres.tamano)}</p>
                 <sl-input type="number" id="mtz-${producto.id}-${idx}" value="0" min="0"
                     ${esAgotado ? 'disabled' : ''}
                     class="mtz-input"
                     data-idx="${idx}" data-precio="${precio}" no-spin-buttons
                     oninput="actualizarCeldaMatriz('${producto.id}',${idx})"></sl-input>
-                <p class="text-[10px] text-blue-600 font-bold mt-1">${formatearGuaranies(precio)}</p>
+                <p class="text-[10px] font-bold mt-1" style="color:var(--steel-bright)">${formatearGuaranies(precio)}</p>
             </div>`;
     }).join('');
 
@@ -1094,8 +1094,8 @@ function mostrarMatrizProducto(producto) {
             </div>
 
             <div class="p-4">
-                <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Ingresá la cantidad por variante</p>
-                <div class="grid grid-cols-3 gap-3" id="matrizGrid-${producto.id}">
+                <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Ingresá la cantidad por variante</p>
+                <div class="grid grid-cols-3 sm:grid-cols-4 gap-2" id="matrizGrid-${producto.id}">
                     ${celdas}
                 </div>
             </div>
@@ -1122,9 +1122,9 @@ function actualizarCeldaMatriz(productoId, idx) {
     const val = parseInt(input.value) || 0;
 
     if (val > 0) {
-        celda.className = 'matriz-celda bg-green-50 rounded-xl border-2 border-green-400 p-3 text-center transition-all';
+        celda.className = 'matriz-celda bg-green-50 rounded-lg border border-green-400 p-2 text-center transition-all';
     } else {
-        celda.className = 'matriz-celda bg-white rounded-xl border-2 border-gray-200 p-3 text-center transition-all';
+        celda.className = 'matriz-celda bg-white rounded-lg border border-gray-200 p-2 text-center transition-all';
     }
 
     recalcularTotalesMatriz(productoId);
@@ -1191,10 +1191,10 @@ function mostrarDetalleMasivo(producto) {
         const activo = pres.activo !== false;
         if (!activo) return '';
         return `
-            <div class="flex items-center justify-between py-3 px-4">
+            <div class="flex items-center justify-between py-2.5 px-3">
                 <div class="flex-1 min-w-0">
-                    <p class="font-bold text-gray-800">${escapeHTML(pres.tamano)}</p>
-                    <p class="text-blue-600 font-bold text-sm">${formatearGuaranies(precio)}</p>
+                    <p class="font-bold text-gray-800 text-sm truncate">${escapeHTML(pres.tamano)}</p>
+                    <p class="font-bold text-xs" style="color:var(--steel-bright)">${formatearGuaranies(precio)}</p>
                 </div>
                 <div class="flex items-center gap-2">
                     <sl-button onclick="ajustarQty('${producto.id}',${idx},-1)" variant="default" size="small" circle>-</sl-button>

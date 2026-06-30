@@ -249,8 +249,10 @@ textarea:focus, select:focus {
   --sl-input-placeholder-color: var(--faint);
 }
 .mtz-input {
-  --sl-input-font-size-medium: 1.5rem;
+  --sl-input-font-size-medium: 1.15rem;
   --sl-input-font-weight: 700;
+  --sl-input-height-medium: 2.25rem;
+  --sl-input-spacing-medium: 0.4rem;
   text-align: center;
 }
 .masivo-input {

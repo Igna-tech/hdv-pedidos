@@ -2,7 +2,7 @@
 <html lang="es" class="sl-theme-dark">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#09090b">
     <title>HDV Pedidos - Vendedores</title>
     <link rel="manifest" href="manifest.json">
@@ -80,8 +80,12 @@
         .amount-pop { animation: amountPop .4s ease; display: inline-block; }
         @media (prefers-reduced-motion: reduce) { .cart-item-anim, .cart-item-out, .badge-pop, .fab-bounce, .amount-pop { animation: none !important; } }
 
-        /* ===== Anti doble-toque-zoom (móvil) ===== */
+        /* ===== Anti doble-toque-zoom (móvil) =====
+           touch-action NO se hereda: hay que ponerlo en cada elemento.
+           'manipulation' permite scroll y pinch-zoom, pero anula el doble-toque-zoom.
+           El mapa Leaflet conserva sus gestos (sus reglas .leaflet-* ganan a '*'). */
         html, body { touch-action: manipulation; }
+        * { touch-action: manipulation; }
 
         /* ===== Animaciones generales (fluidez app) ===== */
         @keyframes hdvRise { from { opacity: 0; transform: translateY(10px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
@@ -141,39 +145,49 @@
         .sidebar-nav-item:hover { background-color: var(--panel-2); color: var(--ink); }
         .sidebar-nav-active { color: var(--steel-bright) !important; background-color: var(--steel-soft) !important; }
 
-        /* Catalog category grid (vendor) */
-        .vendor-catalog-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
-        @media (min-width: 768px) { .vendor-catalog-grid { grid-template-columns: repeat(3, 1fr); } }
-        @media (min-width: 1024px) { .vendor-catalog-grid { grid-template-columns: repeat(4, 1fr); } }
+        /* Catalog category grid (vendor) — tiles compactas, imagen difuminada, nombre grande centrado */
+        .vendor-catalog-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+        @media (min-width: 560px) { .vendor-catalog-grid { grid-template-columns: repeat(4, 1fr); gap: 10px; } }
+        @media (min-width: 900px) { .vendor-catalog-grid { grid-template-columns: repeat(6, 1fr); gap: 10px; } }
         .vendor-cat-card {
-            position: relative; aspect-ratio: 1 / 1; border-radius: 16px; overflow: hidden;
-            cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            transition: transform 0.25s ease, box-shadow 0.25s ease;
-            background-color: #e5e7eb; background-size: cover; background-position: center;
+            position: relative; aspect-ratio: 1 / 1; border-radius: 12px; overflow: hidden;
+            cursor: pointer; border: 1px solid var(--hairline);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+            transition: transform 0.2s var(--ease-out), box-shadow 0.2s ease, border-color 0.2s ease;
+            background-color: var(--panel-2); background-size: cover; background-position: center;
         }
         .vendor-cat-card:not(.vendor-cat-card--loaded) {
             animation: shimmer-cat 1.8s ease-in-out infinite alternate;
         }
         @keyframes shimmer-cat {
-            0% { background-color: #e5e7eb; }
-            100% { background-color: #d1d5db; }
+            0% { background-color: var(--panel-2); }
+            100% { background-color: var(--panel-3, #1f2024); }
         }
-        .vendor-cat-card--loaded { background-color: transparent; }
-        .vendor-cat-card:active { transform: scale(0.96); }
+        .vendor-cat-card--loaded { background-color: var(--panel-2); }
+        .vendor-cat-card:active { transform: scale(0.95); }
+        @media (hover:hover) { .vendor-cat-card:hover { box-shadow: 0 8px 22px rgba(0,0,0,0.34); border-color: var(--steel-soft); } }
+        /* Capa que difumina la imagen del fondo y la oscurece (correlativo al sistema) */
         .vendor-cat-card::after {
-            content: ''; position: absolute; inset: 0;
-            background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.1) 50%, transparent 100%);
+            content: ''; position: absolute; inset: 0; z-index: 1;
+            background: rgba(9,9,11,0.48);
+            backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
         }
         .vendor-cat-card-label {
-            position: absolute; bottom: 12px; left: 12px; right: 12px; z-index: 1;
-            color: white; font-weight: 700; font-size: 14px; line-height: 1.3;
-            text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+            position: absolute; inset: 0; z-index: 2;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            text-align: center; padding: 6px 8px;
+            color: #fff; font-weight: 700; font-size: 14px; line-height: 1.2; letter-spacing: -0.01em;
+            text-shadow: 0 1px 6px rgba(0,0,0,0.65);
         }
-        .vendor-cat-card-label .card-sub { font-size: 11px; font-weight: 600; opacity: 0.9; margin-top: 2px; }
+        .vendor-cat-card-label > div:first-child {
+            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+        }
+        .vendor-cat-card-label .card-sub { font-size: 10px; font-weight: 500; opacity: 0.78; margin-top: 3px;
+            font-family: var(--hdv-font-mono); letter-spacing: 0.02em; }
         .vendor-cat-card-noimg {
             display: flex; align-items: center; justify-content: center;
             position: absolute; inset: 0; z-index: 0;
-            background: linear-gradient(135deg, #374151 0%, #1f2937 100%);
+            background: linear-gradient(140deg, var(--panel-2) 0%, var(--ground) 100%);
         }
 
         /* ==========================================
@@ -193,12 +207,12 @@
         .vpc:active { transform: scale(0.96); }
         @media (hover:hover) { .vpc:hover { border-color: var(--steel-soft); box-shadow: 0 8px 22px rgba(0,0,0,0.34); } }
 
-        .vpc-media { position: relative; aspect-ratio: 1/1; overflow: hidden; background: #0f172a; }
+        .vpc-media { position: relative; aspect-ratio: 1/1; overflow: hidden; background: var(--panel-2); }
         .vpc-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
             transition: transform .35s var(--ease-out); }
         @media (hover:hover) { .vpc:hover .vpc-img { transform: scale(1.05); } }
         .vpc-noimg { position: absolute; inset: 0;
-            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            background: linear-gradient(140deg, var(--panel-2) 0%, var(--ground) 100%);
             display: flex; align-items: center; justify-content: center; }
 
         .vpc-info { padding: 8px 9px 9px; display: flex; flex-direction: column; gap: 2px; }
@@ -229,13 +243,18 @@
         .vpc-qty-num { background: rgba(0,0,0,0.72); color: #fff; font-size: 11px; font-weight: 700;
             min-width: 20px; height: 20px; border-radius: 10px; padding: 0 4px;
             display: none; align-items: center; justify-content: center; }
-        /* Subcategory chips */
-        .subcat-chips { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
+        /* Subcategory chips — rectangulares, modernas (estilo segmented) */
+        .subcat-chips { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
         .subcat-chips::-webkit-scrollbar { display: none; }
-        .subcat-chip { flex-shrink: 0; padding: 4px 12px; border-radius: 99px;
-            font-size: 12px; font-weight: 600; cursor: pointer;
-            border: 1.5px solid #334155; background: rgba(255,255,255,0.06); color: #94a3b8; transition: all 0.15s; }
-        .subcat-chip.active { background: var(--steel); color: #fff; border-color: var(--steel); }
+        .subcat-chip { flex-shrink: 0; padding: 7px 14px; border-radius: 8px;
+            font-size: 12.5px; font-weight: 600; line-height: 1; cursor: pointer; white-space: nowrap;
+            letter-spacing: -0.01em;
+            border: 1px solid var(--hairline); background: var(--panel-2); color: var(--muted);
+            transition: background-color .15s ease, color .15s ease, border-color .15s ease, transform .1s ease; }
+        @media (hover:hover) { .subcat-chip:hover { color: var(--ink); border-color: var(--steel-soft); } }
+        .subcat-chip:active { transform: scale(0.95); }
+        .subcat-chip.active { background: var(--steel); color: #fff; border-color: var(--steel);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.28); }
         /* List view */
         .vpc-list { display: flex; flex-direction: column; }
         .vpc-list-item { display: flex; gap: 10px; align-items: center;

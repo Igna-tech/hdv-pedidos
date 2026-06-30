@@ -401,19 +401,6 @@ const HDVMapa = (() => {
             });
         }
 
-        // Badge sin ubicar
-        const sinUbicar = (window.clientes || []).filter(c => !c.lat || !c.lng).length;
-        const badge = document.getElementById('mapaSinUbicarBadge');
-        const badgeTxt = document.getElementById('mapaSinUbicarTxt');
-        if (badge) {
-            if (sinUbicar > 0 && _filtroActivo !== 'sin-ubicacion') {
-                if (badgeTxt) badgeTxt.textContent = `${sinUbicar} sin ubicar`;
-                badge.classList.remove('hidden'); badge.classList.add('flex');
-            } else {
-                badge.classList.add('hidden'); badge.classList.remove('flex');
-            }
-        }
-
         _actualizarFiltrosUI();
         _actualizarResumenMapa();
     }

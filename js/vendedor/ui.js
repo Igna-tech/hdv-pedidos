@@ -1877,55 +1877,17 @@ function cerrarModalSinCliente() {
 // ============================================
 async function mostrarConfiguracion() {
     const container = document.getElementById('productsContainer');
-    const pedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
-    const autoBackups = (await HDVStorage.getItem('hdv_auto_backups_meta', { clone: false })) || [];
-    const ultimoBackup = await HDVStorage.getItem('hdv_ultimo_backup_fecha', { clone: false });
-
-    const totalPedidos = pedidos.length;
-    const pendientes = pedidos.filter(p => (p.estado || PEDIDO_ESTADOS.PENDIENTE) === PEDIDO_ESTADOS.PENDIENTE || p.estado === 'pendiente').length;
-    const totalGs = pedidos.reduce((s, p) => s + (p.total || 0), 0);
-
     container.innerHTML = `
-        <h3 class="text-lg font-bold text-gray-800 mb-4">Configuracion</h3>
-
-        <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100 mb-3">
-            <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Resumen de Datos</p>
-            <div class="grid grid-cols-3 gap-3 text-center">
-                <div class="bg-gray-50 rounded-lg p-3">
-                    <p class="text-xl font-bold text-gray-800">${totalPedidos}</p>
-                    <p class="text-[10px] text-gray-500 font-bold">PEDIDOS</p>
-                </div>
-                <div class="bg-yellow-50 rounded-lg p-3">
-                    <p class="text-xl font-bold text-yellow-700">${pendientes}</p>
-                    <p class="text-[10px] text-gray-500 font-bold">PENDIENTES</p>
-                </div>
-                <div class="bg-green-50 rounded-lg p-3">
-                    <p class="text-lg font-bold text-green-700">Gs.${(totalGs/1000).toFixed(0)}k</p>
-                    <p class="text-[10px] text-gray-500 font-bold">TOTAL</p>
-                </div>
+        <h3 class="text-lg font-bold text-gray-800 mb-4">Configuración</h3>
+        <div class="bg-white rounded-2xl p-8 shadow-sm border border-slate-100 text-center">
+            <div class="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center mx-auto mb-3">
+                <i data-lucide="settings" class="w-6 h-6 text-slate-400"></i>
             </div>
+            <p class="text-sm font-semibold text-gray-700">Configuración</p>
+            <p class="text-xs text-gray-400 mt-1">Próximamente vas a poder ajustar tu cuenta y preferencias acá.</p>
         </div>
-
-        <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100 mb-3">
-            <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Estado de Backups</p>
-            <p class="text-sm text-gray-700">${ultimoBackup ? 'Ultimo backup: ' + new Date(ultimoBackup).toLocaleString('es-PY') : 'Sin backups realizados'}</p>
-            <p class="text-sm text-gray-500 mt-1">Auto-backups guardados: ${autoBackups.length}/10</p>
-        </div>
-
-        <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100 mb-3">
-            <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Almacenamiento</p>
-            <p class="text-sm text-gray-700" id="storageInfo">Calculando...</p>
-        </div>
-
-        <div class="bg-white rounded-xl p-4 shadow-sm border border-red-200 mb-3">
-            <p class="text-xs font-bold text-red-500 uppercase tracking-wider mb-3">Zona de Peligro</p>
-            <sl-button data-action="limpiarTodosDatos" variant="danger" class="w-full">Borrar Todos Mis Pedidos</sl-button>
-        </div>
-
-        <p class="text-center text-xs text-gray-400 mt-4">HDV Pedidos v3.0 - 2026</p>
     `;
-
-    calcularAlmacenamiento();
+    if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 async function calcularAlmacenamiento() {
@@ -2042,7 +2004,7 @@ function _toggleDiaJornada(fechaStr) {
 
 function _toggleCajaHTML() {
     return `<div class="flex items-center justify-between mb-4">
-        <h3 class="text-lg font-bold text-gray-800">Mi Jornada</h3>
+        <h3 class="text-lg font-bold text-gray-800">Dashboard</h3>
         <div class="flex bg-slate-100 rounded-lg p-1 gap-1">
             <button data-action="setCajaModo" data-arg="hoy" class="px-3 py-1.5 rounded-md text-xs font-bold transition-all ${_vistaCajaModo === 'hoy' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}">Resumen</button>
             <button data-action="setCajaModo" data-arg="semana" class="px-3 py-1.5 rounded-md text-xs font-bold transition-all ${_vistaCajaModo === 'semana' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}">Arqueo</button>

@@ -35,9 +35,6 @@ let _mfaEnrollFactorId = null;
 let _pendingRol = null;
 let _pendingUserId = null;
 
-// Delay de navegacion post-login (ms) — valor local, login.html no carga constants.js
-const LOGIN_NAV_DELAY = 500;
-
 // --- Mostrar alerta (sl-alert Shoelace) ---
 function showAlert(message, type = 'error', target = alertBox) {
     const variantMap = { error: 'danger', success: 'success', warning: 'warning' };
@@ -64,13 +61,36 @@ function mostrarPantalla(pantalla) {
     pantalla.classList.add('screen-in');
 }
 
-// --- Redirigir segun rol ---
+// --- Redirigir segun rol (con saludo animado estilo Apple) ---
+let _yaRedirigiendo = false;
 function redirigirPorRol(rol) {
-    if (rol === 'admin') {
-        window.location.href = '/admin';
-    } else {
-        window.location.href = '/';
-    }
+    if (_yaRedirigiendo) return;
+    _yaRedirigiendo = true;
+
+    const destino = rol === 'admin' ? '/admin' : '/';
+    const navegar = () => window.location.replace(destino);
+
+    const overlay = document.getElementById('greeting-overlay');
+    if (!overlay) { navegar(); return; }
+
+    // Subtitulo segun rol
+    const sub = document.getElementById('greetSub');
+    if (sub) sub.textContent = rol === 'admin' ? 'Panel de gestión' : 'Sistema de ventas';
+
+    // Ocultar el resto de la interfaz para que el saludo sea protagonista
+    const consola = document.querySelector('.console');
+    if (consola) consola.style.display = 'none';
+    if (typeof loadingScreen !== 'undefined' && loadingScreen) loadingScreen.style.display = 'none';
+
+    const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    overlay.classList.add('is-active');
+
+    const hold = reduce ? 650 : 2150;
+    setTimeout(() => {
+        overlay.classList.add('is-leaving');
+        setTimeout(navegar, reduce ? 220 : 460);
+    }, hold);
 }
 
 // --- Obtener rol del usuario (RPC SECURITY DEFINER) ---
@@ -200,8 +220,7 @@ btnMfaEnrollVerify.addEventListener('click', async () => {
 
         // MFA activado exitosamente — guardar datos y redirigir
         await HDVStorage.setItem('hdv_user_rol', _pendingRol);
-        showAlert('MFA activado exitosamente! Redirigiendo...', 'success', mfaEnrollAlert);
-        setTimeout(() => redirigirPorRol(_pendingRol), 1000);
+        redirigirPorRol(_pendingRol);
 
     } catch (err) {
         console.error('[MFA] Error verificando enrolamiento:', err);
@@ -267,8 +286,7 @@ btnMfaVerify.addEventListener('click', async () => {
 
         // MFA verificado — redirigir
         await HDVStorage.setItem('hdv_user_rol', _pendingRol);
-        showAlert('Verificado! Redirigiendo...', 'success', mfaAlert);
-        setTimeout(() => redirigirPorRol(_pendingRol), LOGIN_NAV_DELAY);
+        redirigirPorRol(_pendingRol);
 
     } catch (err) {
         console.error('[MFA] Error verificando TOTP:', err);
@@ -411,8 +429,7 @@ loginForm.addEventListener('submit', async (e) => {
         await HDVStorage.setItem('hdv_user_rol', rol);
         await HDVStorage.setItem('hdv_user_email', data.user.email);
 
-        showAlert('Bienvenido! Redirigiendo...', 'success');
-        setTimeout(() => redirigirPorRol(rol), LOGIN_NAV_DELAY);
+        redirigirPorRol(rol);
 
     } catch (err) {
         console.error('[Login] Error:', err);

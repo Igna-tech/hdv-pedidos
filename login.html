@@ -7,7 +7,7 @@
     <title>Acceso · HDV Distribuciones</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Dancing+Script:wght@600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="dist/tailwind.css">
     <!-- Shoelace Web Components (local, offline-first) -->
     <link rel="stylesheet" href="assets/lib/shoelace/themes/dark.css">
@@ -191,14 +191,94 @@
         }
         @starting-style { #offline-banner { transform: translateY(-100%); } }
 
+        /* ===== Saludo animado (estilo Apple "hello") ===== */
+        #greeting-overlay {
+            position: fixed; inset: 0; z-index: 200;
+            display: none; flex-direction: column; align-items: center; justify-content: center;
+            gap: 0.4rem;
+            background: radial-gradient(120% 120% at 50% 40%, #131316 0%, var(--ground) 70%);
+            opacity: 0;
+        }
+        #greeting-overlay.is-active { display: flex; animation: greetIn 420ms var(--ease-out) forwards; }
+        #greeting-overlay.is-leaving { animation: greetOut 460ms var(--ease-io) forwards; }
+        @keyframes greetIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes greetOut { from { opacity: 1; } to { opacity: 0; } }
+
+        .greet-word {
+            font-family: 'Dancing Script', cursive;
+            font-weight: 700;
+            font-size: clamp(4.5rem, 22vw, 11rem);
+            line-height: 0.9;
+            color: var(--ink);
+            /* recorte que "escribe" la palabra de izquierda a derecha */
+            clip-path: inset(0 100% 0 0);
+            opacity: 0;
+            transform: translateY(8px);
+            filter: drop-shadow(0 6px 28px rgba(0,0,0,0.55));
+            -webkit-text-stroke: 0.5px rgba(255,255,255,0.04);
+        }
+        #greeting-overlay.is-active .greet-word {
+            animation: greetWrite 1000ms var(--ease-out) 220ms forwards;
+        }
+        @keyframes greetWrite {
+            0%   { clip-path: inset(0 100% 0 0); opacity: 0; transform: translateY(8px); }
+            12%  { opacity: 1; }
+            100% { clip-path: inset(0 0 0 0);   opacity: 1; transform: translateY(0); }
+        }
+
+        /* "pluma": destello que recorre la palabra mientras se escribe */
+        .greet-pen {
+            position: absolute; top: 50%; left: 0;
+            width: 3px; height: clamp(4rem, 18vw, 9rem);
+            transform: translateY(-50%);
+            background: linear-gradient(180deg, transparent, var(--steel-bright), transparent);
+            border-radius: 2px;
+            opacity: 0; pointer-events: none;
+            box-shadow: 0 0 18px 3px rgba(255,255,255,0.35);
+        }
+        #greeting-overlay.is-active .greet-pen { animation: greetPen 1000ms var(--ease-out) 220ms forwards; }
+        @keyframes greetPen {
+            0%   { left: 6%;  opacity: 0; }
+            12%  { opacity: 0.9; }
+            88%  { opacity: 0.9; }
+            100% { left: 94%; opacity: 0; }
+        }
+
+        .greet-sub {
+            font-family: 'Geist', sans-serif;
+            font-size: clamp(0.8rem, 3.4vw, 1rem);
+            font-weight: 500;
+            letter-spacing: 0.02em;
+            color: var(--muted);
+            opacity: 0; transform: translateY(10px);
+        }
+        #greeting-overlay.is-active .greet-sub {
+            animation: greetSub 620ms var(--ease-out) 1180ms forwards;
+        }
+        @keyframes greetSub { to { opacity: 1; transform: translateY(0); } }
+
         @media (prefers-reduced-motion: reduce) {
             .reveal, .screen-in, .caps-hint { animation: none; opacity: 1; transform: none; }
             .pip, .scan::after { animation: none; }
+            #greeting-overlay.is-active, #greeting-overlay.is-leaving { animation: none; opacity: 1; }
+            #greeting-overlay.is-leaving { opacity: 0; transition: opacity 200ms; }
+            .greet-word { animation: none; clip-path: inset(0 0 0 0); opacity: 1; transform: none; }
+            .greet-pen { display: none; }
+            .greet-sub { animation: none; opacity: 1; transform: none; }
             *, *::before, *::after { transition-duration: 0.01ms !important; }
         }
     </style>
 </head>
 <body>
+
+    <!-- Saludo animado (estilo Apple "hello") antes de redirigir -->
+    <div id="greeting-overlay" aria-hidden="true">
+        <div style="position:relative;display:flex;align-items:center;justify-content:center">
+            <span class="greet-word" id="greetWord">Hola</span>
+            <span class="greet-pen"></span>
+        </div>
+        <span class="greet-sub" id="greetSub"></span>
+    </div>
 
     <!-- Banner sin conexión -->
     <div id="offline-banner">SIN CONEXIÓN — verificá tu internet</div>

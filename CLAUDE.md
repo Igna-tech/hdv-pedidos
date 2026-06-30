@@ -37,14 +37,14 @@ PWA mobile-first para vendedores de calle + panel admin de escritorio.
 ├── services/supabase.js    → Capa de servicios (Repository Pattern): centraliza TODAS las queries
 ├── supabase-config.js      → Orquestacion: realtime, sync, mapeo legacy (delega queries a SupabaseService)
 ├── guard.js                → Proteccion de rutas (auth + roles + Kill Switch via RPC)
-├── login.html / login.js   → Login con Supabase Auth + MFA TOTP, redirect por rol, alerta ?blocked=1
+├── login.html / login.js   → Login con Supabase Auth + MFA TOTP, redirect por rol, alerta ?blocked=1. Saludo animado "Hola"+nombre (estilo Apple, ~5s) en redirigirPorRol() antes de navegar; nombre desde obtenerRol() (_userNombre)
 │
 ├── js/core/state.js        → Singleton hdvState: getters/setters globales (pedidos, catalogo, carrito). Globals window.* son proxies via Object.defineProperty — cero cambios necesarios en consumidores.
 ├── js/services/sync.js     → SyncManager: sync automatica con batch upsert, pre-flight check, backoff exponencial + jitter
 ├── js/utils/storage.js     → HDVStorage: wrapper IndexedDB blindado (persistent storage, quota monitoring, eviction detection)
 ├── js/utils/sanitizer.js   → escapeHTML() para prevencion XSS
-├── js/utils/dialogs.js     → Toast (sl-alert), confirm modal (sl-dialog), input modal (sl-dialog) — compartido entre vendedor y admin
-├── js/utils/helpers.js     → Utilidades compartidas (debounce, throttle, withButtonLock)
+├── js/utils/dialogs.js     → Toast estilo Sonner (.hdv-toast apilado en #toastContainer, swipe-to-dismiss), confirm modal (sl-dialog), input modal (sl-dialog) — compartido entre vendedor y admin
+├── js/utils/helpers.js     → Utilidades compartidas (debounce, throttle, withButtonLock, animarValor [count-up de números, respeta reduced-motion])
 ├── js/utils/formatters.js  → Formateo de moneda, fechas, etc.
 ├── js/utils/memo.js        → Memoizacion por clave con TTL + invalidacion por prefijo (memoizarPorClave, invalidarMemo). Usado para cifras del dashboard.
 ├── js/utils/async-ui.js    → Patron unico de carga: renderSkeletonLista, renderEstadoError (reintento CSP-safe), withCarga (skeleton→pinta/error+retry). Reusa .skeleton de input.css.
@@ -52,8 +52,8 @@ PWA mobile-first para vendedores de calle + panel admin de escritorio.
 ├── js/utils/kude-generator.js → Generador KuDE PDF: generarKudePDF(pedidoId) abre blob HTML con layout fiel a e-Kuatia'i (encabezado empresa+logo, receptor, tabla items IVA, footer QR+CDC). Requiere ventas-data.js, sanitizer.js. Logo embebido como base64 via fetch(). QR via QRCode.js cargado dinamicamente.
 ├── js/utils/printer.js     → Impresion de tickets de trabajo INTERNOS (vendedor app.js, admin pedidos.js). NO se usa para documentos cliente.
 ├── js/utils/pdf-generator.js → Generacion de PDFs con jsPDF
-├── js/vendedor/ui.js       → UI del vendedor (catalogo visual, sidebar nav, historial cliente, Mi Jornada). mostrarHistorialCliente(clienteId), cerrarHistorialCliente(), mostrarMiCaja() [vista Mi Jornada — toggle Hoy/Semana via _vistaCajaModo], _renderResumenHoy(), _renderResumenSemana(), setCajaModo(modo), mostrarConfiguracion(). Order-pad: vista grid/lista con steppers inline (_quickAddProd/_quickRemoveProd, _vistaProductos recordado en hdv_vista_catalogo), boton "Repetir ultimo pedido" (_renderBotonPedidoHabitual), stock en filas de lista.
-├── js/vendedor/cart.js     → Logica de carrito del vendedor. Order-pad: cargarPedidoHabitual() (repite el ultimo pedido del cliente al carrito con precios actuales); actualizarContadorCarrito() actualiza la pildora de total del FAB (#cartPillText).
+├── js/vendedor/ui.js       → UI del vendedor (catalogo visual, sidebar nav, historial cliente, Dashboard, Clientes). Catalogo: grid e-commerce 3-col (.vpc foto+ficha), tiles categoria difuminadas, sheet de variantes (matriz/masivo) con drag-to-dismiss (_attachSheetDrag), badges de promo (_promosCatalogo/_textoPromo/_bannerPromoModal). Carrito (renderizarCarrito): titulo "Pedido de <cliente>", miniaturas, control segmentado de pago (setTipoPago), notas en ventana flotante (abrirNotasPedido), editar precio de linea (editarPrecioLinea en cart.js), resumen+vaciar, empty state, count-up del total, drag-to-dismiss (_attachDrawerSwipeOnce). Dashboard (_renderResumenHoy): KPIs con count-up (data-countup) + barra de meta. Mi Jornada/Arqueo (_renderResumenSemana), mostrarConfiguracion().
+├── js/vendedor/cart.js     → Logica de carrito del vendedor. cargarPedidoHabitual() (repite ultimo pedido); actualizarContadorCarrito() (pildora total FAB #cartPillText, badge-pop/fab-bounce); vaciarCarrito() (confirm), editarPrecioLinea(idx) (precio especial puntual), eliminarDelCarrito con snackbar "Deshacer" (_mostrarUndoCarrito). Promos: obtenerPromocionesActivas(), aplicarPromociones(cart), _textoPromo.
 ├── js/vendedor/cobros.js   → Cobros en campo (creditos = pedidos entregados con saldo): abrirCobrosCliente(clienteId), registrarPagoCobro(pedidoId) [cierra el pedido a saldo 0 → cobrado_sin_factura], cobrarTodoEfectivo(clienteId). Escribe en libro unificado hdv_pagos_credito + historial via helpers de entrega.js. Creditos manuales desacoplados (no los cobra el vendedor).
 ├── js/admin/pedidos.js     → Modulo admin: pedidos con filtros vendedor/estado, badges fraude/tipo/editado, desglose IVA, CSV enriquecido
 ├── js/admin/dashboard.js   → Modulo admin: dashboard con Chart.js. KPIs con tendencia (deltas vs ayer/mes) + sparkline SVG inline (_sparklineSVG, serie 14 dias). Ganancia por pedido memoizada (cache id+total+items+version; bumpGananciaCache al recargar catalogo).
@@ -414,18 +414,19 @@ entregado ──[pagos hasta saldo 0]──► cobrado_sin_factura → ARCHIVO
 
 ## Sistema de UI — "Command Center" (dark) + Shoelace + Tailwind CSS
 
-**Estado:** Rediseño integral oscuro completado (2026-06-26). TODO el sistema (admin escritorio + PWA vendedor + login) comparte el lenguaje "command center": warm-black + acento **acero** (`--steel #3D5A78`), tipografia **IBM Plex Sans/Mono** (montos/labels en mono tabular), esquinas rectas (radius 2-4px), grano+grilla sutil y animaciones Emil. Shoelace en tema **oscuro** (`themes/dark.css`) con `--sl-color-primary` mapeado a acero. Se mantuvo Shoelace (no se migro a otra libreria): el look premium viene del design system, no del componente.
+**Estado:** Rediseño integral oscuro completado. TODO el sistema (admin escritorio + PWA vendedor + login) comparte el lenguaje "command center" estilo **shadcn/ui (paleta zinc)**: warm-black + acento **acero/zinc**, tipografia **Geist Sans / Geist Mono** (montos/labels en mono tabular), esquinas suaves, grano+grilla sutil y animaciones. Shoelace en tema **oscuro** (`themes/dark.css`) con `--sl-color-primary` mapeado a acero. Se mantuvo Shoelace (no se migro a otra libreria): el look premium viene del design system, no del componente.
 
 **Baseline oscuro:** `body.theme-dark` en index.html y admin.html (login ya es oscuro nativo). La app vendedor ademas conserva `document.body.classList.add('dark-mode')` (historico). NO hay toggle claro/oscuro — el oscuro es el diseño, no una opcion.
 
 **Design tokens** (`src/input.css`, fuente unica compartida con login):
 - `:root` define superficies (`--ground/--panel/--panel-2/--panel-3/--hairline`), tinta (`--ink/--ink-2/--muted/--faint`), acento (`--steel/--steel-bright/--steel-soft`), estados (`--ok/--warn/--alert`), easing Emil (`--ease-out/--ease-io`), radios sharp y fuentes (`--hdv-font-sans/-mono`).
-- Overrides Shoelace: `--sl-color-primary-*` = escala acero, `--sl-font-sans` = IBM Plex Sans, focus ring acero.
+- Overrides Shoelace: `--sl-color-primary-*` = escala acero, `--sl-font-sans` = Geist, focus ring acero.
 - **Capa de motion compartida**: `.reveal`/`.reveal.dN` (stagger), `.screen-in`, `.pip`/`.pip.is-online|is-checking|is-down` (estado operativo), press feedback global, grano+grilla via `body.theme-dark::before/::after`, guard `prefers-reduced-motion`.
+- **Sistema de animaciones PREMIUM (app vendedor)**: tokens `--ease-spring/--ease-drawer/--dur-*` en index.html; utilidades `.hdv-in`, `.hdv-stag`/`.hdv-stag-grid` (stagger), `.hdv-view-slide` (cambio de vista), `.hdv-sheet-in` (bottom-sheet curva iOS), `.hdv-bubble-in`/`.hdv-typing` (chat Cartón), `.hdv-pop-in`/`.hdv-panel-in` (overlays). Count-up de números via `animarValor()` en helpers.js (carrito, dashboard con `data-countup`). Drag-to-dismiss: `_attachSheetDrag` (sheet variantes) y `_attachDrawerSwipeOnce` (carrito) en ui.js. Toasts estilo Sonner con swipe-to-dismiss en dialogs.js. **Anti doble-toque-zoom**: `* { touch-action: manipulation }` (no se hereda) + viewport SIN `user-scalable=no` (pinch sí, doble toque no). Solo `transform`/`opacity`, <340ms, master guard `prefers-reduced-motion`.
 - **CAPA DE REMAPEO OSCURO**: bajo `body.theme-dark` se redefine el significado de las clases Tailwind "claras" usadas en el markup generado (`bg-white→panel`, `text-gray-*→ink/muted`, `border-gray-*→hairline`, familia `indigo-*→acero`). Esto oscurece el grueso de la app SIN editar el JS clase por clase. Especificidad `(body.theme-dark .x)` gana a `(.x)`.
 - Escape hatch `.keep-paper` para superficies que DEBEN seguir claras (QR, logo tiles, placeholders).
 - **Chart.js**: tema oscuro global por JS en `js/admin/dashboard.js` (`Chart.defaults` color/borderColor/font/tooltip). Los canvas NO se tematizan por CSS. Datasets clave usan acero/ink (no índigo ni casi-negro).
-- Clases utilitarias: `.mono`, `.amount`/`.tnum` (mono tabular), `.eyebrow-label`, `.sl-dark-input`, `.mtz-input`, `.masivo-input`, `.sl-btn-whatsapp`, `.header-icon-btn`. `tailwind.config.js` extiende colores semanticos (`ground/panel/ink/steel/...`), `fontFamily` (Plex), radios (`hdv`, `hdv-sharp`), sombras.
+- Clases utilitarias: `.mono`, `.amount`/`.tnum` (mono tabular), `.eyebrow-label`, `.sl-dark-input`, `.mtz-input`, `.masivo-input`, `.sl-btn-whatsapp`, `.header-icon-btn`. `tailwind.config.js` extiende colores semanticos (`ground/panel/ink/steel/...`), `fontFamily` (Geist), radios (`hdv`, `hdv-sharp`), sombras.
 - **Al agregar markup nuevo**: usá clases Tailwind claras normales (el remapeo las oscurece) o las semanticas (`bg-panel`, `text-ink`, `text-steel`). Acento = acero, NUNCA índigo. Montos en `.amount`.
 
 **Componentes Shoelace en uso:**
@@ -434,12 +435,11 @@ entregado ──[pagos hasta saldo 0]──► cobrado_sin_factura → ARCHIVO
 - `sl-button` — botones de accion, category pills (pill variant)
 - `sl-input`, `sl-textarea`, `sl-select` — formularios
 - `sl-switch` — toggles
-- `sl-alert` — toast notifications (via `mostrarToast()` en `js/utils/dialogs.js`)
 - `sl-icon-button`, `sl-icon` — botones iconicos
 - `sl-tag`, `sl-badge` — zone pills, badges informativos
 
 **Funciones compartidas (`js/utils/dialogs.js`):**
-- `mostrarToast(mensaje, tipo, duracion)` — sl-alert con agrupacion y debounce
+- `mostrarToast(mensaje, tipo, duracion)` — toast estilo Sonner (.hdv-toast apilado en #toastContainer, swipe-to-dismiss), con agrupacion y debounce
 - `mostrarExito(msg)` — shortcut para toast success
 - `mostrarConfirmModal(mensaje, opciones)` — sl-dialog dinamico, retorna Promise<boolean>
 - `mostrarInputModal(opciones)` — sl-dialog dinamico con campos (text, number, select, select-search, textarea), retorna Promise<datos|null>

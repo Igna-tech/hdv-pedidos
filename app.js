@@ -88,8 +88,10 @@ const _vendedorActionMap = {
         sidebar.show();
     },
     'cerrarSidebar':                  () => { const s = document.getElementById('sidebarMenu'); if (s) s.hide(); },
-    // Configuracion — zona de peligro
+    // Configuracion
     'limpiarTodosDatos':              () => typeof limpiarTodosDatos === 'function' && limpiarTodosDatos(),
+    'cambiarContrasenaVendedor':      () => typeof cambiarContrasenaVendedor === 'function' && cambiarContrasenaVendedor(),
+    'sincronizarAhora':               () => typeof sincronizarAhoraVendedor === 'function' && sincronizarAhoraVendedor(),
     // Mis Pedidos — acciones de tarjeta
     'abrirModalEntrega':                  (_, id) => window.abrirModalEntrega(id),
     'cobrarPedidoVendedor':               (_, id) => cobrarPedidoVendedor(id),

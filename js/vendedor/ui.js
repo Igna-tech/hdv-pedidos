@@ -1877,17 +1877,136 @@ function cerrarModalSinCliente() {
 // ============================================
 async function mostrarConfiguracion() {
     const container = document.getElementById('productsContainer');
+    const vendedorId = window.hdvUsuario?.id || null;
+    const nombre = (window.hdvUsuario?.nombre || 'Vendedor').trim();
+    const email = window.hdvUsuario?.email || '';
+    const inicial = (nombre || email || 'V').charAt(0).toUpperCase();
+
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
+    const enCola = pedidos.filter(p => p.sincronizado === false && (!p.vendedor_id || p.vendedor_id === vendedorId));
+    const ultimoBackup = await HDVStorage.getItem('hdv_ultimo_backup_fecha', { clone: false });
+
+    // Teléfono del admin para soporte
+    let telAdmin = '';
+    try { const { data } = await SupabaseService.fetchConfigEmpresa(); telAdmin = (data?.telefono_empresa || '').replace(/\D/g, ''); } catch (e) {}
+    const waUrl = telAdmin ? `https://wa.me/${telAdmin}?text=${encodeURIComponent('Hola, necesito ayuda con el sistema HDV.')}` : '';
+
+    const colaHtml = enCola.length
+        ? enCola.slice(0, 50).map(p => {
+            const num = p.numero_pedido != null ? '#' + String(p.numero_pedido).padStart(7, '0') : (p.id || '').slice(0, 8);
+            const fecha = p.fecha ? new Date(p.fecha).toLocaleDateString('es-PY', { day: '2-digit', month: 'short' }) : '';
+            return `<div class="flex items-center justify-between py-2 border-b border-slate-50 last:border-0">
+                <div class="flex items-center gap-2 min-w-0">
+                    <span class="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0"></span>
+                    <div class="min-w-0">
+                        <p class="text-sm font-medium text-gray-700 truncate">${escapeHTML(p.cliente?.nombre || p.clienteNombre || 'Cliente')}</p>
+                        <p class="text-[10px] text-gray-400">${num} · ${fecha}</p>
+                    </div>
+                </div>
+                <span class="text-sm font-bold text-gray-700 tabular-nums shrink-0">${formatearGuaranies(p.total)}</span>
+            </div>`;
+        }).join('')
+        : `<p class="text-sm text-gray-400 text-center py-3">Todo sincronizado ✓</p>`;
+
     container.innerHTML = `
         <h3 class="text-lg font-bold text-gray-800 mb-4">Configuración</h3>
-        <div class="bg-white rounded-2xl p-8 shadow-sm border border-slate-100 text-center">
-            <div class="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center mx-auto mb-3">
-                <i data-lucide="settings" class="w-6 h-6 text-slate-400"></i>
+
+        <!-- Mi perfil -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-3">
+            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Mi perfil</p>
+            <div class="flex items-center gap-3 mb-3">
+                <div class="w-12 h-12 rounded-full bg-indigo-500 text-white text-lg font-black flex items-center justify-center shrink-0">${escapeHTML(inicial)}</div>
+                <div class="min-w-0">
+                    <p class="text-sm font-bold text-gray-800 truncate">${escapeHTML(nombre)}</p>
+                    <p class="text-xs text-gray-400 truncate">${escapeHTML(email)}</p>
+                </div>
             </div>
-            <p class="text-sm font-semibold text-gray-700">Configuración</p>
-            <p class="text-xs text-gray-400 mt-1">Próximamente vas a poder ajustar tu cuenta y preferencias acá.</p>
+            <sl-button data-action="cambiarContrasenaVendedor" variant="default" size="small" class="w-full">
+                <i data-lucide="key-round" class="w-4 h-4 mr-1"></i> Cambiar contraseña
+            </sl-button>
         </div>
+
+        <!-- Datos y backup -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-3">
+            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Datos y backup</p>
+            <p class="text-[11px] text-gray-400 mb-3">${ultimoBackup ? 'Último backup: ' + new Date(ultimoBackup).toLocaleString('es-PY') : 'Sin backups todavía'} · <span id="storageInfo">…</span></p>
+            <div class="grid grid-cols-2 gap-2">
+                <sl-button data-action="exportarBackupVendedor" variant="default" size="small">Exportar backup</sl-button>
+                <sl-button data-action="exportarSoloPedidos" variant="default" size="small">Solo pedidos</sl-button>
+                <sl-button data-action="compartirBackupWhatsApp" variant="default" size="small" class="sl-btn-whatsapp" style="--sl-color-neutral-600:#25D366;--sl-color-neutral-700:#1da851;">Compartir</sl-button>
+                <sl-button data-action="triggerRestaurarFileVendedor" variant="default" size="small">Restaurar</sl-button>
+            </div>
+        </div>
+
+        <!-- Pedidos en cola (sin sincronizar) -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-3">
+            <div class="flex items-center gap-1.5 mb-2">
+                <i data-lucide="cloud-off" class="w-3.5 h-3.5 ${enCola.length ? 'text-amber-500' : 'text-gray-300'}"></i>
+                <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Pedidos en cola</p>
+                ${enCola.length ? `<span class="ml-auto text-[10px] font-bold text-amber-600">${enCola.length}</span>` : ''}
+            </div>
+            ${colaHtml}
+            ${enCola.length ? `<sl-button data-action="sincronizarAhora" variant="primary" size="small" class="w-full mt-3">
+                <i data-lucide="refresh-cw" class="w-4 h-4 mr-1"></i> Sincronizar ahora
+            </sl-button>` : ''}
+        </div>
+
+        <!-- Ayuda / soporte -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-3">
+            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Ayuda y soporte</p>
+            ${waUrl
+                ? `<a href="${waUrl}" target="_blank" rel="noopener" class="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg bg-[#25D366] text-white text-sm font-semibold active:scale-[0.98] transition-transform">
+                        <i data-lucide="message-circle" class="w-4 h-4"></i> Escribir al administrador
+                   </a>`
+                : `<p class="text-sm text-gray-400">El administrador aún no cargó su teléfono de contacto.</p>`}
+        </div>
+
+        <p class="text-center text-[10px] text-gray-400 mb-2 mono" style="letter-spacing:0.08em">HDV ERP · v0.9.0 · BETA</p>
     `;
     if (typeof lucide !== 'undefined') lucide.createIcons();
+    calcularAlmacenamiento();
+}
+
+// Cambio de contraseña del vendedor (Supabase Auth)
+async function cambiarContrasenaVendedor() {
+    const datos = await mostrarInputModal({
+        titulo: 'Cambiar contraseña',
+        icono: 'key-round',
+        subtitulo: 'Mínimo 8 caracteres, con mayúscula, número y símbolo.',
+        textoConfirmar: 'Actualizar',
+        campos: [
+            { key: 'p1', label: 'Nueva contraseña', tipo: 'password', requerido: true },
+            { key: 'p2', label: 'Repetir contraseña', tipo: 'password', requerido: true },
+        ]
+    });
+    if (!datos) return;
+    if (datos.p1 !== datos.p2) { mostrarToast('Las contraseñas no coinciden.', 'error'); return; }
+    if (!/^(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/.test(datos.p1)) {
+        mostrarToast('No cumple los requisitos: 8+ caracteres, 1 mayúscula, 1 número, 1 símbolo.', 'error');
+        return;
+    }
+    try {
+        const { error } = await supabaseClient.auth.updateUser({ password: datos.p1 });
+        if (error) throw error;
+        mostrarToast('Contraseña actualizada correctamente.', 'success');
+    } catch (err) {
+        console.error('[Vendedor] Error cambiando contraseña:', err);
+        mostrarToast('No se pudo cambiar la contraseña: ' + (err.message || 'error'), 'error');
+    }
+}
+
+// Sincronizar pedidos en cola manualmente
+async function sincronizarAhoraVendedor() {
+    if (typeof SyncManager === 'undefined') { mostrarToast('Sincronización no disponible', 'warning'); return; }
+    if (!navigator.onLine) { mostrarToast('Sin conexión — se sincronizará al reconectar', 'warning'); return; }
+    mostrarToast('Sincronizando…', 'info');
+    try {
+        await SyncManager.syncPedidosPendientes();
+        mostrarToast('Sincronización completada', 'success');
+    } catch (e) {
+        mostrarToast('No se pudo sincronizar ahora', 'error');
+    }
+    if (vistaActual === 'config') mostrarConfiguracion();
 }
 
 async function calcularAlmacenamiento() {

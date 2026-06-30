@@ -9,6 +9,7 @@ let chartVentas7d = null;  // legacy ref, no usado
 let chartTopProd = null;
 let _chartTemporal = null;
 let _chartPeriodo = '7d';
+let _chartMix = null, _chartEmbudo = null, _chartHora = null, _chartMetas = null, _chartMargen = null;
 let _leaderboardPeriodo = 'mes';
 let _perfilesMap = {};
 let _metaMap = {};
@@ -191,6 +192,7 @@ async function cargarDashboard() {
     _renderLeaderboard(_leaderboardPeriodo);
     _renderPedidosSinFinalizar(pedidos);
     _renderHistorialCobros();
+    _renderAnalisisAvanzado(pedidos);
 
     // MÓDULO INTELIGENCIA — carga tab por defecto
     _cargarIntelProyeccion();
@@ -1758,3 +1760,166 @@ async function eliminarMeta(id) {
 (function _initMetasListeners() {
     document.getElementById('metasVerHistorial')?.addEventListener('sl-change', () => cargarMetas());
 })();
+
+// ============================================
+// MÓDULO ANÁLISIS AVANZADO — KPIs + 5 gráficos modernos
+// ============================================
+function _gradV(canvas, c1, c2) {
+    const ctx = canvas.getContext('2d');
+    const g = ctx.createLinearGradient(0, 0, 0, canvas.clientHeight || 220);
+    g.addColorStop(0, c1); g.addColorStop(1, c2);
+    return g;
+}
+function _gradH(canvas, c1, c2) {
+    const ctx = canvas.getContext('2d');
+    const g = ctx.createLinearGradient(0, 0, canvas.clientWidth || 300, 0);
+    g.addColorStop(0, c1); g.addColorStop(1, c2);
+    return g;
+}
+const _ANIM_CHART = { duration: 800, easing: 'easeOutQuart' };
+const _fmtAbrev = v => v >= 1e6 ? (v / 1e6).toFixed(1) + 'M' : v >= 1e3 ? (v / 1e3).toFixed(0) + 'K' : v;
+
+function _renderAnalisisAvanzado(pedidos) {
+    try {
+        pedidos = pedidos || [];
+        const hoy = new Date();
+        const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+        const pedidosMes = pedidos.filter(p => p.fecha && new Date(p.fecha) >= inicioMes && p.estado !== 'anulado');
+
+        // ---- KPIs ----
+        const ventasMes = pedidosMes.reduce((s, p) => s + (p.total || 0), 0);
+        const ticket = pedidosMes.length ? ventasMes / pedidosMes.length : 0;
+        const contadoMes = pedidosMes.filter(p => (p.tipoPago || 'contado') === 'contado').reduce((s, p) => s + (p.total || 0), 0);
+        const contadoPct = ventasMes > 0 ? Math.round(contadoMes / ventasMes * 100) : 0;
+        const clientesActivos = new Set(pedidosMes.map(p => p.cliente && p.cliente.id).filter(Boolean)).size;
+        _animarValor('kpiTicketProm', Math.round(ticket), v => formatearGuaranies(v));
+        _animarValor('kpiContadoPct', contadoPct, v => Math.round(v) + '%');
+        _animarValor('kpiClientesActivos', clientesActivos);
+
+        // ---- 1) Mix contado vs crédito (últimos 14 días, stacked) ----
+        const cMix = document.getElementById('chartMixPago');
+        if (cMix) {
+            const dias = [], labels = [], contadoArr = [], creditoArr = [];
+            for (let i = 13; i >= 0; i--) {
+                const d = new Date(hoy); d.setDate(d.getDate() - i);
+                dias.push(d.toISOString().slice(0, 10));
+                labels.push(d.toLocaleDateString('es-PY', { day: '2-digit', month: '2-digit' }));
+            }
+            dias.forEach(k => {
+                const delDia = pedidos.filter(p => (p.fecha || '').slice(0, 10) === k && p.estado !== 'anulado');
+                contadoArr.push(delDia.filter(p => (p.tipoPago || 'contado') === 'contado').reduce((s, p) => s + (p.total || 0), 0));
+                creditoArr.push(delDia.filter(p => p.tipoPago === 'credito').reduce((s, p) => s + (p.total || 0), 0));
+            });
+            if (_chartMix) _chartMix.destroy();
+            _chartMix = new Chart(cMix, {
+                type: 'bar',
+                data: { labels, datasets: [
+                    { label: 'Contado', data: contadoArr, backgroundColor: _gradV(cMix, '#34d399', '#0f9b6c'), borderRadius: 6, stack: 's' },
+                    { label: 'Crédito', data: creditoArr, backgroundColor: _gradV(cMix, '#a78bfa', '#6d4fd1'), borderRadius: 6, stack: 's' }
+                ] },
+                options: { responsive: true, maintainAspectRatio: false, animation: _ANIM_CHART,
+                    plugins: { legend: { display: true, position: 'bottom', labels: { boxWidth: 10, font: { size: 11 } } },
+                        tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${formatearGuaranies(ctx.parsed.y)}` } } },
+                    scales: { x: { stacked: true, grid: { display: false }, ticks: { font: { size: 10 }, maxRotation: 0, color: '#9ca3af', autoSkip: true, maxTicksLimit: 8 } },
+                        y: { stacked: true, beginAtZero: true, grid: { color: 'rgba(255,255,255,0.06)' }, ticks: { color: '#9ca3af', callback: _fmtAbrev } } } }
+            });
+        }
+
+        // ---- 2) Pedidos por estado (barra horizontal) ----
+        const cEmb = document.getElementById('chartEmbudo');
+        if (cEmb) {
+            const estados = [
+                { k: 'pedido_pendiente', label: 'Pendiente', c1: '#fbbf24', c2: '#f59e0b' },
+                { k: 'entregado', label: 'Entregado', c1: '#60a5fa', c2: '#2563eb' },
+                { k: 'cobrado_sin_factura', label: 'Cobrado', c1: '#34d399', c2: '#059669' },
+                { k: 'facturado_mock', label: 'Facturado', c1: '#a78bfa', c2: '#7c3aed' }
+            ];
+            const counts = estados.map(e => pedidos.filter(p => p.estado === e.k).length);
+            if (_chartEmbudo) _chartEmbudo.destroy();
+            _chartEmbudo = new Chart(cEmb, {
+                type: 'bar',
+                data: { labels: estados.map(e => e.label), datasets: [{ data: counts, backgroundColor: estados.map(e => _gradH(cEmb, e.c1, e.c2)), borderRadius: 7, barThickness: 22 }] },
+                options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, animation: _ANIM_CHART,
+                    plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` ${ctx.parsed.x} pedidos` } } },
+                    scales: { x: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.06)' }, ticks: { precision: 0, color: '#9ca3af' } }, y: { grid: { display: false }, ticks: { font: { size: 11 }, color: '#d1d5db' } } } }
+            });
+        }
+
+        // ---- 3) Ventas por hora (últimos 30 días) ----
+        const cHora = document.getElementById('chartVentasHora');
+        if (cHora) {
+            const hace30 = new Date(hoy); hace30.setDate(hace30.getDate() - 30);
+            const horas = new Array(24).fill(0);
+            pedidos.filter(p => p.fecha && new Date(p.fecha) >= hace30 && p.estado !== 'anulado').forEach(p => {
+                const h = new Date(p.fecha).getHours();
+                if (h >= 0 && h < 24) horas[h] += p.total || 0;
+            });
+            if (_chartHora) _chartHora.destroy();
+            _chartHora = new Chart(cHora, {
+                type: 'bar',
+                data: { labels: horas.map((_, h) => `${h}h`), datasets: [{ data: horas, backgroundColor: _gradV(cHora, '#818cf8', '#4338ca'), borderRadius: 5 }] },
+                options: { responsive: true, maintainAspectRatio: false, animation: _ANIM_CHART,
+                    plugins: { legend: { display: false }, tooltip: { callbacks: { title: items => `${items[0].label}`, label: ctx => ` ${formatearGuaranies(ctx.parsed.y)}` } } },
+                    scales: { x: { grid: { display: false }, ticks: { font: { size: 9 }, color: '#9ca3af', maxRotation: 0, autoSkip: true, maxTicksLimit: 12 } },
+                        y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.06)' }, ticks: { color: '#9ca3af', callback: _fmtAbrev } } } }
+            });
+        }
+
+        // ---- 4) Cumplimiento de metas por vendedor ----
+        const cMet = document.getElementById('chartMetasVendedor');
+        if (cMet) {
+            const ventasVend = {};
+            pedidosMes.forEach(p => { if (p.vendedor_id) ventasVend[p.vendedor_id] = (ventasVend[p.vendedor_id] || 0) + (p.total || 0); });
+            let ids = Object.keys(ventasVend);
+            if (!ids.length && typeof _metaMap !== 'undefined') ids = Object.keys(_metaMap);
+            const labels = ids.map(id => (typeof _perfilesMap !== 'undefined' && _perfilesMap[id]) ? _perfilesMap[id].split(' ')[0] : 'Vend.');
+            const ventasArr = ids.map(id => ventasVend[id] || 0);
+            const metasArr = ids.map(id => (typeof _metaMap !== 'undefined' && _metaMap[id]) || 0);
+            if (_chartMetas) _chartMetas.destroy();
+            _chartMetas = new Chart(cMet, {
+                type: 'bar',
+                data: { labels, datasets: [
+                    { label: 'Ventas', data: ventasArr, backgroundColor: _gradV(cMet, '#34d399', '#0f9b6c'), borderRadius: 6 },
+                    { label: 'Meta', data: metasArr, backgroundColor: 'rgba(255,255,255,0.10)', borderColor: '#9ca3af', borderWidth: 1, borderRadius: 6 }
+                ] },
+                options: { responsive: true, maintainAspectRatio: false, animation: _ANIM_CHART,
+                    plugins: { legend: { display: true, position: 'bottom', labels: { boxWidth: 10, font: { size: 11 } } },
+                        tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${formatearGuaranies(ctx.parsed.y)}` } } },
+                    scales: { x: { grid: { display: false }, ticks: { color: '#d1d5db', font: { size: 11 } } },
+                        y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.06)' }, ticks: { color: '#9ca3af', callback: _fmtAbrev } } } }
+            });
+        }
+
+        // ---- 5) Margen por categoría ----
+        const cMar = document.getElementById('chartMargenCategoria');
+        if (cMar && typeof productosData !== 'undefined' && productosData && productosData.productos) {
+            const costoMap = {}, catDe = {}, catNombre = {};
+            (productosData.categorias || []).forEach(c => { catNombre[c.id] = c.nombre; });
+            productosData.productos.forEach(prod => {
+                catDe[prod.id] = catNombre[prod.categoria] || prod.categoria || 'Sin categoría';
+                (prod.presentaciones || []).forEach(pr => { costoMap[`${prod.id}|${pr.tamano}`] = pr.costo || 0; });
+            });
+            const margenCat = {};
+            pedidosMes.forEach(p => {
+                (p.items || []).forEach(it => {
+                    const cat = catDe[it.productoId] || 'Sin categoría';
+                    const costo = (costoMap[`${it.productoId}|${it.presentacion}`] || 0) * (it.cantidad || 0);
+                    margenCat[cat] = (margenCat[cat] || 0) + ((it.subtotal || 0) - costo);
+                });
+            });
+            const entries = Object.entries(margenCat).sort((a, b) => b[1] - a[1]).slice(0, 10);
+            if (_chartMargen) _chartMargen.destroy();
+            if (entries.length) {
+                _chartMargen = new Chart(cMar, {
+                    type: 'bar',
+                    data: { labels: entries.map(e => e[0]), datasets: [{ data: entries.map(e => e[1]), backgroundColor: _gradH(cMar, '#818cf8', '#6d4fd1'), borderRadius: 6 }] },
+                    options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, animation: _ANIM_CHART,
+                        plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` ${formatearGuaranies(ctx.parsed.x)}` } } },
+                        scales: { x: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.06)' }, ticks: { color: '#9ca3af', callback: _fmtAbrev } }, y: { grid: { display: false }, ticks: { color: '#d1d5db', font: { size: 11 } } } } }
+                });
+            }
+        }
+    } catch (e) {
+        console.warn('[Dashboard] Análisis avanzado:', e);
+    }
+}

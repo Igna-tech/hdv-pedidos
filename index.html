@@ -288,6 +288,18 @@
         .vpc-list-btn:active { transform: scale(0.88); }
         .vpc-list-qty { font-size: 15px; font-weight: 800; color: #f1f5f9; min-width: 22px; text-align: center; }
 
+        /* Control segmentado (tipo de pago) */
+        .hdv-segmented { display: grid; grid-template-columns: 1fr 1fr; gap: 4px;
+            background: var(--panel-2); border: 1px solid var(--hairline); border-radius: 11px; padding: 4px; }
+        .hdv-seg-btn { border: none; background: transparent; color: var(--muted);
+            font-size: 14px; font-weight: 700; padding: 10px 0; border-radius: 8px; cursor: pointer;
+            transition: background-color .18s var(--ease-out), color .18s ease, transform .1s ease; }
+        .hdv-seg-btn:active { transform: scale(0.97); }
+        .hdv-seg-btn.active { background: var(--steel); color: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.28); }
+        /* Boton de notas con nota cargada */
+        #btnNotasPedido.tiene-nota { border: 1px solid var(--steel-soft); }
+        #btnNotasPedido.tiene-nota #btnNotasLabel { color: var(--ink); font-weight: 600; }
+
         /* Overlay del modal de variantes: difumina ligeramente el sistema detras */
         .vpc-modal-overlay { backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
             animation: vpcOverlayIn .2s ease; }
@@ -611,18 +623,26 @@
             <div id="cartItemsList" class="space-y-2"></div>
 
             <div class="space-y-3 pt-3">
-                <div class="bg-gray-50 p-3 rounded-xl">
-                    <label class="block text-[11px] font-bold text-gray-500 mb-1.5 uppercase tracking-wider">Tipo de Pago</label>
-                    <sl-select id="tipoPago" class="w-full" size="small" value="contado">
-                        <sl-option value="contado">Al Contado</sl-option>
-                        <sl-option value="credito">A Credito</sl-option>
-                    </sl-select>
+                <!-- Tipo de pago: control segmentado -->
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 mb-1.5 uppercase tracking-wider">Tipo de pago</label>
+                    <div class="hdv-segmented" role="group" aria-label="Tipo de pago">
+                        <button type="button" class="hdv-seg-btn active" data-action="setTipoPago" data-arg="contado">Contado</button>
+                        <button type="button" class="hdv-seg-btn" data-action="setTipoPago" data-arg="credito">Crédito</button>
+                    </div>
+                    <input type="hidden" id="tipoPago" value="contado">
                 </div>
 
-                <div class="bg-gray-50 p-3 rounded-xl">
-                    <label class="block text-[11px] font-bold text-gray-500 mb-1.5 uppercase tracking-wider">Notas</label>
-                    <sl-textarea id="notasPedido" rows="2" class="w-full" size="small" placeholder="Ej. Entregar de tarde..."></sl-textarea>
-                </div>
+                <!-- Notas: boton que abre ventana flotante -->
+                <button type="button" data-action="abrirNotasPedido" id="btnNotasPedido"
+                    class="w-full flex items-center justify-between gap-2 bg-gray-50 hover:bg-gray-100 transition-colors rounded-xl px-3.5 py-3 text-left">
+                    <span class="flex items-center gap-2.5 min-w-0">
+                        <i data-lucide="sticky-note" class="w-4 h-4 text-gray-500 shrink-0"></i>
+                        <span id="btnNotasLabel" class="text-sm font-semibold text-gray-600 truncate">Agregar nota</span>
+                    </span>
+                    <i data-lucide="chevron-right" class="w-4 h-4 text-gray-400 shrink-0"></i>
+                </button>
+                <textarea id="notasPedido" hidden></textarea>
             </div>
         </div>
 

@@ -1323,6 +1323,48 @@ function closeCartModal() {
     document.getElementById('cartDrawer').hide();
 }
 
+// --- Tipo de pago (control segmentado) ---
+function setTipoPago(valor) {
+    const v = valor === 'credito' ? 'credito' : 'contado';
+    const input = document.getElementById('tipoPago');
+    if (input) input.value = v;
+    document.querySelectorAll('.hdv-seg-btn[data-action="setTipoPago"]').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('data-arg') === v);
+    });
+}
+
+// Sincroniza el segmentado y la etiqueta de notas con el estado actual de los inputs ocultos
+function _sincronizarControlesCarrito() {
+    const tp = document.getElementById('tipoPago');
+    if (tp) setTipoPago(tp.value || 'contado');
+    const notas = (document.getElementById('notasPedido')?.value || '').trim();
+    const label = document.getElementById('btnNotasLabel');
+    const btn = document.getElementById('btnNotasPedido');
+    if (label) label.textContent = notas ? notas : 'Agregar nota';
+    if (btn) btn.classList.toggle('tiene-nota', !!notas);
+}
+
+// --- Notas: ventana flotante con boton guardar ---
+async function abrirNotasPedido() {
+    const actual = document.getElementById('notasPedido')?.value || '';
+    const datos = await mostrarInputModal({
+        titulo: 'Nota del pedido',
+        subtitulo: 'Indicá una observación para este pedido (opcional).',
+        textoConfirmar: 'Guardar',
+        icono: 'sticky-note',
+        campos: [{
+            key: 'nota', tipo: 'textarea', label: 'Nota', valor: actual,
+            placeholder: 'Ej. Entregar de tarde, llamar antes de llegar...'
+        }]
+    });
+    if (datos === null) return; // cancelado
+    const nota = (datos.nota || '').trim();
+    const input = document.getElementById('notasPedido');
+    if (input) input.value = nota;
+    _sincronizarControlesCarrito();
+    if (typeof mostrarToast === 'function') mostrarToast(nota ? 'Nota guardada' : 'Nota eliminada', 'success', 1500);
+}
+
 async function renderizarCarrito(animate = true) {
     const container = document.getElementById('cartItemsList');
     container.innerHTML = '';
@@ -1336,6 +1378,9 @@ async function renderizarCarrito(animate = true) {
         const nom = (typeof clienteActual !== 'undefined' && clienteActual && clienteActual.nombre) ? clienteActual.nombre : '';
         tituloEl.textContent = nom ? `Pedido de ${nom}` : 'Cliente no seleccionado';
     }
+
+    // Sincronizar segmentado de pago + etiqueta de notas
+    _sincronizarControlesCarrito();
 
     carrito.forEach((item, idx) => {
         const wrapper = document.createElement('div');

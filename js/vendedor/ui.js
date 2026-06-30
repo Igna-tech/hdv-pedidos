@@ -2026,6 +2026,121 @@ async function calcularAlmacenamiento() {
 }
 
 // ============================================
+// CLIENTES (vendedor): lista + en riesgo (solo lectura)
+// ============================================
+let _vistaClientesModo = 'todos'; // 'todos' | 'riesgo'
+let _clientesVendQuery = '';
+
+function setClientesModo(modo) {
+    _vistaClientesModo = modo;
+    mostrarClientesVendedor();
+}
+
+function _toggleClientesHTML() {
+    return `<div class="flex items-center justify-between mb-3">
+        <h3 class="text-lg font-bold text-gray-800">Clientes</h3>
+        <div class="flex bg-slate-100 rounded-lg p-1 gap-1">
+            <button data-action="setClientesModo" data-arg="todos" class="px-3 py-1.5 rounded-md text-xs font-bold transition-all ${_vistaClientesModo === 'todos' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}">Todos</button>
+            <button data-action="setClientesModo" data-arg="riesgo" class="px-3 py-1.5 rounded-md text-xs font-bold transition-all ${_vistaClientesModo === 'riesgo' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}">En riesgo</button>
+        </div>
+    </div>`;
+}
+
+async function mostrarClientesVendedor() {
+    const container = document.getElementById('productsContainer');
+    if (!container) return;
+    container.innerHTML = _toggleClientesHTML() + `
+        <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3.5 py-2 mb-3 focus-within:border-indigo-300 focus-within:bg-white transition-colors">
+            <i data-lucide="search" class="w-4 h-4 text-slate-400 shrink-0"></i>
+            <input id="clientesVendBuscar" type="text" placeholder="Buscar cliente por nombre o zona" autocomplete="off" autocorrect="off" spellcheck="false" class="flex-1 bg-transparent outline-none text-sm text-ink" style="min-width:0">
+        </div>
+        <div id="clientesVendLista"></div>
+    `;
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+    const inp = document.getElementById('clientesVendBuscar');
+    if (inp) {
+        inp.value = _clientesVendQuery;
+        inp.addEventListener('input', () => { _clientesVendQuery = inp.value; _renderClientesVendLista(); });
+    }
+    await _renderClientesVendLista();
+}
+
+function _clienteCardHtml(c, dias, nivel) {
+    const id = c.id;
+    const nombre = c.razon_social || c.nombre || 'Cliente';
+    const inicial = (nombre || 'C').charAt(0).toUpperCase();
+    const zona = c.zona || '';
+    const tel = (c.telefono || '').replace(/\D/g, '');
+    const sub = [zona, c.telefono].filter(Boolean).join(' · ');
+    const chip = { atencion: 'bg-yellow-100 text-yellow-700', riesgo: 'bg-orange-100 text-orange-700', perdido: 'bg-red-100 text-red-700' };
+    const label = { atencion: 'Atención', riesgo: 'Riesgo', perdido: 'Perdido' };
+    const right = nivel
+        ? `<span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${chip[nivel]}">${label[nivel]} · ${dias}d</span>`
+        : `<span class="text-[10px] text-gray-400 shrink-0 whitespace-nowrap">${dias != null && dias < 999 ? 'hace ' + dias + 'd' : 'sin compras'}</span>`;
+    const waBtn = tel
+        ? `<a href="https://wa.me/${tel}" target="_blank" rel="noopener" class="flex-1 flex items-center justify-center gap-1 text-[11px] font-semibold text-[#1da851] py-1.5 rounded-lg hover:bg-green-50 transition-colors"><i data-lucide="message-circle" class="w-3.5 h-3.5"></i> WhatsApp</a>`
+        : '';
+    return `<div class="bg-white rounded-xl p-3 shadow-sm border border-slate-100 mb-2">
+        <div class="flex items-center gap-2.5">
+            <div class="w-9 h-9 rounded-full bg-slate-200 text-slate-600 text-sm font-bold flex items-center justify-center shrink-0">${escapeHTML(inicial)}</div>
+            <div class="min-w-0 flex-1">
+                <p class="text-sm font-bold text-gray-800 truncate">${escapeHTML(nombre)}</p>
+                <p class="text-[11px] text-gray-400 truncate">${escapeHTML(sub) || 'Sin datos de contacto'}</p>
+            </div>
+            ${right}
+        </div>
+        <div class="flex gap-1.5 mt-2.5 pt-2.5 border-t border-slate-50">
+            ${waBtn}
+            <button data-action="mostrarHistorialCliente" data-arg="${escapeHTML(id)}" class="flex-1 flex items-center justify-center gap-1 text-[11px] font-semibold text-indigo-600 py-1.5 rounded-lg hover:bg-indigo-50 transition-colors"><i data-lucide="clock" class="w-3.5 h-3.5"></i> Historial</button>
+            <button data-action="crearPedidoDesdeCliente" data-arg="${escapeHTML(id)}" class="flex-1 flex items-center justify-center gap-1 text-[11px] font-semibold text-white py-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-600 transition-colors"><i data-lucide="shopping-cart" class="w-3.5 h-3.5"></i> Pedido</button>
+        </div>
+    </div>`;
+}
+
+async function _renderClientesVendLista() {
+    const cont = document.getElementById('clientesVendLista');
+    if (!cont) return;
+    const q = _clientesVendQuery.trim().toLowerCase();
+    const lista = (typeof clientes !== 'undefined' && Array.isArray(clientes)) ? clientes.filter(c => !c.oculto) : [];
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
+    const hoy = new Date();
+
+    // Última compra por cliente (cualquier pedido)
+    const lastByCliente = {};
+    pedidos.forEach(p => {
+        const id = p.cliente?.id; if (!id || !p.fecha) return;
+        const f = new Date(p.fecha);
+        if (!lastByCliente[id] || f > lastByCliente[id]) lastByCliente[id] = f;
+    });
+    const _dias = (id) => lastByCliente[id] ? Math.floor((hoy - lastByCliente[id]) / 86400000) : 999;
+    const _nivel = (d) => d >= 60 ? 'perdido' : d >= 30 ? 'riesgo' : d >= 15 ? 'atencion' : 'activo';
+
+    let items = lista;
+    if (q) items = items.filter(c => (c.nombre || '').toLowerCase().includes(q) || (c.razon_social || '').toLowerCase().includes(q) || (c.zona || '').toLowerCase().includes(q) || (c.ruc || '').toLowerCase().includes(q));
+
+    if (_vistaClientesModo === 'riesgo') {
+        const conRiesgo = items.map(c => ({ c, d: _dias(c.id), n: _nivel(_dias(c.id)) })).filter(x => x.n !== 'activo').sort((a, b) => b.d - a.d);
+        const cAt = conRiesgo.filter(x => x.n === 'atencion').length;
+        const cRi = conRiesgo.filter(x => x.n === 'riesgo').length;
+        const cPe = conRiesgo.filter(x => x.n === 'perdido').length;
+        const resumen = `<div class="grid grid-cols-3 gap-2 mb-3">
+            <div class="bg-yellow-50 rounded-lg p-2 text-center"><p class="text-base font-bold text-yellow-700">${cAt}</p><p class="text-[9px] text-gray-500 font-bold uppercase">Atención</p></div>
+            <div class="bg-orange-50 rounded-lg p-2 text-center"><p class="text-base font-bold text-orange-700">${cRi}</p><p class="text-[9px] text-gray-500 font-bold uppercase">Riesgo</p></div>
+            <div class="bg-red-50 rounded-lg p-2 text-center"><p class="text-base font-bold text-red-600">${cPe}</p><p class="text-[9px] text-gray-500 font-bold uppercase">Perdido</p></div>
+        </div>`;
+        cont.innerHTML = resumen + (conRiesgo.length
+            ? conRiesgo.map(x => _clienteCardHtml(x.c, x.d, x.n)).join('')
+            : `<p class="text-sm text-gray-400 text-center py-6">Sin clientes en riesgo ✓</p>`);
+    } else {
+        items = items.slice().sort((a, b) => (a.razon_social || a.nombre || '').localeCompare(b.razon_social || b.nombre || ''));
+        cont.innerHTML = items.length
+            ? `<p class="text-[11px] text-gray-400 mb-2">${items.length} cliente${items.length === 1 ? '' : 's'}</p>` + items.slice(0, 200).map(c => _clienteCardHtml(c, _dias(c.id), null)).join('')
+            : `<p class="text-sm text-gray-400 text-center py-6">Sin clientes</p>`;
+    }
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+// ============================================
 // ZONAS Y RUTAS UI
 // ============================================
 function mostrarFiltroZonas() {

@@ -92,6 +92,12 @@ const _vendedorActionMap = {
     'limpiarTodosDatos':              () => typeof limpiarTodosDatos === 'function' && limpiarTodosDatos(),
     'cambiarContrasenaVendedor':      () => typeof cambiarContrasenaVendedor === 'function' && cambiarContrasenaVendedor(),
     'sincronizarAhora':               () => typeof sincronizarAhoraVendedor === 'function' && sincronizarAhoraVendedor(),
+    // Clientes (vendedor)
+    'setClientesModo':                (_, m) => typeof setClientesModo === 'function' && setClientesModo(m),
+    'crearPedidoDesdeCliente':        (_, id) => {
+        if (typeof _seleccionarCliente === 'function') _seleccionarCliente(id);
+        if (typeof cambiarVistaVendedor === 'function') cambiarVistaVendedor('lista');
+    },
     // Mis Pedidos — acciones de tarjeta
     'abrirModalEntrega':                  (_, id) => window.abrirModalEntrega(id),
     'cobrarPedidoVendedor':               (_, id) => cobrarPedidoVendedor(id),
@@ -531,6 +537,11 @@ function cambiarVistaVendedor(vista) {
         catFilters.style.display = 'none';
         searchBox.style.display = 'none';
         mostrarMiCaja();
+    } else if (vista === 'clientes') {
+        if (clienteSearch) clienteSearch.style.display = 'none';
+        catFilters.style.display = 'none';
+        searchBox.style.display = 'none';
+        if (typeof mostrarClientesVendedor === 'function') mostrarClientesVendedor();
     } else if (vista === 'creditos') {
         if (clienteSearch) clienteSearch.style.display = 'none';
         catFilters.style.display = 'none';

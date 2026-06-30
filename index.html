@@ -67,6 +67,40 @@
             0%, 100% { transform: scale(1); }
             50% { transform: scale(1.2); }
         }
+        /* ===== Carrito: animaciones ===== */
+        @keyframes cartItemIn { from { opacity: 0; transform: translateX(18px); } to { opacity: 1; transform: translateX(0); } }
+        .cart-item-anim { animation: cartItemIn .3s cubic-bezier(0.34,1.56,0.64,1) both; }
+        @keyframes cartItemOut { from { opacity: 1; transform: translateX(0); max-height: 120px; } to { opacity: 0; transform: translateX(-90px); max-height: 0; margin: 0; padding-top: 0; padding-bottom: 0; } }
+        .cart-item-out { animation: cartItemOut .26s ease forwards; overflow: hidden; }
+        @keyframes badgePop { 0% { transform: scale(1); } 40% { transform: scale(1.45); } 100% { transform: scale(1); } }
+        .badge-pop { animation: badgePop .38s cubic-bezier(0.34,1.56,0.64,1); }
+        @keyframes fabBounce { 0%,100% { transform: scale(1); } 28% { transform: scale(0.9); } 60% { transform: scale(1.09); } }
+        .fab-bounce { animation: fabBounce .42s ease; }
+        @keyframes amountPop { 0% { transform: scale(1); } 45% { transform: scale(1.18); } 100% { transform: scale(1); } }
+        .amount-pop { animation: amountPop .4s ease; display: inline-block; }
+        @media (prefers-reduced-motion: reduce) { .cart-item-anim, .cart-item-out, .badge-pop, .fab-bounce, .amount-pop { animation: none !important; } }
+
+        /* ===== Anti doble-toque-zoom (móvil) ===== */
+        html, body { touch-action: manipulation; }
+
+        /* ===== Animaciones generales (fluidez app) ===== */
+        @keyframes hdvRise { from { opacity: 0; transform: translateY(10px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        /* Entrada de tarjetas (fill backwards: no rompe el :active de press) */
+        .vpc, .vendor-cat-card, .vpc-list-item { animation: hdvRise .28s cubic-bezier(0.34,1.4,0.64,1) backwards; }
+        /* Listas con entrada escalonada */
+        .hdv-stagger > * { animation: hdvRise .3s cubic-bezier(0.34,1.4,0.64,1) backwards; }
+        .hdv-stagger > *:nth-child(1){animation-delay:.03s} .hdv-stagger > *:nth-child(2){animation-delay:.06s}
+        .hdv-stagger > *:nth-child(3){animation-delay:.09s} .hdv-stagger > *:nth-child(4){animation-delay:.12s}
+        .hdv-stagger > *:nth-child(5){animation-delay:.15s} .hdv-stagger > *:nth-child(6){animation-delay:.18s}
+        .hdv-stagger > *:nth-child(7){animation-delay:.21s} .hdv-stagger > *:nth-child(8){animation-delay:.24s}
+        /* Cambio de vista */
+        @keyframes hdvViewIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+        .hdv-view-in { animation: hdvViewIn .26s ease both; }
+        /* Press feedback */
+        .category-btn:active { transform: scale(.94); }
+        /* Fly-to-cart */
+        .hdv-fly-dot { position: fixed; width: 20px; height: 20px; border-radius: 50%; background: #4f46e5; z-index: 9999; pointer-events: none; box-shadow: 0 3px 10px rgba(79,70,229,.5); transition: transform .55s cubic-bezier(0.5,0,0.5,1), opacity .55s ease; }
+        @media (prefers-reduced-motion: reduce) { .vpc, .vendor-cat-card, .vpc-list-item, .hdv-stagger > *, .hdv-view-in { animation: none !important; } }
 
         /* Smart client search */
         #clienteSearchInput { border: none; outline: none; background: transparent; flex: 1; font-size: 13px; color: var(--ink); min-width: 0; padding: 0; }

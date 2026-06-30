@@ -685,7 +685,7 @@ async function renderizarProductosVendedor(container, busqueda) {
         const plusBtn = document.createElement('button');
         plusBtn.className = 'vpc-btn vpc-plus';
         plusBtn.innerHTML = '+';
-        plusBtn.onclick = (e) => { e.stopPropagation(); _quickAddProd(prod); };
+        plusBtn.onclick = (e) => { e.stopPropagation(); if (_quickAddProd(prod)) _flyToCart(e.currentTarget); };
 
         ctrl.appendChild(minusBtn);
         ctrl.appendChild(qtyNum);
@@ -813,7 +813,7 @@ async function renderizarProductosVendedor(container, busqueda) {
         const plusBtn = document.createElement('button');
         plusBtn.className = 'vpc-list-btn vpc-plus';
         plusBtn.innerHTML = '+';
-        plusBtn.onclick = (e) => { e.stopPropagation(); _quickAddProd(prod); };
+        plusBtn.onclick = (e) => { e.stopPropagation(); if (_quickAddProd(prod)) _flyToCart(e.currentTarget); };
 
         ctrl.appendChild(minusBtn);
         ctrl.appendChild(qtyEl);
@@ -917,6 +917,26 @@ function initLazyLoadImages(containerEl) {
 // CATALOG HELPERS — quick add/remove, badges, subcat, toggle vista
 // ============================================
 
+// Animación: un punto "vuela" desde el origen hasta el FAB del carrito
+function _flyToCart(sourceEl) {
+    try {
+        const fab = document.getElementById('viewCartBtn');
+        if (!fab || !sourceEl || typeof sourceEl.getBoundingClientRect !== 'function') return;
+        if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        const s = sourceEl.getBoundingClientRect();
+        const f = fab.getBoundingClientRect();
+        const dot = document.createElement('div');
+        dot.className = 'hdv-fly-dot';
+        dot.style.left = (s.left + s.width / 2 - 10) + 'px';
+        dot.style.top = (s.top + s.height / 2 - 10) + 'px';
+        document.body.appendChild(dot);
+        const dx = (f.left + f.width / 2) - (s.left + s.width / 2);
+        const dy = (f.top + f.height / 2) - (s.top + s.height / 2);
+        requestAnimationFrame(() => { dot.style.transform = `translate(${dx}px, ${dy}px) scale(0.25)`; dot.style.opacity = '0.3'; });
+        setTimeout(() => dot.remove(), 600);
+    } catch (_) {}
+}
+
 function _quickAddProd(prod) {
     const presActivas = (prod.presentaciones || []).filter(p => p.activo !== false);
     if (presActivas.length === 1) {
@@ -933,9 +953,10 @@ function _quickAddProd(prod) {
         }
         if (typeof actualizarContadorCarrito === 'function') actualizarContadorCarrito();
         if (typeof guardarCarrito === 'function') guardarCarrito();
-    } else {
-        mostrarDetalleProducto(prod);
+        return true;
     }
+    mostrarDetalleProducto(prod);
+    return false;
 }
 
 function _quickRemoveProd(prod) {
@@ -957,6 +978,10 @@ function _quickRemoveProd(prod) {
     if (typeof guardarCarrito === 'function') guardarCarrito();
 }
 
+function _popEl(el) {
+    if (!el) return;
+    el.classList.remove('amount-pop'); void el.offsetWidth; el.classList.add('amount-pop');
+}
 function _actualizarBadgesCarritoEnCatalogo() {
     const qtyMap = {};
     (carrito || []).forEach(item => { qtyMap[item.productoId] = (qtyMap[item.productoId] || 0) + item.cantidad; });
@@ -967,9 +992,9 @@ function _actualizarBadgesCarritoEnCatalogo() {
         const badge = card.querySelector('.vpc-badge');
         const minus = card.querySelector('.vpc-minus');
         const qtyNum = card.querySelector('.vpc-qty-num');
-        if (badge) { badge.textContent = qty; badge.style.display = qty > 0 ? 'flex' : 'none'; }
+        if (badge) { const ch = badge.textContent !== String(qty); badge.textContent = qty; badge.style.display = qty > 0 ? 'flex' : 'none'; if (ch && qty > 0) _popEl(badge); }
         if (minus) minus.style.display = qty > 0 ? 'flex' : 'none';
-        if (qtyNum) { qtyNum.textContent = qty; qtyNum.style.display = qty > 0 ? 'flex' : 'none'; }
+        if (qtyNum) { const ch = qtyNum.textContent !== String(qty); qtyNum.textContent = qty; qtyNum.style.display = qty > 0 ? 'flex' : 'none'; if (ch && qty > 0) _popEl(qtyNum); }
     });
 
     // List items
@@ -978,7 +1003,7 @@ function _actualizarBadgesCarritoEnCatalogo() {
         const minus = row.querySelector('.vpc-minus');
         const qtyEl = row.querySelector('.vpc-list-qty');
         if (minus) minus.style.display = qty > 0 ? 'flex' : 'none';
-        if (qtyEl) { qtyEl.textContent = qty; qtyEl.style.display = qty > 0 ? 'flex' : 'none'; }
+        if (qtyEl) { const ch = qtyEl.textContent !== String(qty); qtyEl.textContent = qty; qtyEl.style.display = qty > 0 ? 'flex' : 'none'; if (ch && qty > 0) _popEl(qtyEl); }
     });
 }
 
@@ -1265,7 +1290,7 @@ function closeCartModal() {
     document.getElementById('cartDrawer').hide();
 }
 
-async function renderizarCarrito() {
+async function renderizarCarrito(animate = true) {
     const container = document.getElementById('cartItemsList');
     container.innerHTML = '';
 
@@ -1274,7 +1299,8 @@ async function renderizarCarrito() {
 
     carrito.forEach((item, idx) => {
         const wrapper = document.createElement('div');
-        wrapper.className = 'relative overflow-hidden rounded-xl';
+        wrapper.className = 'relative overflow-hidden rounded-xl' + (animate ? ' cart-item-anim' : '');
+        if (animate) wrapper.style.animationDelay = (idx * 45) + 'ms';
         wrapper.innerHTML = `
             <div class="absolute inset-y-0 right-0 w-16 bg-red-500 flex items-center justify-center text-white rounded-r-xl">
                 <i data-lucide="trash-2" class="w-4 h-4"></i>
@@ -2086,7 +2112,7 @@ async function mostrarClientesVendedor() {
                 <div id="clientesVendZonaMenu" class="hidden absolute right-0 top-full mt-1 w-48 max-h-[50vh] overflow-y-auto bg-white rounded-xl border border-slate-200 shadow-xl z-50 p-1.5">${zonaMenuHtml}</div>
             </div>
         </div>
-        <div id="clientesVendLista"></div>
+        <div id="clientesVendLista" class="hdv-stagger"></div>
     `;
     if (typeof lucide !== 'undefined') lucide.createIcons();
     const inp = document.getElementById('clientesVendBuscar');

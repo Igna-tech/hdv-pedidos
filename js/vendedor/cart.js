@@ -62,13 +62,20 @@ function agregarAlCarrito(productoId, presIdx) {
     if (modal) modal.remove();
 }
 
+let _prevCartCount = 0;
 function actualizarContadorCarrito() {
     const badge = document.getElementById('cartItems');
     const totalItems = carrito.reduce((sum, item) => sum + item.cantidad, 0);
     if (badge) {
         badge.textContent = totalItems;
         badge.style.display = totalItems > 0 ? 'flex' : 'none';
+        if (totalItems > _prevCartCount) {
+            badge.classList.remove('badge-pop'); void badge.offsetWidth; badge.classList.add('badge-pop');
+            const fab = document.getElementById('viewCartBtn');
+            if (fab) { fab.classList.remove('fab-bounce'); void fab.offsetWidth; fab.classList.add('fab-bounce'); }
+        }
     }
+    _prevCartCount = totalItems;
     // Píldora de total en el FAB (running total)
     const pill = document.getElementById('cartPillText');
     if (pill) {
@@ -93,14 +100,17 @@ async function cargarCarritoGuardado() {
 }
 
 function eliminarDelCarrito(idx) {
-    carrito.splice(idx, 1);
-    actualizarContadorCarrito();
-    guardarCarrito();
-    if (carrito.length === 0) {
-        closeCartModal();
-    } else {
-        renderizarCarrito();
-    }
+    const finalizar = () => {
+        carrito.splice(idx, 1);
+        actualizarContadorCarrito();
+        guardarCarrito();
+        if (carrito.length === 0) closeCartModal();
+        else renderizarCarrito(false);
+    };
+    const inner = document.querySelector('.cart-item-inner[data-idx="' + idx + '"]');
+    const wrapper = inner ? inner.parentElement : null;
+    if (wrapper) { wrapper.classList.add('cart-item-out'); setTimeout(finalizar, 240); }
+    else finalizar();
 }
 
 function cambiarCantidadCarrito(idx, delta) {
@@ -109,7 +119,7 @@ function cambiarCantidadCarrito(idx, delta) {
     carrito[idx].subtotal = carrito[idx].cantidad * carrito[idx].precio;
     actualizarContadorCarrito();
     guardarCarrito();
-    renderizarCarrito();
+    renderizarCarrito(false);
 }
 
 function agregarMatrizAlCarrito(productoId) {

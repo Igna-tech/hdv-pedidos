@@ -10,6 +10,9 @@ const HDVMapa = (() => {
     let _filtroActivo = 'todos';
     let _modoColocacion = false;
     let _clienteParaUbicar = null;
+    let _selId = null;        // cliente seleccionado (marcador resaltado)
+    let _userMarker = null;   // punto azul "mi ubicación"
+    let _userLatLng = null;   // última posición conocida
 
     const ZONA_COLORES = [
         '#5681AE','#10b981','#f59e0b','#ef4444','#3D5A78',
@@ -30,57 +33,82 @@ const HDVMapa = (() => {
         return _zonaColorMap[zona] || '#64748b';
     }
 
-    function _crearIcono(color, deuda) {
-        const ring = deuda > 0 ? `<circle cx="20" cy="4" r="5" fill="#ef4444"/>` : '';
+    // Estado del cliente para el color del marcador
+    const NIVEL_COLOR = { deuda: '#ef4444', 'sin-visita': '#f59e0b', activo: '#10b981' };
+    function _nivelCliente(c) {
+        if (_deudaCliente(c.id) > 0) return 'deuda';
+        const d = _diasSinContacto(c.id);
+        if (d === null || d >= 15) return 'sin-visita';
+        return 'activo';
+    }
+
+    function _crearIcono(nivel, inicial, seleccionado) {
+        const color = NIVEL_COLOR[nivel] || '#64748b';
         return L.divIcon({
-            html: `<svg viewBox="0 0 24 32" xmlns="http://www.w3.org/2000/svg" style="width:24px;height:32px;overflow:visible;">
-                <path d="M12 0C5.373 0 0 5.373 0 12c0 9 12 20 12 20s12-11 12-20C24 5.373 18.627 0 12 0z" fill="${color}"/>
-                <circle cx="12" cy="12" r="5" fill="white" opacity="0.9"/>
-                ${ring}
-            </svg>`,
-            className: '',
-            iconSize: [24, 32],
-            iconAnchor: [12, 32],
-            popupAnchor: [0, -34],
+            html: `<div class="hdv-mk${seleccionado ? ' hdv-mk--sel' : ''}" style="--c:${color}"><span>${escapeHTML(inicial || '?')}</span></div>`,
+            className: 'hdv-mk-wrap',
+            iconSize: [30, 30],
+            iconAnchor: [15, 28],
+            popupAnchor: [0, -30],
         });
+    }
+
+    // Cache de stats por cliente: deuda + última compra (1 solo barrido por render)
+    // Lee la forma plana (vendedor) o envuelta en .datos (admin/sync).
+    let _statsCache = null;
+    function _buildStatsCache() {
+        const pedidos = HDVStorage.getCached('hdv_pedidos') || [];
+        const pagos = HDVStorage.getCached('hdv_pagos_credito') || [];
+        const visitas = HDVStorage.getCached('hdv_visitas_clientes') || {};
+        const pagadoPorPedido = {};
+        pagos.forEach(pg => { pagadoPorPedido[pg.pedidoId] = (pagadoPorPedido[pg.pedidoId] || 0) + (pg.monto || 0); });
+        const cache = {};
+        const get = (id) => cache[id] || (cache[id] = { deuda: 0, last: 0, visita: 0 });
+        pedidos.forEach(p => {
+            const d = p.datos || p;
+            const cId = (d.cliente || {}).id;
+            if (!cId) return;
+            const c = get(cId);
+            const fecha = p.fecha || d.fecha || p.creado_en;
+            if (fecha) { const t = new Date(fecha).getTime(); if (t && t > c.last) c.last = t; }
+            const tipoPago = d.tipoPago || p.tipoPago || '';
+            const estado = p.estado || d.estado || '';
+            if (tipoPago === 'credito' && estado !== 'cobrado_sin_factura' && estado !== 'anulado') {
+                const total = d.total || p.total || 0;
+                c.deuda += Math.max(0, total - (pagadoPorPedido[p.id] || 0));
+            }
+        });
+        Object.keys(visitas).forEach(id => { get(id).visita = visitas[id] || 0; });
+        _statsCache = cache;
     }
 
     function _deudaCliente(clienteId) {
-        const pedidos = HDVStorage.getCached('hdv_pedidos') || [];
-        const pagosCredito = HDVStorage.getCached('hdv_pagos_credito') || [];
-        let deuda = 0;
-
-        pedidos.filter(p => {
-            const d = p.datos || {};
-            const tipoPago = d.tipoPago || p.tipoPago || '';
-            const estado = p.estado || '';
-            const cId = (d.cliente || {}).id;
-            return cId === clienteId && tipoPago === 'credito' &&
-                   estado !== 'cobrado_sin_factura' && estado !== 'anulado';
-        }).forEach(p => {
-            const d = p.datos || {};
-            const total = d.total || 0;
-            const pagado = pagosCredito.filter(pg => pg.pedidoId === p.id)
-                .reduce((s, pg) => s + (pg.monto || 0), 0);
-            deuda += Math.max(0, total - pagado);
-        });
-
-        return deuda;
+        if (!_statsCache) _buildStatsCache();
+        return _statsCache[clienteId] ? _statsCache[clienteId].deuda : 0;
     }
 
     function _diasDesdeUltimoPedido(clienteId) {
-        const pedidos = HDVStorage.getCached('hdv_pedidos') || [];
-        const dePedidos = pedidos
-            .filter(p => {
-                const d = p.datos || {};
-                return (d.cliente || {}).id === clienteId;
-            })
-            .sort((a, b) => new Date(b.fecha || b.creado_en) - new Date(a.fecha || a.creado_en));
+        if (!_statsCache) _buildStatsCache();
+        const last = _statsCache[clienteId] && _statsCache[clienteId].last;
+        return last ? Math.floor((Date.now() - last) / 86400000) : null;
+    }
 
-        if (!dePedidos.length) return null;
-        const fecha = dePedidos[0].fecha || dePedidos[0].creado_en;
-        if (!fecha) return null;
-        return Math.floor((Date.now() - new Date(fecha).getTime()) / 86400000);
+    // Días desde el último CONTACTO (pedido o visita marcada) — para "sin visita"
+    function _diasSinContacto(clienteId) {
+        if (!_statsCache) _buildStatsCache();
+        const s = _statsCache[clienteId];
+        const t = Math.max((s && s.last) || 0, (s && s.visita) || 0);
+        return t ? Math.floor((Date.now() - t) / 86400000) : null;
+    }
+
+    async function _marcarVisita(clienteId) {
+        let visitas = {};
+        try { visitas = (await HDVStorage.getItem('hdv_visitas_clientes', { clone: false })) || {}; } catch (e) {}
+        visitas[clienteId] = Date.now();
+        try { await HDVStorage.setItem('hdv_visitas_clientes', visitas); } catch (e) {}
+        if (typeof mostrarToast === 'function') mostrarToast('Visita registrada ✓ (vale 15 días)', 'success');
+        _renderMarcadores();
+        _mostrarBottomSheet(clienteId);
     }
 
     function _clientesFiltrados() {
@@ -99,8 +127,8 @@ const HDVMapa = (() => {
             case 'sin-visita':
                 return clts.filter(c => {
                     if (!c.lat || !c.lng) return false;
-                    const dias = _diasDesdeUltimoPedido(c.id);
-                    return dias === null || dias > 14;
+                    const dias = _diasSinContacto(c.id);
+                    return dias === null || dias >= 15;
                 });
             case 'sin-ubicacion':
                 return clts.filter(c => !c.lat || !c.lng);
@@ -109,44 +137,99 @@ const HDVMapa = (() => {
         }
     }
 
-    // ── Filtros chips ─────────────────────────────────────────
+    // ── Filtro (dropdown compacto que abre hacia arriba) ──────
+    const _FILTRO_OPTS = [
+        { key: 'todos',         label: 'Todos',      icon: 'users' },
+        { key: 'deuda',         label: 'Con deuda',  icon: 'alert-circle' },
+        { key: 'sin-visita',    label: 'Sin visita', icon: 'clock' },
+        { key: 'sin-ubicacion', label: 'Sin ubicar', icon: 'map-pin-off' },
+    ];
 
-    function _renderFiltroChips() {
-        const opts = [
-            { key: 'todos',          label: 'Todos' },
-            { key: 'ruta',           label: 'Mi Ruta' },
-            { key: 'deuda',          label: 'Con deuda' },
-            { key: 'sin-visita',     label: 'Sin visita' },
-            { key: 'sin-ubicacion',  label: 'Sin ubicar' },
-        ];
-        return opts.map(o => `<button data-action="setFiltroMapa" data-arg="${o.key}"
-            class="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors shadow-sm ${_filtroActivo === o.key ? 'bg-indigo-500 text-white' : 'bg-white text-slate-700 border border-slate-200'}">
-            ${escapeHTML(o.label)}
-        </button>`).join('');
+    function _filtroCounts() {
+        const clts = (window.clientes || []);
+        const conUbic = clts.filter(c => c.lat && c.lng);
+        return {
+            todos: conUbic.length,
+            deuda: conUbic.filter(c => _deudaCliente(c.id) > 0).length,
+            'sin-visita': conUbic.filter(c => { const d = _diasSinContacto(c.id); return d === null || d >= 15; }).length,
+            'sin-ubicacion': clts.filter(c => !c.lat || !c.lng).length,
+        };
     }
 
     function _actualizarFiltrosUI() {
-        const el = document.getElementById('mapaFiltrosChips');
-        if (el) el.innerHTML = _renderFiltroChips();
+        const counts = _filtroCounts();
+        const active = _FILTRO_OPTS.find(o => o.key === _filtroActivo) || _FILTRO_OPTS[0];
+        const lbl = document.getElementById('mapaFiltroLabel');
+        const cnt = document.getElementById('mapaFiltroCount');
+        if (lbl) lbl.textContent = active.label;
+        if (cnt) cnt.textContent = counts[active.key] || 0;
+        const menu = document.getElementById('mapaFiltroMenu');
+        if (menu) {
+            menu.innerHTML = _FILTRO_OPTS.map(o => {
+                const act = _filtroActivo === o.key;
+                return `<button data-action="setFiltroMapa" data-arg="${o.key}" class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-left transition-colors ${act ? 'bg-steel text-white' : 'text-slate-600 active:bg-slate-100'}">
+                    <i data-lucide="${o.icon}" class="w-4 h-4 shrink-0"></i>
+                    <span class="text-sm font-semibold flex-1">${escapeHTML(o.label)}</span>
+                    <span class="text-[11px] font-bold ${act ? 'text-white/80' : 'text-slate-400'}">${counts[o.key] || 0}</span>
+                </button>`;
+            }).join('');
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+    }
+
+    function _toggleMapaFiltro(forceClose) {
+        const menu = document.getElementById('mapaFiltroMenu');
+        const chev = document.getElementById('mapaFiltroChevron');
+        if (!menu) return;
+        const abierto = !menu.classList.contains('invisible');
+        if (abierto || forceClose === true) {
+            menu.classList.add('opacity-0', 'translate-y-2', 'invisible');
+            if (chev) chev.classList.remove('rotate-180');
+        } else {
+            _actualizarFiltrosUI();
+            menu.classList.remove('opacity-0', 'translate-y-2', 'invisible');
+            if (chev) chev.classList.add('rotate-180');
+        }
     }
 
     // ── Bottom sheet ──────────────────────────────────────────
 
+    function _distanciaKm(lat1, lng1, lat2, lng2) {
+        const R = 6371, toR = Math.PI / 180;
+        const dLat = (lat2 - lat1) * toR, dLng = (lng2 - lng1) * toR;
+        const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * toR) * Math.cos(lat2 * toR) * Math.sin(dLng / 2) ** 2;
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+
     function _mostrarBottomSheet(clienteId) {
         const cliente = (window.clientes || []).find(c => c.id === clienteId);
         if (!cliente) return;
+
+        _selId = clienteId;
+        _renderMarcadores(); // resalta el marcador seleccionado
 
         const deuda = _deudaCliente(clienteId);
         const dias = _diasDesdeUltimoPedido(clienteId);
         const color = _getColorZona(cliente.zona);
         const diasStr = dias === null ? 'Sin pedidos' : dias === 0 ? 'Hoy' : `Hace ${dias} día${dias === 1 ? '' : 's'}`;
         const deudaStr = deuda > 0 ? `Gs. ${deuda.toLocaleString('es-PY')}` : 'Sin deuda';
+        const nivel = _nivelCliente(cliente);
+        const nivelMeta = { deuda: { t: 'Con deuda', c: 'bg-red-100 text-red-700' }, 'sin-visita': { t: 'Sin visita', c: 'bg-amber-100 text-amber-700' }, activo: { t: 'Activo', c: 'bg-green-100 text-green-700' } }[nivel];
+        let distStr = '';
+        if (_userLatLng && cliente.lat && cliente.lng) {
+            const km = _distanciaKm(_userLatLng.lat, _userLatLng.lng, cliente.lat, cliente.lng);
+            distStr = km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`;
+        }
+        const _visitas = HDVStorage.getCached('hdv_visitas_clientes') || {};
+        const _vts = _visitas[clienteId];
+        const visitaDias = _vts ? Math.floor((Date.now() - _vts) / 86400000) : null;
+        const visitadoOk = visitaDias !== null && visitaDias < 15;
 
         const sheet = document.getElementById('mapaBottomSheet');
         if (!sheet) return;
 
         sheet.innerHTML = `
-            <div class="w-10 h-1 bg-slate-200 rounded-full mx-auto mb-4"></div>
+            <div class="hdv-sheet-grab -mt-1 pt-2 pb-1"><div class="w-10 h-1.5 bg-slate-300 rounded-full mx-auto mb-3"></div></div>
             <div class="flex items-center gap-3 mb-4">
                 <div class="w-11 h-11 rounded-full flex items-center justify-center text-white font-black text-base shrink-0"
                      style="background:${color}">
@@ -154,7 +237,11 @@ const HDVMapa = (() => {
                 </div>
                 <div class="flex-1 min-w-0">
                     <p class="font-bold text-slate-900 truncate leading-tight">${escapeHTML(cliente.nombre)}</p>
-                    ${cliente.zona ? `<span class="text-[11px] font-semibold px-2 py-0.5 rounded-full text-white" style="background:${color}">${escapeHTML(cliente.zona)}</span>` : ''}
+                    <div class="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                        <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full ${nivelMeta.c}">${nivelMeta.t}</span>
+                        ${cliente.zona ? `<span class="text-[10px] font-semibold px-1.5 py-0.5 rounded-full text-white" style="background:${color}">${escapeHTML(cliente.zona)}</span>` : ''}
+                        ${distStr ? `<span class="text-[10px] text-slate-400 font-medium">a ${distStr}</span>` : ''}
+                    </div>
                 </div>
                 <button data-action="cerrarBottomSheetMapa"
                     class="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors">
@@ -164,45 +251,13 @@ const HDVMapa = (() => {
                 </button>
             </div>
 
-            <div class="grid grid-cols-2 gap-2 mb-4">
-                ${cliente.telefono ? `
-                <a href="tel:${escapeHTML(cliente.telefono)}"
-                   class="flex items-center gap-2 bg-slate-50 rounded-xl px-3 py-2.5 transition-colors active:bg-slate-100">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.948V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 8V5z"/>
-                    </svg>
-                    <span class="text-xs font-semibold text-slate-700 truncate">${escapeHTML(cliente.telefono)}</span>
-                </a>` : `<div class="bg-slate-50 rounded-xl px-3 py-2.5"></div>`}
-
-                <div class="flex items-center gap-2 bg-slate-50 rounded-xl px-3 py-2.5">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                    </svg>
-                    <div>
-                        <p class="text-[10px] text-slate-400 leading-none mb-0.5">Último pedido</p>
-                        <p class="text-xs font-semibold text-slate-700">${escapeHTML(diasStr)}</p>
-                    </div>
-                </div>
-
-                <div class="flex items-center gap-2 ${deuda > 0 ? 'bg-red-50' : 'bg-slate-50'} rounded-xl px-3 py-2.5">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 ${deuda > 0 ? 'text-red-400' : 'text-slate-400'} shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                    </svg>
-                    <div>
-                        <p class="text-[10px] ${deuda > 0 ? 'text-red-400' : 'text-slate-400'} leading-none mb-0.5">Deuda</p>
-                        <p class="text-xs font-semibold ${deuda > 0 ? 'text-red-600' : 'text-slate-700'}">${escapeHTML(deudaStr)}</p>
-                    </div>
-                </div>
-
-                ${cliente.direccion ? `
-                <div class="flex items-center gap-2 bg-slate-50 rounded-xl px-3 py-2.5">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
-                    </svg>
-                    <p class="text-xs text-slate-600 truncate">${escapeHTML(cliente.direccion)}</p>
-                </div>` : ''}
+            <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] mb-3 px-0.5">
+                ${cliente.telefono ? `<a href="tel:${escapeHTML(cliente.telefono)}" class="flex items-center gap-1 font-semibold text-slate-700 active:text-slate-900">
+                    <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.948V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 8V5z"/></svg>${escapeHTML(cliente.telefono)}</a>` : ''}
+                <span class="flex items-center gap-1 text-slate-500"><svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>${escapeHTML(diasStr)}</span>
+                <span class="flex items-center gap-1 font-semibold ${deuda > 0 ? 'text-red-600' : 'text-slate-500'}"><svg class="w-3.5 h-3.5 ${deuda > 0 ? 'text-red-400' : 'text-slate-400'}" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8V7m0 9v1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>${escapeHTML(deudaStr)}</span>
             </div>
+            ${cliente.direccion ? `<p class="flex items-center gap-1 text-[11px] text-slate-400 truncate mb-3 px-0.5"><svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg><span class="truncate">${escapeHTML(cliente.direccion)}</span></p>` : ''}
 
             <div class="flex gap-2">
                 <button data-action="crearPedidoDesdeMapaCliente" data-arg="${escapeHTML(clienteId)}"
@@ -228,18 +283,49 @@ const HDVMapa = (() => {
                     Nav
                 </a>
             </div>
+
+            <button data-action="marcarVisitaMapa" data-arg="${escapeHTML(clienteId)}"
+                class="w-full mt-2 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-colors ${visitadoOk ? 'bg-green-50 text-green-700 active:bg-green-100' : 'bg-slate-100 text-slate-700 active:bg-slate-200'}">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                ${visitadoOk ? `Visitado hace ${visitaDias}d · marcar de nuevo` : 'Marcar visita'}
+            </button>
         `;
 
+        sheet.style.transform = '';
         sheet.classList.remove('translate-y-full', 'hidden');
         sheet.classList.add('translate-y-0');
     }
 
     function _ocultarBottomSheet() {
+        if (_selId) { _selId = null; _renderMarcadores(); } // quita el resaltado
         const sheet = document.getElementById('mapaBottomSheet');
         if (!sheet) return;
+        sheet.style.transform = '';
         sheet.classList.remove('translate-y-0');
         sheet.classList.add('translate-y-full');
         setTimeout(() => sheet.classList.add('hidden'), 300);
+    }
+
+    // Arrastre del bottom-sheet (swipe hacia abajo para cerrar) — una sola vez
+    let _sheetDragSet = false;
+    let _filtroDocSet = false;
+    function _setupSheetDrag() {
+        if (_sheetDragSet) return;
+        const sheet = document.getElementById('mapaBottomSheet');
+        if (!sheet) return;
+        let startY = null, curY = 0;
+        const fromGrab = (e) => { const t = e.target; return t && t.closest && t.closest('.hdv-sheet-grab'); };
+        const getY = (e) => e.touches ? e.touches[0].clientY : e.clientY;
+        const down = (e) => { if (!fromGrab(e)) return; startY = getY(e); curY = 0; sheet.style.transition = 'none'; };
+        const move = (e) => { if (startY === null) return; curY = Math.max(0, getY(e) - startY); sheet.style.transform = `translateY(${curY}px)`; };
+        const up = () => { if (startY === null) return; startY = null; sheet.style.transition = ''; if (curY > 70) _ocultarBottomSheet(); else sheet.style.transform = 'translateY(0)'; };
+        sheet.addEventListener('touchstart', down, { passive: true });
+        sheet.addEventListener('touchmove', move, { passive: true });
+        sheet.addEventListener('touchend', up);
+        sheet.addEventListener('mousedown', down);
+        window.addEventListener('mousemove', move);
+        window.addEventListener('mouseup', up);
+        _sheetDragSet = true;
     }
 
     // ── Sin ubicación list ────────────────────────────────────
@@ -294,6 +380,7 @@ const HDVMapa = (() => {
 
     function _renderMarcadores() {
         if (!_mapa || !_markersLayer) return;
+        _statsCache = null; // refrescar deuda/días (1 solo barrido para todo el render)
         _markersLayer.clearLayers();
         _marcadores = {};
 
@@ -304,9 +391,9 @@ const HDVMapa = (() => {
         } else {
             _ocultarListaSinUbicacion();
             filtrados.forEach(c => {
-                const color = _getColorZona(c.zona);
-                const deuda = _deudaCliente(c.id);
-                const icono = _crearIcono(color, deuda);
+                const nivel = _nivelCliente(c);
+                const inicial = (c.nombre || '?').charAt(0).toUpperCase();
+                const icono = _crearIcono(nivel, inicial, c.id === _selId);
                 const marker = L.marker([c.lat, c.lng], { icon: icono })
                     .on('click', () => _mostrarBottomSheet(c.id));
                 _markersLayer.addLayer(marker);
@@ -314,19 +401,20 @@ const HDVMapa = (() => {
             });
         }
 
-        // Badge sin ubicar
-        const sinUbicar = (window.clientes || []).filter(c => !c.lat || !c.lng).length;
-        const badge = document.getElementById('mapaSinUbicarBadge');
-        if (badge) {
-            if (sinUbicar > 0 && _filtroActivo !== 'sin-ubicacion') {
-                badge.textContent = `📍 Sin ubicar: ${sinUbicar}`;
-                badge.classList.remove('hidden');
-            } else {
-                badge.classList.add('hidden');
-            }
-        }
-
         _actualizarFiltrosUI();
+        _actualizarResumenMapa();
+    }
+
+    // Mini-barra de resumen arriba del mapa
+    function _actualizarResumenMapa() {
+        const el = document.getElementById('mapaResumen');
+        if (!el) return;
+        const clts = (window.clientes || []).filter(c => c.lat && c.lng);
+        const deuda = clts.filter(c => _deudaCliente(c.id) > 0).length;
+        const sinVisita = clts.filter(c => { const d = _diasDesdeUltimoPedido(c.id); return d === null || d >= 15; }).length;
+        el.innerHTML = `<span class="font-bold text-slate-700">${clts.length}</span> clientes
+            · <span class="font-bold text-red-500">${deuda}</span> con deuda
+            · <span class="font-bold text-amber-500">${sinVisita}</span> sin visitar`;
     }
 
     // ── Colocación de pin ─────────────────────────────────────
@@ -422,6 +510,14 @@ const HDVMapa = (() => {
 
     // ── Geolocalización ───────────────────────────────────────
 
+    function _marcarMiUbicacion(lat, lng) {
+        _userLatLng = { lat, lng };
+        if (!_mapa) return;
+        const icon = L.divIcon({ html: '<div class="hdv-userloc"></div>', className: 'hdv-userloc-wrap', iconSize: [18, 18], iconAnchor: [9, 9] });
+        if (_userMarker) _userMarker.setLatLng([lat, lng]);
+        else _userMarker = L.marker([lat, lng], { icon, zIndexOffset: 1000, interactive: false }).addTo(_mapa);
+    }
+
     function _centrarEnMiUbicacion() {
         if (!navigator.geolocation) {
             mostrarToast('Tu navegador no soporta geolocalización', 'warning');
@@ -429,17 +525,41 @@ const HDVMapa = (() => {
         }
         navigator.geolocation.getCurrentPosition(
             (pos) => {
-                if (_mapa) _mapa.setView([pos.coords.latitude, pos.coords.longitude], 16);
+                const { latitude, longitude } = pos.coords;
+                _marcarMiUbicacion(latitude, longitude);
+                if (_mapa) _mapa.setView([latitude, longitude], 16);
             },
             () => mostrarToast('No se pudo obtener tu ubicación', 'warning'),
             { timeout: 8000 }
         );
     }
 
+    // Enfocar un cliente desde otra sección ("Ver en mapa")
+    function _focusCliente(clienteId) {
+        const c = (window.clientes || []).find(x => x.id === clienteId);
+        if (!c || !c.lat || !c.lng) { mostrarToast('Ese cliente no tiene ubicación en el mapa', 'warning'); return; }
+        _filtroActivo = 'todos';
+        _renderMarcadores();
+        if (_mapa) _mapa.setView([c.lat, c.lng], 16, { animate: true });
+        setTimeout(() => _mostrarBottomSheet(clienteId), 350);
+    }
+
+    function _toggleLeyenda() {
+        document.getElementById('mapaLeyenda')?.classList.toggle('hidden');
+    }
+
+    function _encuadrar() {
+        if (!_mapa) return;
+        const cl = (window.clientes || []).filter(c => c.lat && c.lng);
+        if (!cl.length) { mostrarToast('No hay clientes ubicados', 'info'); return; }
+        try { _mapa.fitBounds(L.latLngBounds(cl.map(c => [c.lat, c.lng])), { padding: [50, 80], maxZoom: 15, animate: true }); } catch (_) {}
+    }
+
     // ── Filtro público ────────────────────────────────────────
 
     function setFiltroMapa(filtro) {
         _filtroActivo = filtro;
+        _toggleMapaFiltro(true);
         _ocultarBottomSheet();
         _renderMarcadores();
 
@@ -488,18 +608,43 @@ const HDVMapa = (() => {
 
             L.control.zoom({ position: 'bottomright' }).addTo(_mapa);
             _markersLayer = L.layerGroup().addTo(_mapa);
+            // Recordar última posición/zoom (con debounce)
+            let _vpT = null;
+            _mapa.on('moveend', () => {
+                clearTimeout(_vpT);
+                _vpT = setTimeout(() => {
+                    try { const c = _mapa.getCenter(); HDVStorage.setItem('hdv_mapa_viewport', { lat: c.lat, lng: c.lng, z: _mapa.getZoom() }); } catch (e) {}
+                }, 600);
+            });
         }
 
+        _setupSheetDrag();
+        if (!_filtroDocSet) {
+            document.addEventListener('click', (e) => {
+                const menu = document.getElementById('mapaFiltroMenu');
+                if (!menu || menu.classList.contains('invisible')) return;
+                if (e.target.closest('#mapaFiltroMenu') || e.target.closest('[data-action="toggleMapaFiltro"]')) return;
+                _toggleMapaFiltro(true);
+            });
+            _filtroDocSet = true;
+        }
         setTimeout(() => {
             _mapa.invalidateSize();
             _renderMarcadores();
 
-            const cltsConCoords = (window.clientes || []).filter(c => c.lat && c.lng);
-            if (cltsConCoords.length > 0) {
-                try {
-                    const bounds = L.latLngBounds(cltsConCoords.map(c => [c.lat, c.lng]));
-                    _mapa.fitBounds(bounds, { padding: [50, 80], maxZoom: 14 });
-                } catch (_) { /* bounds inválidos */ }
+            // Restaurar viewport guardado; si no hay, encuadrar a los clientes
+            let vp = null;
+            try { vp = HDVStorage.getCached && HDVStorage.getCached('hdv_mapa_viewport'); } catch (e) {}
+            if (vp && vp.lat && vp.lng) {
+                _mapa.setView([vp.lat, vp.lng], vp.z || 14);
+            } else {
+                const cltsConCoords = (window.clientes || []).filter(c => c.lat && c.lng);
+                if (cltsConCoords.length > 0) {
+                    try {
+                        const bounds = L.latLngBounds(cltsConCoords.map(c => [c.lat, c.lng]));
+                        _mapa.fitBounds(bounds, { padding: [50, 80], maxZoom: 14 });
+                    } catch (_) { /* bounds inválidos */ }
+                }
             }
         }, 150);
     }
@@ -522,6 +667,11 @@ const HDVMapa = (() => {
         cancelarColocacionPin: _cancelarColocacionPin,
         cerrarBottomSheet:     _ocultarBottomSheet,
         centrarEnMiUbicacion:  _centrarEnMiUbicacion,
+        focusCliente:          _focusCliente,
+        toggleLeyenda:         _toggleLeyenda,
+        encuadrar:             _encuadrar,
+        marcarVisita:          _marcarVisita,
+        toggleFiltro:          _toggleMapaFiltro,
     };
 })();
 

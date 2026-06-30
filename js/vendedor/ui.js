@@ -2132,6 +2132,7 @@ function _clienteCardHtml(c, dias, nivel) {
             ${right}
         </div>
         <div class="flex gap-1 mt-2">
+            ${(c.lat && c.lng) ? `<button data-action="verClienteEnMapa" data-arg="${escapeHTML(id)}" aria-label="Ver en mapa" class="${btnBase} px-2 text-slate-600 bg-slate-100 hover:bg-slate-200"><i data-lucide="map-pin" class="w-3 h-3"></i></button>` : ''}
             ${waBtn}
             <button data-action="mostrarHistorialCliente" data-arg="${escapeHTML(id)}" class="${btnBase} flex-1 text-indigo-600 bg-indigo-50 hover:bg-indigo-100"><i data-lucide="clock" class="w-3 h-3"></i> Historial</button>
             <button data-action="crearPedidoDesdeCliente" data-arg="${escapeHTML(id)}" class="${btnBase} flex-1 text-white bg-indigo-500 hover:bg-indigo-600"><i data-lucide="shopping-cart" class="w-3 h-3"></i> Pedido</button>

@@ -73,6 +73,21 @@
         #clienteSearchInput::placeholder { color: var(--muted); }
         #clienteDropdown, #zonaPickerDropdown { box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
         #zonaFilterLabel { max-width: 88px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; }
+        /* Mapa: marcadores por estado del cliente */
+        .hdv-mk-wrap, .hdv-userloc-wrap { background: none !important; border: none !important; }
+        .hdv-mk { width: 28px; height: 28px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); background: var(--c); border: 2px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; animation: hdvPinDrop .26s cubic-bezier(0.34,1.56,0.64,1) both; transition: width .15s, height .15s, box-shadow .15s; }
+        .hdv-mk > span { transform: rotate(45deg); color: #fff; font-weight: 800; font-size: 12px; line-height: 1; }
+        .hdv-mk--sel { width: 38px; height: 38px; box-shadow: 0 0 0 6px rgba(86,129,174,.35), 0 4px 12px rgba(0,0,0,.5); animation: hdvPinPop .32s cubic-bezier(0.34,1.56,0.64,1) both; }
+        .hdv-mk--sel > span { font-size: 16px; }
+        @keyframes hdvPinDrop { 0% { opacity: 0; transform: rotate(-45deg) translateY(-10px) scale(.4); } 100% { opacity: 1; transform: rotate(-45deg) translateY(0) scale(1); } }
+        @keyframes hdvPinPop { 0% { transform: rotate(-45deg) scale(.7); } 60% { transform: rotate(-45deg) scale(1.12); } 100% { transform: rotate(-45deg) scale(1); } }
+        @media (prefers-reduced-motion: reduce) { .hdv-mk, .hdv-mk--sel { animation: none; } }
+        /* Bottom-sheet draggable */
+        #mapaBottomSheet .hdv-sheet-grab { cursor: grab; touch-action: none; }
+        #mapaBottomSheet .hdv-sheet-grab:active { cursor: grabbing; }
+        .hdv-userloc { width: 16px; height: 16px; border-radius: 50%; background: #2563eb; border: 3px solid #fff; box-shadow: 0 0 0 0 rgba(37,99,235,.5); animation: hdvUserPulse 2s infinite; }
+        @keyframes hdvUserPulse { 0% { box-shadow: 0 0 0 0 rgba(37,99,235,.5); } 70% { box-shadow: 0 0 0 14px rgba(37,99,235,0); } 100% { box-shadow: 0 0 0 0 rgba(37,99,235,0); } }
+        @media (prefers-reduced-motion: reduce) { .hdv-userloc { animation: none; } }
         /* Shoelace: cart quantity buttons 44px touch target */
         .cart-qty-btn { --sl-spacing-x-small: 0.4rem; }
         .cart-qty-btn::part(base) { min-width: 44px; min-height: 44px; }
@@ -366,8 +381,16 @@
     <!-- VISTA MAPA DE CLIENTES -->
     <div id="vistaMapaWrapper" class="hidden fixed left-0 right-0 bottom-0 z-40" style="top:60px;">
 
+        <!-- Leyenda de colores (toggle) -->
+        <div id="mapaLeyenda" class="hidden absolute bottom-20 left-3 z-20 bg-white/95 backdrop-blur border border-slate-200 rounded-xl px-3 py-2.5 shadow-xl text-[11px] space-y-1.5">
+            <p class="font-bold text-slate-500 uppercase tracking-wide text-[9px] mb-1">Estado</p>
+            <div class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full" style="background:#10b981"></span> <span class="text-slate-600">Activo</span></div>
+            <div class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full" style="background:#f59e0b"></span> <span class="text-slate-600">Sin visita (15d+)</span></div>
+            <div class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full" style="background:#ef4444"></span> <span class="text-slate-600">Con deuda</span></div>
+        </div>
+
         <!-- Instrucción de colocación (top, solo en modo colocación) -->
-        <div id="mapaInstruccion" class="hidden absolute top-2 left-0 right-0 z-20 px-3"></div>
+        <div id="mapaInstruccion" class="hidden absolute top-14 left-0 right-0 z-20 px-3"></div>
 
         <!-- Contenedor Leaflet — isolation:isolate encierra los z-index internos de Leaflet
              (tile-pane z-200, marker-pane z-600…) para que no compitan con chips/bottom-sheet -->
@@ -397,27 +420,32 @@
             </div>
         </div>
 
-        <!-- FILTROS FLOTANTES — fila inferior sobre el mapa -->
-        <div class="absolute bottom-20 left-0 right-0 z-20 px-3">
-            <div class="overflow-x-auto">
-                <div id="mapaFiltrosChips" class="flex gap-2 pb-1 w-max">
-                    <!-- chips inyectados por mapa.js -->
-                </div>
+        <!-- Filtro: dropdown compacto (abajo-izquierda, abre hacia arriba) -->
+        <div class="absolute bottom-20 left-3 z-30">
+            <div id="mapaFiltroMenu" class="absolute bottom-full left-0 mb-2 w-52 bg-white rounded-2xl shadow-xl border border-slate-200 p-1.5 origin-bottom transition duration-200 opacity-0 translate-y-2 invisible">
+                <!-- opciones inyectadas por mapa.js -->
             </div>
+            <button data-action="toggleMapaFiltro" class="flex items-center gap-2 bg-white rounded-full shadow-xl border border-slate-200 pl-3 pr-2.5 py-2 active:scale-95 transition-all">
+                <i data-lucide="sliders-horizontal" class="w-4 h-4 text-steel shrink-0"></i>
+                <span id="mapaFiltroLabel" class="text-xs font-bold text-slate-700 whitespace-nowrap">Todos</span>
+                <span id="mapaFiltroCount" class="text-[10px] font-extrabold bg-slate-100 text-slate-600 rounded-full px-1.5 leading-tight">0</span>
+                <i data-lucide="chevron-down" id="mapaFiltroChevron" class="w-4 h-4 text-slate-400 shrink-0 transition-transform duration-200"></i>
+            </button>
         </div>
 
-        <!-- FABs: mi ubicación (bottom-right) -->
-        <div class="absolute bottom-5 right-4 z-20 flex flex-col items-end gap-2">
-            <button id="mapaSinUbicarBadge" data-action="setFiltroMapa" data-arg="sin-ubicacion"
-                class="hidden bg-amber-500 text-white rounded-full px-3 py-1.5 text-xs font-bold shadow-xl border border-amber-400">
-            </button>
-            <button data-action="centrarEnMiUbicacion"
-                class="w-11 h-11 bg-white rounded-full shadow-xl flex items-center justify-center text-slate-700 border border-slate-200 active:bg-slate-100 transition-colors">
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
-                </svg>
-            </button>
+        <!-- Controles del mapa (panel unificado) -->
+        <div class="absolute bottom-5 right-4 z-20 flex flex-col items-end gap-2.5">
+            <div class="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden flex flex-col divide-y divide-slate-100">
+                <button data-action="centrarEnMiUbicacion" aria-label="Mi ubicación" class="w-12 h-12 flex items-center justify-center text-steel active:bg-slate-100 transition-colors">
+                    <i data-lucide="locate-fixed" class="w-5 h-5"></i>
+                </button>
+                <button data-action="encuadrarMapa" aria-label="Encuadrar todos" class="w-12 h-12 flex items-center justify-center text-slate-600 active:bg-slate-100 transition-colors">
+                    <i data-lucide="maximize" class="w-5 h-5"></i>
+                </button>
+                <button data-action="toggleLeyendaMapa" aria-label="Leyenda" class="w-12 h-12 flex items-center justify-center text-slate-600 active:bg-slate-100 transition-colors">
+                    <i data-lucide="list" class="w-5 h-5"></i>
+                </button>
+            </div>
         </div>
 
         <!-- Botón confirmar pin (modo colocación, cubre toda la base) -->
@@ -431,7 +459,7 @@
 
         <!-- Bottom sheet cliente -->
         <div id="mapaBottomSheet"
-            class="hidden absolute bottom-0 left-0 right-0 z-30 bg-white rounded-t-2xl shadow-2xl px-4 pt-3 pb-8 transition-transform duration-300 translate-y-full">
+            class="hidden absolute bottom-0 left-0 right-0 z-30 bg-white rounded-t-2xl shadow-2xl px-4 pt-2 pb-5 transition-transform duration-300 translate-y-full">
             <!-- contenido inyectado por mapa.js -->
         </div>
     </div>

@@ -480,7 +480,7 @@ async function renderizarCategoriasVendedor(container) {
 
     // Grid de categorias
     const grid = document.createElement('div');
-    grid.className = 'vendor-catalog-grid';
+    grid.className = 'vendor-catalog-grid hdv-stag';
 
     categorias.forEach(cat => {
         const prodsEnCat = productos.filter(p => p.categoria === cat.id);
@@ -633,7 +633,7 @@ async function renderizarProductosVendedor(container, busqueda) {
     const noImgSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>`;
 
     const wrapper = document.createElement('div');
-    wrapper.className = _vistaProductos === 'list' ? 'vpc-list' : 'vendor-prod-grid';
+    wrapper.className = _vistaProductos === 'list' ? 'vpc-list hdv-stag' : 'vendor-prod-grid hdv-stag-grid';
     container.appendChild(wrapper);
 
     const CHUNK_SIZE = 40;
@@ -1096,7 +1096,7 @@ function mostrarMatrizProducto(producto) {
     modal.className = 'vpc-modal-overlay fixed inset-0 bg-black/45 z-[100] flex items-end';
     modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
     modal.innerHTML = `
-        <div class="bg-white w-full rounded-t-3xl max-h-[90vh] overflow-y-auto shadow-2xl" onclick="event.stopPropagation()">
+        <div class="hdv-sheet-in bg-white w-full rounded-t-3xl max-h-[90vh] overflow-y-auto shadow-2xl" onclick="event.stopPropagation()">
             <div class="border-b border-slate-100 p-4 rounded-t-3xl">
                 <div class="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-3"></div>
                 <div class="flex items-center gap-3">
@@ -1122,7 +1122,7 @@ function mostrarMatrizProducto(producto) {
 
             <div class="p-4 pt-3">
                 <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Ingresá la cantidad por variante</p>
-                <div class="grid grid-cols-3 sm:grid-cols-4 gap-2" id="matrizGrid-${producto.id}">
+                <div class="grid grid-cols-3 sm:grid-cols-4 gap-2 hdv-stag" id="matrizGrid-${producto.id}">
                     ${celdas}
                 </div>
             </div>
@@ -1239,7 +1239,7 @@ function mostrarDetalleMasivo(producto) {
     modal.className = 'vpc-modal-overlay fixed inset-0 bg-black/45 z-[100] flex items-end';
     modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
     modal.innerHTML = `
-        <div class="bg-white w-full rounded-t-3xl max-h-[90vh] overflow-y-auto shadow-2xl" onclick="event.stopPropagation()">
+        <div class="hdv-sheet-in bg-white w-full rounded-t-3xl max-h-[90vh] overflow-y-auto shadow-2xl" onclick="event.stopPropagation()">
             <div class="border-b border-slate-100 p-4 rounded-t-3xl">
                 <div class="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-3"></div>
                 <div class="flex items-center gap-3">
@@ -1261,7 +1261,7 @@ function mostrarDetalleMasivo(producto) {
 
             <div class="p-4 pt-3">
                 <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Seleccioná variantes</p>
-                <div class="bg-white rounded-xl divide-y divide-slate-100 shadow-sm border border-slate-100">${presHTML}</div>
+                <div class="bg-white rounded-xl divide-y divide-slate-100 shadow-sm border border-slate-100 hdv-stag">${presHTML}</div>
             </div>
 
             <div class="sticky bottom-0 bg-white border-t border-slate-100 p-4 flex gap-3">
@@ -1511,11 +1511,17 @@ async function renderizarCarrito(animate = true) {
         </div>
         <div class="flex justify-between items-center pt-1" id="cartTotalFinal">
             <span class="text-gray-500 font-bold">TOTAL</span>
-            <span class="text-2xl font-bold text-gray-900 tabular-nums">${formatearGuaranies(totalConPromo)}</span>
+            <span id="cartTotalAmount" class="text-2xl font-bold text-gray-900 tabular-nums">${formatearGuaranies(totalConPromo)}</span>
         </div>
         ${promoHTML}
     `;
     lucide.createIcons();
+
+    // Count-up del total al abrir el carrito
+    if (animate && typeof animarValor === 'function') {
+        const totalEl = document.getElementById('cartTotalAmount');
+        if (totalEl) animarValor(totalEl, totalConPromo, { formato: formatearGuaranies, desde: 0, duracion: 550 });
+    }
 }
 
 // ============================================
@@ -1750,7 +1756,7 @@ async function mostrarMisPedidos() {
                 </div>
             </div>
         </div>
-        <div id="pedidosListaContainer"></div>
+        <div id="pedidosListaContainer" class="hdv-stag"></div>
         ${paginacionHtml}
     `;
 
@@ -1884,7 +1890,7 @@ async function mostrarCreditos() {
             </div>
             <i data-lucide="alert-circle" class="w-8 h-8 text-red-300 shrink-0"></i>
         </div>
-        ${cards}
+        <div class="hdv-stag">${cards}</div>
     `;
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
@@ -2617,7 +2623,7 @@ async function _renderResumenHoy(container) {
         </div>`).join('')
         : `<p class="text-sm text-gray-400 text-center py-3">Aún sin clientes</p>`;
 
-    container.innerHTML = _toggleCajaHTML() + `
+    container.innerHTML = _toggleCajaHTML() + `<div class="hdv-stag">
         <p class="text-xs text-gray-400 -mt-2 mb-3 capitalize">${fechaLarga}</p>
 
         <!-- HERO: Meta MENSUAL del vendedor (la pone el admin) -->
@@ -2627,11 +2633,11 @@ async function _renderResumenHoy(container) {
                     <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Meta de <span class="capitalize">${escapeHTML(nombreMes)}</span></p>
                     <p class="text-sm font-semibold text-gray-700 truncate">${escapeHTML(vendedorNombre)}</p>
                 </div>
-                <span class="text-3xl font-bold tabular-nums shrink-0 ${metaPct >= 100 ? 'text-green-600' : metaPct >= 70 ? 'text-amber-500' : 'text-gray-800'}">${metaMonto > 0 ? metaPct + '%' : '—'}</span>
+                <span class="text-3xl font-bold tabular-nums shrink-0 ${metaPct >= 100 ? 'text-green-600' : metaPct >= 70 ? 'text-amber-500' : 'text-gray-800'}" ${metaMonto > 0 ? `data-countup="${metaPct}" data-countup-type="pct"` : ''}>${metaMonto > 0 ? metaPct + '%' : '—'}</span>
             </div>
             ${metaMonto > 0 ? `
             <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                <div class="${metaColor} h-2 rounded-full transition-all duration-700" style="width:${Math.min(100, metaPct)}%"></div>
+                <div id="metaBarFill" class="${metaColor} h-2 rounded-full hdv-bar-fill" style="width:0%" data-target="${Math.min(100, metaPct)}"></div>
             </div>
             <div class="flex justify-between text-[10px] text-gray-400 mt-1.5">
                 <span class="font-semibold text-gray-600">${formatearGuaranies(ventasMes)}</span>
@@ -2660,19 +2666,19 @@ async function _renderResumenHoy(container) {
         <div class="grid grid-cols-2 gap-2 mb-3">
             <div class="bg-indigo-50 rounded-lg px-3 py-2 flex items-center justify-between">
                 <span class="text-[9px] text-gray-500 font-bold uppercase tracking-wide">Pedidos sem.</span>
-                <span class="text-base font-bold text-indigo-600 tabular-nums">${pedidosSemana.length}</span>
+                <span class="text-base font-bold text-indigo-600 tabular-nums" data-countup="${pedidosSemana.length}">${pedidosSemana.length}</span>
             </div>
             <div class="bg-green-50 rounded-lg px-3 py-2 flex items-center justify-between">
                 <span class="text-[9px] text-gray-500 font-bold uppercase tracking-wide">Ventas sem.</span>
-                <span class="text-[13px] font-bold text-green-700 tabular-nums">${formatearGuaranies(ventasSemana)}</span>
+                <span class="text-[13px] font-bold text-green-700 tabular-nums" data-countup="${ventasSemana}" data-countup-type="cur">${formatearGuaranies(ventasSemana)}</span>
             </div>
             <div class="bg-amber-50 rounded-lg px-3 py-2 flex items-center justify-between">
                 <span class="text-[9px] text-gray-500 font-bold uppercase tracking-wide">Cobros sem.</span>
-                <span class="text-[13px] font-bold text-amber-700 tabular-nums">${formatearGuaranies(cobrosSemana)}</span>
+                <span class="text-[13px] font-bold text-amber-700 tabular-nums" data-countup="${cobrosSemana}" data-countup-type="cur">${formatearGuaranies(cobrosSemana)}</span>
             </div>
             <div class="bg-red-50 rounded-lg px-3 py-2 flex items-center justify-between">
                 <span class="text-[9px] text-gray-500 font-bold uppercase tracking-wide">Gastos sem.</span>
-                <span class="text-[13px] font-bold text-red-600 tabular-nums">${formatearGuaranies(gastosSemana)}</span>
+                <span class="text-[13px] font-bold text-red-600 tabular-nums" data-countup="${gastosSemana}" data-countup-type="cur">${formatearGuaranies(gastosSemana)}</span>
             </div>
         </div>
 
@@ -2709,8 +2715,24 @@ async function _renderResumenHoy(container) {
             </div>
             ${promosHtml}
         </div>
-    `;
+    </div>`;
     if (typeof lucide !== 'undefined') lucide.createIcons();
+
+    // Animaciones premium del dashboard: count-up + relleno de meta
+    requestAnimationFrame(() => {
+        const bar = document.getElementById('metaBarFill');
+        if (bar && bar.dataset.target) bar.style.width = bar.dataset.target + '%';
+        if (typeof animarValor === 'function') {
+            container.querySelectorAll('[data-countup]').forEach(el => {
+                const fin = parseFloat(el.dataset.countup) || 0;
+                const tipo = el.dataset.countupType;
+                const formato = tipo === 'cur' ? formatearGuaranies
+                    : tipo === 'pct' ? (n) => Math.round(n) + '%'
+                    : (n) => Math.round(n).toLocaleString('es-PY');
+                animarValor(el, fin, { formato, desde: 0, duracion: 700 });
+            });
+        }
+    });
 }
 
 async function _renderResumenSemana(container) {

@@ -33,6 +33,33 @@ function throttle(func, limit) {
 }
 
 /**
+ * Anima un número desde su valor actual hasta `hasta` (count-up) en un elemento.
+ * Respeta prefers-reduced-motion. `formato(n)` formatea cada frame.
+ * @param {HTMLElement} el - elemento de texto
+ * @param {number} hasta - valor final
+ * @param {object} [opts] - { duracion=600, desde, formato }
+ */
+function animarValor(el, hasta, opts = {}) {
+    if (!el) return;
+    const formato = opts.formato || ((n) => Math.round(n).toLocaleString('es-PY'));
+    const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const desde = typeof opts.desde === 'number' ? opts.desde : (parseFloat(String(el.dataset.val || '').replace(/[^\d.-]/g, '')) || 0);
+    const fin = Number(hasta) || 0;
+    el.dataset.val = String(fin);
+    if (reduce || desde === fin) { el.textContent = formato(fin); return; }
+    const dur = opts.duracion || 600;
+    const t0 = performance.now();
+    const ease = (t) => 1 - Math.pow(1 - t, 3); // easeOutCubic
+    function frame(now) {
+        const p = Math.min(1, (now - t0) / dur);
+        el.textContent = formato(desde + (fin - desde) * ease(p));
+        if (p < 1) requestAnimationFrame(frame);
+        else el.textContent = formato(fin);
+    }
+    requestAnimationFrame(frame);
+}
+
+/**
  * Envuelve una funcion async con bloqueo automatico de boton.
  * Al hacer clic: desactiva el boton, muestra spinner, ejecuta fn, restaura en finally.
  * @param {string} btnId - ID del boton HTML

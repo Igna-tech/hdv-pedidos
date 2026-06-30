@@ -27,6 +27,8 @@
         if (!ov || !inp) return;
         ov.classList.remove('hidden');
         ov.classList.add('flex');
+        const box = document.getElementById('vendorSearchBox');
+        if (box) { box.classList.remove('hdv-pop-in'); void box.offsetWidth; box.classList.add('hdv-pop-in'); }
         inp.value = '';
         _buscar('');
         setTimeout(() => inp.focus(), 30);

@@ -540,6 +540,16 @@ async function renderizarProductosVendedor(container, busqueda) {
         } catch (_e) { /* silencioso */ }
     }
 
+    // --- Pre-computo promociones activas (una sola lectura) ---
+    const promoMap = {};
+    try {
+        if (typeof obtenerPromocionesActivas === 'function') {
+            const promosAct = await obtenerPromocionesActivas();
+            promosAct.forEach(p => { if (!promoMap[p.productoId]) promoMap[p.productoId] = p; });
+        }
+    } catch (_e) { /* silencioso */ }
+    _promosCatalogo = promoMap;
+
     // --- Empty state ---
     if (filtrados.length === 0) {
         const catNombre = categorias.find(c => c.id === catFiltro)?.nombre || '';
@@ -649,6 +659,10 @@ async function renderizarProductosVendedor(container, busqueda) {
         card.dataset.prodId = prod.id;
         card.onclick = () => mostrarDetalleProducto(prod);
 
+        // Contenedor de foto (cuadrado)
+        const media = document.createElement('div');
+        media.className = 'vpc-media';
+
         // Imagen
         if (imgUrl) {
             const img = document.createElement('img');
@@ -656,18 +670,18 @@ async function renderizarProductosVendedor(container, busqueda) {
             img.dataset.src = imgUrl;
             img.alt = prod.nombre;
             img.onerror = () => { img.style.display = 'none'; };
-            card.appendChild(img);
+            media.appendChild(img);
         } else {
             const ni = document.createElement('div');
             ni.className = 'vpc-noimg';
             ni.innerHTML = noImgSvg;
-            card.appendChild(ni);
+            media.appendChild(ni);
         }
 
         // Badge cantidad (top-left)
         const badge = document.createElement('div');
         badge.className = 'vpc-badge';
-        card.appendChild(badge);
+        media.appendChild(badge);
 
         // Controles +/- (top-right)
         const ctrl = document.createElement('div');
@@ -690,9 +704,10 @@ async function renderizarProductosVendedor(container, busqueda) {
         ctrl.appendChild(minusBtn);
         ctrl.appendChild(qtyNum);
         ctrl.appendChild(plusBtn);
-        card.appendChild(ctrl);
+        media.appendChild(ctrl);
+        card.appendChild(media);
 
-        // Info bottom
+        // Info bottom (ficha de datos)
         const info = document.createElement('div');
         info.className = 'vpc-info';
 
@@ -719,6 +734,14 @@ async function renderizarProductosVendedor(container, busqueda) {
             ultEl.className = 'vpc-ultima';
             ultEl.textContent = `Última: ${ultQty} ud${ultQty !== 1 ? 's' : ''}`;
             info.appendChild(ultEl);
+        }
+
+        const promoProd = promoMap[prod.id];
+        if (promoProd) {
+            const promoEl = document.createElement('div');
+            promoEl.className = 'vpc-promo';
+            promoEl.textContent = _textoPromo(promoProd);
+            info.appendChild(promoEl);
         }
 
         card.appendChild(info);
@@ -791,6 +814,14 @@ async function renderizarProductosVendedor(container, busqueda) {
             ultEl.className = 'vpc-list-ultima';
             ultEl.textContent = `Última: ${ultQty} ud${ultQty !== 1 ? 's' : ''}`;
             meta.appendChild(ultEl);
+        }
+
+        const promoProd = promoMap[prod.id];
+        if (promoProd) {
+            const promoEl = document.createElement('div');
+            promoEl.className = 'vpc-list-promo';
+            promoEl.textContent = _textoPromo(promoProd);
+            meta.appendChild(promoEl);
         }
 
         row.appendChild(meta);
@@ -1049,20 +1080,20 @@ function mostrarMatrizProducto(producto) {
         const estadoProd = producto.estado || 'disponible';
         const esAgotado = estadoProd === 'agotado';
         return `
-            <div class="matriz-celda bg-white rounded-xl border-2 border-gray-200 p-3 text-center transition-all ${esAgotado ? 'opacity-50' : ''}" id="celda-${producto.id}-${idx}">
-                <p class="text-xs font-bold text-gray-500 mb-1">${escapeHTML(pres.tamano)}</p>
+            <div class="matriz-celda bg-white rounded-lg border border-gray-200 p-2 text-center transition-all ${esAgotado ? 'opacity-50' : ''}" id="celda-${producto.id}-${idx}">
+                <p class="text-[11px] font-bold text-gray-500 mb-1 truncate">${escapeHTML(pres.tamano)}</p>
                 <sl-input type="number" id="mtz-${producto.id}-${idx}" value="0" min="0"
                     ${esAgotado ? 'disabled' : ''}
                     class="mtz-input"
                     data-idx="${idx}" data-precio="${precio}" no-spin-buttons
                     oninput="actualizarCeldaMatriz('${producto.id}',${idx})"></sl-input>
-                <p class="text-[10px] text-blue-600 font-bold mt-1">${formatearGuaranies(precio)}</p>
+                <p class="text-[10px] font-bold mt-1" style="color:var(--steel-bright)">${formatearGuaranies(precio)}</p>
             </div>`;
     }).join('');
 
     const modal = document.createElement('div');
     modal.id = 'productDetailModal';
-    modal.className = 'fixed inset-0 bg-black/50 z-[100] flex items-end';
+    modal.className = 'vpc-modal-overlay fixed inset-0 bg-black/45 z-[100] flex items-end';
     modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
     modal.innerHTML = `
         <div class="bg-white w-full rounded-t-3xl max-h-[90vh] overflow-y-auto shadow-2xl" onclick="event.stopPropagation()">
@@ -1087,10 +1118,11 @@ function mostrarMatrizProducto(producto) {
                     <sl-button onclick="limpiarMatriz('${producto.id}')" variant="default" size="small">Limpiar</sl-button>
                 </div>
             </div>
+            ${_bannerPromoModal(producto.id)}
 
-            <div class="p-4">
-                <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Ingresá la cantidad por variante</p>
-                <div class="grid grid-cols-3 gap-3" id="matrizGrid-${producto.id}">
+            <div class="p-4 pt-3">
+                <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Ingresá la cantidad por variante</p>
+                <div class="grid grid-cols-3 sm:grid-cols-4 gap-2" id="matrizGrid-${producto.id}">
                     ${celdas}
                 </div>
             </div>
@@ -1117,9 +1149,9 @@ function actualizarCeldaMatriz(productoId, idx) {
     const val = parseInt(input.value) || 0;
 
     if (val > 0) {
-        celda.className = 'matriz-celda bg-green-50 rounded-xl border-2 border-green-400 p-3 text-center transition-all';
+        celda.className = 'matriz-celda bg-green-50 rounded-lg border border-green-400 p-2 text-center transition-all';
     } else {
-        celda.className = 'matriz-celda bg-white rounded-xl border-2 border-gray-200 p-3 text-center transition-all';
+        celda.className = 'matriz-celda bg-white rounded-lg border border-gray-200 p-2 text-center transition-all';
     }
 
     recalcularTotalesMatriz(productoId);
@@ -1186,10 +1218,10 @@ function mostrarDetalleMasivo(producto) {
         const activo = pres.activo !== false;
         if (!activo) return '';
         return `
-            <div class="flex items-center justify-between py-3 px-4">
+            <div class="flex items-center justify-between py-2.5 px-3">
                 <div class="flex-1 min-w-0">
-                    <p class="font-bold text-gray-800">${escapeHTML(pres.tamano)}</p>
-                    <p class="text-blue-600 font-bold text-sm">${formatearGuaranies(precio)}</p>
+                    <p class="font-bold text-gray-800 text-sm truncate">${escapeHTML(pres.tamano)}</p>
+                    <p class="font-bold text-xs" style="color:var(--steel-bright)">${formatearGuaranies(precio)}</p>
                 </div>
                 <div class="flex items-center gap-2">
                     <sl-button onclick="ajustarQty('${producto.id}',${idx},-1)" variant="default" size="small" circle>-</sl-button>
@@ -1204,7 +1236,7 @@ function mostrarDetalleMasivo(producto) {
 
     const modal = document.createElement('div');
     modal.id = 'productDetailModal';
-    modal.className = 'fixed inset-0 bg-black/50 z-[100] flex items-end';
+    modal.className = 'vpc-modal-overlay fixed inset-0 bg-black/45 z-[100] flex items-end';
     modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
     modal.innerHTML = `
         <div class="bg-white w-full rounded-t-3xl max-h-[90vh] overflow-y-auto shadow-2xl" onclick="event.stopPropagation()">
@@ -1225,8 +1257,9 @@ function mostrarDetalleMasivo(producto) {
                     <p class="text-sm font-semibold text-slate-400"><span id="masivoItems-${producto.id}">0</span> items</p>
                 </div>
             </div>
+            ${_bannerPromoModal(producto.id)}
 
-            <div class="p-4">
+            <div class="p-4 pt-3">
                 <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Seleccioná variantes</p>
                 <div class="bg-white rounded-xl divide-y divide-slate-100 shadow-sm border border-slate-100">${presHTML}</div>
             </div>
@@ -1296,6 +1329,13 @@ async function renderizarCarrito(animate = true) {
 
     const drawerCount = document.getElementById('drawerCartCount');
     if (drawerCount) drawerCount.textContent = carrito.length;
+
+    // Titulo: "Pedido de <cliente>" o "Cliente no seleccionado"
+    const tituloEl = document.getElementById('cartDrawerTitle');
+    if (tituloEl) {
+        const nom = (typeof clienteActual !== 'undefined' && clienteActual && clienteActual.nombre) ? clienteActual.nombre : '';
+        tituloEl.textContent = nom ? `Pedido de ${nom}` : 'Cliente no seleccionado';
+    }
 
     carrito.forEach((item, idx) => {
         const wrapper = document.createElement('div');
@@ -1483,6 +1523,24 @@ function eliminarTarjetaPedidoDOM(pedidoId) {
 // Catalog state
 let _subcatSeleccionada = null;
 let _vistaProductos = 'grid'; // 'grid' | 'list'
+let _promosCatalogo = {}; // map productoId -> promo activa (cache del ultimo render de catalogo)
+
+// Texto corto de una promocion para badges del catalogo / banner del detalle
+function _textoPromo(p) {
+    if (!p) return '';
+    if (p.tipo === 'combo') return `Llevá ${p.cantidadMinima}+ y llevás gratis`;
+    return `${p.cantidadMinima}+ a ${formatearGuaranies(p.precioEspecial)} c/u`;
+}
+
+// Banner de promocion para el modal de detalle (matriz/masivo)
+function _bannerPromoModal(productoId) {
+    const p = _promosCatalogo[productoId];
+    if (!p) return '';
+    return `<div class="mx-4 mt-3 flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-3 py-2">
+        <i data-lucide="tag" class="w-4 h-4 text-green-600 shrink-0"></i>
+        <span class="text-xs font-bold text-green-700">Promo: ${escapeHTML(_textoPromo(p))}</span>
+    </div>`;
+}
 
 let _pedidosFiltro = 'semana'; // 'hoy' | 'ayer' | 'semana' | 'todo'
 let _pedidosPagina = 1;

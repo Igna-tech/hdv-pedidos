@@ -9,7 +9,7 @@ let chartVentas7d = null;  // legacy ref, no usado
 let chartTopProd = null;
 let _chartTemporal = null;
 let _chartPeriodo = '7d';
-let _chartMix = null, _chartEmbudo = null, _chartHora = null, _chartMetas = null, _chartMargen = null;
+let _chartMix = null, _chartEmbudo = null, _chartHora = null, _chartMetas = null, _chartMargen = null, _chartRadar = null;
 let _leaderboardPeriodo = 'mes';
 let _perfilesMap = {};
 let _metaMap = {};
@@ -193,6 +193,7 @@ async function cargarDashboard() {
     _renderPedidosSinFinalizar(pedidos);
     _renderHistorialCobros();
     _renderAnalisisAvanzado(pedidos);
+    _renderRadarVendedores(pedidos);
 
     // MÓDULO INTELIGENCIA — carga tab por defecto
     _cargarIntelProyeccion();
@@ -1932,4 +1933,81 @@ function _renderAnalisisAvanzado(pedidos) {
     } catch (e) {
         console.warn('[Dashboard] Análisis avanzado:', e);
     }
+}
+
+// ============================================
+// RADAR — Comparativa de vendedores (normalizado 0-100 vs el mejor)
+// ============================================
+function _renderRadarVendedores(pedidos) {
+    const canvas = document.getElementById('chartRadarVendedores');
+    if (!canvas) return;
+    try {
+        pedidos = pedidos || [];
+        const inicioMes = new Date(); inicioMes.setDate(1); inicioMes.setHours(0, 0, 0, 0);
+        const pmes = pedidos.filter(p => p.fecha && new Date(p.fecha) >= inicioMes && p.estado !== 'anulado');
+
+        const agg = {};
+        pmes.forEach(p => {
+            const id = p.vendedor_id; if (!id) return;
+            if (!agg[id]) agg[id] = { ventas: 0, pedidos: 0, clientes: new Set() };
+            agg[id].ventas += p.total || 0;
+            agg[id].pedidos++;
+            if (p.cliente && p.cliente.id) agg[id].clientes.add(p.cliente.id);
+        });
+        let ids = Object.keys(agg);
+        if (!ids.length) { if (_chartRadar) { _chartRadar.destroy(); _chartRadar = null; } return; }
+        ids.sort((a, b) => agg[b].ventas - agg[a].ventas);
+        ids = ids.slice(0, 6); // top 6 por ventas para legibilidad
+
+        const raws = {};
+        ids.forEach(id => {
+            const a = agg[id];
+            const ticket = a.pedidos ? a.ventas / a.pedidos : 0;
+            const meta = (typeof _metaMap !== 'undefined' && _metaMap[id]) || 0;
+            const pctMeta = meta > 0 ? Math.min(100, a.ventas / meta * 100) : 0;
+            raws[id] = { ventas: a.ventas, pedidos: a.pedidos, clientes: a.clientes.size, ticket, pctMeta };
+        });
+        const axes = ['ventas', 'pedidos', 'clientes', 'ticket', 'pctMeta'];
+        const axisLabel = { ventas: 'Ventas', pedidos: 'Pedidos', clientes: 'Clientes', ticket: 'Ticket prom.', pctMeta: '% Meta' };
+        const max = {};
+        axes.forEach(ax => { max[ax] = Math.max(1, ...ids.map(id => raws[id][ax])); });
+
+        const datasets = ids.map(id => {
+            const col = _vendorColor(id);
+            const fill = col.replace('hsl', 'hsla').replace(')', ',0.15)');
+            return {
+                label: (typeof _perfilesMap !== 'undefined' && _perfilesMap[id]) ? _perfilesMap[id].split(' ')[0] : 'Vend.',
+                data: axes.map(ax => Math.round(raws[id][ax] / max[ax] * 100)),
+                _raw: axes.map(ax => raws[id][ax]),
+                borderColor: col, backgroundColor: fill, pointBackgroundColor: col,
+                borderWidth: 2, pointRadius: 3, pointHoverRadius: 5
+            };
+        });
+
+        if (_chartRadar) _chartRadar.destroy();
+        _chartRadar = new Chart(canvas, {
+            type: 'radar',
+            data: { labels: axes.map(a => axisLabel[a]), datasets },
+            options: {
+                responsive: true, maintainAspectRatio: false, animation: _ANIM_CHART,
+                plugins: {
+                    legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 11 } } },
+                    tooltip: { callbacks: { label: ctx => {
+                        const ax = axes[ctx.dataIndex];
+                        const raw = ctx.dataset._raw[ctx.dataIndex];
+                        const val = (ax === 'ventas' || ax === 'ticket') ? formatearGuaranies(raw)
+                            : (ax === 'pctMeta' ? Math.round(raw) + '%' : Math.round(raw));
+                        return ` ${ctx.dataset.label}: ${val}`;
+                    } } }
+                },
+                scales: { r: {
+                    beginAtZero: true, max: 100,
+                    ticks: { display: false, stepSize: 25 },
+                    grid: { color: 'rgba(255,255,255,0.08)' },
+                    angleLines: { color: 'rgba(255,255,255,0.08)' },
+                    pointLabels: { color: '#d1d5db', font: { size: 11 } }
+                } }
+            }
+        });
+    } catch (e) { console.warn('[Dashboard] Radar vendedores:', e); }
 }

@@ -10,6 +10,9 @@ const HDVMapa = (() => {
     let _filtroActivo = 'todos';
     let _modoColocacion = false;
     let _clienteParaUbicar = null;
+    let _selId = null;        // cliente seleccionado (marcador resaltado)
+    let _userMarker = null;   // punto azul "mi ubicación"
+    let _userLatLng = null;   // última posición conocida
 
     const ZONA_COLORES = [
         '#5681AE','#10b981','#f59e0b','#ef4444','#3D5A78',
@@ -30,18 +33,23 @@ const HDVMapa = (() => {
         return _zonaColorMap[zona] || '#64748b';
     }
 
-    function _crearIcono(color, deuda) {
-        const ring = deuda > 0 ? `<circle cx="20" cy="4" r="5" fill="#ef4444"/>` : '';
+    // Estado del cliente para el color del marcador
+    const NIVEL_COLOR = { deuda: '#ef4444', 'sin-visita': '#f59e0b', activo: '#10b981' };
+    function _nivelCliente(c) {
+        if (_deudaCliente(c.id) > 0) return 'deuda';
+        const d = _diasDesdeUltimoPedido(c.id);
+        if (d === null || d >= 15) return 'sin-visita';
+        return 'activo';
+    }
+
+    function _crearIcono(nivel, inicial, seleccionado) {
+        const color = NIVEL_COLOR[nivel] || '#64748b';
         return L.divIcon({
-            html: `<svg viewBox="0 0 24 32" xmlns="http://www.w3.org/2000/svg" style="width:24px;height:32px;overflow:visible;">
-                <path d="M12 0C5.373 0 0 5.373 0 12c0 9 12 20 12 20s12-11 12-20C24 5.373 18.627 0 12 0z" fill="${color}"/>
-                <circle cx="12" cy="12" r="5" fill="white" opacity="0.9"/>
-                ${ring}
-            </svg>`,
-            className: '',
-            iconSize: [24, 32],
-            iconAnchor: [12, 32],
-            popupAnchor: [0, -34],
+            html: `<div class="hdv-mk${seleccionado ? ' hdv-mk--sel' : ''}" style="--c:${color}"><span>${escapeHTML(inicial || '?')}</span></div>`,
+            className: 'hdv-mk-wrap',
+            iconSize: [30, 30],
+            iconAnchor: [15, 28],
+            popupAnchor: [0, -30],
         });
     }
 
@@ -112,35 +120,64 @@ const HDVMapa = (() => {
     // ── Filtros chips ─────────────────────────────────────────
 
     function _renderFiltroChips() {
+        const clts = (window.clientes || []);
+        const conUbic = clts.filter(c => c.lat && c.lng);
+        const counts = {
+            todos: conUbic.length,
+            deuda: conUbic.filter(c => _deudaCliente(c.id) > 0).length,
+            'sin-visita': conUbic.filter(c => { const d = _diasDesdeUltimoPedido(c.id); return d === null || d >= 15; }).length,
+            'sin-ubicacion': clts.filter(c => !c.lat || !c.lng).length,
+        };
         const opts = [
-            { key: 'todos',          label: 'Todos' },
-            { key: 'ruta',           label: 'Mi Ruta' },
-            { key: 'deuda',          label: 'Con deuda' },
-            { key: 'sin-visita',     label: 'Sin visita' },
-            { key: 'sin-ubicacion',  label: 'Sin ubicar' },
+            { key: 'todos',         label: 'Todos',      icon: 'users' },
+            { key: 'deuda',         label: 'Con deuda',  icon: 'alert-circle' },
+            { key: 'sin-visita',    label: 'Sin visita', icon: 'clock' },
+            { key: 'sin-ubicacion', label: 'Sin ubicar', icon: 'map-pin-off' },
         ];
-        return opts.map(o => `<button data-action="setFiltroMapa" data-arg="${o.key}"
-            class="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors shadow-sm ${_filtroActivo === o.key ? 'bg-indigo-500 text-white' : 'bg-white text-slate-700 border border-slate-200'}">
-            ${escapeHTML(o.label)}
-        </button>`).join('');
+        return opts.map(o => {
+            const act = _filtroActivo === o.key;
+            const n = counts[o.key] || 0;
+            return `<button data-action="setFiltroMapa" data-arg="${o.key}"
+                class="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors shadow-sm ${act ? 'bg-steel text-white' : 'bg-white text-slate-700 border border-slate-200'}">
+                <i data-lucide="${o.icon}" class="w-3.5 h-3.5"></i>${escapeHTML(o.label)}
+                <span class="${act ? 'bg-white/25' : 'bg-slate-100 text-slate-500'} text-[10px] font-bold rounded-full px-1.5 leading-tight">${n}</span>
+            </button>`;
+        }).join('');
     }
 
     function _actualizarFiltrosUI() {
         const el = document.getElementById('mapaFiltrosChips');
-        if (el) el.innerHTML = _renderFiltroChips();
+        if (el) { el.innerHTML = _renderFiltroChips(); if (typeof lucide !== 'undefined') lucide.createIcons(); }
     }
 
     // ── Bottom sheet ──────────────────────────────────────────
 
+    function _distanciaKm(lat1, lng1, lat2, lng2) {
+        const R = 6371, toR = Math.PI / 180;
+        const dLat = (lat2 - lat1) * toR, dLng = (lng2 - lng1) * toR;
+        const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * toR) * Math.cos(lat2 * toR) * Math.sin(dLng / 2) ** 2;
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+
     function _mostrarBottomSheet(clienteId) {
         const cliente = (window.clientes || []).find(c => c.id === clienteId);
         if (!cliente) return;
+
+        _selId = clienteId;
+        _renderMarcadores(); // resalta el marcador seleccionado
 
         const deuda = _deudaCliente(clienteId);
         const dias = _diasDesdeUltimoPedido(clienteId);
         const color = _getColorZona(cliente.zona);
         const diasStr = dias === null ? 'Sin pedidos' : dias === 0 ? 'Hoy' : `Hace ${dias} día${dias === 1 ? '' : 's'}`;
         const deudaStr = deuda > 0 ? `Gs. ${deuda.toLocaleString('es-PY')}` : 'Sin deuda';
+        const nivel = _nivelCliente(cliente);
+        const nivelMeta = { deuda: { t: 'Con deuda', c: 'bg-red-100 text-red-700' }, 'sin-visita': { t: 'Sin visita', c: 'bg-amber-100 text-amber-700' }, activo: { t: 'Activo', c: 'bg-green-100 text-green-700' } }[nivel];
+        let distStr = '';
+        if (_userLatLng && cliente.lat && cliente.lng) {
+            const km = _distanciaKm(_userLatLng.lat, _userLatLng.lng, cliente.lat, cliente.lng);
+            distStr = km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`;
+        }
 
         const sheet = document.getElementById('mapaBottomSheet');
         if (!sheet) return;
@@ -154,7 +191,11 @@ const HDVMapa = (() => {
                 </div>
                 <div class="flex-1 min-w-0">
                     <p class="font-bold text-slate-900 truncate leading-tight">${escapeHTML(cliente.nombre)}</p>
-                    ${cliente.zona ? `<span class="text-[11px] font-semibold px-2 py-0.5 rounded-full text-white" style="background:${color}">${escapeHTML(cliente.zona)}</span>` : ''}
+                    <div class="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                        <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full ${nivelMeta.c}">${nivelMeta.t}</span>
+                        ${cliente.zona ? `<span class="text-[10px] font-semibold px-1.5 py-0.5 rounded-full text-white" style="background:${color}">${escapeHTML(cliente.zona)}</span>` : ''}
+                        ${distStr ? `<span class="text-[10px] text-slate-400 font-medium">a ${distStr}</span>` : ''}
+                    </div>
                 </div>
                 <button data-action="cerrarBottomSheetMapa"
                     class="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors">
@@ -235,6 +276,7 @@ const HDVMapa = (() => {
     }
 
     function _ocultarBottomSheet() {
+        if (_selId) { _selId = null; _renderMarcadores(); } // quita el resaltado
         const sheet = document.getElementById('mapaBottomSheet');
         if (!sheet) return;
         sheet.classList.remove('translate-y-0');
@@ -304,9 +346,9 @@ const HDVMapa = (() => {
         } else {
             _ocultarListaSinUbicacion();
             filtrados.forEach(c => {
-                const color = _getColorZona(c.zona);
-                const deuda = _deudaCliente(c.id);
-                const icono = _crearIcono(color, deuda);
+                const nivel = _nivelCliente(c);
+                const inicial = (c.nombre || '?').charAt(0).toUpperCase();
+                const icono = _crearIcono(nivel, inicial, c.id === _selId);
                 const marker = L.marker([c.lat, c.lng], { icon: icono })
                     .on('click', () => _mostrarBottomSheet(c.id));
                 _markersLayer.addLayer(marker);
@@ -319,7 +361,7 @@ const HDVMapa = (() => {
         const badge = document.getElementById('mapaSinUbicarBadge');
         if (badge) {
             if (sinUbicar > 0 && _filtroActivo !== 'sin-ubicacion') {
-                badge.textContent = `📍 Sin ubicar: ${sinUbicar}`;
+                badge.textContent = `Sin ubicar: ${sinUbicar}`;
                 badge.classList.remove('hidden');
             } else {
                 badge.classList.add('hidden');
@@ -327,6 +369,19 @@ const HDVMapa = (() => {
         }
 
         _actualizarFiltrosUI();
+        _actualizarResumenMapa();
+    }
+
+    // Mini-barra de resumen arriba del mapa
+    function _actualizarResumenMapa() {
+        const el = document.getElementById('mapaResumen');
+        if (!el) return;
+        const clts = (window.clientes || []).filter(c => c.lat && c.lng);
+        const deuda = clts.filter(c => _deudaCliente(c.id) > 0).length;
+        const sinVisita = clts.filter(c => { const d = _diasDesdeUltimoPedido(c.id); return d === null || d >= 15; }).length;
+        el.innerHTML = `<span class="font-bold text-slate-700">${clts.length}</span> clientes
+            · <span class="font-bold text-red-500">${deuda}</span> con deuda
+            · <span class="font-bold text-amber-500">${sinVisita}</span> sin visitar`;
     }
 
     // ── Colocación de pin ─────────────────────────────────────
@@ -422,6 +477,14 @@ const HDVMapa = (() => {
 
     // ── Geolocalización ───────────────────────────────────────
 
+    function _marcarMiUbicacion(lat, lng) {
+        _userLatLng = { lat, lng };
+        if (!_mapa) return;
+        const icon = L.divIcon({ html: '<div class="hdv-userloc"></div>', className: 'hdv-userloc-wrap', iconSize: [18, 18], iconAnchor: [9, 9] });
+        if (_userMarker) _userMarker.setLatLng([lat, lng]);
+        else _userMarker = L.marker([lat, lng], { icon, zIndexOffset: 1000, interactive: false }).addTo(_mapa);
+    }
+
     function _centrarEnMiUbicacion() {
         if (!navigator.geolocation) {
             mostrarToast('Tu navegador no soporta geolocalización', 'warning');
@@ -429,11 +492,27 @@ const HDVMapa = (() => {
         }
         navigator.geolocation.getCurrentPosition(
             (pos) => {
-                if (_mapa) _mapa.setView([pos.coords.latitude, pos.coords.longitude], 16);
+                const { latitude, longitude } = pos.coords;
+                _marcarMiUbicacion(latitude, longitude);
+                if (_mapa) _mapa.setView([latitude, longitude], 16);
             },
             () => mostrarToast('No se pudo obtener tu ubicación', 'warning'),
             { timeout: 8000 }
         );
+    }
+
+    // Enfocar un cliente desde otra sección ("Ver en mapa")
+    function _focusCliente(clienteId) {
+        const c = (window.clientes || []).find(x => x.id === clienteId);
+        if (!c || !c.lat || !c.lng) { mostrarToast('Ese cliente no tiene ubicación en el mapa', 'warning'); return; }
+        _filtroActivo = 'todos';
+        _renderMarcadores();
+        if (_mapa) _mapa.setView([c.lat, c.lng], 16, { animate: true });
+        setTimeout(() => _mostrarBottomSheet(clienteId), 350);
+    }
+
+    function _toggleLeyenda() {
+        document.getElementById('mapaLeyenda')?.classList.toggle('hidden');
     }
 
     // ── Filtro público ────────────────────────────────────────
@@ -488,18 +567,29 @@ const HDVMapa = (() => {
 
             L.control.zoom({ position: 'bottomright' }).addTo(_mapa);
             _markersLayer = L.layerGroup().addTo(_mapa);
+            // Recordar última posición/zoom
+            _mapa.on('moveend', () => {
+                try { const c = _mapa.getCenter(); HDVStorage.setItem('hdv_mapa_viewport', { lat: c.lat, lng: c.lng, z: _mapa.getZoom() }); } catch (e) {}
+            });
         }
 
         setTimeout(() => {
             _mapa.invalidateSize();
             _renderMarcadores();
 
-            const cltsConCoords = (window.clientes || []).filter(c => c.lat && c.lng);
-            if (cltsConCoords.length > 0) {
-                try {
-                    const bounds = L.latLngBounds(cltsConCoords.map(c => [c.lat, c.lng]));
-                    _mapa.fitBounds(bounds, { padding: [50, 80], maxZoom: 14 });
-                } catch (_) { /* bounds inválidos */ }
+            // Restaurar viewport guardado; si no hay, encuadrar a los clientes
+            let vp = null;
+            try { vp = HDVStorage.getCached && HDVStorage.getCached('hdv_mapa_viewport'); } catch (e) {}
+            if (vp && vp.lat && vp.lng) {
+                _mapa.setView([vp.lat, vp.lng], vp.z || 14);
+            } else {
+                const cltsConCoords = (window.clientes || []).filter(c => c.lat && c.lng);
+                if (cltsConCoords.length > 0) {
+                    try {
+                        const bounds = L.latLngBounds(cltsConCoords.map(c => [c.lat, c.lng]));
+                        _mapa.fitBounds(bounds, { padding: [50, 80], maxZoom: 14 });
+                    } catch (_) { /* bounds inválidos */ }
+                }
             }
         }, 150);
     }
@@ -522,6 +612,8 @@ const HDVMapa = (() => {
         cancelarColocacionPin: _cancelarColocacionPin,
         cerrarBottomSheet:     _ocultarBottomSheet,
         centrarEnMiUbicacion:  _centrarEnMiUbicacion,
+        focusCliente:          _focusCliente,
+        toggleLeyenda:         _toggleLeyenda,
     };
 })();
 

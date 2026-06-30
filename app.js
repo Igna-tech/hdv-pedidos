@@ -101,6 +101,11 @@ const _vendedorActionMap = {
         if (typeof _seleccionarCliente === 'function') _seleccionarCliente(id);
         if (typeof cambiarVistaVendedor === 'function') cambiarVistaVendedor('lista');
     },
+    'verClienteEnMapa':               (_, id) => {
+        if (typeof cambiarVistaVendedor === 'function') cambiarVistaVendedor('mapa');
+        setTimeout(() => { if (typeof HDVMapa !== 'undefined') HDVMapa.focusCliente(id); }, 400);
+    },
+    'toggleLeyendaMapa':              () => typeof HDVMapa !== 'undefined' && HDVMapa.toggleLeyenda(),
     // Mis Pedidos — acciones de tarjeta
     'abrirModalEntrega':                  (_, id) => window.abrirModalEntrega(id),
     'cobrarPedidoVendedor':               (_, id) => cobrarPedidoVendedor(id),

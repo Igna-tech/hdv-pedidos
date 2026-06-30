@@ -73,6 +73,15 @@
         #clienteSearchInput::placeholder { color: var(--muted); }
         #clienteDropdown, #zonaPickerDropdown { box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
         #zonaFilterLabel { max-width: 88px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; }
+        /* Mapa: marcadores por estado del cliente */
+        .hdv-mk-wrap, .hdv-userloc-wrap { background: none !important; border: none !important; }
+        .hdv-mk { width: 28px; height: 28px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); background: var(--c); border: 2px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; }
+        .hdv-mk > span { transform: rotate(45deg); color: #fff; font-weight: 800; font-size: 12px; line-height: 1; }
+        .hdv-mk--sel { width: 36px; height: 36px; box-shadow: 0 0 0 6px rgba(86,129,174,.35), 0 3px 10px rgba(0,0,0,.5); }
+        .hdv-mk--sel > span { font-size: 15px; }
+        .hdv-userloc { width: 16px; height: 16px; border-radius: 50%; background: #2563eb; border: 3px solid #fff; box-shadow: 0 0 0 0 rgba(37,99,235,.5); animation: hdvUserPulse 2s infinite; }
+        @keyframes hdvUserPulse { 0% { box-shadow: 0 0 0 0 rgba(37,99,235,.5); } 70% { box-shadow: 0 0 0 14px rgba(37,99,235,0); } 100% { box-shadow: 0 0 0 0 rgba(37,99,235,0); } }
+        @media (prefers-reduced-motion: reduce) { .hdv-userloc { animation: none; } }
         /* Shoelace: cart quantity buttons 44px touch target */
         .cart-qty-btn { --sl-spacing-x-small: 0.4rem; }
         .cart-qty-btn::part(base) { min-width: 44px; min-height: 44px; }
@@ -366,8 +375,21 @@
     <!-- VISTA MAPA DE CLIENTES -->
     <div id="vistaMapaWrapper" class="hidden fixed left-0 right-0 bottom-0 z-40" style="top:60px;">
 
+        <!-- Mini-barra de resumen (arriba) -->
+        <div class="absolute top-2 left-0 right-0 z-20 px-3 pointer-events-none">
+            <div id="mapaResumen" class="bg-white/95 backdrop-blur border border-slate-200 rounded-full px-4 py-1.5 text-xs text-slate-500 shadow-lg text-center mx-auto w-max max-w-[92%]"></div>
+        </div>
+
+        <!-- Leyenda de colores (toggle) -->
+        <div id="mapaLeyenda" class="hidden absolute bottom-20 left-3 z-20 bg-white/95 backdrop-blur border border-slate-200 rounded-xl px-3 py-2.5 shadow-xl text-[11px] space-y-1.5">
+            <p class="font-bold text-slate-500 uppercase tracking-wide text-[9px] mb-1">Estado</p>
+            <div class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full" style="background:#10b981"></span> <span class="text-slate-600">Activo</span></div>
+            <div class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full" style="background:#f59e0b"></span> <span class="text-slate-600">Sin visita (15d+)</span></div>
+            <div class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full" style="background:#ef4444"></span> <span class="text-slate-600">Con deuda</span></div>
+        </div>
+
         <!-- Instrucción de colocación (top, solo en modo colocación) -->
-        <div id="mapaInstruccion" class="hidden absolute top-2 left-0 right-0 z-20 px-3"></div>
+        <div id="mapaInstruccion" class="hidden absolute top-14 left-0 right-0 z-20 px-3"></div>
 
         <!-- Contenedor Leaflet — isolation:isolate encierra los z-index internos de Leaflet
              (tile-pane z-200, marker-pane z-600…) para que no compitan con chips/bottom-sheet -->
@@ -406,17 +428,18 @@
             </div>
         </div>
 
-        <!-- FABs: mi ubicación (bottom-right) -->
-        <div class="absolute bottom-5 right-4 z-20 flex flex-col items-end gap-2">
+        <!-- FABs (estilo sistema) -->
+        <div class="absolute bottom-5 right-4 z-20 flex flex-col items-end gap-2.5">
             <button id="mapaSinUbicarBadge" data-action="setFiltroMapa" data-arg="sin-ubicacion"
-                class="hidden bg-amber-500 text-white rounded-full px-3 py-1.5 text-xs font-bold shadow-xl border border-amber-400">
+                class="hidden bg-amber-500 text-white rounded-full px-3 py-1.5 text-xs font-bold shadow-lg border border-amber-400">
             </button>
-            <button data-action="centrarEnMiUbicacion"
-                class="w-11 h-11 bg-white rounded-full shadow-xl flex items-center justify-center text-slate-700 border border-slate-200 active:bg-slate-100 transition-colors">
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
-                </svg>
+            <button data-action="toggleLeyendaMapa" aria-label="Leyenda"
+                class="w-11 h-11 bg-white rounded-xl shadow-lg flex items-center justify-center text-slate-600 border border-slate-200 active:scale-95 transition-all">
+                <i data-lucide="list" class="w-5 h-5"></i>
+            </button>
+            <button data-action="centrarEnMiUbicacion" aria-label="Mi ubicación"
+                class="w-12 h-12 bg-steel text-white rounded-xl shadow-xl flex items-center justify-center active:scale-95 transition-all">
+                <i data-lucide="locate-fixed" class="w-5 h-5"></i>
             </button>
         </div>
 

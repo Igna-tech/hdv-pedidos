@@ -202,45 +202,55 @@ async function cargarDashboard() {
 }
 
 // ============================================
-// MÓDULO 1 — KPI HOY EN VIVO (real-time)
+// MÓDULO 1 — KPI SEMANA EN VIVO (real-time, semana arranca el domingo)
 // ============================================
+// Inicio de la semana actual (domingo 00:00) — la semana se reinicia los domingos
+function _inicioSemana(ref) {
+    const d = ref ? new Date(ref) : new Date();
+    const ini = new Date(d.getFullYear(), d.getMonth(), d.getDate() - d.getDay()); // getDay()=0 → domingo
+    return ini;
+}
+
 async function _actualizarKPIsRealtime(pedidos) {
-    const hoy = new Date().toISOString().split('T')[0];
-    const ayer = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+    const iniSemana = _inicioSemana();
+    const iniSemanaAnt = new Date(iniSemana); iniSemanaAnt.setDate(iniSemana.getDate() - 7);
 
-    const pedidosHoy = pedidos.filter(p => (p.fecha || '').slice(0, 10) === hoy);
-    const pedidosAyer = pedidos.filter(p => (p.fecha || '').slice(0, 10) === ayer);
+    const enSemana = (fecha) => { const f = new Date(fecha); return f >= iniSemana; };
+    const enSemanaAnt = (fecha) => { const f = new Date(fecha); return f >= iniSemanaAnt && f < iniSemana; };
 
-    const ventasHoy   = pedidosHoy.reduce((s, p) => s + (p.total || 0), 0);
-    const ventasAyer  = pedidosAyer.reduce((s, p) => s + (p.total || 0), 0);
-    const countHoy    = pedidosHoy.length;
-    const countAyer   = pedidosAyer.length;
-    const pendientes  = pedidos.filter(p => p.estado === 'pedido_pendiente').length;
-    // Cobrado = caja real desde el libro unificado (incluye contado y créditos cobrados hoy)
+    const pedidosSem    = pedidos.filter(p => p.fecha && enSemana(p.fecha));
+    const pedidosSemAnt = pedidos.filter(p => p.fecha && enSemanaAnt(p.fecha));
+
+    const ventasSem    = pedidosSem.reduce((s, p) => s + (p.total || 0), 0);
+    const ventasSemAnt = pedidosSemAnt.reduce((s, p) => s + (p.total || 0), 0);
+    const countSem     = pedidosSem.length;
+    const countSemAnt  = pedidosSemAnt.length;
+    const pendientes   = pedidos.filter(p => p.estado === 'pedido_pendiente').length;
+    // Cobrado = caja real desde el libro unificado (contado + créditos cobrados en la semana)
     const pagos = (await HDVStorage.getItem('hdv_pagos_credito', { clone: false })) || [];
-    const cobradoHoy  = pagos.filter(pg => (pg.fecha || '').slice(0, 10) === hoy).reduce((s, pg) => s + (Number(pg.monto) || 0), 0);
-    const cobradoAyer = pagos.filter(pg => (pg.fecha || '').slice(0, 10) === ayer).reduce((s, pg) => s + (Number(pg.monto) || 0), 0);
+    const cobradoSem    = pagos.filter(pg => pg.fecha && enSemana(pg.fecha)).reduce((s, pg) => s + (Number(pg.monto) || 0), 0);
+    const cobradoSemAnt = pagos.filter(pg => pg.fecha && enSemanaAnt(pg.fecha)).reduce((s, pg) => s + (Number(pg.monto) || 0), 0);
 
-    _animarValor('kpiVentasHoy',  ventasHoy,  v => formatearGuaranies(v));
-    _animarValor('kpiPedidosHoy', countHoy);
+    _animarValor('kpiVentasHoy',  ventasSem,  v => formatearGuaranies(v));
+    _animarValor('kpiPedidosHoy', countSem);
     _animarValor('kpiPendientes', pendientes);
-    _animarValor('kpiCobradoHoy', cobradoHoy, v => formatearGuaranies(v));
+    _animarValor('kpiCobradoHoy', cobradoSem, v => formatearGuaranies(v));
 
-    const setTrend = (id, hoyVal, ayerVal) => {
+    const setTrend = (id, val, prev) => {
         const e = document.getElementById(id);
         if (!e) return;
-        if (ayerVal === 0) { e.textContent = '— vs ayer'; e.className = 'text-xs text-gray-400 mt-1'; return; }
-        const pct = Math.round((hoyVal - ayerVal) / ayerVal * 100);
+        if (prev === 0) { e.textContent = '— vs semana anterior'; e.className = 'text-xs text-gray-400 mt-1'; return; }
+        const pct = Math.round((val - prev) / prev * 100);
         const sube = pct >= 0;
-        e.textContent = `${sube ? '↑' : '↓'} ${Math.abs(pct)}% vs ayer`;
+        e.textContent = `${sube ? '↑' : '↓'} ${Math.abs(pct)}% vs sem. anterior`;
         e.className = `text-xs mt-1 font-semibold ${sube ? 'text-emerald-600' : 'text-red-500'}`;
     };
-    setTrend('kpiVentasHoyTrend',   ventasHoy,   ventasAyer);
-    setTrend('kpiPedidosHoyTrend',  countHoy,    countAyer);
-    setTrend('kpiCobradoHoyTrend',  cobradoHoy,  cobradoAyer);
+    setTrend('kpiVentasHoyTrend',   ventasSem,   ventasSemAnt);
+    setTrend('kpiPedidosHoyTrend',  countSem,    countSemAnt);
+    setTrend('kpiCobradoHoyTrend',  cobradoSem,  cobradoSemAnt);
 
     const feedEl = document.getElementById('feedContador');
-    if (feedEl) feedEl.textContent = `${pedidosHoy.length} hoy`;
+    if (feedEl) feedEl.textContent = `${pedidosSem.length} esta semana`;
 }
 
 function _animarValor(id, target, fmt) {

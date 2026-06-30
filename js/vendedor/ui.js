@@ -649,6 +649,10 @@ async function renderizarProductosVendedor(container, busqueda) {
         card.dataset.prodId = prod.id;
         card.onclick = () => mostrarDetalleProducto(prod);
 
+        // Contenedor de foto (cuadrado)
+        const media = document.createElement('div');
+        media.className = 'vpc-media';
+
         // Imagen
         if (imgUrl) {
             const img = document.createElement('img');
@@ -656,18 +660,18 @@ async function renderizarProductosVendedor(container, busqueda) {
             img.dataset.src = imgUrl;
             img.alt = prod.nombre;
             img.onerror = () => { img.style.display = 'none'; };
-            card.appendChild(img);
+            media.appendChild(img);
         } else {
             const ni = document.createElement('div');
             ni.className = 'vpc-noimg';
             ni.innerHTML = noImgSvg;
-            card.appendChild(ni);
+            media.appendChild(ni);
         }
 
         // Badge cantidad (top-left)
         const badge = document.createElement('div');
         badge.className = 'vpc-badge';
-        card.appendChild(badge);
+        media.appendChild(badge);
 
         // Controles +/- (top-right)
         const ctrl = document.createElement('div');
@@ -690,9 +694,10 @@ async function renderizarProductosVendedor(container, busqueda) {
         ctrl.appendChild(minusBtn);
         ctrl.appendChild(qtyNum);
         ctrl.appendChild(plusBtn);
-        card.appendChild(ctrl);
+        media.appendChild(ctrl);
+        card.appendChild(media);
 
-        // Info bottom
+        // Info bottom (ficha de datos)
         const info = document.createElement('div');
         info.className = 'vpc-info';
 

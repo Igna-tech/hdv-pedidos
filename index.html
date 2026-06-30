@@ -80,6 +80,26 @@
         .amount-pop { animation: amountPop .4s ease; display: inline-block; }
         @media (prefers-reduced-motion: reduce) { .cart-item-anim, .cart-item-out, .badge-pop, .fab-bounce, .amount-pop { animation: none !important; } }
 
+        /* ===== Anti doble-toque-zoom (móvil) ===== */
+        html, body { touch-action: manipulation; }
+
+        /* ===== Animaciones generales (fluidez app) ===== */
+        @keyframes hdvRise { from { opacity: 0; transform: translateY(10px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        /* Entrada de tarjetas (fill backwards: no rompe el :active de press) */
+        .vpc, .vendor-cat-card, .vpc-list-item { animation: hdvRise .28s cubic-bezier(0.34,1.4,0.64,1) backwards; }
+        /* Listas con entrada escalonada */
+        .hdv-stagger > * { animation: hdvRise .3s cubic-bezier(0.34,1.4,0.64,1) backwards; }
+        .hdv-stagger > *:nth-child(1){animation-delay:.03s} .hdv-stagger > *:nth-child(2){animation-delay:.06s}
+        .hdv-stagger > *:nth-child(3){animation-delay:.09s} .hdv-stagger > *:nth-child(4){animation-delay:.12s}
+        .hdv-stagger > *:nth-child(5){animation-delay:.15s} .hdv-stagger > *:nth-child(6){animation-delay:.18s}
+        .hdv-stagger > *:nth-child(7){animation-delay:.21s} .hdv-stagger > *:nth-child(8){animation-delay:.24s}
+        /* Cambio de vista */
+        @keyframes hdvViewIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+        .hdv-view-in { animation: hdvViewIn .26s ease both; }
+        /* Press feedback */
+        .category-btn:active { transform: scale(.94); }
+        @media (prefers-reduced-motion: reduce) { .vpc, .vendor-cat-card, .vpc-list-item, .hdv-stagger > *, .hdv-view-in { animation: none !important; } }
+
         /* Smart client search */
         #clienteSearchInput { border: none; outline: none; background: transparent; flex: 1; font-size: 13px; color: var(--ink); min-width: 0; padding: 0; }
         #clienteSearchInput::placeholder { color: var(--muted); }

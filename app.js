@@ -501,6 +501,12 @@ function cambiarVistaVendedor(vista) {
     // Ocultar mapa si se cambia a otra vista
     if (vista !== 'mapa' && typeof HDVMapa !== 'undefined') HDVMapa.ocultarMapa();
 
+    // Transición suave del contenido (excepto mapa, pantalla aparte)
+    if (vista !== 'mapa') {
+        const pc = document.getElementById('productsContainer');
+        if (pc) { pc.classList.remove('hdv-view-in'); void pc.offsetWidth; pc.classList.add('hdv-view-in'); }
+    }
+
     const catFilters = document.getElementById('categoryFilters');
     const searchBox = document.getElementById('searchContainer');
     const clienteSearch = document.getElementById('clienteSearchWrapper');

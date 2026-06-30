@@ -957,6 +957,10 @@ function _quickRemoveProd(prod) {
     if (typeof guardarCarrito === 'function') guardarCarrito();
 }
 
+function _popEl(el) {
+    if (!el) return;
+    el.classList.remove('amount-pop'); void el.offsetWidth; el.classList.add('amount-pop');
+}
 function _actualizarBadgesCarritoEnCatalogo() {
     const qtyMap = {};
     (carrito || []).forEach(item => { qtyMap[item.productoId] = (qtyMap[item.productoId] || 0) + item.cantidad; });
@@ -967,9 +971,9 @@ function _actualizarBadgesCarritoEnCatalogo() {
         const badge = card.querySelector('.vpc-badge');
         const minus = card.querySelector('.vpc-minus');
         const qtyNum = card.querySelector('.vpc-qty-num');
-        if (badge) { badge.textContent = qty; badge.style.display = qty > 0 ? 'flex' : 'none'; }
+        if (badge) { const ch = badge.textContent !== String(qty); badge.textContent = qty; badge.style.display = qty > 0 ? 'flex' : 'none'; if (ch && qty > 0) _popEl(badge); }
         if (minus) minus.style.display = qty > 0 ? 'flex' : 'none';
-        if (qtyNum) { qtyNum.textContent = qty; qtyNum.style.display = qty > 0 ? 'flex' : 'none'; }
+        if (qtyNum) { const ch = qtyNum.textContent !== String(qty); qtyNum.textContent = qty; qtyNum.style.display = qty > 0 ? 'flex' : 'none'; if (ch && qty > 0) _popEl(qtyNum); }
     });
 
     // List items
@@ -978,7 +982,7 @@ function _actualizarBadgesCarritoEnCatalogo() {
         const minus = row.querySelector('.vpc-minus');
         const qtyEl = row.querySelector('.vpc-list-qty');
         if (minus) minus.style.display = qty > 0 ? 'flex' : 'none';
-        if (qtyEl) { qtyEl.textContent = qty; qtyEl.style.display = qty > 0 ? 'flex' : 'none'; }
+        if (qtyEl) { const ch = qtyEl.textContent !== String(qty); qtyEl.textContent = qty; qtyEl.style.display = qty > 0 ? 'flex' : 'none'; if (ch && qty > 0) _popEl(qtyEl); }
     });
 }
 
@@ -2087,7 +2091,7 @@ async function mostrarClientesVendedor() {
                 <div id="clientesVendZonaMenu" class="hidden absolute right-0 top-full mt-1 w-48 max-h-[50vh] overflow-y-auto bg-white rounded-xl border border-slate-200 shadow-xl z-50 p-1.5">${zonaMenuHtml}</div>
             </div>
         </div>
-        <div id="clientesVendLista"></div>
+        <div id="clientesVendLista" class="hdv-stagger"></div>
     `;
     if (typeof lucide !== 'undefined') lucide.createIcons();
     const inp = document.getElementById('clientesVendBuscar');

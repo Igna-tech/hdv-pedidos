@@ -685,7 +685,7 @@ async function renderizarProductosVendedor(container, busqueda) {
         const plusBtn = document.createElement('button');
         plusBtn.className = 'vpc-btn vpc-plus';
         plusBtn.innerHTML = '+';
-        plusBtn.onclick = (e) => { e.stopPropagation(); _quickAddProd(prod); };
+        plusBtn.onclick = (e) => { e.stopPropagation(); if (_quickAddProd(prod)) _flyToCart(e.currentTarget); };
 
         ctrl.appendChild(minusBtn);
         ctrl.appendChild(qtyNum);
@@ -813,7 +813,7 @@ async function renderizarProductosVendedor(container, busqueda) {
         const plusBtn = document.createElement('button');
         plusBtn.className = 'vpc-list-btn vpc-plus';
         plusBtn.innerHTML = '+';
-        plusBtn.onclick = (e) => { e.stopPropagation(); _quickAddProd(prod); };
+        plusBtn.onclick = (e) => { e.stopPropagation(); if (_quickAddProd(prod)) _flyToCart(e.currentTarget); };
 
         ctrl.appendChild(minusBtn);
         ctrl.appendChild(qtyEl);
@@ -917,6 +917,26 @@ function initLazyLoadImages(containerEl) {
 // CATALOG HELPERS — quick add/remove, badges, subcat, toggle vista
 // ============================================
 
+// Animación: un punto "vuela" desde el origen hasta el FAB del carrito
+function _flyToCart(sourceEl) {
+    try {
+        const fab = document.getElementById('viewCartBtn');
+        if (!fab || !sourceEl || typeof sourceEl.getBoundingClientRect !== 'function') return;
+        if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        const s = sourceEl.getBoundingClientRect();
+        const f = fab.getBoundingClientRect();
+        const dot = document.createElement('div');
+        dot.className = 'hdv-fly-dot';
+        dot.style.left = (s.left + s.width / 2 - 10) + 'px';
+        dot.style.top = (s.top + s.height / 2 - 10) + 'px';
+        document.body.appendChild(dot);
+        const dx = (f.left + f.width / 2) - (s.left + s.width / 2);
+        const dy = (f.top + f.height / 2) - (s.top + s.height / 2);
+        requestAnimationFrame(() => { dot.style.transform = `translate(${dx}px, ${dy}px) scale(0.25)`; dot.style.opacity = '0.3'; });
+        setTimeout(() => dot.remove(), 600);
+    } catch (_) {}
+}
+
 function _quickAddProd(prod) {
     const presActivas = (prod.presentaciones || []).filter(p => p.activo !== false);
     if (presActivas.length === 1) {
@@ -933,9 +953,10 @@ function _quickAddProd(prod) {
         }
         if (typeof actualizarContadorCarrito === 'function') actualizarContadorCarrito();
         if (typeof guardarCarrito === 'function') guardarCarrito();
-    } else {
-        mostrarDetalleProducto(prod);
+        return true;
     }
+    mostrarDetalleProducto(prod);
+    return false;
 }
 
 function _quickRemoveProd(prod) {

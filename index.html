@@ -98,6 +98,8 @@
         .hdv-view-in { animation: hdvViewIn .26s ease both; }
         /* Press feedback */
         .category-btn:active { transform: scale(.94); }
+        /* Fly-to-cart */
+        .hdv-fly-dot { position: fixed; width: 20px; height: 20px; border-radius: 50%; background: #4f46e5; z-index: 9999; pointer-events: none; box-shadow: 0 3px 10px rgba(79,70,229,.5); transition: transform .55s cubic-bezier(0.5,0,0.5,1), opacity .55s ease; }
         @media (prefers-reduced-motion: reduce) { .vpc, .vendor-cat-card, .vpc-list-item, .hdv-stagger > *, .hdv-view-in { animation: none !important; } }
 
         /* Smart client search */

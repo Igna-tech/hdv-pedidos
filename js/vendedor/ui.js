@@ -1877,55 +1877,136 @@ function cerrarModalSinCliente() {
 // ============================================
 async function mostrarConfiguracion() {
     const container = document.getElementById('productsContainer');
+    const vendedorId = window.hdvUsuario?.id || null;
+    const nombre = (window.hdvUsuario?.nombre || 'Vendedor').trim();
+    const email = window.hdvUsuario?.email || '';
+    const inicial = (nombre || email || 'V').charAt(0).toUpperCase();
+
     const pedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
-    const autoBackups = (await HDVStorage.getItem('hdv_auto_backups_meta', { clone: false })) || [];
+    const enCola = pedidos.filter(p => p.sincronizado === false && (!p.vendedor_id || p.vendedor_id === vendedorId));
     const ultimoBackup = await HDVStorage.getItem('hdv_ultimo_backup_fecha', { clone: false });
 
-    const totalPedidos = pedidos.length;
-    const pendientes = pedidos.filter(p => (p.estado || PEDIDO_ESTADOS.PENDIENTE) === PEDIDO_ESTADOS.PENDIENTE || p.estado === 'pendiente').length;
-    const totalGs = pedidos.reduce((s, p) => s + (p.total || 0), 0);
+    // Teléfono del admin para soporte
+    let telAdmin = '';
+    try { const { data } = await SupabaseService.fetchConfigEmpresa(); telAdmin = (data?.telefono_empresa || '').replace(/\D/g, ''); } catch (e) {}
+    const waUrl = telAdmin ? `https://wa.me/${telAdmin}?text=${encodeURIComponent('Hola, necesito ayuda con el sistema HDV.')}` : '';
+
+    const colaHtml = enCola.length
+        ? enCola.slice(0, 50).map(p => {
+            const num = p.numero_pedido != null ? '#' + String(p.numero_pedido).padStart(7, '0') : (p.id || '').slice(0, 8);
+            const fecha = p.fecha ? new Date(p.fecha).toLocaleDateString('es-PY', { day: '2-digit', month: 'short' }) : '';
+            return `<div class="flex items-center justify-between py-2 border-b border-slate-50 last:border-0">
+                <div class="flex items-center gap-2 min-w-0">
+                    <span class="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0"></span>
+                    <div class="min-w-0">
+                        <p class="text-sm font-medium text-gray-700 truncate">${escapeHTML(p.cliente?.nombre || p.clienteNombre || 'Cliente')}</p>
+                        <p class="text-[10px] text-gray-400">${num} · ${fecha}</p>
+                    </div>
+                </div>
+                <span class="text-sm font-bold text-gray-700 tabular-nums shrink-0">${formatearGuaranies(p.total)}</span>
+            </div>`;
+        }).join('')
+        : `<p class="text-sm text-gray-400 text-center py-3">Todo sincronizado ✓</p>`;
 
     container.innerHTML = `
-        <h3 class="text-lg font-bold text-gray-800 mb-4">Configuracion</h3>
+        <h3 class="text-lg font-bold text-gray-800 mb-4">Configuración</h3>
 
-        <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100 mb-3">
-            <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Resumen de Datos</p>
-            <div class="grid grid-cols-3 gap-3 text-center">
-                <div class="bg-gray-50 rounded-lg p-3">
-                    <p class="text-xl font-bold text-gray-800">${totalPedidos}</p>
-                    <p class="text-[10px] text-gray-500 font-bold">PEDIDOS</p>
+        <!-- Mi perfil -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-3">
+            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Mi perfil</p>
+            <div class="flex items-center gap-3 mb-3">
+                <div class="w-12 h-12 rounded-full bg-indigo-500 text-white text-lg font-black flex items-center justify-center shrink-0">${escapeHTML(inicial)}</div>
+                <div class="min-w-0">
+                    <p class="text-sm font-bold text-gray-800 truncate">${escapeHTML(nombre)}</p>
+                    <p class="text-xs text-gray-400 truncate">${escapeHTML(email)}</p>
                 </div>
-                <div class="bg-yellow-50 rounded-lg p-3">
-                    <p class="text-xl font-bold text-yellow-700">${pendientes}</p>
-                    <p class="text-[10px] text-gray-500 font-bold">PENDIENTES</p>
-                </div>
-                <div class="bg-green-50 rounded-lg p-3">
-                    <p class="text-lg font-bold text-green-700">Gs.${(totalGs/1000).toFixed(0)}k</p>
-                    <p class="text-[10px] text-gray-500 font-bold">TOTAL</p>
-                </div>
+            </div>
+            <sl-button data-action="cambiarContrasenaVendedor" variant="default" size="small" class="w-full">
+                <i data-lucide="key-round" class="w-4 h-4 mr-1"></i> Cambiar contraseña
+            </sl-button>
+        </div>
+
+        <!-- Datos y backup -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-3">
+            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Datos y backup</p>
+            <p class="text-[11px] text-gray-400 mb-3">${ultimoBackup ? 'Último backup: ' + new Date(ultimoBackup).toLocaleString('es-PY') : 'Sin backups todavía'} · <span id="storageInfo">…</span></p>
+            <div class="grid grid-cols-2 gap-2">
+                <sl-button data-action="exportarBackupVendedor" variant="default" size="small">Exportar backup</sl-button>
+                <sl-button data-action="exportarSoloPedidos" variant="default" size="small">Solo pedidos</sl-button>
+                <sl-button data-action="compartirBackupWhatsApp" variant="default" size="small" class="sl-btn-whatsapp" style="--sl-color-neutral-600:#25D366;--sl-color-neutral-700:#1da851;">Compartir</sl-button>
+                <sl-button data-action="triggerRestaurarFileVendedor" variant="default" size="small">Restaurar</sl-button>
             </div>
         </div>
 
-        <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100 mb-3">
-            <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Estado de Backups</p>
-            <p class="text-sm text-gray-700">${ultimoBackup ? 'Ultimo backup: ' + new Date(ultimoBackup).toLocaleString('es-PY') : 'Sin backups realizados'}</p>
-            <p class="text-sm text-gray-500 mt-1">Auto-backups guardados: ${autoBackups.length}/10</p>
+        <!-- Pedidos en cola (sin sincronizar) -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-3">
+            <div class="flex items-center gap-1.5 mb-2">
+                <i data-lucide="cloud-off" class="w-3.5 h-3.5 ${enCola.length ? 'text-amber-500' : 'text-gray-300'}"></i>
+                <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Pedidos en cola</p>
+                ${enCola.length ? `<span class="ml-auto text-[10px] font-bold text-amber-600">${enCola.length}</span>` : ''}
+            </div>
+            ${colaHtml}
+            ${enCola.length ? `<sl-button data-action="sincronizarAhora" variant="primary" size="small" class="w-full mt-3">
+                <i data-lucide="refresh-cw" class="w-4 h-4 mr-1"></i> Sincronizar ahora
+            </sl-button>` : ''}
         </div>
 
-        <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100 mb-3">
-            <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Almacenamiento</p>
-            <p class="text-sm text-gray-700" id="storageInfo">Calculando...</p>
+        <!-- Ayuda / soporte -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-3">
+            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Ayuda y soporte</p>
+            ${waUrl
+                ? `<a href="${waUrl}" target="_blank" rel="noopener" class="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg bg-[#25D366] text-white text-sm font-semibold active:scale-[0.98] transition-transform">
+                        <i data-lucide="message-circle" class="w-4 h-4"></i> Escribir al administrador
+                   </a>`
+                : `<p class="text-sm text-gray-400">El administrador aún no cargó su teléfono de contacto.</p>`}
         </div>
 
-        <div class="bg-white rounded-xl p-4 shadow-sm border border-red-200 mb-3">
-            <p class="text-xs font-bold text-red-500 uppercase tracking-wider mb-3">Zona de Peligro</p>
-            <sl-button data-action="limpiarTodosDatos" variant="danger" class="w-full">Borrar Todos Mis Pedidos</sl-button>
-        </div>
-
-        <p class="text-center text-xs text-gray-400 mt-4">HDV Pedidos v3.0 - 2026</p>
+        <p class="text-center text-[10px] text-gray-400 mb-2 mono" style="letter-spacing:0.08em">HDV ERP · v0.9.0 · BETA</p>
     `;
-
+    if (typeof lucide !== 'undefined') lucide.createIcons();
     calcularAlmacenamiento();
+}
+
+// Cambio de contraseña del vendedor (Supabase Auth)
+async function cambiarContrasenaVendedor() {
+    const datos = await mostrarInputModal({
+        titulo: 'Cambiar contraseña',
+        icono: 'key-round',
+        subtitulo: 'Mínimo 8 caracteres, con mayúscula, número y símbolo.',
+        textoConfirmar: 'Actualizar',
+        campos: [
+            { key: 'p1', label: 'Nueva contraseña', tipo: 'password', requerido: true },
+            { key: 'p2', label: 'Repetir contraseña', tipo: 'password', requerido: true },
+        ]
+    });
+    if (!datos) return;
+    if (datos.p1 !== datos.p2) { mostrarToast('Las contraseñas no coinciden.', 'error'); return; }
+    if (!/^(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/.test(datos.p1)) {
+        mostrarToast('No cumple los requisitos: 8+ caracteres, 1 mayúscula, 1 número, 1 símbolo.', 'error');
+        return;
+    }
+    try {
+        const { error } = await supabaseClient.auth.updateUser({ password: datos.p1 });
+        if (error) throw error;
+        mostrarToast('Contraseña actualizada correctamente.', 'success');
+    } catch (err) {
+        console.error('[Vendedor] Error cambiando contraseña:', err);
+        mostrarToast('No se pudo cambiar la contraseña: ' + (err.message || 'error'), 'error');
+    }
+}
+
+// Sincronizar pedidos en cola manualmente
+async function sincronizarAhoraVendedor() {
+    if (typeof SyncManager === 'undefined') { mostrarToast('Sincronización no disponible', 'warning'); return; }
+    if (!navigator.onLine) { mostrarToast('Sin conexión — se sincronizará al reconectar', 'warning'); return; }
+    mostrarToast('Sincronizando…', 'info');
+    try {
+        await SyncManager.syncPedidosPendientes();
+        mostrarToast('Sincronización completada', 'success');
+    } catch (e) {
+        mostrarToast('No se pudo sincronizar ahora', 'error');
+    }
+    if (vistaActual === 'config') mostrarConfiguracion();
 }
 
 async function calcularAlmacenamiento() {
@@ -1942,6 +2023,180 @@ async function calcularAlmacenamiento() {
     const kb = (totalBytes / 1024).toFixed(1);
     const el = document.getElementById('storageInfo');
     if (el) el.textContent = `Usando ${kb} KB de almacenamiento`;
+}
+
+// ============================================
+// CLIENTES (vendedor): lista + en riesgo (solo lectura)
+// ============================================
+let _vistaClientesModo = 'todos'; // 'todos' | 'riesgo'
+let _clientesVendQuery = '';
+let _clientesVendZona = '';
+let _clientesVendPagina = 1;
+const _CLIENTES_POR_PAGINA = 25;
+let _clZonaListener = false;
+
+function setClientesModo(modo) {
+    _vistaClientesModo = modo;
+    _clientesVendPagina = 1;
+    mostrarClientesVendedor();
+}
+function setClientesZona(zona) {
+    _clientesVendZona = zona || '';
+    _clientesVendPagina = 1;
+    mostrarClientesVendedor();
+}
+function toggleClientesZona() {
+    document.getElementById('clientesVendZonaMenu')?.classList.toggle('hidden');
+}
+function clientesVendPaginaCambiar(arg) {
+    _clientesVendPagina = arg === 'prev' ? Math.max(1, _clientesVendPagina - 1) : _clientesVendPagina + 1;
+    _renderClientesVendLista();
+    document.getElementById('productsContainer')?.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function _toggleClientesHTML() {
+    return `<div class="flex items-center justify-between mb-3">
+        <h3 class="text-lg font-bold text-gray-800">Clientes</h3>
+        <div class="flex bg-slate-100 rounded-lg p-1 gap-1">
+            <button data-action="setClientesModo" data-arg="todos" class="px-3 py-1.5 rounded-md text-xs font-bold transition-all ${_vistaClientesModo === 'todos' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}">Todos</button>
+            <button data-action="setClientesModo" data-arg="riesgo" class="px-3 py-1.5 rounded-md text-xs font-bold transition-all ${_vistaClientesModo === 'riesgo' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}">En riesgo</button>
+        </div>
+    </div>`;
+}
+
+async function mostrarClientesVendedor() {
+    const container = document.getElementById('productsContainer');
+    if (!container) return;
+    const zonas = (typeof obtenerZonasUnicas === 'function') ? obtenerZonasUnicas() : [];
+    const zonaItem = (val, txt, cant) => `<button data-action="setClientesZona" data-arg="${escapeHTML(val)}" class="w-full flex items-center justify-between px-2.5 py-2 rounded-md text-sm ${_clientesVendZona === val ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-slate-600 hover:bg-slate-50'}"><span class="truncate">${escapeHTML(txt)}</span>${cant != null ? `<span class="text-[10px] text-gray-400 ml-2">${cant}</span>` : ''}</button>`;
+    const zonaMenuHtml = zonaItem('', 'Todas las zonas', null) + zonas.map(z => zonaItem(z.zona, z.zona, z.cantidad)).join('');
+
+    container.innerHTML = _toggleClientesHTML() + `
+        <div class="flex items-stretch gap-2 mb-3">
+            <div class="flex-1 flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 focus-within:border-indigo-300 focus-within:bg-white transition-colors min-w-0">
+                <i data-lucide="search" class="w-4 h-4 text-slate-400 shrink-0"></i>
+                <input id="clientesVendBuscar" type="text" placeholder="Buscar cliente" autocomplete="off" autocorrect="off" spellcheck="false" class="flex-1 bg-transparent outline-none text-sm text-ink" style="min-width:0">
+            </div>
+            <div id="clientesVendZonaWrap" class="relative shrink-0">
+                <button data-action="toggleClientesZona" type="button" class="flex items-center gap-1 h-full px-2.5 rounded-lg bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-white transition-colors max-w-[120px]">
+                    <i data-lucide="map-pin" class="w-3.5 h-3.5 text-slate-400 shrink-0"></i>
+                    <span class="truncate">${escapeHTML(_clientesVendZona || 'Todas')}</span>
+                    <i data-lucide="chevron-down" class="w-3 h-3 shrink-0"></i>
+                </button>
+                <div id="clientesVendZonaMenu" class="hidden absolute right-0 top-full mt-1 w-48 max-h-[50vh] overflow-y-auto bg-white rounded-xl border border-slate-200 shadow-xl z-50 p-1.5">${zonaMenuHtml}</div>
+            </div>
+        </div>
+        <div id="clientesVendLista"></div>
+    `;
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+    const inp = document.getElementById('clientesVendBuscar');
+    if (inp) {
+        inp.value = _clientesVendQuery;
+        inp.addEventListener('input', () => { _clientesVendQuery = inp.value; _clientesVendPagina = 1; _renderClientesVendLista(); });
+    }
+    // cerrar dropdown de zona al click afuera (una sola vez)
+    if (!_clZonaListener) {
+        document.addEventListener('click', (e) => {
+            const menu = document.getElementById('clientesVendZonaMenu');
+            if (!menu || menu.classList.contains('hidden')) return;
+            if (e.target.closest('#clientesVendZonaWrap')) return;
+            menu.classList.add('hidden');
+        });
+        _clZonaListener = true;
+    }
+    await _renderClientesVendLista();
+}
+
+function _clienteCardHtml(c, dias, nivel) {
+    const id = c.id;
+    const nombre = c.razon_social || c.nombre || 'Cliente';
+    const inicial = (nombre || 'C').charAt(0).toUpperCase();
+    const tel = (c.telefono || '').replace(/\D/g, '');
+    const sub = [c.zona, c.telefono].filter(Boolean).join(' · ');
+    const chip = { atencion: 'bg-yellow-100 text-yellow-700', riesgo: 'bg-orange-100 text-orange-700', perdido: 'bg-red-100 text-red-700' };
+    const label = { atencion: 'Atención', riesgo: 'Riesgo', perdido: 'Perdido' };
+    const right = nivel
+        ? `<span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${chip[nivel]}">${label[nivel]} ${dias}d</span>`
+        : `<span class="text-[10px] text-gray-400 shrink-0 whitespace-nowrap">${dias != null && dias < 999 ? dias + 'd' : '—'}</span>`;
+    const btnBase = 'flex items-center justify-center gap-1 text-[10px] font-semibold py-1 rounded-md transition-colors';
+    const waBtn = tel
+        ? `<a href="https://wa.me/${tel}" target="_blank" rel="noopener" class="${btnBase} flex-1 text-[#1da851] bg-green-50 hover:bg-green-100"><i data-lucide="message-circle" class="w-3 h-3"></i> WhatsApp</a>`
+        : '';
+    return `<div class="bg-white rounded-lg p-2.5 shadow-sm border border-slate-100 mb-1.5">
+        <div class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-full bg-slate-200 text-slate-600 text-xs font-bold flex items-center justify-center shrink-0">${escapeHTML(inicial)}</div>
+            <div class="min-w-0 flex-1">
+                <p class="text-[13px] font-bold text-gray-800 truncate leading-tight">${escapeHTML(nombre)}</p>
+                <p class="text-[10px] text-gray-400 truncate leading-tight">${escapeHTML(sub) || 'Sin contacto'}</p>
+            </div>
+            ${right}
+        </div>
+        <div class="flex gap-1 mt-2">
+            ${waBtn}
+            <button data-action="mostrarHistorialCliente" data-arg="${escapeHTML(id)}" class="${btnBase} flex-1 text-indigo-600 bg-indigo-50 hover:bg-indigo-100"><i data-lucide="clock" class="w-3 h-3"></i> Historial</button>
+            <button data-action="crearPedidoDesdeCliente" data-arg="${escapeHTML(id)}" class="${btnBase} flex-1 text-white bg-indigo-500 hover:bg-indigo-600"><i data-lucide="shopping-cart" class="w-3 h-3"></i> Pedido</button>
+        </div>
+    </div>`;
+}
+
+async function _renderClientesVendLista() {
+    const cont = document.getElementById('clientesVendLista');
+    if (!cont) return;
+    const q = _clientesVendQuery.trim().toLowerCase();
+    const lista = (typeof clientes !== 'undefined' && Array.isArray(clientes)) ? clientes.filter(c => !c.oculto) : [];
+    const pedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
+    const hoy = new Date();
+
+    const lastByCliente = {};
+    pedidos.forEach(p => {
+        const id = p.cliente?.id; if (!id || !p.fecha) return;
+        const f = new Date(p.fecha);
+        if (!lastByCliente[id] || f > lastByCliente[id]) lastByCliente[id] = f;
+    });
+    const _dias = (id) => lastByCliente[id] ? Math.floor((hoy - lastByCliente[id]) / 86400000) : 999;
+    const _nivel = (d) => d >= 60 ? 'perdido' : d >= 30 ? 'riesgo' : d >= 15 ? 'atencion' : 'activo';
+
+    let base = lista;
+    if (_clientesVendZona) base = base.filter(c => c.zona === _clientesVendZona);
+    if (q) base = base.filter(c => (c.nombre || '').toLowerCase().includes(q) || (c.razon_social || '').toLowerCase().includes(q) || (c.zona || '').toLowerCase().includes(q) || (c.ruc || '').toLowerCase().includes(q));
+
+    // Construir la lista final segun modo: [{c, d, n}]
+    let registros;
+    let cabecera = '';
+    if (_vistaClientesModo === 'riesgo') {
+        registros = base.map(c => ({ c, d: _dias(c.id), n: _nivel(_dias(c.id)) })).filter(x => x.n !== 'activo').sort((a, b) => b.d - a.d);
+        const cAt = registros.filter(x => x.n === 'atencion').length;
+        const cRi = registros.filter(x => x.n === 'riesgo').length;
+        const cPe = registros.filter(x => x.n === 'perdido').length;
+        cabecera = `<div class="grid grid-cols-3 gap-2 mb-3">
+            <div class="bg-yellow-50 rounded-lg p-2 text-center"><p class="text-base font-bold text-yellow-700">${cAt}</p><p class="text-[9px] text-gray-500 font-bold uppercase">Atención</p></div>
+            <div class="bg-orange-50 rounded-lg p-2 text-center"><p class="text-base font-bold text-orange-700">${cRi}</p><p class="text-[9px] text-gray-500 font-bold uppercase">Riesgo</p></div>
+            <div class="bg-red-50 rounded-lg p-2 text-center"><p class="text-base font-bold text-red-600">${cPe}</p><p class="text-[9px] text-gray-500 font-bold uppercase">Perdido</p></div>
+        </div>`;
+    } else {
+        registros = base.slice().sort((a, b) => (a.razon_social || a.nombre || '').localeCompare(b.razon_social || b.nombre || '')).map(c => ({ c, d: _dias(c.id), n: null }));
+    }
+
+    const total = registros.length;
+    if (total === 0) {
+        cont.innerHTML = cabecera + `<p class="text-sm text-gray-400 text-center py-6">${_vistaClientesModo === 'riesgo' ? 'Sin clientes en riesgo ✓' : 'Sin clientes'}</p>`;
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+        return;
+    }
+
+    const totalPag = Math.ceil(total / _CLIENTES_POR_PAGINA);
+    if (_clientesVendPagina > totalPag) _clientesVendPagina = totalPag;
+    const ini = (_clientesVendPagina - 1) * _CLIENTES_POR_PAGINA;
+    const pageItems = registros.slice(ini, ini + _CLIENTES_POR_PAGINA);
+
+    const paginacion = totalPag > 1 ? `<div class="flex items-center justify-between mt-3 mb-1">
+        <button data-action="clientesVendPagina" data-arg="prev" class="px-3 py-1.5 rounded-lg text-xs font-semibold ${_clientesVendPagina <= 1 ? 'text-slate-300 pointer-events-none' : 'text-indigo-600 bg-indigo-50 hover:bg-indigo-100'} transition-colors">‹ Anterior</button>
+        <span class="text-[11px] text-gray-400">Pág. ${_clientesVendPagina} de ${totalPag} · ${total}</span>
+        <button data-action="clientesVendPagina" data-arg="next" class="px-3 py-1.5 rounded-lg text-xs font-semibold ${_clientesVendPagina >= totalPag ? 'text-slate-300 pointer-events-none' : 'text-indigo-600 bg-indigo-50 hover:bg-indigo-100'} transition-colors">Siguiente ›</button>
+    </div>` : `<p class="text-[11px] text-gray-400 mt-2 mb-1 text-center">${total} cliente${total === 1 ? '' : 's'}</p>`;
+
+    cont.innerHTML = cabecera + pageItems.map(x => _clienteCardHtml(x.c, x.d, x.n)).join('') + paginacion;
+    if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 // ============================================
@@ -2042,10 +2297,10 @@ function _toggleDiaJornada(fechaStr) {
 
 function _toggleCajaHTML() {
     return `<div class="flex items-center justify-between mb-4">
-        <h3 class="text-lg font-bold text-gray-800">Mi Caja</h3>
+        <h3 class="text-lg font-bold text-gray-800">Dashboard</h3>
         <div class="flex bg-slate-100 rounded-lg p-1 gap-1">
-            <button data-action="setCajaModo" data-arg="hoy" class="px-3 py-1.5 rounded-md text-xs font-bold transition-all ${_vistaCajaModo === 'hoy' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}">Hoy</button>
-            <button data-action="setCajaModo" data-arg="semana" class="px-3 py-1.5 rounded-md text-xs font-bold transition-all ${_vistaCajaModo === 'semana' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}">Esta semana</button>
+            <button data-action="setCajaModo" data-arg="hoy" class="px-3 py-1.5 rounded-md text-xs font-bold transition-all ${_vistaCajaModo === 'hoy' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}">Resumen</button>
+            <button data-action="setCajaModo" data-arg="semana" class="px-3 py-1.5 rounded-md text-xs font-bold transition-all ${_vistaCajaModo === 'semana' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}">Arqueo</button>
         </div>
     </div>`;
 }
@@ -2067,100 +2322,197 @@ async function _renderResumenHoy(container) {
     const pedidos = (await HDVStorage.getItem('hdv_pedidos', { clone: false })) || [];
     const gastos = (await HDVStorage.getItem('hdv_gastos', { clone: false })) || [];
     const allPagos = (await HDVStorage.getItem('hdv_pagos_credito', { clone: false })) || [];
-    const metas = (await HDVStorage.getItem('hdv_metas', { clone: false })) || {};
+    const metas = (await HDVStorage.getItem('hdv_metas', { clone: false })) || [];
+    const mesActual = hoy.slice(0, 7); // 'YYYY-MM'
 
     const pedidosHoy = pedidos.filter(p => p.fecha?.startsWith(hoy) && p.vendedor_id === vendedorId);
-    // VENTAS = lo vendido hoy (todos los pedidos del día, sin importar el cobro)
     const ventasHoy = pedidosHoy.reduce((s, p) => s + (p.total || 0), 0);
-    // COBRADO = caja real desde el libro unificado (única fuente: incluye contado y créditos)
+    // COBRADO = caja real desde el libro unificado (incluye contado y créditos)
     const cobrosHoy = allPagos
         .filter(pg => (pg.fecha || '').slice(0, 10) === hoy && (!pg.vendedor_id || pg.vendedor_id === vendedorId))
         .reduce((s, pg) => s + (Number(pg.monto) || 0), 0);
     const gastosHoy = gastos
         .filter(g => g.fecha?.startsWith(hoy) && g.vendedor_id === vendedorId)
         .reduce((s, g) => s + (g.monto || 0), 0);
-    const totalVendido = ventasHoy;            // la meta se mide sobre lo vendido
     const netoRendir = cobrosHoy - gastosHoy;  // a rendir = caja (libro) − gastos
 
-    const metaDiaria = metas.diaria || 0;
-    const metaPct = metaDiaria > 0 ? Math.min(200, Math.round((totalVendido / metaDiaria) * 100)) : 0;
+    // META MENSUAL: la coloca el admin (array por vendedor_id/mes con monto y comision)
+    const metasArr = Array.isArray(metas) ? metas : [];
+    const miMeta = metasArr.find(m => m.activa && m.mes === mesActual && m.vendedor_id === vendedorId)
+                || metasArr.find(m => m.activa && m.vendedor_id === vendedorId);
+    const ventasMes = pedidos
+        .filter(p => p.vendedor_id === vendedorId && (p.fecha || '').startsWith(mesActual))
+        .reduce((s, p) => s + (p.total || 0), 0);
+    const metaMonto = miMeta?.monto || 0;
+    const metaPct = metaMonto > 0 ? Math.min(200, Math.round((ventasMes / metaMonto) * 100)) : 0;
     const metaColor = metaPct >= 100 ? 'bg-green-500' : metaPct >= 70 ? 'bg-amber-400' : 'bg-red-400';
-    const metaIcono = metaPct >= 100 ? '🟢' : metaPct >= 70 ? '🟡' : '🔴';
+    const comisionPct = miMeta?.comision || 0;
+    const comisionEst = Math.round(ventasMes * comisionPct / 100);
+    const nombreMes = new Date().toLocaleDateString('es-PY', { month: 'long' });
+
+    // COMPARATIVA con el mes anterior
+    const _mAnt = new Date(); _mAnt.setDate(1); _mAnt.setMonth(_mAnt.getMonth() - 1);
+    const mesAnterior = _mAnt.toISOString().slice(0, 7);
+    const ventasMesAnterior = pedidos
+        .filter(p => p.vendedor_id === vendedorId && (p.fecha || '').startsWith(mesAnterior))
+        .reduce((s, p) => s + (p.total || 0), 0);
+    const deltaMesPct = ventasMesAnterior > 0 ? Math.round((ventasMes - ventasMesAnterior) / ventasMesAnterior * 100) : (ventasMes > 0 ? 100 : 0);
+
+    // AGREGADOS DE LA SEMANA (KPIs + arqueo)
+    const semanaCaja = (typeof obtenerSemanaActualVendedor === 'function') ? obtenerSemanaActualVendedor() : null;
+    const rangoCaja = semanaCaja && typeof obtenerRangoSemanaVendedor === 'function' ? obtenerRangoSemanaVendedor(semanaCaja) : null;
+    let pedidosSemana = [], ventasSemana = 0, cobrosSemana = 0, gastosSemana = 0, aRendirSemana = 0, rendSemana = null;
+    if (rangoCaja) {
+        const { inicio, fin } = rangoCaja;
+        pedidosSemana = pedidos.filter(p => { const f = new Date(p.fecha); return f >= inicio && f <= fin && p.vendedor_id === vendedorId; });
+        ventasSemana = pedidosSemana.reduce((s, p) => s + (p.total || 0), 0);
+        cobrosSemana = allPagos.filter(pg => { if (pg.vendedor_id && pg.vendedor_id !== vendedorId) return false; const f = new Date(pg.fecha); return f >= inicio && f <= fin; }).reduce((s, pg) => s + (Number(pg.monto) || 0), 0);
+        gastosSemana = gastos.filter(g => { const f = new Date(g.fecha); return f >= inicio && f <= fin && g.vendedor_id === vendedorId; }).reduce((s, g) => s + (g.monto || 0), 0);
+        aRendirSemana = cobrosSemana - gastosSemana;
+        const rendiciones = (await HDVStorage.getItem('hdv_rendiciones', { clone: false })) || [];
+        rendSemana = rendiciones.find(r => r.semana === semanaCaja && r.vendedor_id === vendedorId);
+    }
+
+    // TOP CLIENTES del vendedor (por monto, histórico)
+    const _porCliente = {};
+    pedidos.filter(p => p.vendedor_id === vendedorId && p.cliente?.id).forEach(p => {
+        const c = _porCliente[p.cliente.id] || (_porCliente[p.cliente.id] = { nombre: p.cliente.nombre || 'N/A', total: 0, count: 0 });
+        c.total += p.total || 0; c.count++;
+    });
+    const topClientes = Object.values(_porCliente).sort((a, b) => b.total - a.total).slice(0, 5);
+    const _maxTop = topClientes[0]?.total || 1;
 
     const fechaLarga = new Date().toLocaleDateString('es-PY', { weekday: 'long', day: 'numeric', month: 'long' });
 
-    const listaPedidosHoy = pedidosHoy.length > 0
-        ? pedidosHoy.sort((a, b) => new Date(b.fecha) - new Date(a.fecha)).map(p => {
-            const { clases: colorEst, label: labelEst } = obtenerEstadoUI(p.estado, '700');
-            const hora = new Date(p.fecha).toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit' });
-            return `<div class="flex items-center justify-between py-2 border-b border-slate-50 last:border-0">
-                <div class="flex items-center gap-2">
-                    <span class="text-[10px] text-gray-400 w-10 shrink-0">${hora}</span>
-                    <span class="text-sm font-medium text-gray-700 truncate max-w-[120px]">${escapeHTML(p.cliente?.nombre || 'N/A')}</span>
+    // Promociones activas creadas por el admin
+    const promosActivas = (typeof obtenerPromocionesActivas === 'function') ? await obtenerPromocionesActivas() : [];
+    const _nombreProd = (id) => (typeof productos !== 'undefined' ? (productos.find(p => p.id === id)?.nombre) : '') || 'producto';
+    const _descPromo = (promo) => {
+        if (promo.tipo === 'combo') {
+            const g = promo.cantidadGratis || 1;
+            return `Llevá ${promo.cantidadMinima} de ${escapeHTML(_nombreProd(promo.productoId))} y ${g} gratis`;
+        }
+        return `${escapeHTML(_nombreProd(promo.productoId))}: ${promo.cantidadMinima}+ a ${formatearGuaranies(promo.precioEspecial)} c/u`;
+    };
+    const promosHtml = promosActivas.length
+        ? promosActivas.slice(0, 6).map(promo => {
+            const vence = promo.fechaFin ? new Date(promo.fechaFin).toLocaleDateString('es-PY', { day: '2-digit', month: 'short' }) : '';
+            return `<div class="flex items-start gap-2.5 py-2 border-b border-slate-50 last:border-0">
+                <div class="w-7 h-7 rounded-lg bg-indigo-50 flex items-center justify-center shrink-0">
+                    <i data-lucide="tag" class="w-3.5 h-3.5 text-indigo-500"></i>
                 </div>
-                <div class="flex items-center gap-2 shrink-0">
-                    <span class="px-1.5 py-0.5 rounded text-[9px] font-bold ${colorEst}">${labelEst}</span>
-                    <span class="text-sm font-bold text-gray-800">${formatearGuaranies(p.total)}</span>
+                <div class="min-w-0 flex-1">
+                    <p class="text-sm font-semibold text-gray-800 truncate">${escapeHTML(promo.nombre || 'Promoción')}</p>
+                    <p class="text-[11px] text-gray-500 leading-tight">${_descPromo(promo)}</p>
                 </div>
+                ${vence ? `<span class="text-[9px] text-gray-400 shrink-0 whitespace-nowrap">hasta ${vence}</span>` : ''}
             </div>`;
         }).join('')
-        : `<p class="text-sm text-gray-400 text-center py-4">Sin pedidos por ahora</p>`;
+        : `<p class="text-sm text-gray-400 text-center py-3">Sin promociones activas</p>`;
+
+    const topClientesHtml = topClientes.length
+        ? topClientes.map((c, i) => `<div class="flex items-center gap-2.5 py-2 border-b border-slate-50 last:border-0">
+            <span class="w-5 h-5 rounded-md bg-slate-100 text-slate-500 text-[10px] font-bold flex items-center justify-center shrink-0">${i + 1}</span>
+            <div class="min-w-0 flex-1">
+                <p class="text-sm font-semibold text-gray-800 truncate">${escapeHTML(c.nombre)}</p>
+                <div class="w-full bg-slate-100 rounded-full h-1 mt-1 overflow-hidden"><div class="bg-indigo-400 h-1 rounded-full" style="width:${Math.round(c.total / _maxTop * 100)}%"></div></div>
+            </div>
+            <span class="text-xs font-bold text-gray-700 tabular-nums shrink-0">${formatearGuaranies(c.total)}</span>
+        </div>`).join('')
+        : `<p class="text-sm text-gray-400 text-center py-3">Aún sin clientes</p>`;
 
     container.innerHTML = _toggleCajaHTML() + `
-        <p class="text-xs text-gray-400 -mt-2 mb-4 capitalize">${fechaLarga}</p>
+        <p class="text-xs text-gray-400 -mt-2 mb-3 capitalize">${fechaLarga}</p>
 
-        ${metaDiaria > 0 ? `<div class="bg-white rounded-xl p-4 shadow-sm border border-slate-100 mb-3">
-            <div class="flex justify-between items-center mb-2">
-                <p class="text-xs font-bold text-gray-500 uppercase tracking-wider">Meta del día</p>
-                <span class="text-xs font-bold ${metaPct >= 100 ? 'text-green-600' : 'text-gray-600'}">${metaIcono} ${metaPct}%</span>
+        <!-- HERO: Meta MENSUAL del vendedor (la pone el admin) -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-2.5">
+            <div class="flex items-center justify-between mb-2 gap-3">
+                <div class="min-w-0">
+                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Meta de <span class="capitalize">${escapeHTML(nombreMes)}</span></p>
+                    <p class="text-sm font-semibold text-gray-700 truncate">${escapeHTML(vendedorNombre)}</p>
+                </div>
+                <span class="text-3xl font-bold tabular-nums shrink-0 ${metaPct >= 100 ? 'text-green-600' : metaPct >= 70 ? 'text-amber-500' : 'text-gray-800'}">${metaMonto > 0 ? metaPct + '%' : '—'}</span>
             </div>
+            ${metaMonto > 0 ? `
             <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
                 <div class="${metaColor} h-2 rounded-full transition-all duration-700" style="width:${Math.min(100, metaPct)}%"></div>
             </div>
-            <div class="flex justify-between text-[10px] text-gray-400 mt-1">
-                <span>${formatearGuaranies(totalVendido)}</span>
-                <span>meta: ${formatearGuaranies(metaDiaria)}</span>
+            <div class="flex justify-between text-[10px] text-gray-400 mt-1.5">
+                <span class="font-semibold text-gray-600">${formatearGuaranies(ventasMes)}</span>
+                <span>meta ${formatearGuaranies(metaMonto)}</span>
             </div>
-        </div>` : ''}
+            ${comisionPct > 0 ? `<div class="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between">
+                <span class="text-[10px] text-gray-400 uppercase tracking-wide font-bold">Comisión estimada</span>
+                <span class="text-sm font-bold text-green-600 tabular-nums">${formatearGuaranies(comisionEst)} <span class="text-[10px] text-gray-400 font-medium">(${comisionPct}%)</span></span>
+            </div>` : ''}` : `<p class="text-xs text-gray-400">El administrador aún no cargó tu meta del mes.</p>`}
+        </div>
 
+        <!-- Comparativa con el mes anterior -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-2.5 flex items-center justify-between gap-3">
+            <div class="min-w-0">
+                <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Este mes vs anterior</p>
+                <p class="text-xl font-bold text-gray-900 tabular-nums leading-tight">${formatearGuaranies(ventasMes)}</p>
+                <p class="text-[10px] text-gray-400 mt-0.5">Mes anterior ${formatearGuaranies(ventasMesAnterior)}</p>
+            </div>
+            <span class="shrink-0 inline-flex items-center gap-1 text-sm font-bold ${deltaMesPct >= 0 ? 'text-green-600' : 'text-red-500'}">
+                <i data-lucide="${deltaMesPct >= 0 ? 'trending-up' : 'trending-down'}" class="w-4 h-4"></i>
+                ${deltaMesPct >= 0 ? '+' : ''}${deltaMesPct}%
+            </span>
+        </div>
+
+        <!-- KPIs de la SEMANA -->
         <div class="grid grid-cols-2 gap-2 mb-3">
-            <div class="bg-indigo-50 rounded-xl p-3 text-center">
-                <p class="text-xl font-bold text-indigo-600">${pedidosHoy.length}</p>
-                <p class="text-[10px] text-gray-500 font-bold uppercase">PEDIDOS</p>
+            <div class="bg-indigo-50 rounded-lg px-3 py-2 flex items-center justify-between">
+                <span class="text-[9px] text-gray-500 font-bold uppercase tracking-wide">Pedidos sem.</span>
+                <span class="text-base font-bold text-indigo-600 tabular-nums">${pedidosSemana.length}</span>
             </div>
-            <div class="bg-green-50 rounded-xl p-3 text-center">
-                <p class="text-base font-bold text-green-700">${formatearGuaranies(ventasHoy)}</p>
-                <p class="text-[10px] text-gray-500 font-bold uppercase">VENTAS</p>
+            <div class="bg-green-50 rounded-lg px-3 py-2 flex items-center justify-between">
+                <span class="text-[9px] text-gray-500 font-bold uppercase tracking-wide">Ventas sem.</span>
+                <span class="text-[13px] font-bold text-green-700 tabular-nums">${formatearGuaranies(ventasSemana)}</span>
             </div>
-            <div class="bg-amber-50 rounded-xl p-3 text-center">
-                <p class="text-base font-bold text-amber-700">${formatearGuaranies(cobrosHoy)}</p>
-                <p class="text-[10px] text-gray-500 font-bold uppercase">COBROS</p>
+            <div class="bg-amber-50 rounded-lg px-3 py-2 flex items-center justify-between">
+                <span class="text-[9px] text-gray-500 font-bold uppercase tracking-wide">Cobros sem.</span>
+                <span class="text-[13px] font-bold text-amber-700 tabular-nums">${formatearGuaranies(cobrosSemana)}</span>
             </div>
-            <div class="bg-red-50 rounded-xl p-3 text-center">
-                <p class="text-base font-bold text-red-600">${formatearGuaranies(gastosHoy)}</p>
-                <p class="text-[10px] text-gray-500 font-bold uppercase">GASTOS</p>
+            <div class="bg-red-50 rounded-lg px-3 py-2 flex items-center justify-between">
+                <span class="text-[9px] text-gray-500 font-bold uppercase tracking-wide">Gastos sem.</span>
+                <span class="text-[13px] font-bold text-red-600 tabular-nums">${formatearGuaranies(gastosSemana)}</span>
             </div>
         </div>
 
-        <div class="bg-blue-50 border border-blue-100 rounded-xl p-4 mb-3 flex justify-between items-center">
-            <div>
-                <p class="text-xs font-bold text-blue-700 uppercase tracking-wider">A rendir hoy</p>
-                <p class="text-2xl font-bold text-blue-800">${formatearGuaranies(netoRendir)}</p>
+        <!-- Arqueo de la semana (abre el detalle) -->
+        <button data-action="setCajaModo" data-arg="semana" class="w-full text-left bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-3 flex items-center justify-between gap-3 hover:bg-slate-50 active:scale-[0.99] transition-all">
+            <div class="min-w-0">
+                <div class="flex items-center gap-2">
+                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">A rendir esta semana</p>
+                    ${rendSemana ? `<span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full ${rendSemana.estado === 'pagado' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}">${rendSemana.estado === 'pagado' ? 'PAGADO' : 'PENDIENTE'}</span>` : ''}
+                </div>
+                <p class="text-3xl font-bold text-gray-900 tabular-nums leading-tight">${formatearGuaranies(aRendirSemana)}</p>
+                <p class="text-[10px] text-indigo-500 font-semibold mt-0.5">Ver arqueo / cerrar semana →</p>
             </div>
-            <i data-lucide="wallet" class="w-8 h-8 text-blue-300"></i>
+            <div class="w-11 h-11 rounded-xl bg-indigo-50 flex items-center justify-center shrink-0">
+                <i data-lucide="wallet" class="w-5 h-5 text-indigo-500"></i>
+            </div>
+        </button>
+
+        <!-- Top clientes del vendedor -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-3">
+            <div class="flex items-center gap-1.5 mb-1">
+                <i data-lucide="trophy" class="w-3.5 h-3.5 text-amber-500"></i>
+                <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Tus mejores clientes</p>
+            </div>
+            ${topClientesHtml}
         </div>
 
-        <sl-button data-action="enviarCierreWA" data-arg="${JSON.stringify({ vendedor: vendedorNombre, ventas: ventasHoy, cobros: cobrosHoy, gastos: gastosHoy, pedidos: pedidosHoy.length, metaPct, aRendir: netoRendir })}" variant="default" class="w-full mb-3 sl-btn-whatsapp" style="--sl-color-neutral-600:#25D366;--sl-color-neutral-700:#1da851;">
-            <i data-lucide="message-circle" class="w-4 h-4 mr-1"></i> Enviar cierre al jefe
-        </sl-button>
-
-        <div class="bg-white rounded-xl p-4 shadow-sm border border-slate-100 mb-3">
-            <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Pedidos de hoy (${pedidosHoy.length})</p>
-            ${listaPedidosHoy}
+        <!-- Promociones disponibles (del admin) -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-3">
+            <div class="flex items-center gap-1.5 mb-1">
+                <i data-lucide="megaphone" class="w-3.5 h-3.5 text-indigo-500"></i>
+                <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Promociones activas</p>
+                ${promosActivas.length ? `<span class="ml-auto text-[10px] font-bold text-indigo-600">${promosActivas.length}</span>` : ''}
+            </div>
+            ${promosHtml}
         </div>
-
-        <sl-button data-action="agregarGastoVendedor" variant="danger" size="small" class="w-full mb-3">+ Registrar Gasto</sl-button>
-        <sl-button data-action="mostrarConfiguracion" variant="default" class="w-full">Configuracion y Backups</sl-button>
     `;
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }

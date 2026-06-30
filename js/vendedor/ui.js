@@ -1098,7 +1098,7 @@ function mostrarMatrizProducto(producto) {
     modal.innerHTML = `
         <div class="hdv-sheet-in bg-white w-full rounded-t-3xl max-h-[90vh] overflow-y-auto shadow-2xl" onclick="event.stopPropagation()">
             <div class="border-b border-slate-100 p-4 rounded-t-3xl">
-                <div class="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-3"></div>
+                <div class="hdv-sheet-grab" data-sheet-grab><span class="hdv-grab-bar"></span></div>
                 <div class="flex items-center gap-3">
                     ${iconHtml}
                     <div>
@@ -1136,11 +1136,46 @@ function mostrarMatrizProducto(producto) {
         </div>`;
     document.body.appendChild(modal);
     lucide.createIcons();
+    _attachSheetDrag(modal);
 
     setTimeout(() => {
         const primerInput = document.getElementById(`mtz-${producto.id}-0`);
         if (primerInput) primerInput.focus();
     }, 300);
+}
+
+// Drag-to-dismiss para bottom-sheets (modal de variantes): arrastrar el asa hacia abajo cierra
+function _attachSheetDrag(modal) {
+    const panel = modal.querySelector('.hdv-sheet-in');
+    const grab = modal.querySelector('[data-sheet-grab]');
+    if (!panel || !grab) return;
+    let startY = 0, dy = 0, dragging = false;
+    grab.addEventListener('pointerdown', (e) => {
+        dragging = true; startY = e.clientY; dy = 0;
+        panel.style.transition = 'none';
+        try { grab.setPointerCapture(e.pointerId); } catch (_) {}
+    });
+    grab.addEventListener('pointermove', (e) => {
+        if (!dragging) return;
+        dy = Math.max(0, e.clientY - startY);
+        panel.style.transform = `translateY(${dy}px)`;
+        panel.style.opacity = String(Math.max(0.45, 1 - dy / 520));
+    });
+    const end = () => {
+        if (!dragging) return; dragging = false;
+        panel.style.transition = 'transform .26s var(--ease-drawer), opacity .2s ease';
+        if (dy > 110) {
+            panel.style.transform = 'translateY(100%)';
+            panel.style.opacity = '0';
+            setTimeout(() => modal.remove(), 240);
+        } else {
+            panel.style.transform = '';
+            panel.style.opacity = '';
+        }
+        dy = 0;
+    };
+    grab.addEventListener('pointerup', end);
+    grab.addEventListener('pointercancel', end);
 }
 
 function actualizarCeldaMatriz(productoId, idx) {
@@ -1241,7 +1276,7 @@ function mostrarDetalleMasivo(producto) {
     modal.innerHTML = `
         <div class="hdv-sheet-in bg-white w-full rounded-t-3xl max-h-[90vh] overflow-y-auto shadow-2xl" onclick="event.stopPropagation()">
             <div class="border-b border-slate-100 p-4 rounded-t-3xl">
-                <div class="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-3"></div>
+                <div class="hdv-sheet-grab" data-sheet-grab><span class="hdv-grab-bar"></span></div>
                 <div class="flex items-center gap-3">
                     ${imgUrlMasivo ? `<img src="${imgUrlMasivo}" class="w-12 h-12 rounded-xl object-contain bg-slate-100 p-1">` : '<i data-lucide="package" class="w-10 h-10 text-slate-300"></i>'}
                     <div class="min-w-0 flex-1">
@@ -1271,6 +1306,7 @@ function mostrarDetalleMasivo(producto) {
         </div>`;
     document.body.appendChild(modal);
     lucide.createIcons();
+    _attachSheetDrag(modal);
 }
 
 function recalcularTotalMasivo(productoId) {
@@ -1309,9 +1345,51 @@ function ajustarQty(prodId, idx, delta) {
 // MODAL CARRITO UI
 // ============================================
 function mostrarModalCarrito() {
+    _attachDrawerSwipeOnce();
     document.getElementById('cartDrawer').show();
     renderizarCarrito();
     lucide.createIcons();
+}
+
+// Drag-to-dismiss del carrito: arrastrar el header hacia la derecha cierra el drawer
+let _cartSwipeAttached = false;
+function _attachDrawerSwipeOnce() {
+    if (_cartSwipeAttached) return;
+    const drawer = document.getElementById('cartDrawer');
+    const header = document.getElementById('cartDrawerHeader');
+    if (!drawer || !header) return;
+    _cartSwipeAttached = true;
+    const getPanel = () => drawer.shadowRoot && drawer.shadowRoot.querySelector('[part~="panel"]');
+    let startX = 0, dx = 0, dragging = false, panel = null;
+    header.style.touchAction = 'pan-y';
+    header.addEventListener('pointerdown', (e) => {
+        if (e.target.closest('sl-icon-button, button')) return; // no arrancar sobre el botón cerrar
+        panel = getPanel();
+        dragging = true; startX = e.clientX; dx = 0;
+        if (panel) panel.style.transition = 'none';
+        try { header.setPointerCapture(e.pointerId); } catch (_) {}
+    });
+    header.addEventListener('pointermove', (e) => {
+        if (!dragging || !panel) return;
+        dx = Math.max(0, e.clientX - startX); // solo hacia la derecha (cerrar)
+        panel.style.transform = `translateX(${dx}px)`;
+        panel.style.opacity = String(Math.max(0.5, 1 - dx / 420));
+    });
+    const end = () => {
+        if (!dragging) return; dragging = false;
+        if (panel) panel.style.transition = '';
+        if (dx > 90) {
+            closeCartModal();
+            setTimeout(() => { if (panel) { panel.style.transform = ''; panel.style.opacity = ''; } }, 320);
+        } else if (panel) {
+            panel.style.transform = '';
+            panel.style.opacity = '';
+        }
+        dx = 0;
+    };
+    header.addEventListener('pointerup', end);
+    header.addEventListener('pointercancel', end);
+    drawer.addEventListener('sl-show', () => { const p = getPanel(); if (p) { p.style.transform = ''; p.style.opacity = ''; } });
 }
 
 function closeCartModal() {

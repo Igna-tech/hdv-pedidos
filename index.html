@@ -431,6 +431,12 @@
         /* Bottom-sheet del detalle: sube con curva iOS */
         @keyframes hdvSheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
         .hdv-sheet-in { animation: hdvSheetUp .34s var(--ease-drawer) both; }
+        /* Asa para arrastrar y cerrar (drag-to-dismiss) */
+        .hdv-sheet-grab { display: flex; justify-content: center; align-items: center;
+            padding: 10px 0 6px; margin: -4px 0 2px; cursor: grab; touch-action: none; }
+        .hdv-sheet-grab:active { cursor: grabbing; }
+        .hdv-grab-bar { width: 48px; height: 5px; border-radius: 99px; background: var(--hairline); transition: background-color .15s, width .15s; }
+        .hdv-sheet-grab:active .hdv-grab-bar { background: var(--muted); width: 60px; }
 
         /* ==========================================
            PRINT STYLES - Impresoras termicas 58/80mm
@@ -736,7 +742,7 @@
     <!-- Cart Drawer (sl-drawer, right panel) -->
     <sl-drawer id="cartDrawer" placement="end" style="--size: 28rem;" no-header>
         <!-- Custom header -->
-        <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
+        <div id="cartDrawerHeader" class="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
             <div class="flex items-center gap-3">
                 <i data-lucide="shopping-cart" class="w-5 h-5 text-gray-700 shrink-0"></i>
                 <h3 id="cartDrawerTitle" class="text-base font-bold text-gray-900 leading-tight">Cliente no seleccionado</h3>

@@ -2089,74 +2089,97 @@ async function _renderResumenHoy(container) {
 
     const fechaLarga = new Date().toLocaleDateString('es-PY', { weekday: 'long', day: 'numeric', month: 'long' });
 
-    const listaPedidosHoy = pedidosHoy.length > 0
-        ? pedidosHoy.sort((a, b) => new Date(b.fecha) - new Date(a.fecha)).map(p => {
-            const { clases: colorEst, label: labelEst } = obtenerEstadoUI(p.estado, '700');
-            const hora = new Date(p.fecha).toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit' });
-            return `<div class="flex items-center justify-between py-2 border-b border-slate-50 last:border-0">
-                <div class="flex items-center gap-2">
-                    <span class="text-[10px] text-gray-400 w-10 shrink-0">${hora}</span>
-                    <span class="text-sm font-medium text-gray-700 truncate max-w-[120px]">${escapeHTML(p.cliente?.nombre || 'N/A')}</span>
+    // Promociones activas creadas por el admin
+    const promosActivas = (typeof obtenerPromocionesActivas === 'function') ? await obtenerPromocionesActivas() : [];
+    const _nombreProd = (id) => (typeof productos !== 'undefined' ? (productos.find(p => p.id === id)?.nombre) : '') || 'producto';
+    const _descPromo = (promo) => {
+        if (promo.tipo === 'combo') {
+            const g = promo.cantidadGratis || 1;
+            return `Llevá ${promo.cantidadMinima} de ${escapeHTML(_nombreProd(promo.productoId))} y ${g} gratis`;
+        }
+        return `${escapeHTML(_nombreProd(promo.productoId))}: ${promo.cantidadMinima}+ a ${formatearGuaranies(promo.precioEspecial)} c/u`;
+    };
+    const promosHtml = promosActivas.length
+        ? promosActivas.slice(0, 6).map(promo => {
+            const vence = promo.fechaFin ? new Date(promo.fechaFin).toLocaleDateString('es-PY', { day: '2-digit', month: 'short' }) : '';
+            return `<div class="flex items-start gap-2.5 py-2 border-b border-slate-50 last:border-0">
+                <div class="w-7 h-7 rounded-lg bg-indigo-50 flex items-center justify-center shrink-0">
+                    <i data-lucide="tag" class="w-3.5 h-3.5 text-indigo-500"></i>
                 </div>
-                <div class="flex items-center gap-2 shrink-0">
-                    <span class="px-1.5 py-0.5 rounded text-[9px] font-bold ${colorEst}">${labelEst}</span>
-                    <span class="text-sm font-bold text-gray-800">${formatearGuaranies(p.total)}</span>
+                <div class="min-w-0 flex-1">
+                    <p class="text-sm font-semibold text-gray-800 truncate">${escapeHTML(promo.nombre || 'Promoción')}</p>
+                    <p class="text-[11px] text-gray-500 leading-tight">${_descPromo(promo)}</p>
                 </div>
+                ${vence ? `<span class="text-[9px] text-gray-400 shrink-0 whitespace-nowrap">hasta ${vence}</span>` : ''}
             </div>`;
         }).join('')
-        : `<p class="text-sm text-gray-400 text-center py-4">Sin pedidos por ahora</p>`;
+        : `<p class="text-sm text-gray-400 text-center py-3">Sin promociones activas</p>`;
 
     container.innerHTML = _toggleCajaHTML() + `
-        <p class="text-xs text-gray-400 -mt-2 mb-4 capitalize">${fechaLarga}</p>
+        <p class="text-xs text-gray-400 -mt-2 mb-3 capitalize">${fechaLarga}</p>
 
-        ${metaDiaria > 0 ? `<div class="bg-white rounded-xl p-4 shadow-sm border border-slate-100 mb-3">
-            <div class="flex justify-between items-center mb-2">
-                <p class="text-xs font-bold text-gray-500 uppercase tracking-wider">Meta del día</p>
-                <span class="text-xs font-bold ${metaPct >= 100 ? 'text-green-600' : 'text-gray-600'}">${metaIcono} ${metaPct}%</span>
+        <!-- HERO: Meta del vendedor en sesión -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-2.5">
+            <div class="flex items-center justify-between mb-2 gap-3">
+                <div class="min-w-0">
+                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Tu meta de hoy</p>
+                    <p class="text-sm font-semibold text-gray-700 truncate">${escapeHTML(vendedorNombre)}</p>
+                </div>
+                <span class="text-3xl font-bold tabular-nums shrink-0 ${metaPct >= 100 ? 'text-green-600' : metaPct >= 70 ? 'text-amber-500' : 'text-gray-800'}">${metaDiaria > 0 ? metaPct + '%' : '—'}</span>
             </div>
+            ${metaDiaria > 0 ? `
             <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
                 <div class="${metaColor} h-2 rounded-full transition-all duration-700" style="width:${Math.min(100, metaPct)}%"></div>
             </div>
-            <div class="flex justify-between text-[10px] text-gray-400 mt-1">
-                <span>${formatearGuaranies(totalVendido)}</span>
-                <span>meta: ${formatearGuaranies(metaDiaria)}</span>
-            </div>
-        </div>` : ''}
+            <div class="flex justify-between text-[10px] text-gray-400 mt-1.5">
+                <span class="font-semibold text-gray-600">${formatearGuaranies(totalVendido)}</span>
+                <span>meta ${formatearGuaranies(metaDiaria)}</span>
+            </div>` : `<p class="text-xs text-gray-400">Configurá tu meta diaria para ver tu avance.</p>`}
+        </div>
 
+        <!-- HERO: A rendir hoy -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-3 flex items-center justify-between gap-3">
+            <div class="min-w-0">
+                <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">A rendir hoy</p>
+                <p class="text-3xl font-bold text-gray-900 tabular-nums leading-tight">${formatearGuaranies(netoRendir)}</p>
+                <p class="text-[10px] text-gray-400 mt-0.5">Cobrado ${formatearGuaranies(cobrosHoy)} − Gastos ${formatearGuaranies(gastosHoy)}</p>
+            </div>
+            <div class="w-11 h-11 rounded-xl bg-indigo-50 flex items-center justify-center shrink-0">
+                <i data-lucide="wallet" class="w-5 h-5 text-indigo-500"></i>
+            </div>
+        </div>
+
+        <!-- KPIs compactos -->
         <div class="grid grid-cols-2 gap-2 mb-3">
-            <div class="bg-indigo-50 rounded-xl p-3 text-center">
-                <p class="text-xl font-bold text-indigo-600">${pedidosHoy.length}</p>
-                <p class="text-[10px] text-gray-500 font-bold uppercase">PEDIDOS</p>
+            <div class="bg-indigo-50 rounded-lg px-3 py-2 flex items-center justify-between">
+                <span class="text-[9px] text-gray-500 font-bold uppercase tracking-wide">Pedidos</span>
+                <span class="text-base font-bold text-indigo-600 tabular-nums">${pedidosHoy.length}</span>
             </div>
-            <div class="bg-green-50 rounded-xl p-3 text-center">
-                <p class="text-base font-bold text-green-700">${formatearGuaranies(ventasHoy)}</p>
-                <p class="text-[10px] text-gray-500 font-bold uppercase">VENTAS</p>
+            <div class="bg-green-50 rounded-lg px-3 py-2 flex items-center justify-between">
+                <span class="text-[9px] text-gray-500 font-bold uppercase tracking-wide">Ventas</span>
+                <span class="text-[13px] font-bold text-green-700 tabular-nums">${formatearGuaranies(ventasHoy)}</span>
             </div>
-            <div class="bg-amber-50 rounded-xl p-3 text-center">
-                <p class="text-base font-bold text-amber-700">${formatearGuaranies(cobrosHoy)}</p>
-                <p class="text-[10px] text-gray-500 font-bold uppercase">COBROS</p>
+            <div class="bg-amber-50 rounded-lg px-3 py-2 flex items-center justify-between">
+                <span class="text-[9px] text-gray-500 font-bold uppercase tracking-wide">Cobros</span>
+                <span class="text-[13px] font-bold text-amber-700 tabular-nums">${formatearGuaranies(cobrosHoy)}</span>
             </div>
-            <div class="bg-red-50 rounded-xl p-3 text-center">
-                <p class="text-base font-bold text-red-600">${formatearGuaranies(gastosHoy)}</p>
-                <p class="text-[10px] text-gray-500 font-bold uppercase">GASTOS</p>
+            <div class="bg-red-50 rounded-lg px-3 py-2 flex items-center justify-between">
+                <span class="text-[9px] text-gray-500 font-bold uppercase tracking-wide">Gastos</span>
+                <span class="text-[13px] font-bold text-red-600 tabular-nums">${formatearGuaranies(gastosHoy)}</span>
             </div>
         </div>
 
-        <div class="bg-blue-50 border border-blue-100 rounded-xl p-4 mb-3 flex justify-between items-center">
-            <div>
-                <p class="text-xs font-bold text-blue-700 uppercase tracking-wider">A rendir hoy</p>
-                <p class="text-2xl font-bold text-blue-800">${formatearGuaranies(netoRendir)}</p>
+        <!-- Promociones disponibles (del admin) -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-3">
+            <div class="flex items-center gap-1.5 mb-1">
+                <i data-lucide="megaphone" class="w-3.5 h-3.5 text-indigo-500"></i>
+                <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Promociones activas</p>
+                ${promosActivas.length ? `<span class="ml-auto text-[10px] font-bold text-indigo-600">${promosActivas.length}</span>` : ''}
             </div>
-            <i data-lucide="wallet" class="w-8 h-8 text-blue-300"></i>
+            ${promosHtml}
         </div>
 
-        <div class="bg-white rounded-xl p-4 shadow-sm border border-slate-100 mb-3">
-            <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Pedidos de hoy (${pedidosHoy.length})</p>
-            ${listaPedidosHoy}
-        </div>
-
-        <sl-button data-action="agregarGastoVendedor" variant="danger" size="small" class="w-full mb-3">+ Registrar Gasto</sl-button>
-        <sl-button data-action="mostrarConfiguracion" variant="default" class="w-full">Configuracion y Backups</sl-button>
+        <sl-button data-action="agregarGastoVendedor" variant="danger" size="small" class="w-full">+ Registrar Gasto</sl-button>
     `;
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }

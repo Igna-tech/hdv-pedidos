@@ -73,6 +73,16 @@ function redirigirPorRol(rol) {
     const overlay = document.getElementById('greeting-overlay');
     if (!overlay) { navegar(); return; }
 
+    // Nombre del usuario (primer nombre, capitalizado)
+    const nombreEl = document.getElementById('greetName');
+    if (nombreEl) {
+        const primer = (_userNombre || '').trim().split(/\s+/)[0] || '';
+        nombreEl.textContent = primer
+            ? primer.charAt(0).toUpperCase() + primer.slice(1).toLowerCase()
+            : '';
+        nombreEl.style.display = primer ? '' : 'none';
+    }
+
     // Subtitulo segun rol
     const sub = document.getElementById('greetSub');
     if (sub) sub.textContent = rol === 'admin' ? 'Panel de gestión' : 'Sistema de ventas';
@@ -86,18 +96,22 @@ function redirigirPorRol(rol) {
 
     overlay.classList.add('is-active');
 
-    const hold = reduce ? 650 : 2150;
+    // Duracion total ~5s: aparicion + permanencia + desvanecimiento progresivo
+    const hold = reduce ? 700 : 4000;
+    const fade = reduce ? 250 : 1000;
     setTimeout(() => {
         overlay.classList.add('is-leaving');
-        setTimeout(navegar, reduce ? 220 : 460);
+        setTimeout(navegar, fade);
     }, hold);
 }
 
 // --- Obtener rol del usuario (RPC SECURITY DEFINER) ---
+let _userNombre = '';
 async function obtenerRol(userId) {
     const { data, error } = await sb.rpc('obtener_rol_usuario', { user_id: userId });
     if (error || !data || data.length === 0) return null;
     if (!data[0].activo) return null;
+    _userNombre = data[0].nombre_completo || '';
     return data[0].rol;
 }
 

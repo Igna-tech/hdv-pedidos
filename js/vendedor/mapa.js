@@ -37,7 +37,7 @@ const HDVMapa = (() => {
     const NIVEL_COLOR = { deuda: '#ef4444', 'sin-visita': '#f59e0b', activo: '#10b981' };
     function _nivelCliente(c) {
         if (_deudaCliente(c.id) > 0) return 'deuda';
-        const d = _diasDesdeUltimoPedido(c.id);
+        const d = _diasSinContacto(c.id);
         if (d === null || d >= 15) return 'sin-visita';
         return 'activo';
     }
@@ -59,14 +59,16 @@ const HDVMapa = (() => {
     function _buildStatsCache() {
         const pedidos = HDVStorage.getCached('hdv_pedidos') || [];
         const pagos = HDVStorage.getCached('hdv_pagos_credito') || [];
+        const visitas = HDVStorage.getCached('hdv_visitas_clientes') || {};
         const pagadoPorPedido = {};
         pagos.forEach(pg => { pagadoPorPedido[pg.pedidoId] = (pagadoPorPedido[pg.pedidoId] || 0) + (pg.monto || 0); });
         const cache = {};
+        const get = (id) => cache[id] || (cache[id] = { deuda: 0, last: 0, visita: 0 });
         pedidos.forEach(p => {
             const d = p.datos || p;
             const cId = (d.cliente || {}).id;
             if (!cId) return;
-            const c = cache[cId] || (cache[cId] = { deuda: 0, last: 0 });
+            const c = get(cId);
             const fecha = p.fecha || d.fecha || p.creado_en;
             if (fecha) { const t = new Date(fecha).getTime(); if (t && t > c.last) c.last = t; }
             const tipoPago = d.tipoPago || p.tipoPago || '';
@@ -76,6 +78,7 @@ const HDVMapa = (() => {
                 c.deuda += Math.max(0, total - (pagadoPorPedido[p.id] || 0));
             }
         });
+        Object.keys(visitas).forEach(id => { get(id).visita = visitas[id] || 0; });
         _statsCache = cache;
     }
 
@@ -88,6 +91,24 @@ const HDVMapa = (() => {
         if (!_statsCache) _buildStatsCache();
         const last = _statsCache[clienteId] && _statsCache[clienteId].last;
         return last ? Math.floor((Date.now() - last) / 86400000) : null;
+    }
+
+    // Días desde el último CONTACTO (pedido o visita marcada) — para "sin visita"
+    function _diasSinContacto(clienteId) {
+        if (!_statsCache) _buildStatsCache();
+        const s = _statsCache[clienteId];
+        const t = Math.max((s && s.last) || 0, (s && s.visita) || 0);
+        return t ? Math.floor((Date.now() - t) / 86400000) : null;
+    }
+
+    async function _marcarVisita(clienteId) {
+        let visitas = {};
+        try { visitas = (await HDVStorage.getItem('hdv_visitas_clientes', { clone: false })) || {}; } catch (e) {}
+        visitas[clienteId] = Date.now();
+        try { await HDVStorage.setItem('hdv_visitas_clientes', visitas); } catch (e) {}
+        if (typeof mostrarToast === 'function') mostrarToast('Visita registrada ✓ (vale 15 días)', 'success');
+        _renderMarcadores();
+        _mostrarBottomSheet(clienteId);
     }
 
     function _clientesFiltrados() {
@@ -106,8 +127,8 @@ const HDVMapa = (() => {
             case 'sin-visita':
                 return clts.filter(c => {
                     if (!c.lat || !c.lng) return false;
-                    const dias = _diasDesdeUltimoPedido(c.id);
-                    return dias === null || dias > 14;
+                    const dias = _diasSinContacto(c.id);
+                    return dias === null || dias >= 15;
                 });
             case 'sin-ubicacion':
                 return clts.filter(c => !c.lat || !c.lng);
@@ -124,12 +145,12 @@ const HDVMapa = (() => {
         const counts = {
             todos: conUbic.length,
             deuda: conUbic.filter(c => _deudaCliente(c.id) > 0).length,
-            'sin-visita': conUbic.filter(c => { const d = _diasDesdeUltimoPedido(c.id); return d === null || d >= 15; }).length,
+            'sin-visita': conUbic.filter(c => { const d = _diasSinContacto(c.id); return d === null || d >= 15; }).length,
             'sin-ubicacion': clts.filter(c => !c.lat || !c.lng).length,
         };
         const opts = [
             { key: 'todos',         label: 'Todos',      icon: 'users' },
-            { key: 'deuda',         label: 'Con deuda',  icon: 'alert-circle' },
+            { key: 'deuda',         label: 'Deuda',      icon: 'alert-circle' },
             { key: 'sin-visita',    label: 'Sin visita', icon: 'clock' },
             { key: 'sin-ubicacion', label: 'Sin ubicar', icon: 'map-pin-off' },
         ];
@@ -137,9 +158,10 @@ const HDVMapa = (() => {
             const act = _filtroActivo === o.key;
             const n = counts[o.key] || 0;
             return `<button data-action="setFiltroMapa" data-arg="${o.key}"
-                class="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors shadow-sm ${act ? 'bg-steel text-white' : 'bg-white text-slate-700 border border-slate-200'}">
-                <i data-lucide="${o.icon}" class="w-3.5 h-3.5"></i>${escapeHTML(o.label)}
-                <span class="${act ? 'bg-white/25' : 'bg-slate-100 text-slate-500'} text-[10px] font-bold rounded-full px-1.5 leading-tight">${n}</span>
+                class="flex-1 flex flex-col items-center gap-0.5 py-1.5 px-0.5 rounded-xl transition-colors ${act ? 'bg-steel text-white' : 'text-slate-500 active:bg-slate-100'}">
+                <i data-lucide="${o.icon}" class="w-[18px] h-[18px]"></i>
+                <span class="text-[9px] font-bold leading-none">${escapeHTML(o.label)}</span>
+                <span class="text-[11px] font-extrabold leading-none ${act ? 'text-white' : 'text-slate-700'}">${n}</span>
             </button>`;
         }).join('');
     }
@@ -177,6 +199,10 @@ const HDVMapa = (() => {
             const km = _distanciaKm(_userLatLng.lat, _userLatLng.lng, cliente.lat, cliente.lng);
             distStr = km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`;
         }
+        const _visitas = HDVStorage.getCached('hdv_visitas_clientes') || {};
+        const _vts = _visitas[clienteId];
+        const visitaDias = _vts ? Math.floor((Date.now() - _vts) / 86400000) : null;
+        const visitadoOk = visitaDias !== null && visitaDias < 15;
 
         const sheet = document.getElementById('mapaBottomSheet');
         if (!sheet) return;
@@ -236,6 +262,12 @@ const HDVMapa = (() => {
                     Nav
                 </a>
             </div>
+
+            <button data-action="marcarVisitaMapa" data-arg="${escapeHTML(clienteId)}"
+                class="w-full mt-2 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-colors ${visitadoOk ? 'bg-green-50 text-green-700 active:bg-green-100' : 'bg-slate-100 text-slate-700 active:bg-slate-200'}">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                ${visitadoOk ? `Visitado hace ${visitaDias}d · marcar de nuevo` : 'Marcar visita'}
+            </button>
         `;
 
         sheet.style.transform = '';
@@ -619,6 +651,7 @@ const HDVMapa = (() => {
         focusCliente:          _focusCliente,
         toggleLeyenda:         _toggleLeyenda,
         encuadrar:             _encuadrar,
+        marcarVisita:          _marcarVisita,
     };
 })();
 

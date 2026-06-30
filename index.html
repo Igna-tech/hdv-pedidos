@@ -381,11 +381,6 @@
     <!-- VISTA MAPA DE CLIENTES -->
     <div id="vistaMapaWrapper" class="hidden fixed left-0 right-0 bottom-0 z-40" style="top:60px;">
 
-        <!-- Mini-barra de resumen (arriba) -->
-        <div class="absolute top-2 left-0 right-0 z-20 px-3 pointer-events-none">
-            <div id="mapaResumen" class="bg-white/95 backdrop-blur border border-slate-200 rounded-full px-4 py-1.5 text-xs text-slate-500 shadow-lg text-center mx-auto w-max max-w-[92%]"></div>
-        </div>
-
         <!-- Leyenda de colores (toggle) -->
         <div id="mapaLeyenda" class="hidden absolute bottom-20 left-3 z-20 bg-white/95 backdrop-blur border border-slate-200 rounded-xl px-3 py-2.5 shadow-xl text-[11px] space-y-1.5">
             <p class="font-bold text-slate-500 uppercase tracking-wide text-[9px] mb-1">Estado</p>
@@ -425,12 +420,10 @@
             </div>
         </div>
 
-        <!-- FILTROS FLOTANTES — fila inferior sobre el mapa -->
-        <div class="absolute bottom-20 left-0 right-0 z-20 px-3">
-            <div class="overflow-x-auto">
-                <div id="mapaFiltrosChips" class="flex gap-2 pb-1 w-max">
-                    <!-- chips inyectados por mapa.js -->
-                </div>
+        <!-- Filtros: control segmentado unificado (inferior) -->
+        <div class="absolute bottom-20 left-3 right-3 z-20">
+            <div id="mapaFiltrosChips" class="bg-white rounded-2xl shadow-xl border border-slate-200 p-1 flex gap-0.5">
+                <!-- segmentos inyectados por mapa.js -->
             </div>
         </div>
 

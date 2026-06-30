@@ -107,6 +107,7 @@ const _vendedorActionMap = {
     },
     'toggleLeyendaMapa':              () => typeof HDVMapa !== 'undefined' && HDVMapa.toggleLeyenda(),
     'encuadrarMapa':                  () => typeof HDVMapa !== 'undefined' && HDVMapa.encuadrar(),
+    'marcarVisitaMapa':               (_, id) => typeof HDVMapa !== 'undefined' && HDVMapa.marcarVisita(id),
     // Mis Pedidos — acciones de tarjeta
     'abrirModalEntrega':                  (_, id) => window.abrirModalEntrega(id),
     'cobrarPedidoVendedor':               (_, id) => cobrarPedidoVendedor(id),

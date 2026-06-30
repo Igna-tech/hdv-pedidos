@@ -1265,7 +1265,7 @@ function closeCartModal() {
     document.getElementById('cartDrawer').hide();
 }
 
-async function renderizarCarrito() {
+async function renderizarCarrito(animate = true) {
     const container = document.getElementById('cartItemsList');
     container.innerHTML = '';
 
@@ -1274,7 +1274,8 @@ async function renderizarCarrito() {
 
     carrito.forEach((item, idx) => {
         const wrapper = document.createElement('div');
-        wrapper.className = 'relative overflow-hidden rounded-xl';
+        wrapper.className = 'relative overflow-hidden rounded-xl' + (animate ? ' cart-item-anim' : '');
+        if (animate) wrapper.style.animationDelay = (idx * 45) + 'ms';
         wrapper.innerHTML = `
             <div class="absolute inset-y-0 right-0 w-16 bg-red-500 flex items-center justify-center text-white rounded-r-xl">
                 <i data-lucide="trash-2" class="w-4 h-4"></i>

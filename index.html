@@ -67,6 +67,18 @@
             0%, 100% { transform: scale(1); }
             50% { transform: scale(1.2); }
         }
+        /* ===== Carrito: animaciones ===== */
+        @keyframes cartItemIn { from { opacity: 0; transform: translateX(18px); } to { opacity: 1; transform: translateX(0); } }
+        .cart-item-anim { animation: cartItemIn .3s cubic-bezier(0.34,1.56,0.64,1) both; }
+        @keyframes cartItemOut { from { opacity: 1; transform: translateX(0); max-height: 120px; } to { opacity: 0; transform: translateX(-90px); max-height: 0; margin: 0; padding-top: 0; padding-bottom: 0; } }
+        .cart-item-out { animation: cartItemOut .26s ease forwards; overflow: hidden; }
+        @keyframes badgePop { 0% { transform: scale(1); } 40% { transform: scale(1.45); } 100% { transform: scale(1); } }
+        .badge-pop { animation: badgePop .38s cubic-bezier(0.34,1.56,0.64,1); }
+        @keyframes fabBounce { 0%,100% { transform: scale(1); } 28% { transform: scale(0.9); } 60% { transform: scale(1.09); } }
+        .fab-bounce { animation: fabBounce .42s ease; }
+        @keyframes amountPop { 0% { transform: scale(1); } 45% { transform: scale(1.18); } 100% { transform: scale(1); } }
+        .amount-pop { animation: amountPop .4s ease; display: inline-block; }
+        @media (prefers-reduced-motion: reduce) { .cart-item-anim, .cart-item-out, .badge-pop, .fab-bounce, .amount-pop { animation: none !important; } }
 
         /* Smart client search */
         #clienteSearchInput { border: none; outline: none; background: transparent; flex: 1; font-size: 13px; color: var(--ink); min-width: 0; padding: 0; }

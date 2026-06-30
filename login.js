@@ -35,9 +35,6 @@ let _mfaEnrollFactorId = null;
 let _pendingRol = null;
 let _pendingUserId = null;
 
-// Delay de navegacion post-login (ms) — valor local, login.html no carga constants.js
-const LOGIN_NAV_DELAY = 500;
-
 // --- Mostrar alerta (sl-alert Shoelace) ---
 function showAlert(message, type = 'error', target = alertBox) {
     const variantMap = { error: 'danger', success: 'success', warning: 'warning' };
@@ -64,20 +61,57 @@ function mostrarPantalla(pantalla) {
     pantalla.classList.add('screen-in');
 }
 
-// --- Redirigir segun rol ---
+// --- Redirigir segun rol (con saludo animado estilo Apple) ---
+let _yaRedirigiendo = false;
 function redirigirPorRol(rol) {
-    if (rol === 'admin') {
-        window.location.href = '/admin';
-    } else {
-        window.location.href = '/';
+    if (_yaRedirigiendo) return;
+    _yaRedirigiendo = true;
+
+    const destino = rol === 'admin' ? '/admin' : '/';
+    const navegar = () => window.location.replace(destino);
+
+    const overlay = document.getElementById('greeting-overlay');
+    if (!overlay) { navegar(); return; }
+
+    // Nombre del usuario (primer nombre, capitalizado)
+    const nombreEl = document.getElementById('greetName');
+    if (nombreEl) {
+        const primer = (_userNombre || '').trim().split(/\s+/)[0] || '';
+        nombreEl.textContent = primer
+            ? primer.charAt(0).toUpperCase() + primer.slice(1).toLowerCase()
+            : '';
+        nombreEl.style.display = primer ? '' : 'none';
     }
+
+    // Subtitulo segun rol
+    const sub = document.getElementById('greetSub');
+    if (sub) sub.textContent = rol === 'admin' ? 'Panel de gestión' : 'Sistema de ventas';
+
+    // Ocultar el resto de la interfaz para que el saludo sea protagonista
+    const consola = document.querySelector('.console');
+    if (consola) consola.style.display = 'none';
+    if (typeof loadingScreen !== 'undefined' && loadingScreen) loadingScreen.style.display = 'none';
+
+    const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    overlay.classList.add('is-active');
+
+    // Duracion total ~5s: aparicion + permanencia + desvanecimiento progresivo
+    const hold = reduce ? 700 : 4000;
+    const fade = reduce ? 250 : 1000;
+    setTimeout(() => {
+        overlay.classList.add('is-leaving');
+        setTimeout(navegar, fade);
+    }, hold);
 }
 
 // --- Obtener rol del usuario (RPC SECURITY DEFINER) ---
+let _userNombre = '';
 async function obtenerRol(userId) {
     const { data, error } = await sb.rpc('obtener_rol_usuario', { user_id: userId });
     if (error || !data || data.length === 0) return null;
     if (!data[0].activo) return null;
+    _userNombre = data[0].nombre_completo || '';
     return data[0].rol;
 }
 
@@ -200,8 +234,7 @@ btnMfaEnrollVerify.addEventListener('click', async () => {
 
         // MFA activado exitosamente — guardar datos y redirigir
         await HDVStorage.setItem('hdv_user_rol', _pendingRol);
-        showAlert('MFA activado exitosamente! Redirigiendo...', 'success', mfaEnrollAlert);
-        setTimeout(() => redirigirPorRol(_pendingRol), 1000);
+        redirigirPorRol(_pendingRol);
 
     } catch (err) {
         console.error('[MFA] Error verificando enrolamiento:', err);
@@ -267,8 +300,7 @@ btnMfaVerify.addEventListener('click', async () => {
 
         // MFA verificado — redirigir
         await HDVStorage.setItem('hdv_user_rol', _pendingRol);
-        showAlert('Verificado! Redirigiendo...', 'success', mfaAlert);
-        setTimeout(() => redirigirPorRol(_pendingRol), LOGIN_NAV_DELAY);
+        redirigirPorRol(_pendingRol);
 
     } catch (err) {
         console.error('[MFA] Error verificando TOTP:', err);
@@ -411,8 +443,7 @@ loginForm.addEventListener('submit', async (e) => {
         await HDVStorage.setItem('hdv_user_rol', rol);
         await HDVStorage.setItem('hdv_user_email', data.user.email);
 
-        showAlert('Bienvenido! Redirigiendo...', 'success');
-        setTimeout(() => redirigirPorRol(rol), LOGIN_NAV_DELAY);
+        redirigirPorRol(rol);
 
     } catch (err) {
         console.error('[Login] Error:', err);

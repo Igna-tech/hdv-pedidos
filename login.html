@@ -191,14 +191,118 @@
         }
         @starting-style { #offline-banner { transform: translateY(-100%); } }
 
+        /* ===== Saludo animado (corporativo) ===== */
+        #greeting-overlay {
+            position: fixed; inset: 0; z-index: 200;
+            display: none; flex-direction: column; align-items: center; justify-content: center;
+            gap: 0.55rem;
+            background: radial-gradient(130% 130% at 50% 38%, #15151a 0%, var(--ground) 68%);
+            opacity: 0;
+        }
+        #greeting-overlay.is-active { display: flex; animation: greetIn 700ms var(--ease-out) forwards; }
+        /* desvanecimiento progresivo (1s): se va difuminando y alejando suavemente */
+        #greeting-overlay.is-leaving { animation: greetOut 1000ms var(--ease-io) forwards; }
+        @keyframes greetIn  { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes greetOut {
+            0%   { opacity: 1; transform: scale(1);    filter: blur(0); }
+            100% { opacity: 0; transform: scale(1.06); filter: blur(6px); }
+        }
+
+        /* halo que respira detras del saludo */
+        #greeting-overlay::before {
+            content: ''; position: absolute; width: min(70vw, 620px); height: min(70vw, 620px);
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(255,255,255,0.07) 0%, transparent 65%);
+            opacity: 0;
+        }
+        #greeting-overlay.is-active::before { animation: greetHalo 4200ms var(--ease-io) 200ms forwards; }
+        @keyframes greetHalo {
+            0%   { opacity: 0;    transform: scale(0.6); }
+            30%  { opacity: 1;    transform: scale(1); }
+            100% { opacity: 0.55; transform: scale(1.12); }
+        }
+
+        .greet-word {
+            font-family: 'Geist', sans-serif;
+            font-weight: 700;
+            font-size: clamp(3.6rem, 17vw, 8.5rem);
+            line-height: 0.95;
+            letter-spacing: -0.02em;
+            color: var(--ink);
+            opacity: 0; transform: translateY(26px);
+            filter: drop-shadow(0 8px 34px rgba(0,0,0,0.55));
+        }
+        #greeting-overlay.is-active .greet-word {
+            animation: greetRise 900ms var(--ease-out) 260ms backwards;
+            animation-fill-mode: forwards;
+        }
+
+        .greet-name {
+            font-family: 'Geist', sans-serif;
+            font-weight: 500;
+            font-size: clamp(1.4rem, 6.5vw, 2.6rem);
+            letter-spacing: -0.01em;
+            color: var(--ink);
+            opacity: 0; transform: translateY(22px);
+        }
+        #greeting-overlay.is-active .greet-name {
+            animation: greetRise 900ms var(--ease-out) 620ms forwards;
+        }
+
+        /* linea-acento que se expande bajo el nombre */
+        .greet-rule {
+            width: 0; height: 2px; margin: 0.25rem 0 0.15rem;
+            background: linear-gradient(90deg, transparent, var(--steel-bright), transparent);
+            opacity: 0;
+        }
+        #greeting-overlay.is-active .greet-rule {
+            animation: greetRule 760ms var(--ease-out) 1020ms forwards;
+        }
+        @keyframes greetRule {
+            0%   { width: 0;     opacity: 0; }
+            100% { width: clamp(80px, 26vw, 200px); opacity: 0.9; }
+        }
+
+        .greet-sub {
+            font-family: 'Geist Mono', monospace;
+            font-size: clamp(0.62rem, 3vw, 0.78rem);
+            font-weight: 500;
+            letter-spacing: 0.22em;
+            text-transform: uppercase;
+            color: var(--muted);
+            opacity: 0; transform: translateY(14px);
+        }
+        #greeting-overlay.is-active .greet-sub {
+            animation: greetRise 760ms var(--ease-out) 1220ms forwards;
+        }
+
+        @keyframes greetRise {
+            0%   { opacity: 0; transform: translateY(26px); }
+            60%  { opacity: 1; }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+
         @media (prefers-reduced-motion: reduce) {
             .reveal, .screen-in, .caps-hint { animation: none; opacity: 1; transform: none; }
             .pip, .scan::after { animation: none; }
+            #greeting-overlay.is-active { animation: none; opacity: 1; }
+            #greeting-overlay.is-leaving { animation: none; opacity: 0; transition: opacity 200ms; }
+            #greeting-overlay.is-active::before { animation: none; opacity: 0.4; transform: none; }
+            .greet-word, .greet-name, .greet-sub { animation: none; opacity: 1; transform: none; filter: none; }
+            .greet-rule { animation: none; opacity: 0.8; width: clamp(80px, 26vw, 200px); }
             *, *::before, *::after { transition-duration: 0.01ms !important; }
         }
     </style>
 </head>
 <body>
+
+    <!-- Saludo animado (estilo Apple "hello") antes de redirigir -->
+    <div id="greeting-overlay" aria-hidden="true">
+        <span class="greet-word" id="greetWord">Hola</span>
+        <span class="greet-name" id="greetName"></span>
+        <div class="greet-rule"></div>
+        <span class="greet-sub" id="greetSub"></span>
+    </div>
 
     <!-- Banner sin conexión -->
     <div id="offline-banner">SIN CONEXIÓN — verificá tu internet</div>

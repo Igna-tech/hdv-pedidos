@@ -100,17 +100,48 @@ async function cargarCarritoGuardado() {
 }
 
 function eliminarDelCarrito(idx) {
+    const itemEliminado = carrito[idx];
     const finalizar = () => {
         carrito.splice(idx, 1);
         actualizarContadorCarrito();
         guardarCarrito();
-        if (carrito.length === 0) closeCartModal();
-        else renderizarCarrito(false);
+        renderizarCarrito(false); // mantiene el drawer abierto (muestra estado vacío si corresponde)
+        if (itemEliminado) _mostrarUndoCarrito(itemEliminado, idx);
     };
     const inner = document.querySelector('.cart-item-inner[data-idx="' + idx + '"]');
     const wrapper = inner ? inner.parentElement : null;
     if (wrapper) { wrapper.classList.add('cart-item-out'); setTimeout(finalizar, 240); }
     else finalizar();
+}
+
+// Snackbar "Deshacer" tras eliminar una línea
+let _undoTimer = null;
+function _mostrarUndoCarrito(item, idx) {
+    const previo = document.getElementById('cartUndoBar');
+    if (previo) previo.remove();
+    if (_undoTimer) clearTimeout(_undoTimer);
+
+    const bar = document.createElement('div');
+    bar.id = 'cartUndoBar';
+    bar.className = 'cart-undo-bar';
+    bar.innerHTML = `<span>Producto eliminado</span>`;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = 'Deshacer';
+    btn.addEventListener('click', () => {
+        if (_undoTimer) clearTimeout(_undoTimer);
+        carrito.splice(Math.min(idx, carrito.length), 0, item);
+        actualizarContadorCarrito();
+        guardarCarrito();
+        const drawer = document.getElementById('cartDrawer');
+        if (drawer && !drawer.open) drawer.show();
+        renderizarCarrito(false);
+        bar.remove();
+    });
+    bar.appendChild(btn);
+    document.body.appendChild(bar);
+    requestAnimationFrame(() => bar.classList.add('is-visible'));
+    _undoTimer = setTimeout(() => { bar.classList.remove('is-visible'); setTimeout(() => bar.remove(), 250); }, 4000);
 }
 
 function cambiarCantidadCarrito(idx, delta) {
@@ -120,6 +151,42 @@ function cambiarCantidadCarrito(idx, delta) {
     actualizarContadorCarrito();
     guardarCarrito();
     renderizarCarrito(false);
+}
+
+// Vaciar carrito completo (con confirmación)
+async function vaciarCarrito() {
+    if (!carrito.length) return;
+    const ok = await mostrarConfirmModal('Se quitarán todos los productos del carrito.', {
+        titulo: 'Vaciar carrito', textoConfirmar: 'Vaciar', destructivo: true
+    });
+    if (!ok) return;
+    carrito.splice(0, carrito.length);
+    actualizarContadorCarrito();
+    guardarCarrito();
+    renderizarCarrito(false);
+}
+
+// Editar el precio unitario de una línea (precio especial puntual)
+async function editarPrecioLinea(idx) {
+    const item = carrito[idx];
+    if (!item) return;
+    const datos = await mostrarInputModal({
+        titulo: 'Editar precio',
+        subtitulo: `${item.nombre} · ${item.presentacion}`,
+        textoConfirmar: 'Guardar',
+        icono: 'pencil',
+        campos: [{ key: 'precio', tipo: 'number', label: 'Precio por unidad (Gs.)', valor: item.precio, requerido: true }]
+    });
+    if (!datos) return;
+    const nuevo = parseFloat(datos.precio) || 0;
+    if (nuevo <= 0) { mostrarToast('Ingresá un precio válido', 'error'); return; }
+    item.precio = nuevo;
+    item.subtotal = item.cantidad * nuevo;
+    item.precioEspecial = true;
+    actualizarContadorCarrito();
+    guardarCarrito();
+    renderizarCarrito(false);
+    mostrarToast('Precio actualizado', 'success', 1500);
 }
 
 function agregarMatrizAlCarrito(productoId) {

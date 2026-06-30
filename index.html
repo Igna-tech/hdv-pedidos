@@ -434,19 +434,23 @@
             </div>
         </div>
 
-        <!-- FABs (estilo sistema) -->
+        <!-- Controles del mapa (panel unificado) -->
         <div class="absolute bottom-5 right-4 z-20 flex flex-col items-end gap-2.5">
             <button id="mapaSinUbicarBadge" data-action="setFiltroMapa" data-arg="sin-ubicacion"
-                class="hidden bg-amber-500 text-white rounded-full px-3 py-1.5 text-xs font-bold shadow-lg border border-amber-400">
+                class="hidden items-center gap-1.5 bg-white text-amber-600 rounded-full pl-2.5 pr-3 py-1.5 text-xs font-bold shadow-lg border border-amber-200">
+                <i data-lucide="map-pin-off" class="w-3.5 h-3.5"></i><span id="mapaSinUbicarTxt"></span>
             </button>
-            <button data-action="toggleLeyendaMapa" aria-label="Leyenda"
-                class="w-11 h-11 bg-white rounded-xl shadow-lg flex items-center justify-center text-slate-600 border border-slate-200 active:scale-95 transition-all">
-                <i data-lucide="list" class="w-5 h-5"></i>
-            </button>
-            <button data-action="centrarEnMiUbicacion" aria-label="Mi ubicación"
-                class="w-12 h-12 bg-steel text-white rounded-xl shadow-xl flex items-center justify-center active:scale-95 transition-all">
-                <i data-lucide="locate-fixed" class="w-5 h-5"></i>
-            </button>
+            <div class="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden flex flex-col divide-y divide-slate-100">
+                <button data-action="centrarEnMiUbicacion" aria-label="Mi ubicación" class="w-12 h-12 flex items-center justify-center text-steel active:bg-slate-100 transition-colors">
+                    <i data-lucide="locate-fixed" class="w-5 h-5"></i>
+                </button>
+                <button data-action="encuadrarMapa" aria-label="Encuadrar todos" class="w-12 h-12 flex items-center justify-center text-slate-600 active:bg-slate-100 transition-colors">
+                    <i data-lucide="maximize" class="w-5 h-5"></i>
+                </button>
+                <button data-action="toggleLeyendaMapa" aria-label="Leyenda" class="w-12 h-12 flex items-center justify-center text-slate-600 active:bg-slate-100 transition-colors">
+                    <i data-lucide="list" class="w-5 h-5"></i>
+                </button>
+            </div>
         </div>
 
         <!-- Botón confirmar pin (modo colocación, cubre toda la base) -->
@@ -460,7 +464,7 @@
 
         <!-- Bottom sheet cliente -->
         <div id="mapaBottomSheet"
-            class="hidden absolute bottom-0 left-0 right-0 z-30 bg-white rounded-t-2xl shadow-2xl px-4 pt-3 pb-8 transition-transform duration-300 translate-y-full">
+            class="hidden absolute bottom-0 left-0 right-0 z-30 bg-white rounded-t-2xl shadow-2xl px-4 pt-2 pb-5 transition-transform duration-300 translate-y-full">
             <!-- contenido inyectado por mapa.js -->
         </div>
     </div>

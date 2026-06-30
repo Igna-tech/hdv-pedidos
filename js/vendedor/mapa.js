@@ -53,42 +53,41 @@ const HDVMapa = (() => {
         });
     }
 
-    function _deudaCliente(clienteId) {
+    // Cache de stats por cliente: deuda + última compra (1 solo barrido por render)
+    // Lee la forma plana (vendedor) o envuelta en .datos (admin/sync).
+    let _statsCache = null;
+    function _buildStatsCache() {
         const pedidos = HDVStorage.getCached('hdv_pedidos') || [];
-        const pagosCredito = HDVStorage.getCached('hdv_pagos_credito') || [];
-        let deuda = 0;
-
-        pedidos.filter(p => {
-            const d = p.datos || {};
-            const tipoPago = d.tipoPago || p.tipoPago || '';
-            const estado = p.estado || '';
+        const pagos = HDVStorage.getCached('hdv_pagos_credito') || [];
+        const pagadoPorPedido = {};
+        pagos.forEach(pg => { pagadoPorPedido[pg.pedidoId] = (pagadoPorPedido[pg.pedidoId] || 0) + (pg.monto || 0); });
+        const cache = {};
+        pedidos.forEach(p => {
+            const d = p.datos || p;
             const cId = (d.cliente || {}).id;
-            return cId === clienteId && tipoPago === 'credito' &&
-                   estado !== 'cobrado_sin_factura' && estado !== 'anulado';
-        }).forEach(p => {
-            const d = p.datos || {};
-            const total = d.total || 0;
-            const pagado = pagosCredito.filter(pg => pg.pedidoId === p.id)
-                .reduce((s, pg) => s + (pg.monto || 0), 0);
-            deuda += Math.max(0, total - pagado);
+            if (!cId) return;
+            const c = cache[cId] || (cache[cId] = { deuda: 0, last: 0 });
+            const fecha = p.fecha || d.fecha || p.creado_en;
+            if (fecha) { const t = new Date(fecha).getTime(); if (t && t > c.last) c.last = t; }
+            const tipoPago = d.tipoPago || p.tipoPago || '';
+            const estado = p.estado || d.estado || '';
+            if (tipoPago === 'credito' && estado !== 'cobrado_sin_factura' && estado !== 'anulado') {
+                const total = d.total || p.total || 0;
+                c.deuda += Math.max(0, total - (pagadoPorPedido[p.id] || 0));
+            }
         });
+        _statsCache = cache;
+    }
 
-        return deuda;
+    function _deudaCliente(clienteId) {
+        if (!_statsCache) _buildStatsCache();
+        return _statsCache[clienteId] ? _statsCache[clienteId].deuda : 0;
     }
 
     function _diasDesdeUltimoPedido(clienteId) {
-        const pedidos = HDVStorage.getCached('hdv_pedidos') || [];
-        const dePedidos = pedidos
-            .filter(p => {
-                const d = p.datos || {};
-                return (d.cliente || {}).id === clienteId;
-            })
-            .sort((a, b) => new Date(b.fecha || b.creado_en) - new Date(a.fecha || a.creado_en));
-
-        if (!dePedidos.length) return null;
-        const fecha = dePedidos[0].fecha || dePedidos[0].creado_en;
-        if (!fecha) return null;
-        return Math.floor((Date.now() - new Date(fecha).getTime()) / 86400000);
+        if (!_statsCache) _buildStatsCache();
+        const last = _statsCache[clienteId] && _statsCache[clienteId].last;
+        return last ? Math.floor((Date.now() - last) / 86400000) : null;
     }
 
     function _clientesFiltrados() {
@@ -205,45 +204,13 @@ const HDVMapa = (() => {
                 </button>
             </div>
 
-            <div class="grid grid-cols-2 gap-2 mb-4">
-                ${cliente.telefono ? `
-                <a href="tel:${escapeHTML(cliente.telefono)}"
-                   class="flex items-center gap-2 bg-slate-50 rounded-xl px-3 py-2.5 transition-colors active:bg-slate-100">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.948V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 8V5z"/>
-                    </svg>
-                    <span class="text-xs font-semibold text-slate-700 truncate">${escapeHTML(cliente.telefono)}</span>
-                </a>` : `<div class="bg-slate-50 rounded-xl px-3 py-2.5"></div>`}
-
-                <div class="flex items-center gap-2 bg-slate-50 rounded-xl px-3 py-2.5">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                    </svg>
-                    <div>
-                        <p class="text-[10px] text-slate-400 leading-none mb-0.5">Último pedido</p>
-                        <p class="text-xs font-semibold text-slate-700">${escapeHTML(diasStr)}</p>
-                    </div>
-                </div>
-
-                <div class="flex items-center gap-2 ${deuda > 0 ? 'bg-red-50' : 'bg-slate-50'} rounded-xl px-3 py-2.5">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 ${deuda > 0 ? 'text-red-400' : 'text-slate-400'} shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                    </svg>
-                    <div>
-                        <p class="text-[10px] ${deuda > 0 ? 'text-red-400' : 'text-slate-400'} leading-none mb-0.5">Deuda</p>
-                        <p class="text-xs font-semibold ${deuda > 0 ? 'text-red-600' : 'text-slate-700'}">${escapeHTML(deudaStr)}</p>
-                    </div>
-                </div>
-
-                ${cliente.direccion ? `
-                <div class="flex items-center gap-2 bg-slate-50 rounded-xl px-3 py-2.5">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
-                    </svg>
-                    <p class="text-xs text-slate-600 truncate">${escapeHTML(cliente.direccion)}</p>
-                </div>` : ''}
+            <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] mb-3 px-0.5">
+                ${cliente.telefono ? `<a href="tel:${escapeHTML(cliente.telefono)}" class="flex items-center gap-1 font-semibold text-slate-700 active:text-slate-900">
+                    <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.948V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 8V5z"/></svg>${escapeHTML(cliente.telefono)}</a>` : ''}
+                <span class="flex items-center gap-1 text-slate-500"><svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>${escapeHTML(diasStr)}</span>
+                <span class="flex items-center gap-1 font-semibold ${deuda > 0 ? 'text-red-600' : 'text-slate-500'}"><svg class="w-3.5 h-3.5 ${deuda > 0 ? 'text-red-400' : 'text-slate-400'}" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8V7m0 9v1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>${escapeHTML(deudaStr)}</span>
             </div>
+            ${cliente.direccion ? `<p class="flex items-center gap-1 text-[11px] text-slate-400 truncate mb-3 px-0.5"><svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg><span class="truncate">${escapeHTML(cliente.direccion)}</span></p>` : ''}
 
             <div class="flex gap-2">
                 <button data-action="crearPedidoDesdeMapaCliente" data-arg="${escapeHTML(clienteId)}"
@@ -359,6 +326,7 @@ const HDVMapa = (() => {
 
     function _renderMarcadores() {
         if (!_mapa || !_markersLayer) return;
+        _statsCache = null; // refrescar deuda/días (1 solo barrido para todo el render)
         _markersLayer.clearLayers();
         _marcadores = {};
 
@@ -382,12 +350,13 @@ const HDVMapa = (() => {
         // Badge sin ubicar
         const sinUbicar = (window.clientes || []).filter(c => !c.lat || !c.lng).length;
         const badge = document.getElementById('mapaSinUbicarBadge');
+        const badgeTxt = document.getElementById('mapaSinUbicarTxt');
         if (badge) {
             if (sinUbicar > 0 && _filtroActivo !== 'sin-ubicacion') {
-                badge.textContent = `Sin ubicar: ${sinUbicar}`;
-                badge.classList.remove('hidden');
+                if (badgeTxt) badgeTxt.textContent = `${sinUbicar} sin ubicar`;
+                badge.classList.remove('hidden'); badge.classList.add('flex');
             } else {
-                badge.classList.add('hidden');
+                badge.classList.add('hidden'); badge.classList.remove('flex');
             }
         }
 
@@ -538,6 +507,13 @@ const HDVMapa = (() => {
         document.getElementById('mapaLeyenda')?.classList.toggle('hidden');
     }
 
+    function _encuadrar() {
+        if (!_mapa) return;
+        const cl = (window.clientes || []).filter(c => c.lat && c.lng);
+        if (!cl.length) { mostrarToast('No hay clientes ubicados', 'info'); return; }
+        try { _mapa.fitBounds(L.latLngBounds(cl.map(c => [c.lat, c.lng])), { padding: [50, 80], maxZoom: 15, animate: true }); } catch (_) {}
+    }
+
     // ── Filtro público ────────────────────────────────────────
 
     function setFiltroMapa(filtro) {
@@ -590,9 +566,13 @@ const HDVMapa = (() => {
 
             L.control.zoom({ position: 'bottomright' }).addTo(_mapa);
             _markersLayer = L.layerGroup().addTo(_mapa);
-            // Recordar última posición/zoom
+            // Recordar última posición/zoom (con debounce)
+            let _vpT = null;
             _mapa.on('moveend', () => {
-                try { const c = _mapa.getCenter(); HDVStorage.setItem('hdv_mapa_viewport', { lat: c.lat, lng: c.lng, z: _mapa.getZoom() }); } catch (e) {}
+                clearTimeout(_vpT);
+                _vpT = setTimeout(() => {
+                    try { const c = _mapa.getCenter(); HDVStorage.setItem('hdv_mapa_viewport', { lat: c.lat, lng: c.lng, z: _mapa.getZoom() }); } catch (e) {}
+                }, 600);
             });
         }
 
@@ -638,6 +618,7 @@ const HDVMapa = (() => {
         centrarEnMiUbicacion:  _centrarEnMiUbicacion,
         focusCliente:          _focusCliente,
         toggleLeyenda:         _toggleLeyenda,
+        encuadrar:             _encuadrar,
     };
 })();
 

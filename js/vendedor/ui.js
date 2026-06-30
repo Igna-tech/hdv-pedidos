@@ -1309,11 +1309,6 @@ function ajustarQty(prodId, idx, delta) {
 // MODAL CARRITO UI
 // ============================================
 function mostrarModalCarrito() {
-    if (carrito.length === 0) {
-        mostrarExito('El carrito esta vacio');
-        return;
-    }
-
     document.getElementById('cartDrawer').show();
     renderizarCarrito();
     lucide.createIcons();
@@ -1321,6 +1316,48 @@ function mostrarModalCarrito() {
 
 function closeCartModal() {
     document.getElementById('cartDrawer').hide();
+}
+
+// --- Tipo de pago (control segmentado) ---
+function setTipoPago(valor) {
+    const v = valor === 'credito' ? 'credito' : 'contado';
+    const input = document.getElementById('tipoPago');
+    if (input) input.value = v;
+    document.querySelectorAll('.hdv-seg-btn[data-action="setTipoPago"]').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('data-arg') === v);
+    });
+}
+
+// Sincroniza el segmentado y la etiqueta de notas con el estado actual de los inputs ocultos
+function _sincronizarControlesCarrito() {
+    const tp = document.getElementById('tipoPago');
+    if (tp) setTipoPago(tp.value || 'contado');
+    const notas = (document.getElementById('notasPedido')?.value || '').trim();
+    const label = document.getElementById('btnNotasLabel');
+    const btn = document.getElementById('btnNotasPedido');
+    if (label) label.textContent = notas ? notas : 'Agregar nota';
+    if (btn) btn.classList.toggle('tiene-nota', !!notas);
+}
+
+// --- Notas: ventana flotante con boton guardar ---
+async function abrirNotasPedido() {
+    const actual = document.getElementById('notasPedido')?.value || '';
+    const datos = await mostrarInputModal({
+        titulo: 'Nota del pedido',
+        subtitulo: 'Indicá una observación para este pedido (opcional).',
+        textoConfirmar: 'Guardar',
+        icono: 'sticky-note',
+        campos: [{
+            key: 'nota', tipo: 'textarea', label: 'Nota', valor: actual,
+            placeholder: 'Ej. Entregar de tarde, llamar antes de llegar...'
+        }]
+    });
+    if (datos === null) return; // cancelado
+    const nota = (datos.nota || '').trim();
+    const input = document.getElementById('notasPedido');
+    if (input) input.value = nota;
+    _sincronizarControlesCarrito();
+    if (typeof mostrarToast === 'function') mostrarToast(nota ? 'Nota guardada' : 'Nota eliminada', 'success', 1500);
 }
 
 async function renderizarCarrito(animate = true) {
@@ -1337,7 +1374,59 @@ async function renderizarCarrito(animate = true) {
         tituloEl.textContent = nom ? `Pedido de ${nom}` : 'Cliente no seleccionado';
     }
 
+    const opciones = document.getElementById('cartOptions');
+    const totalSection = document.getElementById('totalSection');
+    const footerActions = document.getElementById('cartFooterActions');
+
+    // --- Estado vacío ---
+    if (!carrito.length) {
+        if (opciones) opciones.style.display = 'none';
+        if (footerActions) footerActions.style.display = 'none';
+        if (totalSection) totalSection.classList.add('hidden');
+        const empty = document.createElement('div');
+        empty.className = 'cart-empty';
+        empty.innerHTML = `
+            <div class="cart-empty-icon"><i data-lucide="shopping-cart"></i></div>
+            <p class="cart-empty-title">Tu carrito está vacío</p>
+            <p class="cart-empty-sub">Agregá productos desde el catálogo</p>`;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'cart-empty-btn';
+        btn.textContent = 'Ir al catálogo';
+        btn.addEventListener('click', () => closeCartModal());
+        empty.appendChild(btn);
+        container.appendChild(empty);
+        lucide.createIcons();
+        return;
+    }
+
+    if (opciones) opciones.style.display = '';
+    if (footerActions) footerActions.style.display = '';
+
+    // Sincronizar segmentado de pago + etiqueta de notas
+    _sincronizarControlesCarrito();
+
+    // --- Resumen compacto (productos · unidades + vaciar) ---
+    const totalUnidades = carrito.reduce((s, i) => s + i.cantidad, 0);
+    const resumen = document.createElement('div');
+    resumen.className = 'cart-summary';
+    resumen.innerHTML = `
+        <span class="cart-summary-info">${carrito.length} producto${carrito.length !== 1 ? 's' : ''} · ${totalUnidades} unidad${totalUnidades !== 1 ? 'es' : ''}</span>
+        <button type="button" data-action="vaciarCarrito" class="cart-summary-clear">
+            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Vaciar
+        </button>`;
+    container.appendChild(resumen);
+
+    const noImgMiniSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>`;
+    const noImgMini = `<div class="cart-thumb cart-thumb-noimg">${noImgMiniSVG}</div>`;
+
     carrito.forEach((item, idx) => {
+        const prod = (typeof productos !== 'undefined' ? productos : []).find(p => p.id === item.productoId);
+        const imgUrl = prod ? (prod.imagen_url || prod.imagen) : '';
+        const thumbHTML = imgUrl
+            ? `<img src="${escapeHTML(imgUrl)}" class="cart-thumb" alt="">`
+            : noImgMini;
+
         const wrapper = document.createElement('div');
         wrapper.className = 'relative overflow-hidden rounded-xl' + (animate ? ' cart-item-anim' : '');
         if (animate) wrapper.style.animationDelay = (idx * 45) + 'ms';
@@ -1345,22 +1434,45 @@ async function renderizarCarrito(animate = true) {
             <div class="absolute inset-y-0 right-0 w-16 bg-red-500 flex items-center justify-center text-white rounded-r-xl">
                 <i data-lucide="trash-2" class="w-4 h-4"></i>
             </div>
-            <div class="cart-item-inner relative bg-gray-50 p-3 transition-transform rounded-xl" style="touch-action: pan-y;" data-idx="${idx}">
-                <div class="flex justify-between items-center gap-2">
+            <div class="cart-item-inner relative bg-gray-50 p-2.5 transition-transform rounded-xl" style="touch-action: pan-y;" data-idx="${idx}">
+                <div class="flex items-center gap-2.5">
+                    ${thumbHTML}
                     <div class="flex-1 min-w-0">
                         <p class="font-semibold text-gray-800 text-sm truncate">${escapeHTML(item.nombre)}${item.precioEspecial ? ' <span class="inline-block bg-amber-100 text-amber-700 text-[10px] font-bold px-1.5 py-0.5 rounded-full ml-1 align-middle">P.Esp</span>' : ''}</p>
-                        <p class="text-xs text-gray-500">${escapeHTML(item.presentacion)} · ${formatearGuaranies(item.precio)} c/u</p>
+                        <button type="button" class="cart-precio-edit" data-edit="${idx}">
+                            <span class="truncate">${escapeHTML(item.presentacion)} · ${formatearGuaranies(item.precio)} c/u</span>
+                            <i data-lucide="pencil" class="w-3 h-3 shrink-0"></i>
+                        </button>
                     </div>
-                    <div class="flex items-center gap-2 shrink-0">
-                        <sl-icon-button name="dash-lg" label="Menos" onclick="cambiarCantidadCarrito(${idx},-1)" class="cart-qty-btn"></sl-icon-button>
-                        <span class="font-bold text-base w-8 text-center">${item.cantidad}</span>
-                        <sl-icon-button name="plus-lg" label="Mas" onclick="cambiarCantidadCarrito(${idx},1)" class="cart-qty-btn"></sl-icon-button>
-                        <p class="font-bold text-gray-900 ml-1 text-sm text-right whitespace-nowrap">${formatearGuaranies(item.subtotal)}</p>
+                    <div class="flex flex-col items-end gap-1.5 shrink-0">
+                        <p class="font-bold text-gray-900 text-sm whitespace-nowrap tabular-nums">${formatearGuaranies(item.subtotal)}</p>
+                        <div class="cart-stepper">
+                            <button type="button" class="cart-step-btn" data-step="-1" aria-label="Menos">&#x2212;</button>
+                            <span class="cart-step-qty tabular-nums">${item.cantidad}</span>
+                            <button type="button" class="cart-step-btn" data-step="1" aria-label="Más">+</button>
+                        </div>
                     </div>
                 </div>
             </div>`;
-        // Swipe to delete
+
         const inner = wrapper.querySelector('.cart-item-inner');
+
+        // Fallback de miniatura sin romper CSP (sin onerror inline)
+        const thumbImg = inner.querySelector('img.cart-thumb');
+        if (thumbImg) thumbImg.onerror = () => { thumbImg.outerHTML = noImgMini; };
+
+        // Steppers
+        inner.querySelectorAll('.cart-step-btn').forEach(b => {
+            b.addEventListener('click', (e) => {
+                e.stopPropagation();
+                cambiarCantidadCarrito(idx, parseInt(b.dataset.step));
+            });
+        });
+        // Editar precio
+        const editBtn = inner.querySelector('.cart-precio-edit');
+        if (editBtn) editBtn.addEventListener('click', (e) => { e.stopPropagation(); editarPrecioLinea(idx); });
+
+        // Swipe to delete
         let startX = 0, currentX = 0;
         inner.addEventListener('touchstart', e => { startX = e.touches[0].clientX; }, { passive: true });
         inner.addEventListener('touchmove', e => {
@@ -1376,11 +1488,9 @@ async function renderizarCarrito(animate = true) {
     });
     lucide.createIcons();
 
-    // Total
+    // --- Totales ---
     const total = carrito.reduce((s, i) => s + i.subtotal, 0);
-    const totalSection = document.getElementById('totalSection');
     totalSection.classList.remove('hidden');
-    // Aplicar promociones
     let promoHTML = '';
     let descuentoPromo = 0;
     if (typeof aplicarPromociones === 'function') {
@@ -1391,20 +1501,21 @@ async function renderizarCarrito(animate = true) {
     const totalConPromo = total - descuentoPromo;
 
     totalSection.innerHTML = `
-        <div class="flex justify-between items-center">
-            <span class="text-gray-500 font-bold">SUBTOTAL</span>
-            <span class="text-xl font-bold text-gray-900" id="cartSubtotal">${formatearGuaranies(total)}</span>
-        </div>
-        ${descuentoPromo > 0 ? `<div class="flex justify-between items-center text-green-600">
-            <span class="font-bold">DESCUENTO PROMO</span>
-            <span class="font-bold">-${formatearGuaranies(descuentoPromo)}</span>
+        ${descuentoPromo > 0 ? `<div class="cart-ahorro">
+            <span class="flex items-center gap-1.5"><i data-lucide="badge-percent" class="w-4 h-4"></i> Ahorrás</span>
+            <span class="tabular-nums">${formatearGuaranies(descuentoPromo)}</span>
         </div>` : ''}
-        <div class="flex justify-between items-center" id="cartTotalFinal">
+        <div class="flex justify-between items-center">
+            <span class="text-gray-500 font-bold text-sm">SUBTOTAL</span>
+            <span class="text-base font-bold text-gray-700 tabular-nums" id="cartSubtotal">${formatearGuaranies(total)}</span>
+        </div>
+        <div class="flex justify-between items-center pt-1" id="cartTotalFinal">
             <span class="text-gray-500 font-bold">TOTAL</span>
-            <span class="text-2xl font-bold text-gray-900">${formatearGuaranies(totalConPromo)}</span>
+            <span class="text-2xl font-bold text-gray-900 tabular-nums">${formatearGuaranies(totalConPromo)}</span>
         </div>
         ${promoHTML}
     `;
+    lucide.createIcons();
 }
 
 // ============================================

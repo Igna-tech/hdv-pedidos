@@ -30,6 +30,9 @@ const _vendedorActionMap = {
     'cerrarModalBackup':              () => typeof cerrarModalBackup === 'function' && cerrarModalBackup(),
     // Cart drawer
     'closeCartModal':                 () => typeof closeCartModal === 'function' && closeCartModal(),
+    'setTipoPago':                    (_, v) => typeof setTipoPago === 'function' && setTipoPago(v),
+    'abrirNotasPedido':               () => typeof abrirNotasPedido === 'function' && abrirNotasPedido(),
+    'vaciarCarrito':                  () => typeof vaciarCarrito === 'function' && vaciarCarrito(),
     'procesarPedido':                 () => typeof procesarPedido === 'function' && procesarPedido(),
     'procesarCobroInterno':           () => typeof procesarCobroInterno === 'function' && procesarCobroInterno(),
     'procesarFacturaMock':            () => typeof procesarFacturaMock === 'function' && procesarFacturaMock(),

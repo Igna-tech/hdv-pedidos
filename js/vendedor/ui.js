@@ -2042,10 +2042,10 @@ function _toggleDiaJornada(fechaStr) {
 
 function _toggleCajaHTML() {
     return `<div class="flex items-center justify-between mb-4">
-        <h3 class="text-lg font-bold text-gray-800">Mi Caja</h3>
+        <h3 class="text-lg font-bold text-gray-800">Mi Jornada</h3>
         <div class="flex bg-slate-100 rounded-lg p-1 gap-1">
-            <button data-action="setCajaModo" data-arg="hoy" class="px-3 py-1.5 rounded-md text-xs font-bold transition-all ${_vistaCajaModo === 'hoy' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}">Hoy</button>
-            <button data-action="setCajaModo" data-arg="semana" class="px-3 py-1.5 rounded-md text-xs font-bold transition-all ${_vistaCajaModo === 'semana' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}">Esta semana</button>
+            <button data-action="setCajaModo" data-arg="hoy" class="px-3 py-1.5 rounded-md text-xs font-bold transition-all ${_vistaCajaModo === 'hoy' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}">Resumen</button>
+            <button data-action="setCajaModo" data-arg="semana" class="px-3 py-1.5 rounded-md text-xs font-bold transition-all ${_vistaCajaModo === 'semana' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}">Arqueo</button>
         </div>
     </div>`;
 }
@@ -2094,6 +2094,29 @@ async function _renderResumenHoy(container) {
     const comisionPct = miMeta?.comision || 0;
     const comisionEst = Math.round(ventasMes * comisionPct / 100);
     const nombreMes = new Date().toLocaleDateString('es-PY', { month: 'long' });
+
+    // COMPARATIVA con el mes anterior
+    const _mAnt = new Date(); _mAnt.setDate(1); _mAnt.setMonth(_mAnt.getMonth() - 1);
+    const mesAnterior = _mAnt.toISOString().slice(0, 7);
+    const ventasMesAnterior = pedidos
+        .filter(p => p.vendedor_id === vendedorId && (p.fecha || '').startsWith(mesAnterior))
+        .reduce((s, p) => s + (p.total || 0), 0);
+    const deltaMesPct = ventasMesAnterior > 0 ? Math.round((ventasMes - ventasMesAnterior) / ventasMesAnterior * 100) : (ventasMes > 0 ? 100 : 0);
+
+    // AGREGADOS DE LA SEMANA (KPIs + arqueo)
+    const semanaCaja = (typeof obtenerSemanaActualVendedor === 'function') ? obtenerSemanaActualVendedor() : null;
+    const rangoCaja = semanaCaja && typeof obtenerRangoSemanaVendedor === 'function' ? obtenerRangoSemanaVendedor(semanaCaja) : null;
+    let pedidosSemana = [], ventasSemana = 0, cobrosSemana = 0, gastosSemana = 0, aRendirSemana = 0, rendSemana = null;
+    if (rangoCaja) {
+        const { inicio, fin } = rangoCaja;
+        pedidosSemana = pedidos.filter(p => { const f = new Date(p.fecha); return f >= inicio && f <= fin && p.vendedor_id === vendedorId; });
+        ventasSemana = pedidosSemana.reduce((s, p) => s + (p.total || 0), 0);
+        cobrosSemana = allPagos.filter(pg => { if (pg.vendedor_id && pg.vendedor_id !== vendedorId) return false; const f = new Date(pg.fecha); return f >= inicio && f <= fin; }).reduce((s, pg) => s + (Number(pg.monto) || 0), 0);
+        gastosSemana = gastos.filter(g => { const f = new Date(g.fecha); return f >= inicio && f <= fin && g.vendedor_id === vendedorId; }).reduce((s, g) => s + (g.monto || 0), 0);
+        aRendirSemana = cobrosSemana - gastosSemana;
+        const rendiciones = (await HDVStorage.getItem('hdv_rendiciones', { clone: false })) || [];
+        rendSemana = rendiciones.find(r => r.semana === semanaCaja && r.vendedor_id === vendedorId);
+    }
 
     // TOP CLIENTES del vendedor (por monto, histórico)
     const _porCliente = {};
@@ -2169,37 +2192,53 @@ async function _renderResumenHoy(container) {
             </div>` : ''}` : `<p class="text-xs text-gray-400">El administrador aún no cargó tu meta del mes.</p>`}
         </div>
 
-        <!-- HERO: A rendir hoy -->
-        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-3 flex items-center justify-between gap-3">
+        <!-- Comparativa con el mes anterior -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-2.5 flex items-center justify-between gap-3">
             <div class="min-w-0">
-                <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">A rendir hoy</p>
-                <p class="text-3xl font-bold text-gray-900 tabular-nums leading-tight">${formatearGuaranies(netoRendir)}</p>
-                <p class="text-[10px] text-gray-400 mt-0.5">Cobrado ${formatearGuaranies(cobrosHoy)}${gastosHoy > 0 ? ` − Gastos ${formatearGuaranies(gastosHoy)}` : ''}</p>
+                <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Este mes vs anterior</p>
+                <p class="text-xl font-bold text-gray-900 tabular-nums leading-tight">${formatearGuaranies(ventasMes)}</p>
+                <p class="text-[10px] text-gray-400 mt-0.5">Mes anterior ${formatearGuaranies(ventasMesAnterior)}</p>
+            </div>
+            <span class="shrink-0 inline-flex items-center gap-1 text-sm font-bold ${deltaMesPct >= 0 ? 'text-green-600' : 'text-red-500'}">
+                <i data-lucide="${deltaMesPct >= 0 ? 'trending-up' : 'trending-down'}" class="w-4 h-4"></i>
+                ${deltaMesPct >= 0 ? '+' : ''}${deltaMesPct}%
+            </span>
+        </div>
+
+        <!-- KPIs de la SEMANA -->
+        <div class="grid grid-cols-2 gap-2 mb-3">
+            <div class="bg-indigo-50 rounded-lg px-3 py-2 flex items-center justify-between">
+                <span class="text-[9px] text-gray-500 font-bold uppercase tracking-wide">Pedidos sem.</span>
+                <span class="text-base font-bold text-indigo-600 tabular-nums">${pedidosSemana.length}</span>
+            </div>
+            <div class="bg-green-50 rounded-lg px-3 py-2 flex items-center justify-between">
+                <span class="text-[9px] text-gray-500 font-bold uppercase tracking-wide">Ventas sem.</span>
+                <span class="text-[13px] font-bold text-green-700 tabular-nums">${formatearGuaranies(ventasSemana)}</span>
+            </div>
+            <div class="bg-amber-50 rounded-lg px-3 py-2 flex items-center justify-between">
+                <span class="text-[9px] text-gray-500 font-bold uppercase tracking-wide">Cobros sem.</span>
+                <span class="text-[13px] font-bold text-amber-700 tabular-nums">${formatearGuaranies(cobrosSemana)}</span>
+            </div>
+            <div class="bg-red-50 rounded-lg px-3 py-2 flex items-center justify-between">
+                <span class="text-[9px] text-gray-500 font-bold uppercase tracking-wide">Gastos sem.</span>
+                <span class="text-[13px] font-bold text-red-600 tabular-nums">${formatearGuaranies(gastosSemana)}</span>
+            </div>
+        </div>
+
+        <!-- Arqueo de la semana (abre el detalle) -->
+        <button data-action="setCajaModo" data-arg="semana" class="w-full text-left bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-3 flex items-center justify-between gap-3 hover:bg-slate-50 active:scale-[0.99] transition-all">
+            <div class="min-w-0">
+                <div class="flex items-center gap-2">
+                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">A rendir esta semana</p>
+                    ${rendSemana ? `<span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full ${rendSemana.estado === 'pagado' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}">${rendSemana.estado === 'pagado' ? 'PAGADO' : 'PENDIENTE'}</span>` : ''}
+                </div>
+                <p class="text-3xl font-bold text-gray-900 tabular-nums leading-tight">${formatearGuaranies(aRendirSemana)}</p>
+                <p class="text-[10px] text-indigo-500 font-semibold mt-0.5">Ver arqueo / cerrar semana →</p>
             </div>
             <div class="w-11 h-11 rounded-xl bg-indigo-50 flex items-center justify-center shrink-0">
                 <i data-lucide="wallet" class="w-5 h-5 text-indigo-500"></i>
             </div>
-        </div>
-
-        <!-- KPIs compactos -->
-        <div class="grid grid-cols-2 gap-2 mb-3">
-            <div class="bg-indigo-50 rounded-lg px-3 py-2 flex items-center justify-between">
-                <span class="text-[9px] text-gray-500 font-bold uppercase tracking-wide">Pedidos hoy</span>
-                <span class="text-base font-bold text-indigo-600 tabular-nums">${pedidosHoy.length}</span>
-            </div>
-            <div class="bg-green-50 rounded-lg px-3 py-2 flex items-center justify-between">
-                <span class="text-[9px] text-gray-500 font-bold uppercase tracking-wide">Ventas hoy</span>
-                <span class="text-[13px] font-bold text-green-700 tabular-nums">${formatearGuaranies(ventasHoy)}</span>
-            </div>
-            <div class="bg-amber-50 rounded-lg px-3 py-2 flex items-center justify-between">
-                <span class="text-[9px] text-gray-500 font-bold uppercase tracking-wide">Cobros hoy</span>
-                <span class="text-[13px] font-bold text-amber-700 tabular-nums">${formatearGuaranies(cobrosHoy)}</span>
-            </div>
-            <div class="bg-slate-100 rounded-lg px-3 py-2 flex items-center justify-between">
-                <span class="text-[9px] text-gray-500 font-bold uppercase tracking-wide">Ventas mes</span>
-                <span class="text-[13px] font-bold text-gray-700 tabular-nums">${formatearGuaranies(ventasMes)}</span>
-            </div>
-        </div>
+        </button>
 
         <!-- Top clientes del vendedor -->
         <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-3">

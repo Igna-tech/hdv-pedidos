@@ -11,9 +11,214 @@ let _chartTemporal = null;
 let _chartPeriodo = '7d';
 let _chartMix = null, _chartEmbudo = null, _chartHora = null, _chartMetas = null, _chartMargen = null, _chartRadar = null;
 let _chartMixDona = null, _chartCategoria = null, _chartZona = null, _chartGaugeMeta = null, _chartTreemap = null;
+let _chartHeatmap = null, _chartWaterfall = null;
 let _leaderboardPeriodo = 'mes';
 let _perfilesMap = {};
 let _metaMap = {};
+
+// Período global de la sección de análisis: 'hoy' | 'semana' | 'mes' | '90d'
+let _periodoActivo = 'mes';
+let _periodoSelectorWired = false;
+let _waterfallModo = 'caja'; // 'caja' | 'rentabilidad'
+let _waterfallToggleWired = false;
+let _gastosCache = { periodo: null, valor: 0, ts: 0 };
+const _PERIODO_LABEL = { hoy: 'Hoy', semana: 'Esta semana', mes: 'Este mes', '90d': 'Últimos 90 días' };
+
+// Suma de gastos de TODOS los vendedores dentro del período activo.
+// Los gastos viven particionados en configuracion (doc gastos_vendedor_<id>).
+// Cache 30s por período; degrada a 0 ante cualquier fallo (no rompe el waterfall).
+async function _obtenerGastosPeriodo() {
+    if (_gastosCache.periodo === _periodoActivo && (Date.now() - _gastosCache.ts) < 30000) return _gastosCache.valor;
+    let total = 0;
+    try {
+        const ini = _inicioDePeriodo(_periodoActivo);
+        const ids = (typeof _perfilesMap !== 'undefined') ? Object.keys(_perfilesMap) : [];
+        if (!ids.length || typeof obtenerConfig !== 'function') return 0;
+        const results = await Promise.all(ids.map(id => obtenerConfig('gastos_vendedor_' + id).catch(() => null)));
+        results.forEach(datos => {
+            const arr = Array.isArray(datos) ? datos : (datos && Array.isArray(datos.gastos) ? datos.gastos : []);
+            arr.forEach(g => { if (g && g.fecha && new Date(g.fecha) >= ini) total += Number(g.monto) || 0; });
+        });
+    } catch (e) { console.warn('[Dashboard] Gastos período:', e); return 0; }
+    _gastosCache = { periodo: _periodoActivo, valor: total, ts: Date.now() };
+    return total;
+}
+
+// Inicio del período activo (Date). La semana arranca el domingo.
+function _inicioDePeriodo(periodo) {
+    const now = new Date();
+    if (periodo === 'hoy') { const d = new Date(now); d.setHours(0, 0, 0, 0); return d; }
+    if (periodo === 'semana') { const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay()); return d; }
+    if (periodo === '90d') { const d = new Date(now); d.setDate(d.getDate() - 89); d.setHours(0, 0, 0, 0); return d; }
+    return new Date(now.getFullYear(), now.getMonth(), 1); // mes
+}
+
+// Pedidos dentro del período activo (excluye anulados)
+function _pedidosDelPeriodo(pedidos) {
+    const ini = _inicioDePeriodo(_periodoActivo);
+    return (pedidos || []).filter(p => p.fecha && new Date(p.fecha) >= ini && p.estado !== 'anulado');
+}
+
+// Estado vacío reutilizable para un canvas de gráfico.
+// mostrar=true oculta el canvas y pinta un placeholder; mostrar=false lo restaura.
+function _estadoVacioGrafico(canvasId, mostrar, mensaje) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    const cont = canvas.parentElement;
+    if (!cont) return;
+    let ph = cont.querySelector('.chart-empty');
+    if (mostrar) {
+        canvas.style.display = 'none';
+        if (!ph) {
+            ph = document.createElement('div');
+            ph.className = 'chart-empty absolute inset-0 flex flex-col items-center justify-center text-center gap-2';
+            cont.appendChild(ph);
+        }
+        ph.innerHTML = `<i data-lucide="inbox" class="w-6 h-6"></i><span class="text-xs">${escapeHTML(mensaje || 'Sin datos en este período')}</span>`;
+        if (window.lucide) { try { lucide.createIcons(); } catch (_) {} }
+    } else {
+        canvas.style.display = '';
+        if (ph) ph.remove();
+    }
+}
+
+// Top 5 productos (unidades) del período — dona compacta
+function _renderTopProductos(pedidos) {
+    const ctxTop = document.getElementById('chartTopProductos');
+    if (!ctxTop) return;
+    try {
+        const prodCount = {};
+        _pedidosDelPeriodo(pedidos).forEach(p => (p.items || []).forEach(i => {
+            const key = i.nombre || 'N/A';
+            prodCount[key] = (prodCount[key] || 0) + (i.cantidad || 1);
+        }));
+        const top5 = Object.entries(prodCount).sort((a, b) => b[1] - a[1]).slice(0, 5);
+        if (!top5.length) { if (chartTopProd) { chartTopProd.destroy(); chartTopProd = null; } _estadoVacioGrafico('chartTopProductos', true, 'Sin ventas en este período'); return; }
+        _estadoVacioGrafico('chartTopProductos', false);
+        const coloresDoughnut = ['#818cf8', '#34d399', '#fbbf24', '#f472b6', '#22d3ee'];
+        if (chartTopProd) chartTopProd.destroy();
+        chartTopProd = new Chart(ctxTop, {
+            type: 'doughnut',
+            data: { labels: top5.map(t => t[0]), datasets: [{ data: top5.map(t => t[1]), backgroundColor: coloresDoughnut, borderWidth: 0, hoverOffset: 6 }] },
+            options: {
+                responsive: true, maintainAspectRatio: false, cutout: '70%', animation: { duration: 700 },
+                onHover: _chartHoverPointer,
+                onClick: (evt, els) => { if (!els.length) return; const nombre = top5[els[0].index] && top5[els[0].index][0]; if (nombre) _dashDrillVentas({ texto: nombre }); },
+                plugins: {
+                    legend: { position: 'right', labels: { font: { size: 10 }, boxWidth: 10, padding: 8, color: '#9ca3af' } },
+                    tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.parsed} u` } }
+                }
+            }
+        });
+    } catch (e) { console.warn('[Dashboard] Top productos:', e); }
+}
+
+// Click-through: navega a Ventas aplicando filtro de estado y/o texto.
+function _dashDrillVentas({ estado = '', texto = '' } = {}) {
+    try {
+        const selEstado = document.getElementById('filtroTipoVenta');
+        if (selEstado) selEstado.value = estado;
+        const inpTexto = document.getElementById('filtroTextoVentas');
+        if (inpTexto) inpTexto.value = texto;
+        if (typeof cambiarSeccion === 'function') cambiarSeccion('ventas');
+        setTimeout(() => { if (typeof filtrarVentas === 'function') filtrarVentas(); }, 80);
+    } catch (e) { console.warn('[Dashboard] Drill ventas:', e); }
+}
+
+// Cursor pointer sobre elementos clickeables de un chart
+function _chartHoverPointer(evt, elements) {
+    const t = evt && evt.native && evt.native.target;
+    if (t) t.style.cursor = elements && elements.length ? 'pointer' : 'default';
+}
+
+// Orquestador: TODOS los visuales que dependen del período global.
+function _renderVisuales(pedidos) {
+    _renderAnalisisAvanzado(pedidos);
+    _renderRadarVendedores(pedidos);
+    _renderMixDona(pedidos);
+    _renderCategoria(pedidos);
+    _renderZona(pedidos);
+    _renderTreemap(pedidos);
+    _renderTopProductos(pedidos);
+    if (typeof _renderHeatmap === 'function') _renderHeatmap(pedidos);
+    if (typeof _renderWaterfall === 'function') _renderWaterfall(pedidos);
+}
+
+// Banda de alertas inteligentes (chips navegables) arriba del dashboard.
+// Solo lectura: deriva señales de datos ya cargados y navega vía data-section.
+async function _renderInsights(pedidos) {
+    const cont = document.getElementById('dashInsights');
+    if (!cont) return;
+    try {
+        pedidos = pedidos || [];
+        const insights = [];
+        const dias = (f) => Math.floor((Date.now() - new Date(f)) / 86400000);
+
+        // 1) Tendencia de ventas: esta semana vs mismo tramo de la anterior (domingo→ahora)
+        const now = new Date();
+        const iniSem = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay());
+        const iniSemAnt = new Date(iniSem); iniSemAnt.setDate(iniSem.getDate() - 7);
+        const sumEntre = (a, b) => pedidos.filter(p => { const f = new Date(p.fecha); return p.estado !== 'anulado' && f >= a && f < b; }).reduce((s, p) => s + (p.total || 0), 0);
+        const vSem = sumEntre(iniSem, new Date(now.getTime() + 1));
+        const vSemAnt = sumEntre(iniSemAnt, new Date(iniSemAnt.getTime() + (now.getTime() - iniSem.getTime())));
+        if (vSemAnt > 0) {
+            const pct = Math.round((vSem - vSemAnt) / vSemAnt * 100);
+            if (pct <= -10) insights.push({ tone: 'alert', icon: 'trending-down', txt: `Ventas ↓${Math.abs(pct)}% vs semana pasada`, section: 'ventas' });
+            else if (pct >= 10) insights.push({ tone: 'ok', icon: 'trending-up', txt: `Ventas ↑${pct}% vs semana pasada`, section: 'ventas' });
+        }
+
+        // 2) Créditos vencidos: entregado con saldo y +30 días
+        const pagos = (await HDVStorage.getItem('hdv_pagos_credito', { clone: false })) || [];
+        const saldoDe = (p) => { const pagado = pagos.filter(pg => pg.pedidoId === p.id).reduce((s, pg) => s + (Number(pg.monto) || 0), 0); return Math.max(0, (p.total || 0) - pagado); };
+        const vencidos = pedidos.filter(p => p.estado === 'entregado' && saldoDe(p) > 0 && dias(p.fecha) > 30).length;
+        if (vencidos) insights.push({ tone: 'warn', icon: 'alert-triangle', txt: `${vencidos} crédito${vencidos > 1 ? 's' : ''} vencido${vencidos > 1 ? 's' : ''} (+30 días)`, section: 'creditos' });
+
+        // 3) Stock bajo (< 5) en presentaciones activas
+        let bajos = 0;
+        if (typeof productosData !== 'undefined' && productosData && productosData.productos) {
+            productosData.productos.forEach(p => (p.presentaciones || []).forEach(pr => {
+                if (pr.activo !== false && typeof pr.stock === 'number' && pr.stock < 5) bajos++;
+            }));
+        }
+        if (bajos) insights.push({ tone: 'warn', icon: 'package', txt: `${bajos} con stock bajo (<5)`, section: 'stock' });
+
+        // 4) Pedidos pendientes con demora (+3 días)
+        const pendViejos = pedidos.filter(p => (p.estado === 'pedido_pendiente' || p.estado === 'pendiente') && dias(p.fecha) > 3).length;
+        if (pendViejos) insights.push({ tone: 'alert', icon: 'clock', txt: `${pendViejos} pedido${pendViejos > 1 ? 's' : ''} sin finalizar (+3 días)`, section: 'pedidos' });
+
+        if (!insights.length) insights.push({ tone: 'ok', icon: 'check-circle', txt: 'Todo en orden — sin alertas' });
+
+        cont.innerHTML = insights.map(it => {
+            const sec = it.section ? ` data-section="${escapeHTML(it.section)}"` : '';
+            return `<button type="button" class="dash-insight tone-${it.tone}"${sec}><i data-lucide="${escapeHTML(it.icon)}" class="di-ico"></i><span>${escapeHTML(it.txt)}</span></button>`;
+        }).join('');
+        if (window.lucide) { try { lucide.createIcons(); } catch (_) {} }
+    } catch (e) { console.warn('[Dashboard] Insights:', e); }
+}
+
+// Selector de período global (segmented). Se cablea una sola vez.
+function _initPeriodoSelector() {
+    if (_periodoSelectorWired) return;
+    const cont = document.getElementById('dashPeriodoSelector');
+    if (!cont) return;
+    _periodoSelectorWired = true;
+    cont.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-periodo]');
+        if (!btn) return;
+        const nuevo = btn.getAttribute('data-periodo');
+        if (!nuevo || nuevo === _periodoActivo) return;
+        _periodoActivo = nuevo;
+        cont.querySelectorAll('.dash-seg-btn').forEach(b => b.classList.toggle('is-active', b === btn));
+        const lbl = document.getElementById('dashPeriodoLabel');
+        if (lbl) lbl.textContent = '· ' + (_PERIODO_LABEL[nuevo] || '');
+        const grid = document.getElementById('dashVisualesGrid');
+        if (grid) grid.classList.add('is-updating');
+        requestAnimationFrame(() => {
+            try { _renderVisuales(typeof todosLosPedidos !== 'undefined' ? todosLosPedidos : []); }
+            finally { if (grid) setTimeout(() => grid.classList.remove('is-updating'), 60); }
+        });
+    });
+}
 
 // ============================================
 // Chart.js — tema oscuro global (command center)
@@ -130,32 +335,8 @@ async function cargarDashboard() {
     if (elCostoDet) elCostoDet.textContent = gananciaMes.costoTotal > 0
         ? `${pedidosMes.length} pedidos este mes` : 'Agrega costos a tus productos';
 
-    // Chart: top 5 productos del mes (doughnut — sin cambios)
-    const prodCount = {};
-    pedidosMes.forEach(p => (p.items || []).forEach(i => {
-        const key = i.nombre || 'N/A';
-        prodCount[key] = (prodCount[key] || 0) + (i.cantidad || 1);
-    }));
-    const top5 = Object.entries(prodCount).sort((a,b) => b[1]-a[1]).slice(0, 5);
-    const coloresDoughnut = ['#818cf8', '#34d399', '#fbbf24', '#f472b6', '#22d3ee'];
-    const ctxTop = document.getElementById('chartTopProductos');
-    if (ctxTop) {
-        if (chartTopProd) chartTopProd.destroy();
-        chartTopProd = new Chart(ctxTop, {
-            type: 'doughnut',
-            data: {
-                labels: top5.map(t => t[0]),
-                datasets: [{ data: top5.map(t => t[1]), backgroundColor: coloresDoughnut, borderWidth: 0, hoverOffset: 6 }]
-            },
-            options: {
-                responsive: true, maintainAspectRatio: false, cutout: '70%', animation: { duration: 700 },
-                plugins: {
-                    legend: { position: 'right', labels: { font: { size: 10 }, boxWidth: 10, padding: 8, color: '#9ca3af' } },
-                    tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.parsed} u` } }
-                }
-            }
-        });
-    }
+    // Chart: top 5 productos → función period-aware (se refresca en _renderVisuales)
+    _renderTopProductos(pedidos);
 
     // Ranking clientes semana
     const hace7d = new Date(hoy.getTime() - 7*24*60*60*1000);
@@ -198,13 +379,13 @@ async function cargarDashboard() {
     _renderFeedActividad(pedidos);
     _renderPedidosSinFinalizar(pedidos);
     _renderHistorialCobros();
-    _renderAnalisisAvanzado(pedidos);
-    _renderRadarVendedores(pedidos);
-    _renderMixDona(pedidos);
-    _renderCategoria(pedidos);
-    _renderZona(pedidos);
-    _renderGaugeMeta(pedidos);
-    _renderTreemap(pedidos);
+    _initPeriodoSelector();          // segmented Hoy/Semana/Mes/90d (una sola vez)
+    _initWaterfallToggle();          // toggle flujo de caja ⇄ rentabilidad (una sola vez)
+    if (typeof _renderInsights === 'function') _renderInsights(pedidos); // banda de alertas
+    _renderGaugeMeta(pedidos);       // gauge de meta = mensual (fijo, no sigue el período)
+    _renderVisuales(pedidos);        // resto de visuales, según el período activo
+    _initPersonalizacion();          // drag/ocultar/densidad (una sola vez)
+    _aplicarLayout();                // aplica layout guardado (una sola vez)
 
     // MÓDULO INTELIGENCIA — carga tab por defecto
     _cargarIntelProyeccion();
@@ -1802,8 +1983,8 @@ function _renderAnalisisAvanzado(pedidos) {
     try {
         pedidos = pedidos || [];
         const hoy = new Date();
-        const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
-        const pedidosMes = pedidos.filter(p => p.fecha && new Date(p.fecha) >= inicioMes && p.estado !== 'anulado');
+        // El período de esta sección lo controla el selector global (_periodoActivo).
+        const pedidosMes = _pedidosDelPeriodo(pedidos);
 
         // ---- KPIs ----
         const ventasMes = pedidosMes.reduce((s, p) => s + (p.total || 0), 0);
@@ -1844,24 +2025,35 @@ function _renderAnalisisAvanzado(pedidos) {
             });
         }
 
-        // ---- 2) Pedidos por estado (barra horizontal) ----
+        // ---- 2) Embudo del ciclo de vida (etapas acumulativas + % conversión) ----
         const cEmb = document.getElementById('chartEmbudo');
         if (cEmb) {
-            const estados = [
-                { k: 'pedido_pendiente', label: 'Pendiente', c1: '#fbbf24', c2: '#f59e0b' },
-                { k: 'entregado', label: 'Entregado', c1: '#60a5fa', c2: '#2563eb' },
-                { k: 'cobrado_sin_factura', label: 'Cobrado', c1: '#34d399', c2: '#059669' },
-                { k: 'facturado_mock', label: 'Facturado', c1: '#a78bfa', c2: '#7c3aed' }
+            const ENTREGADO_PLUS = ['entregado', 'cobrado_sin_factura', 'facturado_mock', 'nota_credito_mock'];
+            const COBRADO_PLUS = ['cobrado_sin_factura', 'facturado_mock', 'nota_credito_mock'];
+            const enEstado = (arr) => pedidosMes.filter(p => arr.includes(p.estado)).length;
+            const etapas = [
+                { label: 'Creados', n: pedidosMes.length, c1: '#818cf8', c2: '#6366f1' },
+                { label: 'Entregados', n: enEstado(ENTREGADO_PLUS), c1: '#60a5fa', c2: '#2563eb' },
+                { label: 'Cobrados', n: enEstado(COBRADO_PLUS), c1: '#34d399', c2: '#059669' },
+                { label: 'Facturados', n: enEstado(['facturado_mock']), c1: '#a78bfa', c2: '#7c3aed' }
             ];
-            const counts = estados.map(e => pedidos.filter(p => p.estado === e.k).length);
             if (_chartEmbudo) _chartEmbudo.destroy();
-            _chartEmbudo = new Chart(cEmb, {
-                type: 'bar',
-                data: { labels: estados.map(e => e.label), datasets: [{ data: counts, backgroundColor: estados.map(e => _gradH(cEmb, e.c1, e.c2)), borderRadius: 7, barThickness: 22 }] },
-                options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, animation: _ANIM_CHART,
-                    plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` ${ctx.parsed.x} pedidos` } } },
-                    scales: { x: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.06)' }, ticks: { precision: 0, color: '#9ca3af' } }, y: { grid: { display: false }, ticks: { font: { size: 11 }, color: '#d1d5db' } } } }
-            });
+            if (!pedidosMes.length) { _chartEmbudo = null; _estadoVacioGrafico('chartEmbudo', true, 'Sin pedidos en este período'); }
+            else {
+                _estadoVacioGrafico('chartEmbudo', false);
+                _chartEmbudo = new Chart(cEmb, {
+                    type: 'bar',
+                    data: { labels: etapas.map(e => e.label), datasets: [{ data: etapas.map(e => e.n), backgroundColor: etapas.map(e => _gradH(cEmb, e.c1, e.c2)), borderRadius: 7, barThickness: 22 }] },
+                    options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, animation: _ANIM_CHART,
+                        onHover: _chartHoverPointer,
+                        onClick: (evt, els) => { if (!els.length) return; const map = ['', 'entregado', 'cobrado_sin_factura', 'facturado_mock']; _dashDrillVentas({ estado: map[els[0].index] || '' }); },
+                        plugins: { legend: { display: false }, tooltip: { callbacks: {
+                            label: ctx => ` ${ctx.parsed.x} pedidos`,
+                            afterLabel: ctx => { const i = ctx.dataIndex; if (i === 0) return ''; const prev = etapas[i - 1].n; const pct = prev > 0 ? Math.round(etapas[i].n / prev * 100) : 0; return `${pct}% del paso anterior · (click: ver en Ventas)`; }
+                        } } },
+                        scales: { x: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.06)' }, ticks: { precision: 0, color: '#9ca3af' } }, y: { grid: { display: false }, ticks: { font: { size: 11 }, color: '#d1d5db' } } } }
+                });
+            }
         }
 
         // ---- 3) Ventas por hora (últimos 30 días) ----
@@ -1928,7 +2120,9 @@ function _renderAnalisisAvanzado(pedidos) {
             });
             const entries = Object.entries(margenCat).sort((a, b) => b[1] - a[1]).slice(0, 10);
             if (_chartMargen) _chartMargen.destroy();
-            if (entries.length) {
+            if (!entries.length) { _chartMargen = null; _estadoVacioGrafico('chartMargenCategoria', true, 'Sin datos de margen en este período'); }
+            else {
+                _estadoVacioGrafico('chartMargenCategoria', false);
                 _chartMargen = new Chart(cMar, {
                     type: 'bar',
                     data: { labels: entries.map(e => e[0]), datasets: [{ data: entries.map(e => e[1]), backgroundColor: _gradH(cMar, '#818cf8', '#6d4fd1'), borderRadius: 6 }] },
@@ -1951,8 +2145,7 @@ function _renderRadarVendedores(pedidos) {
     if (!canvas) return;
     try {
         pedidos = pedidos || [];
-        const inicioMes = new Date(); inicioMes.setDate(1); inicioMes.setHours(0, 0, 0, 0);
-        const pmes = pedidos.filter(p => p.fecha && new Date(p.fecha) >= inicioMes && p.estado !== 'anulado');
+        const pmes = _pedidosDelPeriodo(pedidos);
 
         const agg = {};
         pmes.forEach(p => {
@@ -1963,7 +2156,8 @@ function _renderRadarVendedores(pedidos) {
             if (p.cliente && p.cliente.id) agg[id].clientes.add(p.cliente.id);
         });
         let ids = Object.keys(agg);
-        if (!ids.length) { if (_chartRadar) { _chartRadar.destroy(); _chartRadar = null; } return; }
+        if (!ids.length) { if (_chartRadar) { _chartRadar.destroy(); _chartRadar = null; } _estadoVacioGrafico('chartRadarVendedores', true, 'Sin ventas de vendedores en este período'); return; }
+        _estadoVacioGrafico('chartRadarVendedores', false);
         ids.sort((a, b) => agg[b].ventas - agg[a].ventas);
         ids = ids.slice(0, 6); // top 6 por ventas para legibilidad
 
@@ -2035,9 +2229,11 @@ function _renderMixDona(pedidos) {
     const c = document.getElementById('chartMixDona');
     if (!c) return;
     try {
-        const pm = _pedidosDelMes(pedidos);
+        const pm = _pedidosDelPeriodo(pedidos);
         const contado = pm.filter(p => (p.tipoPago || 'contado') === 'contado').reduce((s, p) => s + (p.total || 0), 0);
         const credito = pm.filter(p => p.tipoPago === 'credito').reduce((s, p) => s + (p.total || 0), 0);
+        if (contado + credito === 0) { if (_chartMixDona) { _chartMixDona.destroy(); _chartMixDona = null; } _estadoVacioGrafico('chartMixDona', true, 'Sin ventas en este período'); return; }
+        _estadoVacioGrafico('chartMixDona', false);
         if (_chartMixDona) _chartMixDona.destroy();
         _chartMixDona = new Chart(c, {
             type: 'doughnut',
@@ -2060,11 +2256,13 @@ function _renderCategoria(pedidos) {
             (productosData.productos || []).forEach(p => { catDe[p.id] = catNombre[p.categoria] || p.categoria || 'Sin categoría'; });
         }
         const acc = {};
-        _pedidosDelMes(pedidos).forEach(p => (p.items || []).forEach(it => {
+        _pedidosDelPeriodo(pedidos).forEach(p => (p.items || []).forEach(it => {
             const cat = catDe[it.productoId] || 'Sin categoría';
             acc[cat] = (acc[cat] || 0) + (it.subtotal || 0);
         }));
         let entries = Object.entries(acc).sort((a, b) => b[1] - a[1]);
+        if (!entries.length) { if (_chartCategoria) { _chartCategoria.destroy(); _chartCategoria = null; } _estadoVacioGrafico('chartCategoria', true, 'Sin ventas en este período'); return; }
+        _estadoVacioGrafico('chartCategoria', false);
         if (entries.length > 8) {
             const otras = entries.slice(8).reduce((s, e) => s + e[1], 0);
             entries = entries.slice(0, 8); entries.push(['Otras', otras]);
@@ -2090,11 +2288,13 @@ function _renderZona(pedidos) {
             (productosData.clientes || []).forEach(cl => { zonaDe[cl.id] = cl.zona || 'Sin zona'; });
         }
         const acc = {};
-        _pedidosDelMes(pedidos).forEach(p => {
+        _pedidosDelPeriodo(pedidos).forEach(p => {
             const z = (p.cliente && zonaDe[p.cliente.id]) || 'Sin zona';
             acc[z] = (acc[z] || 0) + (p.total || 0);
         });
         const entries = Object.entries(acc).sort((a, b) => b[1] - a[1]).slice(0, 8);
+        if (!entries.length) { if (_chartZona) { _chartZona.destroy(); _chartZona = null; } _estadoVacioGrafico('chartZona', true, 'Sin ventas en este período'); return; }
+        _estadoVacioGrafico('chartZona', false);
         if (_chartZona) _chartZona.destroy();
         _chartZona = new Chart(c, {
             type: 'polarArea',
@@ -2128,6 +2328,22 @@ function _renderGaugeMeta(pedidos) {
         if (pctEl) { pctEl.textContent = (sumMetas > 0 ? pct : 0) + '%'; pctEl.style.color = color; }
         const subEl = document.getElementById('gaugeMetaSub');
         if (subEl) subEl.textContent = sumMetas > 0 ? `${formatearGuaranies(ventasMes)} / ${formatearGuaranies(sumMetas)}` : 'Sin metas cargadas';
+
+        // Proyección a fin de mes según el ritmo actual (ventas/día × días del mes)
+        const proyEl = document.getElementById('gaugeMetaProy');
+        if (proyEl) {
+            if (sumMetas > 0) {
+                const now = new Date();
+                const diaActual = now.getDate();
+                const diasMes = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+                const proy = diaActual > 0 ? Math.round(ventasMes / diaActual * diasMes) : ventasMes;
+                const pctProy = Math.round(proy / sumMetas * 100);
+                const cProy = pctProy >= 100 ? '#34d399' : pctProy >= 80 ? '#fbbf24' : '#f87171';
+                proyEl.innerHTML = `Proyección fin de mes: <span style="color:${cProy};font-weight:600">${formatearGuaranies(proy)} · ${pctProy}%</span>`;
+            } else {
+                proyEl.textContent = '';
+            }
+        }
     } catch (e) { console.warn('[Dashboard] Gauge meta:', e); }
 }
 
@@ -2145,13 +2361,14 @@ function _renderTreemap(pedidos) {
             (productosData.productos || []).forEach(p => { catDe[p.id] = catNombre[p.categoria] || p.categoria || 'Sin categoría'; });
         }
         const acc = {};
-        _pedidosDelMes(pedidos).forEach(p => (p.items || []).forEach(it => {
+        _pedidosDelPeriodo(pedidos).forEach(p => (p.items || []).forEach(it => {
             const cat = catDe[it.productoId] || 'Sin categoría';
             acc[cat] = (acc[cat] || 0) + (it.subtotal || 0);
         }));
         const entries = Object.entries(acc).sort((a, b) => b[1] - a[1]);
         if (_chartTreemap) _chartTreemap.destroy();
-        if (!entries.length) return;
+        if (!entries.length) { _chartTreemap = null; _estadoVacioGrafico('chartTreemap', true, 'Sin ventas en este período'); return; }
+        _estadoVacioGrafico('chartTreemap', false);
         _chartTreemap = new Chart(c, {
             type: 'treemap',
             data: { datasets: [{
@@ -2166,4 +2383,267 @@ function _renderTreemap(pedidos) {
                     tooltip: { callbacks: { title: () => '', label: (ctx) => { const n = ctx.raw; const cat = n && n._data ? n._data.cat : ''; return ` ${cat}: ${formatearGuaranies(n ? n.v : 0)}`; } } } } }
         });
     } catch (e) { console.warn('[Dashboard] Treemap:', e); }
+}
+
+// 6) Heatmap semana × hora (CSS grid, sin plugin) — intensidad = ventas
+function _renderHeatmap(pedidos) {
+    const cont = document.getElementById('dashHeatmap');
+    if (!cont) return;
+    try {
+        const H0 = 8, H1 = 19;                 // 8:00 → 19:00 = 12 columnas
+        const nCols = H1 - H0 + 1;
+        const dLabels = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+        const matriz = Array.from({ length: 7 }, () => new Array(nCols).fill(0));
+        let max = 0;
+        _pedidosDelPeriodo(pedidos).forEach(p => {
+            const f = new Date(p.fecha);
+            const d = f.getDay();
+            let h = f.getHours();
+            if (h < H0) h = H0; if (h > H1) h = H1;
+            const col = h - H0;
+            matriz[d][col] += p.total || 0;
+            if (matriz[d][col] > max) max = matriz[d][col];
+        });
+        if (max === 0) {
+            cont.removeAttribute('style'); cont.className = '';
+            cont.innerHTML = '<p class="chart-empty text-xs" style="padding:2rem 0;text-align:center">Sin ventas en este período</p>';
+            return;
+        }
+        cont.className = 'heatmap-grid';
+        cont.style.gridTemplateColumns = `auto repeat(${nCols}, 1fr)`;
+        let html = '<div></div>';              // esquina superior izquierda
+        for (let c = 0; c < nCols; c++) html += `<div class="heatmap-collabel">${H0 + c}</div>`;
+        for (let d = 0; d < 7; d++) {
+            html += `<div class="heatmap-rowlabel">${dLabels[d]}</div>`;
+            for (let c = 0; c < nCols; c++) {
+                const v = matriz[d][c];
+                const bg = v > 0 ? `background:rgba(99,102,241,${(0.12 + 0.88 * (v / max)).toFixed(3)})` : '';
+                const title = `${dLabels[d]} ${H0 + c}:00 — ${formatearGuaranies(v)}`;
+                html += `<div class="heatmap-cell" style="${bg}" title="${escapeHTML(title)}"></div>`;
+            }
+        }
+        cont.innerHTML = html;
+    } catch (e) { console.warn('[Dashboard] Heatmap:', e); }
+}
+
+// 7) Waterfall / cascada financiera — alterna Flujo de caja ⇄ Rentabilidad
+async function _renderWaterfall(pedidos) {
+    const c = document.getElementById('chartWaterfall');
+    if (!c) return;
+    try {
+        const pm = _pedidosDelPeriodo(pedidos);
+        const V = pm.reduce((s, p) => s + (p.total || 0), 0);
+        const subEl = document.getElementById('waterfallSub');
+        if (V === 0) { if (_chartWaterfall) { _chartWaterfall.destroy(); _chartWaterfall = null; } _estadoVacioGrafico('chartWaterfall', true, 'Sin ventas en este período'); return; }
+        _estadoVacioGrafico('chartWaterfall', false);
+
+        let labels, data, colors, mags;
+        if (_waterfallModo === 'rentabilidad') {
+            const g = (typeof calcularGananciaPedidos === 'function') ? calcularGananciaPedidos(pm) : { costoTotal: 0, gananciaTotal: V };
+            const costo = g.costoTotal || 0;
+            const bruta = V - costo;
+            const gastos = await _obtenerGastosPeriodo();
+            const conGastos = gastos > 0;
+            const neta = bruta - gastos;
+            const final = conGastos ? neta : bruta;
+            labels = ['Ventas', 'Costo', ...(conGastos ? ['Gastos'] : []), conGastos ? 'Ganancia neta' : 'Ganancia bruta'];
+            data = [[0, V], [bruta, V], ...(conGastos ? [[neta, bruta]] : []), [0, Math.max(0, final)]];
+            mags = [V, costo, ...(conGastos ? [gastos] : []), final];
+            colors = ['#60a5fa', '#f87171', ...(conGastos ? ['#f87171'] : []), final >= 0 ? '#34d399' : '#f87171'];
+            if (subEl) subEl.textContent = conGastos ? 'Ventas − costo − gastos = ganancia neta' : 'Ventas − costo = ganancia bruta (sin gastos cargados)';
+        } else {
+            const pagos = (await HDVStorage.getItem('hdv_pagos_credito', { clone: false })) || [];
+            const saldoDe = (p) => { const pagado = pagos.filter(pg => pg.pedidoId === p.id).reduce((s, pg) => s + (Number(pg.monto) || 0), 0); return Math.max(0, (p.total || 0) - pagado); };
+            const porCobrar = pm.reduce((s, p) => s + saldoDe(p), 0);
+            const cobrado = Math.max(0, V - porCobrar);
+            labels = ['Ventas', 'Por cobrar', 'Cobrado'];
+            data = [[0, V], [cobrado, V], [0, cobrado]];
+            mags = [V, porCobrar, cobrado];
+            colors = ['#60a5fa', '#f59e0b', '#34d399'];
+            if (subEl) subEl.textContent = 'De las ventas al efectivo cobrado';
+        }
+
+        if (_chartWaterfall) _chartWaterfall.destroy();
+        _chartWaterfall = new Chart(c, {
+            type: 'bar',
+            data: { labels, datasets: [{ data, backgroundColor: colors, borderRadius: 6, barPercentage: 0.7, categoryPercentage: 0.8 }] },
+            options: {
+                responsive: true, maintainAspectRatio: false, animation: _ANIM_CHART,
+                plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` ${formatearGuaranies(mags[ctx.dataIndex])}` } } },
+                scales: { x: { grid: { display: false }, ticks: { color: '#d1d5db', font: { size: 11 } } },
+                    y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.06)' }, ticks: { color: '#9ca3af', callback: _fmtAbrev } } }
+            }
+        });
+    } catch (e) { console.warn('[Dashboard] Waterfall:', e); }
+}
+
+// ============================================
+// PERSONALIZACIÓN — reordenar (drag), ocultar y densidad (persistido)
+// Acotado al grid de visuales #dashVisualesGrid (contenedor único de tarjetas).
+// ============================================
+let _personalizacionWired = false;
+let _layoutAplicado = false;
+let _ordenOriginal = [];
+const _LAYOUT_KEY = 'hdv_dashboard_layout';
+
+function _dashCardKey(card) {
+    const el = card.querySelector('canvas[id], [id^="dashHeatmap"]');
+    if (el && el.id) return el.id.replace(/^chart/, '').toLowerCase();
+    const h = card.querySelector('h3');
+    return h ? 'c-' + h.textContent.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 24) : 'card-' + Math.random().toString(36).slice(2, 7);
+}
+function _ordenActualCards() {
+    const grid = document.getElementById('dashVisualesGrid');
+    return grid ? Array.from(grid.children).map(c => c.getAttribute('data-card')).filter(Boolean) : [];
+}
+function _cardsOcultas() {
+    const grid = document.getElementById('dashVisualesGrid');
+    return grid ? Array.from(grid.children).filter(c => c.classList.contains('card-hidden')).map(c => c.getAttribute('data-card')).filter(Boolean) : [];
+}
+async function _guardarLayout(patch) {
+    try {
+        const prev = (await HDVStorage.getItem(_LAYOUT_KEY)) || {};
+        await HDVStorage.setItem(_LAYOUT_KEY, Object.assign({ orden: [], ocultas: [], densidad: false }, prev, patch));
+    } catch (e) { console.warn('[Dashboard] Guardar layout:', e); }
+}
+
+// Aplica el layout guardado (orden, ocultas, densidad). Corre una sola vez por carga.
+async function _aplicarLayout() {
+    if (_layoutAplicado) return;
+    const grid = document.getElementById('dashVisualesGrid');
+    if (!grid) return;
+    _layoutAplicado = true;
+    Array.from(grid.children).forEach(card => { if (!card.getAttribute('data-card')) card.setAttribute('data-card', _dashCardKey(card)); });
+    if (!_ordenOriginal.length) _ordenOriginal = _ordenActualCards();
+    let layout = null;
+    try { layout = await HDVStorage.getItem(_LAYOUT_KEY); } catch (_) {}
+    if (!layout) return;
+    if (Array.isArray(layout.orden) && layout.orden.length) {
+        const byKey = {};
+        Array.from(grid.children).forEach(c => { byKey[c.getAttribute('data-card')] = c; });
+        layout.orden.forEach(k => { if (byKey[k]) grid.appendChild(byKey[k]); });
+    }
+    Array.from(grid.children).forEach(c => c.classList.toggle('card-hidden', Array.isArray(layout.ocultas) && layout.ocultas.includes(c.getAttribute('data-card'))));
+    const sec = document.getElementById('seccion-dashboard');
+    if (sec) sec.classList.toggle('dashboard-compact', !!layout.densidad);
+    const btnDens = document.getElementById('btnDensidadDash');
+    if (btnDens) btnDens.classList.toggle('is-active', !!layout.densidad);
+}
+
+function _initPersonalizacion() {
+    if (_personalizacionWired) return;
+    const grid = document.getElementById('dashVisualesGrid');
+    const btnPers = document.getElementById('btnPersonalizarDash');
+    if (!grid || !btnPers) return;
+    _personalizacionWired = true;
+    const sec = document.getElementById('seccion-dashboard');
+    const editBar = document.getElementById('dashEditBar');
+
+    // Inyectar handle + botón ocultar en cada tarjeta (una sola vez)
+    Array.from(grid.children).forEach(card => {
+        if (!card.getAttribute('data-card')) card.setAttribute('data-card', _dashCardKey(card));
+        if (!card.style.position) card.style.position = 'relative';
+        if (!card.querySelector('.card-drag-handle')) {
+            const h = document.createElement('span');
+            h.className = 'card-drag-handle';
+            h.innerHTML = '<i data-lucide="grip-vertical" class="w-4 h-4"></i>';
+            card.appendChild(h);
+        }
+        if (!card.querySelector('.card-hide-btn')) {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'card-hide-btn';
+            b.innerHTML = '<i data-lucide="x" class="w-4 h-4"></i>';
+            b.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                card.classList.add('card-hidden');
+                await _guardarLayout({ ocultas: _cardsOcultas() });
+            });
+            card.appendChild(b);
+        }
+    });
+    if (!_ordenOriginal.length) _ordenOriginal = _ordenActualCards();
+    if (window.lucide) { try { lucide.createIcons(); } catch (_) {} }
+
+    const setEdit = (on) => {
+        if (sec) sec.classList.toggle('is-editando', on);
+        if (editBar) { editBar.classList.toggle('hidden', !on); editBar.classList.toggle('flex', on); }
+        btnPers.classList.toggle('is-active', on);
+        Array.from(grid.children).forEach(c => { c.draggable = on; });
+    };
+    btnPers.addEventListener('click', () => setEdit(!(sec && sec.classList.contains('is-editando'))));
+    const btnListo = document.getElementById('btnListoDash');
+    if (btnListo) btnListo.addEventListener('click', () => setEdit(false));
+
+    const btnDens = document.getElementById('btnDensidadDash');
+    if (btnDens) btnDens.addEventListener('click', async () => {
+        const on = sec.classList.toggle('dashboard-compact');
+        btnDens.classList.toggle('is-active', on);
+        await _guardarLayout({ densidad: on });
+    });
+
+    const btnReset = document.getElementById('btnRestablecerDash');
+    if (btnReset) btnReset.addEventListener('click', async () => {
+        Array.from(grid.children).forEach(c => c.classList.remove('card-hidden'));
+        if (_ordenOriginal.length) {
+            const byKey = {};
+            Array.from(grid.children).forEach(c => { byKey[c.getAttribute('data-card')] = c; });
+            _ordenOriginal.forEach(k => { if (byKey[k]) grid.appendChild(byKey[k]); });
+        }
+        if (sec) sec.classList.remove('dashboard-compact');
+        if (btnDens) btnDens.classList.remove('is-active');
+        try { await HDVStorage.removeItem(_LAYOUT_KEY); } catch (_) {}
+        if (typeof mostrarToast === 'function') mostrarToast('Dashboard restablecido', 'success');
+    });
+
+    // Drag & drop reorder (nativo, CSP-safe)
+    let dragEl = null;
+    grid.addEventListener('dragstart', (e) => {
+        const card = e.target.closest('[data-card]');
+        if (!card || !card.draggable) return;
+        dragEl = card; card.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        try { e.dataTransfer.setData('text/plain', card.getAttribute('data-card') || ''); } catch (_) {}
+    });
+    grid.addEventListener('dragend', () => {
+        if (dragEl) dragEl.classList.remove('dragging');
+        dragEl = null;
+        grid.querySelectorAll('.drop-target').forEach(c => c.classList.remove('drop-target'));
+    });
+    grid.addEventListener('dragover', (e) => {
+        if (!dragEl) return;
+        e.preventDefault();
+        const over = e.target.closest('[data-card]');
+        grid.querySelectorAll('.drop-target').forEach(c => { if (c !== over) c.classList.remove('drop-target'); });
+        if (over && over !== dragEl) over.classList.add('drop-target');
+    });
+    grid.addEventListener('drop', async (e) => {
+        if (!dragEl) return;
+        e.preventDefault();
+        const over = e.target.closest('[data-card]');
+        if (over && over !== dragEl) {
+            const rect = over.getBoundingClientRect();
+            const after = (e.clientY - rect.top) > rect.height / 2;
+            grid.insertBefore(dragEl, after ? over.nextSibling : over);
+        }
+        grid.querySelectorAll('.drop-target').forEach(c => c.classList.remove('drop-target'));
+        await _guardarLayout({ orden: _ordenActualCards() });
+    });
+}
+
+// Toggle del waterfall (Flujo de caja ⇄ Rentabilidad). Se cablea una sola vez.
+function _initWaterfallToggle() {
+    if (_waterfallToggleWired) return;
+    const cont = document.getElementById('dashWaterfallToggle');
+    if (!cont) return;
+    _waterfallToggleWired = true;
+    cont.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-wf]');
+        if (!btn) return;
+        const modo = btn.getAttribute('data-wf');
+        if (!modo || modo === _waterfallModo) return;
+        _waterfallModo = modo;
+        cont.querySelectorAll('.dash-seg-btn').forEach(b => b.classList.toggle('is-active', b === btn));
+        _renderWaterfall(typeof todosLosPedidos !== 'undefined' ? todosLosPedidos : []);
+    });
 }

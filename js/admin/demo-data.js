@@ -73,11 +73,12 @@
                 return { items, total };
             };
 
-            // --- Pedidos (35 días, horario comercial) ---
+            // --- Pedidos (90 días, densos hacia hoy, horario comercial) ---
+            // Rango amplio para que el selector de período (Hoy/Semana/Mes/90d) tenga datos en todos.
             const pedidos = [];
-            for (let i = 0; i < 90; i++) {
+            for (let i = 0; i < 150; i++) {
                 const d = new Date();
-                d.setDate(d.getDate() - _rint(0, 34));
+                d.setDate(d.getDate() - Math.floor(Math.pow(Math.random(), 1.6) * 90));
                 d.setHours(_rint(8, 19), _rint(0, 59), 0, 0);
                 const { items, total } = armarItems();
                 if (!items.length) continue;
@@ -98,15 +99,15 @@
                 });
             }
 
-            // --- Cobros (libro unificado) para pedidos cobrados/entregados, varios en la semana ---
+            // --- Cobros (libro unificado): fechados cerca del pedido para distribuir por período ---
             const pagos = [];
             pedidos.filter(p => p.estado === 'cobrado_sin_factura' || p.estado === 'entregado').forEach(p => {
-                if (Math.random() < 0.7) {
-                    const pd = new Date();
-                    pd.setDate(pd.getDate() - _rint(0, 6)); // dentro de la semana → "Cobrado semana"
-                    pd.setHours(_rint(8, 19), 0, 0, 0);
+                if (Math.random() < 0.75) {
+                    const pd = new Date(p.fecha);
+                    pd.setDate(pd.getDate() + _rint(0, 3)); // cobro poco después del pedido
+                    if (pd.getTime() > Date.now()) pd.setTime(Date.now());
                     const parcial = p.estado === 'entregado' ? Math.round(p.total * (_rint(3, 8) / 10)) : p.total;
-                    pagos.push({ pedidoId: p.id, numero_pedido: p.numero_pedido, monto: parcial, fecha: pd.toISOString(), tipo: p.tipoPago, _demo: true });
+                    pagos.push({ pedidoId: p.id, numero_pedido: p.numero_pedido, monto: parcial, fecha: pd.toISOString(), tipo: p.tipoPago, vendedor_id: p.vendedor_id, _demo: true });
                 }
             });
 
@@ -118,6 +119,18 @@
                 const monto = Math.max(500000, Math.round(ventasMesV * (_rint(80, 130) / 100) / 100000) * 100000);
                 return { id: 'DEMO-meta-' + v.id, mes: mesActual, vendedor_id: v.id, monto, comision: _rint(2, 5), activa: true, _demo: true };
             });
+
+            // --- Gastos demo (EN MEMORIA) para la cascada de Rentabilidad ---
+            // No se tocan las configs reales de Supabase; el dashboard los lee de window._demoGastos.
+            const CATS_GASTO = ['Combustible', 'Almuerzo', 'Peaje', 'Mantenimiento', 'Insumos', 'Varios'];
+            const gastos = [];
+            for (let i = 0; i < 70; i++) {
+                const gd = new Date();
+                gd.setDate(gd.getDate() - Math.floor(Math.pow(Math.random(), 1.6) * 90));
+                gd.setHours(_rint(8, 19), 0, 0, 0);
+                gastos.push({ id: _uuid(), fecha: gd.toISOString(), vendedor_id: _pick(vendedores).id, monto: _rint(2, 16) * 10000, categoria: _pick(CATS_GASTO), _demo: true });
+            }
+            window._demoGastos = gastos;
 
             // --- Persistir (memoria + storage marcado _demo) ---
             if (!window._demoActivo) window._demoBackupPedidos = (typeof todosLosPedidos !== 'undefined' ? todosLosPedidos : []) || [];
@@ -151,6 +164,7 @@
             const pagosPrev = (await HDVStorage.getItem('hdv_pagos_credito')) || [];
             await HDVStorage.setItem('hdv_pagos_credito', pagosPrev.filter(p => !p._demo));
             window._demoActivo = false;
+            window._demoGastos = null;
             if (typeof mostrarToast === 'function') mostrarToast('Datos demo eliminados — recargando…', 'success');
             setTimeout(() => location.reload(), 600);
         } catch (e) {

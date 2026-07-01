@@ -28,6 +28,11 @@ const _PERIODO_LABEL = { hoy: 'Hoy', semana: 'Esta semana', mes: 'Este mes', '90
 // Los gastos viven particionados en configuracion (doc gastos_vendedor_<id>).
 // Cache 30s por período; degrada a 0 ante cualquier fallo (no rompe el waterfall).
 async function _obtenerGastosPeriodo() {
+    const iniDemo = _inicioDePeriodo(_periodoActivo);
+    // Modo demo: gastos falsos en memoria (no consulta Supabase)
+    if (window._demoActivo && Array.isArray(window._demoGastos)) {
+        return window._demoGastos.reduce((s, g) => (g && g.fecha && new Date(g.fecha) >= iniDemo) ? s + (Number(g.monto) || 0) : s, 0);
+    }
     if (_gastosCache.periodo === _periodoActivo && (Date.now() - _gastosCache.ts) < 30000) return _gastosCache.valor;
     let total = 0;
     try {

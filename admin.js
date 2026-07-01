@@ -1558,7 +1558,19 @@ async function subirLogoEmpresa(file) {
     if (btnQuitar) btnQuitar.classList.remove('hidden');
     _aplicarLogoHeaders(publicUrl);
 
-    mostrarToast('Logo subido. Guardá los datos fiscales para confirmar.', 'success', 5000);
+    // Persistir el logo AL INSTANTE (merge seguro: conserva los datos fiscales
+    // ya guardados y solo actualiza logo_url). Antes había que "Guardar datos
+    // fiscales" a mano — si no, la base seguía con el logo viejo.
+    try {
+        const { data: cur } = await SupabaseService.fetchConfigEmpresa();
+        const merged = Object.assign({ id: 1 }, cur || {}, { logo_url: publicUrl, actualizado_en: new Date().toISOString() });
+        const { error: upErr } = await SupabaseService.upsertConfigEmpresa(merged);
+        if (upErr) throw upErr;
+        mostrarToast('Logo actualizado y guardado ✓', 'success', 4000);
+    } catch (e) {
+        console.warn('[Logo] No se pudo persistir automáticamente:', e);
+        mostrarToast('Logo subido. Guardá los datos fiscales para confirmarlo.', 'warning', 5000);
+    }
 }
 
 document.addEventListener('DOMContentLoaded', () => {

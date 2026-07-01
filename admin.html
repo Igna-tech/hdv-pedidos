@@ -19,6 +19,7 @@
     </script>
     <script type="module" src="assets/lib/shoelace/shoelace.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" integrity="sha384-e6nUZLBkQ86NJ6TVVKAeSaK8jWa3NhkYWZFomE39AvDbQWeie9PlQqM3pmYW5d1g" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-treemap@3.1.0/dist/chartjs-chart-treemap.min.js" integrity="sha384-+CtR19xrp3GBtf1ET0J0NLjBv/XhWf1HOOqYgKkWm5HNfxLBcaSXHTn1Ong2OQFR" crossorigin="anonymous"></script>
     <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js" integrity="sha384-uTYyvsSSUZeaPhb5RbKlQa0zY/WpX/QHfvg2mczXyBQOpkWPEDy9lczyp+w7SKXu" crossorigin="anonymous"></script>
     <!-- Leaflet JS (mini-mapa selector de ubicación) -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script>
@@ -486,16 +487,20 @@
             <!-- DASHBOARD -->
             <section id="seccion-dashboard" class="tab-content space-y-6">
 
+                <!-- BANDA DE ALERTAS INTELIGENTES -->
+                <div id="dashInsights" class="flex flex-wrap items-center gap-2 empty:hidden"></div>
+
                 <!-- ROW 0 — KPI HOY EN VIVO -->
                 <div>
                     <div class="flex items-center gap-2 mb-3">
                         <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                        <span class="text-xs font-semibold text-gray-400 uppercase tracking-widest">Hoy en vivo</span>
+                        <span class="text-xs font-semibold text-gray-400 uppercase tracking-widest">Semana en vivo</span>
+                        <span class="text-[10px] text-gray-500">· se reinicia el domingo</span>
                     </div>
                     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 hdv-stag">
                         <div class="saas-card hdv-hover-lift p-5 border-l-4 border-l-indigo-500">
                             <div class="flex items-center justify-between mb-1">
-                                <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Ventas Hoy</p>
+                                <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Ventas Semana</p>
                                 <i data-lucide="trending-up" class="w-3.5 h-3.5 text-indigo-400"></i>
                             </div>
                             <p class="text-2xl font-bold text-gray-900 tabular-nums" id="kpiVentasHoy" data-valor="0">Gs. 0</p>
@@ -503,7 +508,7 @@
                         </div>
                         <div class="saas-card p-5 border-l-4 border-l-amber-500">
                             <div class="flex items-center justify-between mb-1">
-                                <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Pedidos Hoy</p>
+                                <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Pedidos Semana</p>
                                 <i data-lucide="package" class="w-3.5 h-3.5 text-amber-400"></i>
                             </div>
                             <p class="text-2xl font-bold text-gray-900 tabular-nums" id="kpiPedidosHoy" data-valor="0">0</p>
@@ -519,7 +524,7 @@
                         </div>
                         <div class="saas-card p-5 border-l-4 border-l-emerald-500">
                             <div class="flex items-center justify-between mb-1">
-                                <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Cobrado Hoy</p>
+                                <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Cobrado Semana</p>
                                 <i data-lucide="circle-dollar-sign" class="w-3.5 h-3.5 text-emerald-500"></i>
                             </div>
                             <p class="text-2xl font-bold text-gray-900 tabular-nums" id="kpiCobradoHoy" data-valor="0">Gs. 0</p>
@@ -633,24 +638,11 @@
                     </div>
                 </div>
 
-                <!-- ROW 4 — TOP PRODUCTOS + LEADERBOARD (compacto) -->
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div class="saas-card p-5">
-                        <h3 class="font-semibold text-gray-900 text-sm mb-3">Top 5 Productos del Mes</h3>
-                        <canvas id="chartTopProductos" height="150"></canvas>
-                    </div>
-                    <div class="saas-card p-5">
-                        <div class="flex items-center justify-between mb-3">
-                            <h3 class="font-semibold text-gray-900 text-sm">Ranking Vendedores</h3>
-                            <div class="flex gap-1" id="leaderboardTabs">
-                                <button class="chart-tab" data-action="cambiarPeriodoLeaderboard" data-arg="hoy">Hoy</button>
-                                <button class="chart-tab" data-action="cambiarPeriodoLeaderboard" data-arg="sem">Sem</button>
-                                <button class="chart-tab active" data-action="cambiarPeriodoLeaderboard" data-arg="mes">Mes</button>
-                            </div>
-                        </div>
-                        <div id="dashLeaderboard" class="space-y-3">
-                            <p class="text-xs text-gray-400 italic text-center py-3">Cargando...</p>
-                        </div>
+                <!-- ROW 4 — TOP PRODUCTOS (compacto) -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="saas-card p-4">
+                        <h3 class="font-semibold text-gray-900 text-sm mb-2">Top 5 productos</h3>
+                        <div class="relative" style="height:150px"><canvas id="chartTopProductos"></canvas></div>
                     </div>
                 </div>
 
@@ -777,21 +769,154 @@
                     </div>
                 </div>
 
-                <!-- ROW 6 — RANKING CLIENTES + RESUMEN MENSUAL -->
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div class="saas-card p-6">
+                <!-- ROW 6 — RANKING CLIENTES -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="saas-card p-6 lg:col-span-2">
                         <h3 class="font-semibold text-gray-900 mb-4">Ranking Clientes (Semana)</h3>
                         <div id="rankingClientes" class="space-y-3"></div>
                     </div>
-                    <div class="saas-card p-6">
-                        <h3 class="font-semibold text-gray-900 mb-4">Resumen Mensual</h3>
-                        <div class="flex flex-wrap gap-3 mb-4">
-                            <sl-select id="dashMesSelect" size="small" hoist></sl-select>
-                            <sl-button data-action="exportarResumenMensualPDF" variant="danger" size="small"><i data-lucide="file-text" class="w-4 h-4"></i> Exportar PDF</sl-button>
-                            <sl-button id="btnGuardarResumen" data-action="guardarResumenMensual" variant="primary" size="small"><i data-lucide="cloud-upload" class="w-4 h-4"></i> Guardar en Nube</sl-button>
+                </div>
+
+                <!-- ROW 7 — ANÁLISIS AVANZADO -->
+                <div class="space-y-4" id="dashAnalisis">
+                    <div class="space-y-2">
+                        <div class="flex items-center justify-between gap-3 flex-wrap">
+                            <div class="flex items-center gap-2">
+                                <span class="w-1.5 h-5 rounded-full" style="background:linear-gradient(180deg,#818cf8,#6366f1)"></span>
+                                <h3 class="font-semibold text-gray-900">Análisis avanzado</h3>
+                                <span id="dashPeriodoLabel" class="text-xs text-gray-400">· Este mes</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <div id="dashPeriodoSelector" class="dash-segmented inline-flex items-center gap-1 p-1" role="tablist" aria-label="Período de análisis">
+                                    <button type="button" class="dash-seg-btn" data-periodo="hoy">Hoy</button>
+                                    <button type="button" class="dash-seg-btn" data-periodo="semana">Semana</button>
+                                    <button type="button" class="dash-seg-btn is-active" data-periodo="mes">Mes</button>
+                                    <button type="button" class="dash-seg-btn" data-periodo="90d">90 días</button>
+                                </div>
+                                <button type="button" id="btnPersonalizarDash" class="dash-seg-btn" style="border:1px solid var(--hairline)" title="Personalizar dashboard"><i data-lucide="sliders-horizontal" class="w-4 h-4"></i></button>
+                            </div>
                         </div>
-                        <div id="resumenMensualContenido" class="text-sm text-gray-600">Selecciona un mes</div>
-                        <div id="resumenGananciaContenido" class="mt-3"></div>
+                        <div id="dashEditBar" class="hidden items-center gap-2 flex-wrap p-2 rounded-lg" style="background:var(--panel-2);border:1px solid var(--hairline)">
+                            <span class="text-xs text-gray-400 mr-auto">Arrastrá para reordenar · ✕ para ocultar tarjetas</span>
+                            <button type="button" id="btnDensidadDash" class="dash-seg-btn" style="border:1px solid var(--hairline)">Vista compacta</button>
+                            <button type="button" id="btnRestablecerDash" class="dash-seg-btn" style="border:1px solid var(--hairline)">Restablecer</button>
+                            <button type="button" id="btnListoDash" class="dash-seg-btn is-active">Listo</button>
+                        </div>
+                    </div>
+
+                    <!-- KPIs modernos -->
+                    <div class="grid grid-cols-2 lg:grid-cols-3 gap-4 hdv-stag">
+                        <div class="saas-card hdv-hover-lift p-5 relative overflow-hidden">
+                            <div class="absolute top-0 left-0 right-0 h-1" style="background:linear-gradient(90deg,#818cf8,#a78bfa)"></div>
+                            <div class="flex items-center justify-between mb-1">
+                                <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Ticket promedio</p>
+                                <i data-lucide="receipt" class="w-3.5 h-3.5 text-indigo-400"></i>
+                            </div>
+                            <p class="text-2xl font-bold text-gray-900 tabular-nums" id="kpiTicketProm" data-valor="0">Gs. 0</p>
+                            <p class="text-xs text-gray-400 mt-1">por pedido · en el período</p>
+                        </div>
+                        <div class="saas-card hdv-hover-lift p-5 relative overflow-hidden">
+                            <div class="absolute top-0 left-0 right-0 h-1" style="background:linear-gradient(90deg,#34d399,#14b8a6)"></div>
+                            <div class="flex items-center justify-between mb-1">
+                                <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Cobro al contado</p>
+                                <i data-lucide="banknote" class="w-3.5 h-3.5 text-emerald-400"></i>
+                            </div>
+                            <p class="text-2xl font-bold text-gray-900 tabular-nums" id="kpiContadoPct" data-valor="0">0%</p>
+                            <p class="text-xs text-gray-400 mt-1">del monto vendido</p>
+                        </div>
+                        <div class="saas-card hdv-hover-lift p-5 relative overflow-hidden">
+                            <div class="absolute top-0 left-0 right-0 h-1" style="background:linear-gradient(90deg,#fbbf24,#f97316)"></div>
+                            <div class="flex items-center justify-between mb-1">
+                                <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Clientes activos</p>
+                                <i data-lucide="users" class="w-3.5 h-3.5 text-amber-400"></i>
+                            </div>
+                            <p class="text-2xl font-bold text-gray-900 tabular-nums" id="kpiClientesActivos" data-valor="0">0</p>
+                            <p class="text-xs text-gray-400 mt-1">compraron en el período</p>
+                        </div>
+                    </div>
+
+                    <!-- Gráficos -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 hdv-stag" id="dashVisualesGrid">
+                        <div class="saas-card p-6">
+                            <h3 class="font-semibold text-gray-900 mb-1">Mix de cobro · contado vs crédito</h3>
+                            <p class="text-xs text-gray-400 mb-3">Últimos 14 días</p>
+                            <div class="relative" style="height:220px"><canvas id="chartMixPago"></canvas></div>
+                        </div>
+                        <div class="saas-card p-6">
+                            <h3 class="font-semibold text-gray-900 mb-1">Ciclo de vida del pedido</h3>
+                            <p class="text-xs text-gray-400 mb-3">Embudo: creados → entregados → cobrados → facturados</p>
+                            <div class="relative" style="height:220px"><canvas id="chartEmbudo"></canvas></div>
+                        </div>
+                        <div class="saas-card p-6">
+                            <h3 class="font-semibold text-gray-900 mb-1">Mix de cobro</h3>
+                            <p class="text-xs text-gray-400 mb-3">Proporción contado vs crédito</p>
+                            <div class="relative" style="height:220px"><canvas id="chartMixDona"></canvas></div>
+                        </div>
+                        <div class="saas-card p-6">
+                            <h3 class="font-semibold text-gray-900 mb-1">Ventas por categoría</h3>
+                            <p class="text-xs text-gray-400 mb-3">Participación en la facturación</p>
+                            <div class="relative" style="height:220px"><canvas id="chartCategoria"></canvas></div>
+                        </div>
+                        <div class="saas-card p-6">
+                            <h3 class="font-semibold text-gray-900 mb-1">Ventas por zona</h3>
+                            <p class="text-xs text-gray-400 mb-3">Distribución geográfica</p>
+                            <div class="relative" style="height:220px"><canvas id="chartZona"></canvas></div>
+                        </div>
+                        <div class="saas-card p-6">
+                            <h3 class="font-semibold text-gray-900 mb-1">Cumplimiento de meta global</h3>
+                            <p class="text-xs text-gray-400 mb-3">Ventas del mes vs suma de metas</p>
+                            <div class="relative" style="height:220px">
+                                <canvas id="chartGaugeMeta"></canvas>
+                                <div class="absolute inset-0 flex flex-col items-center justify-end pb-6 pointer-events-none">
+                                    <span id="gaugeMetaPct" class="text-3xl font-bold text-gray-900 tabular-nums">0%</span>
+                                    <span id="gaugeMetaSub" class="text-[11px] text-gray-400"></span>
+                                </div>
+                            </div>
+                            <p id="gaugeMetaProy" class="text-[11px] text-gray-400 text-center mt-2"></p>
+                        </div>
+                        <div class="saas-card p-6 lg:col-span-2">
+                            <h3 class="font-semibold text-gray-900 mb-1">¿Cuándo se vende?</h3>
+                            <p class="text-xs text-gray-400 mb-3">Ventas por día de la semana y hora (8–19 h)</p>
+                            <div class="heatmap-wrap"><div id="dashHeatmap"></div></div>
+                            <div class="flex items-center justify-end gap-2 mt-3 text-[10px] text-gray-400">
+                                <span>Menos</span>
+                                <span class="inline-flex gap-1 items-center">
+                                    <span class="heatmap-cell" style="width:12px;height:12px;background:rgba(99,102,241,0.12)"></span>
+                                    <span class="heatmap-cell" style="width:12px;height:12px;background:rgba(99,102,241,0.45)"></span>
+                                    <span class="heatmap-cell" style="width:12px;height:12px;background:rgba(99,102,241,0.72)"></span>
+                                    <span class="heatmap-cell" style="width:12px;height:12px;background:rgba(99,102,241,1)"></span>
+                                </span>
+                                <span>Más</span>
+                            </div>
+                        </div>
+                        <div class="saas-card p-6 lg:col-span-2">
+                            <div class="flex items-center justify-between gap-3 flex-wrap mb-3">
+                                <div>
+                                    <h3 class="font-semibold text-gray-900">Cascada financiera</h3>
+                                    <p class="text-xs text-gray-400" id="waterfallSub">De las ventas al efectivo cobrado</p>
+                                </div>
+                                <div id="dashWaterfallToggle" class="dash-segmented inline-flex items-center gap-1 p-1" role="tablist" aria-label="Modo de cascada">
+                                    <button type="button" class="dash-seg-btn is-active" data-wf="caja">Flujo de caja</button>
+                                    <button type="button" class="dash-seg-btn" data-wf="rentabilidad">Rentabilidad</button>
+                                </div>
+                            </div>
+                            <div class="relative" style="height:260px"><canvas id="chartWaterfall"></canvas></div>
+                        </div>
+                        <div class="saas-card p-6 lg:col-span-2">
+                            <h3 class="font-semibold text-gray-900 mb-1">Comparativa de vendedores</h3>
+                            <p class="text-xs text-gray-400 mb-3">Radar normalizado (0–100 vs el mejor) — ventas, pedidos, clientes, ticket y % meta</p>
+                            <div class="relative" style="height:300px"><canvas id="chartRadarVendedores"></canvas></div>
+                        </div>
+                        <div class="saas-card p-6 lg:col-span-2">
+                            <h3 class="font-semibold text-gray-900 mb-1">Margen por categoría</h3>
+                            <p class="text-xs text-gray-400 mb-3">Ganancia estimada (venta − costo)</p>
+                            <div class="relative" style="height:260px"><canvas id="chartMargenCategoria"></canvas></div>
+                        </div>
+                        <div class="saas-card p-6 lg:col-span-2">
+                            <h3 class="font-semibold text-gray-900 mb-1">Mapa de facturación por categoría</h3>
+                            <p class="text-xs text-gray-400 mb-3">Tamaño = ventas (treemap)</p>
+                            <div class="relative" style="height:300px"><canvas id="chartTreemap"></canvas></div>
+                        </div>
                     </div>
                 </div>
 
@@ -2055,6 +2180,20 @@
             <section id="seccion-herramientas" class="tab-content space-y-6">
                 <div class="max-w-4xl space-y-4">
 
+                    <!-- ====== DEMO / TEMPORAL — borrar este bloque cuando ya no se use ====== -->
+                    <div class="saas-card p-6 border-l-4 border-l-amber-500">
+                        <div class="flex justify-between items-start mb-3">
+                            <h3 class="font-bold text-gray-800 flex items-center gap-2"><i data-lucide="flask-conical" class="w-5 h-5 text-amber-500"></i> Datos de demostración</h3>
+                            <span class="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-bold">TEMPORAL</span>
+                        </div>
+                        <p class="text-xs text-gray-500 mb-4">Genera pedidos/cobros/metas <b>falsos solo en este dispositivo</b> (no se suben a la nube) para ver cómo luce el dashboard lleno. Quitalos cuando quieras — también desaparecen al recargar.</p>
+                        <div class="flex flex-wrap gap-3">
+                            <sl-button id="btnGenerarDemo" variant="primary" size="small"><i data-lucide="sparkles" class="w-4 h-4"></i> Generar datos demo</sl-button>
+                            <sl-button id="btnQuitarDemo" variant="default" size="small"><i data-lucide="trash-2" class="w-4 h-4"></i> Quitar datos demo</sl-button>
+                        </div>
+                    </div>
+                    <!-- ====== FIN DEMO ====== -->
+
                     <!-- Configuracion Empresa (SIFEN) -->
                     <div class="saas-card p-6">
                         <div class="flex justify-between items-start mb-4">
@@ -3023,6 +3162,7 @@
     <script src="js/admin/sifen-estado.js"></script>
     <script src="js/admin/dtes.js"></script>
     <script src="js/admin/ai-assistant.js"></script>
+    <script src="js/admin/demo-data.js"></script><!-- DEMO/TEMPORAL: borrar junto con la tarjeta de "Datos de demostración" -->
     <script>lucide.createIcons();</script>
 
     <!-- DIALOG MINI-MAPA — Selector de ubicación GPS -->

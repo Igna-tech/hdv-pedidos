@@ -2181,9 +2181,9 @@
                     <div class="saas-card p-6 border-l-4 border-l-amber-500">
                         <div class="flex justify-between items-start mb-3">
                             <h3 class="font-bold text-gray-800 flex items-center gap-2"><i data-lucide="flask-conical" class="w-5 h-5 text-amber-500"></i> Datos de demostración</h3>
-                            <span class="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-bold">TEMPORAL</span>
+                            <span id="demoEstado" class="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-bold">TEMPORAL</span>
                         </div>
-                        <p class="text-xs text-gray-500 mb-4">Genera pedidos/cobros/metas <b>falsos solo en este dispositivo</b> (no se suben a la nube) para ver cómo luce el dashboard lleno. Quitalos cuando quieras — también desaparecen al recargar.</p>
+                        <p class="text-xs text-gray-500 mb-4">Genera pedidos/cobros/metas <b>falsos solo en este dispositivo</b> (no se suben a la nube) para ver cómo luce el dashboard lleno. <b>Quedan activos aunque recargues o cierres sesión</b>, hasta que toques “Quitar datos demo”.</p>
                         <div class="flex flex-wrap gap-3">
                             <sl-button id="btnGenerarDemo" variant="primary" size="small"><i data-lucide="sparkles" class="w-4 h-4"></i> Generar datos demo</sl-button>
                             <sl-button id="btnQuitarDemo" variant="default" size="small"><i data-lucide="trash-2" class="w-4 h-4"></i> Quitar datos demo</sl-button>

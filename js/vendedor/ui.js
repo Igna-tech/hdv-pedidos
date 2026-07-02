@@ -520,7 +520,7 @@ async function renderizarProductosVendedor(container, busqueda) {
     const catFiltro = categoriaActual !== 'todas' ? categoriaActual : categoriaSeleccionada;
     if (catFiltro) filtrados = filtrados.filter(p => p.categoria === catFiltro);
     if (_subcatSeleccionada) filtrados = filtrados.filter(p => p.subcategoria === _subcatSeleccionada);
-    if (busqueda) filtrados = filtrados.filter(p => p.nombre.toLowerCase().includes(busqueda));
+    if (busqueda) filtrados = filtrados.filter(p => (p.nombre || '').toLowerCase().includes(busqueda));
     if (categoriaSeleccionada && !busqueda && categoriaActual === 'todas') {
         filtrados = filtrados.filter(p => { const e = p.estado || 'disponible'; return e !== 'discontinuado' && e !== 'agotado'; });
     }
@@ -970,6 +970,10 @@ function _flyToCart(sourceEl) {
 
 function _quickAddProd(prod) {
     const presActivas = (prod.presentaciones || []).filter(p => p.activo !== false);
+    if (presActivas.length === 0) {
+        if (typeof mostrarToast === 'function') mostrarToast('Producto sin presentaciones disponibles', 'info');
+        return false;
+    }
     if (presActivas.length === 1) {
         const pres = presActivas[0];
         const precio = typeof obtenerPrecio === 'function' ? obtenerPrecio(prod.id, pres) : pres.precio_base;
@@ -1058,6 +1062,12 @@ function _initVistaProductos(v) {
 // DETALLE DE PRODUCTO (Modal inline)
 // ============================================
 function mostrarDetalleProducto(producto) {
+    // Guarda: sin variantes activas no hay nada seleccionable → evita abrir un sheet vacío.
+    const activas = (producto.presentaciones || []).filter(p => p.activo !== false);
+    if (activas.length === 0) {
+        if (typeof mostrarToast === 'function') mostrarToast('Producto sin presentaciones disponibles', 'info');
+        return;
+    }
     if (producto.presentaciones && producto.presentaciones.length >= 6) {
         mostrarMatrizProducto(producto);
         return;

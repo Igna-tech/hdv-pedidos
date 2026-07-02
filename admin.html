@@ -1253,22 +1253,15 @@
                         <sl-button data-action="exportarProductosCSV" variant="neutral" size="small" outline><i data-lucide="download" class="w-3.5 h-3.5"></i> CSV</sl-button>
                         <sl-button data-action="verMargenesCatalogo" variant="neutral" size="small" outline title="Vista de márgenes por categoría"><i data-lucide="trending-up" class="w-3.5 h-3.5"></i> Márgenes</sl-button>
                         <sl-button data-action="abrirEstadisticasCatalogo" variant="neutral" size="small" outline title="Estadísticas del catálogo"><i data-lucide="bar-chart-2" class="w-3.5 h-3.5"></i> Stats</sl-button>
+                        <sl-button data-action="toggleEditarCatalogo" id="btnEditarCatalogo" variant="neutral" size="small" outline><i data-lucide="pencil" class="w-3.5 h-3.5"></i> <span id="btnEditarCatalogoLabel">Editar</span></sl-button>
                         <sl-button data-action="abrirModalCategorias" variant="primary" size="small">Categorias</sl-button>
                         <sl-button data-action="abrirModalProducto" variant="neutral" size="small">+ Nuevo</sl-button>
                     </div>
                 </div>
-                <!-- Carga rápida de productos -->
-                <div class="saas-card p-3 flex flex-wrap items-end gap-2" id="quickAddRow">
-                    <div class="flex flex-col gap-0.5">
-                        <label class="text-[10px] uppercase tracking-wide text-gray-400 font-semibold">Carga rápida</label>
-                        <input id="qaNombre" type="text" placeholder="Nombre del producto" autocomplete="off"
-                            class="border border-gray-200 rounded-lg px-2 py-1.5 text-sm" style="width:16rem;background:var(--panel-2);color:var(--ink)">
-                    </div>
-                    <select id="qaCategoria" class="border border-gray-200 rounded-lg px-2 py-1.5 text-sm" style="background:var(--panel-2);color:var(--ink)"></select>
-                    <input id="qaPrecio" type="number" min="0" placeholder="Precio" class="border border-gray-200 rounded-lg px-2 py-1.5 text-sm w-24 text-right" style="background:var(--panel-2);color:var(--ink)">
-                    <input id="qaStock" type="number" min="0" placeholder="Stock" class="border border-gray-200 rounded-lg px-2 py-1.5 text-sm w-20 text-right" style="background:var(--panel-2);color:var(--ink)">
-                    <sl-button data-action="quickAddProducto" variant="primary" size="small">Agregar</sl-button>
-                    <span class="text-[11px] text-gray-400">Enter para agregar y seguir</span>
+                <!-- Launcher de carga guiada -->
+                <div class="saas-card p-3 flex flex-wrap items-center gap-3" id="quickAddRow">
+                    <sl-button data-action="abrirModalProducto" variant="primary" size="small"><i data-lucide="package-plus" class="w-4 h-4"></i> Cargar producto</sl-button>
+                    <span class="text-[11px] text-gray-400">Un solo formulario: nombre, imagen, precio, costo, stock y variantes — se publica al instante en la app del vendedor.</span>
                 </div>
                 <!-- Score de calidad del catálogo -->
                 <div id="catalogoCalidad" class="hidden"></div>
@@ -2517,6 +2510,7 @@
                             <sl-input type="number" id="nuevoProductoStock" class="w-full" size="small" placeholder="0" min="0"></sl-input>
                         </div>
                     </div>
+                    <p id="modalMargenSimple" class="text-[11px] mb-3 hidden"></p>
                     <div>
                         <label class="block text-xs font-bold text-gray-500 mb-1">PRESENTACION</label>
                         <sl-input type="text" id="nuevoProductoPresentaciones" class="w-full" size="small" placeholder="Ej: Unidad, 125g"></sl-input>
@@ -2547,10 +2541,21 @@
 
                 <!-- Presentaciones detalladas (modo edicion legacy) -->
                 <div id="presentacionesDetalladas" style="display:none;"></div>
+
+                <!-- Checklist de vendibilidad: ¿se verá bien en la app del vendedor? -->
+                <div id="vendibilidadPanel" class="rounded-xl border border-gray-200 p-3 bg-gray-50">
+                    <p class="text-xs font-bold text-gray-500 mb-2 flex items-center gap-1.5">
+                        <i data-lucide="store" class="w-3.5 h-3.5"></i> ¿Se verá en la app del vendedor?
+                    </p>
+                    <ul id="vendibilidadChecklist" class="space-y-1 text-xs"></ul>
+                </div>
             </div>
-            <div slot="footer" class="flex justify-end gap-3">
+            <div slot="footer" class="flex justify-between gap-3">
                 <sl-button data-action="cerrarModalProducto" variant="text" size="small">Cancelar</sl-button>
-                <sl-button id="btnGuardarProducto" data-action="guardarProductoModal" variant="neutral" size="small">Guardar</sl-button>
+                <div class="flex gap-2">
+                    <sl-button id="btnGuardarProductoYOtro" data-action="guardarProductoModalYOtro" variant="neutral" size="small" outline>Guardar y cargar otro</sl-button>
+                    <sl-button id="btnGuardarProducto" data-action="guardarProductoModal" variant="primary" size="small">Guardar</sl-button>
+                </div>
             </div>
     </sl-dialog>
 
@@ -2860,6 +2865,7 @@
             <sl-button size="small" data-action="masivo-ocultar" style="--sl-color-neutral-600:#6b7280;--sl-color-neutral-700:#4b5563;--sl-color-neutral-0:#fff;">Ocultar</sl-button>
             <sl-button size="small" data-action="masivo-mostrar" style="--sl-color-neutral-600:#6b7280;--sl-color-neutral-700:#4b5563;--sl-color-neutral-0:#fff;">Mostrar</sl-button>
             <sl-button size="small" data-action="masivo-cambiar-cat" variant="primary">Cambiar cat.</sl-button>
+            <sl-button size="small" data-action="moverProductosSeleccionados" style="--sl-color-neutral-600:#6b7280;--sl-color-neutral-700:#4b5563;--sl-color-neutral-0:#fff;">Mover a subcat.</sl-button>
             <sl-button size="small" data-action="masivo-ajustar-precios" style="--sl-color-warning-600:#d97706;--sl-color-warning-700:#b45309;" variant="warning">Precio %</sl-button>
             <sl-button size="small" data-action="masivo-eliminar" variant="danger">Eliminar</sl-button>
             <sl-button size="small" data-action="limpiar-seleccion-productos" style="--sl-color-neutral-600:#374151;--sl-color-neutral-700:#1f2937;--sl-color-neutral-0:#9ca3af;" title="Limpiar selección">✕</sl-button>

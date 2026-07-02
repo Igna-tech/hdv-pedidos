@@ -35,7 +35,7 @@ PWA mobile-first para vendedores de calle + panel admin de escritorio.
 │
 ├── supabase-init.js        → Credenciales Supabase (se carga PRIMERO en todos los HTML)
 ├── services/supabase.js    → Capa de servicios (Repository Pattern): centraliza TODAS las queries
-├── supabase-config.js      → Orquestacion: realtime, sync, mapeo legacy (delega queries a SupabaseService)
+├── supabase-config.js      → Orquestacion: realtime, sync, mapeo legacy (delega queries a SupabaseService). **Persistencia atomica por item** (auto-guardado, sin "Guardar y Sincronizar"): guardarProductoIndividual(prod, {categoria}) [upsert producto + categoria FK + reemplazarVariantes de ese id], guardarCategoriaIndividual(cat), eliminarProductoRemoto/eliminarCategoriaRemota, persistirOrdenProductos/persistirOrdenCategorias — todas actualizan cache local hdv_catalogo_local.
 ├── guard.js                → Proteccion de rutas (auth + roles + Kill Switch via RPC)
 ├── login.html / login.js   → Login con Supabase Auth + MFA TOTP, redirect por rol, alerta ?blocked=1. Saludo animado "Hola"+nombre (estilo Apple, ~5s) en redirigirPorRol() antes de navegar; nombre desde obtenerRol() (_userNombre)
 │
@@ -58,7 +58,7 @@ PWA mobile-first para vendedores de calle + panel admin de escritorio.
 ├── js/admin/pedidos.js     → Modulo admin: pedidos con filtros vendedor/estado, badges fraude/tipo/editado, desglose IVA, CSV enriquecido
 ├── js/admin/dashboard.js   → Modulo admin: dashboard con Chart.js. KPIs "Semana en vivo" (reinicia domingo) + KPIs mensuales con tendencia + sparkline SVG inline (_sparklineSVG). Ganancia por pedido memoizada. **Seccion Analisis avanzado** con selector de periodo global (Hoy/Semana/Mes/90d: _periodoActivo, _pedidosDelPeriodo, _renderVisuales orquestador, _initPeriodoSelector) que recalcula solo los graficos de esa seccion (los 2 strips de KPI quedan fijos). Graficos: dona mix cobro, dona categoria, polar zona, gauge meta MENSUAL con proyeccion fin de mes, treemap, radar vendedores, margen categoria, top productos (dona), **heatmap semana×hora** (CSS grid sin plugin, _renderHeatmap), **embudo ciclo de vida** con % conversion, **waterfall** con toggle flujo-caja⇄rentabilidad (_renderWaterfall, _obtenerGastosPeriodo agrega gastos por perfil). Estados vacios reutilizables (_estadoVacioGrafico). **Banda de alertas** (_renderInsights: tendencia ventas/creditos vencidos/stock bajo/pedidos sin finalizar → navegan via data-section). **Click-through**: embudo→Ventas por estado, top productos→Ventas por texto (_dashDrillVentas). **Personalizacion** (_initPersonalizacion/_aplicarLayout): drag&drop reordena tarjetas de #dashVisualesGrid, ocultar por tarjeta, densidad compacta; persistido en hdv_dashboard_layout.
 ├── js/admin/notificaciones.js → Centro de notificaciones in-app (campana header + panel): feed unificado fraude/pedidos sin finalizar/creditos por revisar/stock bajo (umbral 5). Estado leido/no-leido en IndexedDB (hdv_notif_leidas). Solo lee y navega (cambiarSeccion). toggleNotificaciones(), renderNotificaciones().
-├── js/admin/productos.js   → Modulo admin: CRUD de productos y variantes. Carga rapida (quickAddProducto, fila quickAddRow + Enter), edicion inline precio/costo/stock, duplicar (clonarProducto), score de calidad (_renderCalidadCatalogo). TODOS los handlers via data-action/data-action-change/data-action-slchange (sin onclick inline — CSP).
+├── js/admin/productos.js   → Modulo admin: CRUD de productos y variantes. **Flujo de carga guiado unico** (#modalProducto): un solo formulario (launcher #quickAddRow "Cargar producto" + boton "+ Nuevo") con margen en vivo (_actualizarMargenSimple), checklist de vendibilidad en vivo (_actualizarVendibilidad: nombre/categoria/variante activa/precio>0/visible → bloquea Guardar si quedaria roto/invisible via _validarVendibilidad), categoria "+ Nueva…" al vuelo (_crearCategoriaInlineDesdeModal), boton "Guardar y cargar otro". **Auto-guardado**: guardarProductoModal llama guardarProductoIndividual (publica al vendedor al instante, sin "Guardar y Sincronizar"). **Modo edicion por nivel** (toggleEditarCatalogo, boton #btnEditarCatalogo, flag _editandoCatalogo): drag&drop nativo CSP-safe (_onCatalogoDragStart/Over/Drop/DragEnd) reordena categorias/subcategorias/productos y persiste orden; controles inline por tarjeta (renombrar/eliminar/toggle activo cat, renombrar/eliminar sub, editar/ocultar/eliminar prod — todos auto-guardan); mover productos entre subcategorias (drag a rail de subcategorias o accion masiva moverProductosSeleccionados). ID unificado _siguienteIdProducto. edicion inline precio/costo/stock, duplicar (clonarProducto), score de calidad (_renderCalidadCatalogo). TODOS los handlers via data-action/data-action-change/data-action-slchange (sin onclick inline — CSP).
 ├── js/admin/clientes.js    → Modulo admin: CRUD de clientes
 ├── js/admin/creditos.js    → Modulo admin: creditos = pedidos ENTREGADOS (con saldo) por su numero. registrarPagoCredito() escribe libro unificado + cierra a cobrado_sin_factura al saldar. Creditos manuales = recordatorios personales AISLADOS (no entran en stats/balance/historial/badge).
 ├── js/admin/proveedores.js → Modulo admin: Proveedores — 4 sub-tabs (Directorio CRUD, Ordenes de Compra con drawer, Cuentas x Pagar con aging waterfall, Analisis scorecard). Tablas Supabase: proveedores, ordenes_compra, pagos_proveedor. IDs: PROV-/OC-/PP-. Score 0-100 por proveedor (cumplimiento+lead time+volumen+antiguedad).
@@ -107,9 +107,9 @@ supabase CDN → supabase-init.js → js/utils/storage.js → login.js
 ## Base de datos (Supabase PostgreSQL)
 
 ### Tablas relacionales (catalogo):
-- `categorias` (id TEXT PK, nombre, subcategorias TEXT[], estado)
+- `categorias` (id TEXT PK, nombre, subcategorias TEXT[], estado, **orden INT** — orden manual del catalogo, se refleja en app vendedor)
 - `clientes` (id TEXT PK, nombre, razon_social, ruc, telefono, direccion, zona, encargado, tipo, oculto, precios_personalizados JSONB)
-- `productos` (id TEXT PK, nombre, categoria_id FK→categorias, subcategoria, imagen_url, estado, oculto, tipo_impuesto)
+- `productos` (id TEXT PK, nombre, categoria_id FK→categorias, subcategoria, imagen_url, estado, oculto, tipo_impuesto, **orden INT** — orden manual dentro de la categoria, se refleja en app vendedor). Migracion: `supabase/migrations/20260701_catalogo_orden.sql` (manual)
 - `producto_variantes` (id UUID PK, producto_id FK→productos CASCADE, nombre_variante, precio, costo, stock, activo)
 
 ### Tablas operativas:
@@ -152,8 +152,8 @@ Patron Repository. Singleton global `SupabaseService` (IIFE). Centraliza TODAS l
 
 **API publica:**
 - **Pedidos**: `fetchPedidos(limit,offset)` [auto-paginacion, cap 5000], `fetchPedidoDatos(id)`, `upsertPedido(pedido)`, `updateEstadoPedido(id,estado)` [RPC atomica], `deletePedido(id)`
-- **Catalogo**: `fetchCatalogo()`, `fetchCategorias()`, `fetchClientes(limit,offset)`, `fetchProductosConVariantes(limit,offset)`
-- **CRUD**: `upsertCategorias/Clientes/Productos(rows)`, `deleteCategorias/Clientes/Productos(ids)`, `fetch*Ids()`
+- **Catalogo**: `fetchCatalogo()`, `fetchCategorias()` [ordenado por orden,nombre], `fetchClientes(limit,offset)`, `fetchProductosConVariantes(limit,offset)` [ordenado por orden,nombre]
+- **CRUD**: `upsertCategorias/Clientes/Productos(rows)`, `deleteCategorias/Clientes/Productos(ids)`, `fetch*Ids()`, `actualizarOrdenProductos(items)`, `actualizarOrdenCategorias(items)` [upsert parcial {id,orden}]
 - **Variantes**: `deleteVariantesByProductoIds(ids)`, `insertVariantes(rows)`, `updateVariante(id,campos)`, `upsertVariante(row)`, `reemplazarVariantes(ids, rows)` [RPC atomica]
 - **Config**: `fetchConfig(docId)`, `upsertConfig(docId,datos)`, `fetchConfigEmpresa()`, `upsertConfigEmpresa(datos)`
 - **Reportes**: `upsertReporteMensual(mes,datos)`, `fetchReporteMensual(mes)`
@@ -407,7 +407,7 @@ entregado ──[pagos hasta saldo 0]──► cobrado_sin_factura → ARCHIVO
 - Service worker: incrementar `VERSION` en cada deploy.
 - `productos.json` es fallback estatico, no fuente de verdad.
 - Variantes se reemplazan atomicamente via RPC `reemplazar_variantes` (no update individual).
-- Admin modifica en memoria y guarda todo junto ("Guardar y Sincronizar"), no campo por campo.
+- Admin: para import masivo y edicion inline de stock, modifica en memoria y guarda junto ("Guardar y Sincronizar"). Para la **carga/edicion/gestion de catalogo uno a uno** (modal guiado, CRUD inline y reorden drag&drop), cada cambio **auto-guarda** al instante (guardarProductoIndividual/guardarCategoriaIndividual/persistirOrden*) y se publica al vendedor por realtime.
 - Pedidos: IndexedDB es fuente primaria para lectura, Supabase para sync entre dispositivos.
 - IDs de pedidos generados con `crypto.randomUUID()` (PED-, REC-, FAC-). No usar Date.now() ni Math.random().
 - **PROHIBIDO modificar** el codigo de generacion XML, CDC, integracion SIFEN/SET o Edge Functions sin autorizacion explicita.

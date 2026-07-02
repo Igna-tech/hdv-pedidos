@@ -50,6 +50,7 @@ CREATE TABLE IF NOT EXISTS public.categorias (
     nombre      TEXT        NOT NULL,
     subcategorias TEXT[]    DEFAULT '{}'::text[],
     estado      TEXT        DEFAULT 'activo',
+    orden       INT         DEFAULT 0,
     created_at  TIMESTAMPTZ DEFAULT now()
 );
 
@@ -86,10 +87,12 @@ CREATE TABLE IF NOT EXISTS public.productos (
     oculto           BOOLEAN     DEFAULT false,
     tipo_impuesto    TEXT        DEFAULT 'iva_10',
     unidad_medida_set TEXT       DEFAULT '77',
+    orden            INT         DEFAULT 0,
     created_at       TIMESTAMPTZ DEFAULT now()
 );
 
 CREATE INDEX IF NOT EXISTS idx_productos_categoria_id ON public.productos (categoria_id);
+CREATE INDEX IF NOT EXISTS idx_productos_orden ON public.productos (categoria_id, orden);
 
 -- Variantes de productos
 CREATE TABLE IF NOT EXISTS public.producto_variantes (

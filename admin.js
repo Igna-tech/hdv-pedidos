@@ -176,7 +176,7 @@ const ACTION_DISPATCH = {
     'eliminarSubcategoria':             (btn)  => typeof eliminarSubcategoria === 'function' && eliminarSubcategoria(btn.dataset.cat, btn.dataset.sub),
     'agregarSubcategoria':              (btn)  => typeof agregarSubcategoria === 'function' && agregarSubcategoria(btn.dataset.cat),
     'quitarFila':                       (btn)  => { const s = btn.dataset.sel; (s === 'parent' ? btn.parentElement : btn.closest(s))?.remove(); },
-    'quickAddProducto':                 ()     => typeof quickAddProducto === 'function' && quickAddProducto(),
+    'quickAddProducto':                 ()     => typeof abrirModalProducto === 'function' && abrirModalProducto(),
     'guardarStock':                     ()     => typeof guardarStock === 'function' && guardarStock(),
     'guardarStockDesdePerfilProducto':  ()     => typeof guardarStockDesdePerfilProducto === 'function' && guardarStockDesdePerfilProducto(),
     'cerrarPerfilProducto':             ()     => typeof cerrarPerfilProducto === 'function' && cerrarPerfilProducto(),
@@ -187,9 +187,14 @@ const ACTION_DISPATCH = {
     'abrirModalProducto':               ()     => typeof abrirModalProducto === 'function' && abrirModalProducto(),
     'cerrarModalProducto':              ()     => typeof cerrarModalProducto === 'function' && cerrarModalProducto(),
     'guardarProductoModal':             ()     => typeof guardarProductoModal === 'function' && guardarProductoModal(),
+    'guardarProductoModalYOtro':        ()     => typeof guardarProductoModal === 'function' && guardarProductoModal({ cargarOtro: true }),
     'quitarImagenProducto':             ()     => typeof quitarImagenProducto === 'function' && quitarImagenProducto(),
     'agregarFilaVariante':              ()     => typeof agregarFilaVariante === 'function' && agregarFilaVariante(),
     'agregarCategoriaModal':            ()     => typeof agregarCategoriaModal === 'function' && agregarCategoriaModal(),
+    'toggleEditarCatalogo':             ()     => typeof toggleEditarCatalogo === 'function' && toggleEditarCatalogo(),
+    'nuevaCategoriaInline':             ()     => typeof nuevaCategoriaInline === 'function' && nuevaCategoriaInline(),
+    'nuevaSubcategoriaInline':          ()     => typeof nuevaSubcategoriaInline === 'function' && nuevaSubcategoriaInline(),
+    'moverProductosSeleccionados':      ()     => typeof moverProductosSeleccionados === 'function' && moverProductosSeleccionados(),
 
     // === Clientes ===
     'abrirModalCliente':                ()     => typeof abrirModalCliente === 'function' && abrirModalCliente(),
@@ -474,13 +479,6 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Carga rápida de productos: Enter agrega y sigue
-    ['qaNombre', 'qaPrecio', 'qaStock'].forEach(id => {
-        document.getElementById(id)?.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && typeof quickAddProducto === 'function') { e.preventDefault(); quickAddProducto(); }
-        });
-    });
-
     // oninput en sl-input usa el evento 'sl-input' de Shoelace
     document.getElementById('globalSearchInput')
         ?.addEventListener('sl-input', () => ejecutarBusquedaGlobalDebounced());

@@ -259,6 +259,10 @@ function _initPeriodoSelector() {
 // DASHBOARD — Carga principal
 // ============================================
 async function cargarDashboard() {
+    // Demo activo pero aún sin rehidratar: NO pintar con datos reales/vacíos.
+    // La rehidratación (demo-data.js) volverá a invocar cargarDashboard ya con el demo.
+    if (window._demoPendiente) return;
+
     const pedidos = todosLosPedidos;
     const hoy = new Date();
 

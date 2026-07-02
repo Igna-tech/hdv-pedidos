@@ -488,7 +488,7 @@
         <div id="adminContentArea" class="flex-1 min-h-0 overflow-y-auto p-6 md:p-8" style="max-height: calc(100vh - 4rem);">
 
             <!-- DASHBOARD -->
-            <section id="seccion-dashboard" class="tab-content space-y-6">
+            <section id="seccion-dashboard" class="tab-content active space-y-6">
 
                 <!-- BANDA DE ALERTAS INTELIGENTES -->
                 <div id="dashInsights" class="flex flex-wrap items-center gap-2 empty:hidden"></div>
@@ -925,7 +925,7 @@
 
             </section>
                         <!-- PEDIDOS -->
-            <section id="seccion-pedidos" class="tab-content active space-y-6">
+            <section id="seccion-pedidos" class="tab-content space-y-6">
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div class="saas-card p-6">
                         <p class="text-sm text-gray-500 font-medium">Total Hoy</p>
@@ -2181,9 +2181,9 @@
                     <div class="saas-card p-6 border-l-4 border-l-amber-500">
                         <div class="flex justify-between items-start mb-3">
                             <h3 class="font-bold text-gray-800 flex items-center gap-2"><i data-lucide="flask-conical" class="w-5 h-5 text-amber-500"></i> Datos de demostración</h3>
-                            <span class="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-bold">TEMPORAL</span>
+                            <span id="demoEstado" class="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-bold">TEMPORAL</span>
                         </div>
-                        <p class="text-xs text-gray-500 mb-4">Genera pedidos/cobros/metas <b>falsos solo en este dispositivo</b> (no se suben a la nube) para ver cómo luce el dashboard lleno. Quitalos cuando quieras — también desaparecen al recargar.</p>
+                        <p class="text-xs text-gray-500 mb-4">Genera pedidos/cobros/metas <b>falsos solo en este dispositivo</b> (no se suben a la nube) para ver cómo luce el dashboard lleno. <b>Quedan activos aunque recargues o cierres sesión</b>, hasta que toques “Quitar datos demo”.</p>
                         <div class="flex flex-wrap gap-3">
                             <sl-button id="btnGenerarDemo" variant="primary" size="small"><i data-lucide="sparkles" class="w-4 h-4"></i> Generar datos demo</sl-button>
                             <sl-button id="btnQuitarDemo" variant="default" size="small"><i data-lucide="trash-2" class="w-4 h-4"></i> Quitar datos demo</sl-button>

@@ -582,7 +582,7 @@ function generarSkeletonCards(count = 6) {
 // ============================================
 // NAVEGACION
 // ============================================
-let _seccionActiva = 'pedidos';
+let _seccionActiva = 'dashboard';
 
 // Callback global: supabase-config.js lo invoca cuando llega un update realtime de config
 function _hdvRefrescarSeccionActiva(docId) {
@@ -874,7 +874,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (desde) desde.valueAsDate = hace30;
     if (hasta) hasta.valueAsDate = hoy;
 
-    cambiarSeccion('pedidos');
+    cambiarSeccion('dashboard');
 
     const autoBackupToggle = document.getElementById('adminAutoBackupToggle');
     if (autoBackupToggle) {

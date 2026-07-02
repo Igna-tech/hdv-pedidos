@@ -12,29 +12,46 @@ window._empresaLogoUrl = '';
 // LAZY LOAD - IntersectionObserver for catalog cards
 // ============================================
 function initLazyLoadCards(containerEl) {
-    const cards = (containerEl || document).querySelectorAll('.catalog-card[data-bg]');
-    if (!cards.length) return;
-
-    const observer = new IntersectionObserver((entries, obs) => {
-        entries.forEach(entry => {
-            if (!entry.isIntersecting) return;
-            const card = entry.target;
-            const url = card.dataset.bg;
-            if (!url) return;
-            const img = new Image();
-            img.onload = () => {
-                card.style.backgroundImage = `url('${url}')`;
-                card.classList.add('catalog-card--loaded');
-            };
-            img.src = url;
-            obs.unobserve(card);
+    const root = containerEl || document;
+    // Tarjetas con imagen de fondo (.catalog-card legacy + .vendor-cat-card categorías/subcats)
+    const cards = root.querySelectorAll('.catalog-card[data-bg], .vendor-cat-card[data-bg]');
+    if (cards.length) {
+        const observer = new IntersectionObserver((entries, obs) => {
+            entries.forEach(entry => {
+                if (!entry.isIntersecting) return;
+                const card = entry.target;
+                const url = card.dataset.bg;
+                const loadedClass = card.classList.contains('vendor-cat-card') ? 'vendor-cat-card--loaded' : 'catalog-card--loaded';
+                if (!url) { card.classList.add(loadedClass); obs.unobserve(card); return; }
+                const im = new Image();
+                im.onload = () => { card.style.backgroundImage = `url('${url}')`; card.classList.add(loadedClass); };
+                im.src = url;
+                card.removeAttribute('data-bg');
+                obs.unobserve(card);
+            });
+        }, { rootMargin: '200px 0px', threshold: 0.01 });
+        cards.forEach(card => {
+            if (!card.dataset.bg) { card.classList.add(card.classList.contains('vendor-cat-card') ? 'vendor-cat-card--loaded' : 'catalog-card--loaded'); return; }
+            observer.observe(card);
         });
-    }, { rootMargin: '200px 0px', threshold: 0.01 });
+    }
 
-    cards.forEach(card => {
-        if (!card.dataset.bg) { card.classList.add('catalog-card--loaded'); return; }
-        observer.observe(card);
-    });
+    // Imágenes lazy de tarjetas de producto (.vpc-img)
+    const imgs = root.querySelectorAll('img.lazy-img[data-src]');
+    if (imgs.length) {
+        const imgObs = new IntersectionObserver((entries, obs) => {
+            entries.forEach(entry => {
+                if (!entry.isIntersecting) return;
+                const el = entry.target;
+                el.src = el.dataset.src;
+                el.removeAttribute('data-src');
+                el.onload = () => { el.classList.remove('opacity-0'); el.classList.add('opacity-100'); };
+                el.onerror = () => { el.style.display = 'none'; };
+                obs.unobserve(el);
+            });
+        }, { rootMargin: '200px 0px', threshold: 0.01 });
+        imgs.forEach(im => imgObs.observe(im));
+    }
 }
 
 // ============================================
@@ -183,6 +200,7 @@ const ACTION_DISPATCH = {
 
     // === Productos ===
     'productosNavegar':                 (_, a) => typeof productosNavegar === 'function' && productosNavegar(a),
+    'productosVolverAtras':             ()     => typeof productosVolverAtras === 'function' && productosVolverAtras(),
     'abrirModalCategorias':             ()     => typeof abrirModalCategorias === 'function' && abrirModalCategorias(),
     'abrirModalProducto':               ()     => typeof abrirModalProducto === 'function' && abrirModalProducto(),
     'cerrarModalProducto':              ()     => typeof cerrarModalProducto === 'function' && cerrarModalProducto(),

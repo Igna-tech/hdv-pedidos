@@ -179,7 +179,10 @@
             transition: opacity 0.15s ease; cursor: pointer;
         }
         .catalog-card:hover .card-checkbox-overlay,
-        .catalog-card.ring-2 .card-checkbox-overlay { opacity: 1; }
+        .catalog-card.ring-2 .card-checkbox-overlay,
+        .vpc:hover .card-checkbox-overlay,
+        .vpc.ring-2 .card-checkbox-overlay,
+        .vpc.is-editando .card-checkbox-overlay { opacity: 1; }
         .catalog-card-noimg {
             display: flex; align-items: center; justify-content: center;
             font-size: 48px; position: absolute; inset: 0; z-index: 0;
@@ -1220,6 +1223,9 @@
             <section id="seccion-productos" class="tab-content space-y-4">
                 <div class="saas-card p-4 flex flex-wrap gap-3 items-center justify-between">
                     <div class="flex items-center gap-2 text-sm text-gray-500">
+                        <sl-button data-action="productosVolverAtras" id="btnVolverCatalogo" variant="neutral" size="small" outline class="hidden" style="font-weight:700;">
+                            <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i> Atrás
+                        </sl-button>
                         <sl-button data-action="productosNavegar" data-arg="inicio" id="prod-breadcrumb-inicio" variant="text" size="small" style="font-weight:700; --sl-color-primary-600:#1f2937; --sl-color-primary-700:#111827;">Catalogo</sl-button>
                         <span id="prod-breadcrumb-sep1" class="hidden">/</span>
                         <sl-button data-action="productosNavegar" data-arg="categoria" id="prod-breadcrumb-cat" variant="text" size="small" class="hidden" style="font-weight:700; color:#374151; --sl-color-primary-600:#1f2937; --sl-color-primary-700:#111827;"></sl-button>
@@ -1263,8 +1269,6 @@
                     <sl-button data-action="abrirModalProducto" variant="primary" size="small"><i data-lucide="package-plus" class="w-4 h-4"></i> Cargar producto</sl-button>
                     <span class="text-[11px] text-gray-400">Un solo formulario: nombre, imagen, precio, costo, stock y variantes — se publica al instante en la app del vendedor.</span>
                 </div>
-                <!-- Score de calidad del catálogo -->
-                <div id="catalogoCalidad" class="hidden"></div>
                 <!-- Banner de stock crítico (auto-visible cuando hay productos críticos) -->
                 <div id="alertaStockCritico" class="hidden bg-red-50 border border-red-200 rounded-xl px-4 py-2.5 flex items-center justify-between gap-3">
                     <div class="flex items-center gap-2 text-sm text-red-700">

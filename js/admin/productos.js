@@ -339,11 +339,27 @@ function productosNavegar(nivel) {
     mostrarProductosGestion();
 }
 
+// Botón Atrás: sube un nivel de la navegación del catálogo.
+function productosVolverAtras() {
+    if (prodNavSubId) {
+        // Estoy viendo productos de una subcategoría → vuelvo a las subcategorías
+        prodNavNivel = 'subcategorias';
+        prodNavSubId = null;
+    } else if (prodNavCatId) {
+        // Estoy dentro de una categoría → vuelvo a las categorías
+        prodNavNivel = 'categorias';
+        prodNavCatId = null;
+    }
+    actualizarBreadcrumbProductos();
+    mostrarProductosGestion();
+}
+
 function actualizarBreadcrumbProductos() {
     const cat = document.getElementById('prod-breadcrumb-cat');
     const sub = document.getElementById('prod-breadcrumb-sub');
     const sep1 = document.getElementById('prod-breadcrumb-sep1');
     const sep2 = document.getElementById('prod-breadcrumb-sep2');
+    const btnVolver = document.getElementById('btnVolverCatalogo');
     if (!cat) return;
     cat.classList.add('hidden'); sub.classList.add('hidden');
     sep1.classList.add('hidden'); sep2.classList.add('hidden');
@@ -356,37 +372,8 @@ function actualizarBreadcrumbProductos() {
         sub.textContent = prodNavSubId;
         sub.classList.remove('hidden'); sep2.classList.remove('hidden');
     }
-}
-
-// Score de calidad del catálogo: % de productos con imagen/costo/categoría/IVA.
-// Incentiva completar datos → impacta la Ganancia Neta real del dashboard.
-function _ccBar(label, pct) {
-    return `<div class="cc-bar"><span class="cc-bar-l">${escapeHTML(label)}</span><span class="cc-bar-track"><span class="cc-bar-fill" style="width:${pct}%"></span></span><span class="cc-bar-v">${pct}%</span></div>`;
-}
-function _renderCalidadCatalogo() {
-    const cont = document.getElementById('catalogoCalidad');
-    if (!cont) return;
-    const prods = (productosData.productos || []).filter(p => !p.oculto);
-    const total = prods.length;
-    if (total === 0) { cont.classList.add('hidden'); cont.innerHTML = ''; return; }
-    let conImg = 0, conCosto = 0, conCat = 0, conIva = 0;
-    prods.forEach(p => {
-        if (p.imagen_url || p.imagen) conImg++;
-        if ((p.presentaciones || []).some(pr => (pr.costo || 0) > 0)) conCosto++;
-        if (p.categoria) conCat++;
-        if (p.tipo_impuesto) conIva++;
-    });
-    const pct = (n) => Math.round(n / total * 100);
-    const pImg = pct(conImg), pCosto = pct(conCosto), pCat = pct(conCat), pIva = pct(conIva);
-    const score = Math.round((pImg + pCosto + pCat + pIva) / 4);
-    const color = score >= 80 ? 'var(--ok)' : score >= 50 ? 'var(--warn)' : 'var(--alert)';
-    cont.classList.remove('hidden');
-    cont.innerHTML = `
-      <div class="cc-score" style="--cc:${color}">
-        <div class="cc-ring" style="background:conic-gradient(var(--cc) ${score * 3.6}deg, var(--panel-3) 0)"><span>${score}</span></div>
-        <div class="cc-meta"><p class="cc-title">Calidad del catálogo</p><p class="cc-sub">${total} productos activos</p></div>
-        <div class="cc-bars">${_ccBar('Imagen', pImg)}${_ccBar('Costo', pCosto)}${_ccBar('Categoría', pCat)}${_ccBar('IVA', pIva)}</div>
-      </div>`;
+    // Botón Atrás visible al entrar en cualquier categoría/subcategoría
+    if (btnVolver) btnVolver.classList.toggle('hidden', !prodNavCatId);
 }
 
 // ID de producto unificado: P### incremental robusto (catálogo vacío o IDs no-P###).
@@ -410,7 +397,6 @@ async function mostrarProductosGestion() {
     if (!container) return;
     _initProductosGridDelegation(container);
     poblarFiltroCategorias();
-    _renderCalidadCatalogo();
 
     const busqueda = document.getElementById('buscarProducto')?.value.toLowerCase() || '';
     const catFiltro = document.getElementById('filtroCategoria')?.value || '';
@@ -429,6 +415,7 @@ async function mostrarProductosGestion() {
         prods = await aplicarOrdenProductos(prods, ordenFiltro);
         renderizarProductosGestionGrid(container, prods);
         actualizarPaginacionProductos(prods.length);
+        actualizarBreadcrumbProductos();
         return;
     }
 
@@ -479,7 +466,7 @@ const _productosActionMap = {
         if (overlay) {
             const cb = overlay.querySelector('input[type="checkbox"]');
             if (cb) cb.checked = _seleccionProductos.has(id);
-            const card = overlay.closest('.catalog-card');
+            const card = overlay.closest('.vpc');
             if (card) {
                 card.classList.toggle('ring-2', _seleccionProductos.has(id));
                 card.classList.toggle('ring-indigo-500', _seleccionProductos.has(id));
@@ -566,7 +553,7 @@ const SVG_ICON_EYE = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none
 const SVG_ICON_EYE_OFF = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A11 11 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.5 13.5 0 0 0 2 12s3 7 10 7a9.7 9.7 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/></svg>';
 
 function _dragHandleHTML() {
-    return '<span class="catalogo-drag-handle" data-action="noop" title="Arrastrar para reordenar" style="position:absolute;top:6px;left:6px;z-index:6;cursor:grab;background:rgba(0,0,0,0.55);color:#fff;border-radius:6px;padding:3px;line-height:0"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.4"/><circle cx="9" cy="12" r="1.4"/><circle cx="9" cy="18" r="1.4"/><circle cx="15" cy="6" r="1.4"/><circle cx="15" cy="12" r="1.4"/><circle cx="15" cy="18" r="1.4"/></svg></span>';
+    return '<span class="catalogo-drag-handle" data-action="noop" title="Arrastrar para reordenar" style="position:absolute;bottom:6px;right:6px;z-index:6;cursor:grab;background:rgba(0,0,0,0.55);color:#fff;border-radius:6px;padding:3px;line-height:0"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.4"/><circle cx="9" cy="12" r="1.4"/><circle cx="9" cy="18" r="1.4"/><circle cx="15" cy="6" r="1.4"/><circle cx="15" cy="12" r="1.4"/><circle cx="15" cy="18" r="1.4"/></svg></span>';
 }
 function _ctrlBarHTML(inner) {
     return `<div class="catalogo-ctrl-bar" style="position:absolute;top:6px;right:6px;z-index:7;display:flex;gap:4px">${inner}</div>`;
@@ -874,20 +861,19 @@ function renderizarCategoriasGestion(container) {
             _ctrlBtnHTML('cat-delete', { cat: cat.id }, SVG_ICON_TRASH, 'Eliminar', 'rgba(220,38,38,0.92)')
         ) : '';
         return `<div ${edit ? 'draggable="true"' : ''} data-drag-type="cat" data-drag-id="${escapeHTML(cat.id)}" data-action="nav-categoria" data-id="${escapeHTML(cat.id)}"
-            class="catalog-card${inactiva ? ' opacity-50 grayscale' : ''}${edit ? ' is-editando' : ''}" ${img ? `data-bg="${img}"` : ''}>
+            class="vendor-cat-card${inactiva ? ' opacity-60 grayscale' : ''}${edit ? ' is-editando' : ''}" ${img ? `data-bg="${img}"` : ''}>
             ${edit ? _dragHandleHTML() : ''}${ctrls}
-            ${!img ? '<div class="catalog-card-noimg"><i data-lucide="folder-open" class="w-10 h-10 text-gray-400"></i></div>' : ''}
-            ${inactiva ? '<span class="catalog-card-badge" style="background:#ef4444;color:#fff;top:8px;left:8px;right:auto;">INACTIVA</span>' : ''}
-            <div class="catalog-card-label">
-                <div>${escapeHTML(cat.nombre)}</div>
-                <div class="card-sub">${count} productos</div>
+            ${!img ? '<div class="vendor-cat-card-noimg"><svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><rect width="7" height="5" x="7" y="7" rx="1"/><rect width="7" height="5" x="10" y="12" rx="1"/></svg></div>' : ''}
+            <div class="vendor-cat-card-label">
+                <div>${escapeHTML(cat.nombre)}${inactiva ? ' (inactiva)' : ''}</div>
+                <div class="card-sub">${count} producto${count !== 1 ? 's' : ''}</div>
             </div>
         </div>`;
     }).join('');
-    const nuevaTile = edit ? `<div data-action="nuevaCategoriaInline" class="catalog-card catalog-card--loaded" style="border:2px dashed rgba(255,255,255,0.3);cursor:pointer">
-        <div class="catalog-card-noimg" style="background:linear-gradient(135deg,#334155,#1e293b)"><i data-lucide="plus" class="w-10 h-10 text-gray-300"></i></div>
-        <div class="catalog-card-label"><div>+ Nueva categoría</div></div></div>` : '';
-    container.innerHTML = `<div class="catalog-grid" data-drag-scope="cat">${tiles}${nuevaTile}</div>`;
+    const nuevaTile = edit ? `<div data-action="nuevaCategoriaInline" class="vendor-cat-card vendor-cat-card--loaded" style="cursor:pointer">
+        <div class="vendor-cat-card-noimg"><i data-lucide="plus" class="w-10 h-10 text-gray-300"></i></div>
+        <div class="vendor-cat-card-label"><div>+ Nueva categoría</div></div></div>` : '';
+    container.innerHTML = `<div class="vendor-catalog-grid" data-drag-scope="cat">${tiles}${nuevaTile}</div>`;
     lucide.createIcons();
     initLazyLoadCards(container);
 }
@@ -895,9 +881,9 @@ function renderizarCategoriasGestion(container) {
 function renderizarSubcategoriasGestion(container, subs) {
     const edit = _editandoCatalogo;
     const verTodos = `<div data-action="nav-subcategoria" data-id=""
-        class="catalog-card catalog-card--loaded" style="border:2px dashed rgba(255,255,255,0.3)">
-        <div class="catalog-card-noimg" style="background:linear-gradient(135deg,#4b5563,#374151)"><i data-lucide="list" class="w-10 h-10 text-gray-400"></i></div>
-        <div class="catalog-card-label"><div>Ver todos</div></div>
+        class="vendor-cat-card vendor-cat-card--loaded" style="cursor:pointer">
+        <div class="vendor-cat-card-noimg"><i data-lucide="list" class="w-10 h-10 text-gray-400"></i></div>
+        <div class="vendor-cat-card-label"><div>Ver todos</div></div>
     </div>`;
     const tiles = subs.map(sub => {
         const prods = productosData.productos.filter(p => p.categoria === prodNavCatId && p.subcategoria === sub);
@@ -909,19 +895,19 @@ function renderizarSubcategoriasGestion(container, subs) {
             _ctrlBtnHTML('sub-delete', { cat: prodNavCatId, sub }, SVG_ICON_TRASH, 'Eliminar', 'rgba(220,38,38,0.92)')
         ) : '';
         return `<div ${edit ? 'draggable="true"' : ''} data-drag-type="sub" data-drag-id="${escapeHTML(sub)}" data-action="nav-subcategoria" data-id="${escapeHTML(sub)}"
-            class="catalog-card${edit ? ' is-editando' : ''}" ${img ? `data-bg="${img}"` : ''}>
+            class="vendor-cat-card${edit ? ' is-editando' : ''}" ${img ? `data-bg="${img}"` : ''}>
             ${edit ? _dragHandleHTML() : ''}${ctrls}
-            ${!img ? '<div class="catalog-card-noimg"><i data-lucide="folder" class="w-10 h-10 text-gray-400"></i></div>' : ''}
-            <div class="catalog-card-label">
+            ${!img ? '<div class="vendor-cat-card-noimg"><i data-lucide="folder" class="w-10 h-10 text-gray-400"></i></div>' : ''}
+            <div class="vendor-cat-card-label">
                 <div>${escapeHTML(sub)}</div>
-                <div class="card-sub">${count} productos</div>
+                <div class="card-sub">${count} producto${count !== 1 ? 's' : ''}</div>
             </div>
         </div>`;
     }).join('');
-    const nuevaTile = edit ? `<div data-action="nuevaSubcategoriaInline" class="catalog-card catalog-card--loaded" style="border:2px dashed rgba(255,255,255,0.3);cursor:pointer">
-        <div class="catalog-card-noimg" style="background:linear-gradient(135deg,#334155,#1e293b)"><i data-lucide="plus" class="w-10 h-10 text-gray-300"></i></div>
-        <div class="catalog-card-label"><div>+ Nueva subcategoría</div></div></div>` : '';
-    container.innerHTML = `<div class="catalog-grid" data-drag-scope="sub">${verTodos}${tiles}${nuevaTile}</div>`;
+    const nuevaTile = edit ? `<div data-action="nuevaSubcategoriaInline" class="vendor-cat-card vendor-cat-card--loaded" style="cursor:pointer">
+        <div class="vendor-cat-card-noimg"><i data-lucide="plus" class="w-10 h-10 text-gray-300"></i></div>
+        <div class="vendor-cat-card-label"><div>+ Nueva subcategoría</div></div></div>` : '';
+    container.innerHTML = `<div class="vendor-catalog-grid" data-drag-scope="sub">${verTodos}${tiles}${nuevaTile}</div>`;
     lucide.createIcons();
     initLazyLoadCards(container);
 }
@@ -937,6 +923,7 @@ function renderizarProductosGestionGrid(container, prods) {
 
     const busquedaActiva = (document.getElementById('buscarProducto')?.value || '').trim();
     const edit = _editandoCatalogo;
+    const noImgSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>';
     // Rail de subcategorías (drop targets) — solo en edición y si la categoría tiene subcats.
     const catActual = productosData.categorias.find(c => c.id === prodNavCatId);
     const subsRail = (edit && catActual && (catActual.subcategorias || []).length > 0)
@@ -945,40 +932,42 @@ function renderizarProductosGestionGrid(container, prods) {
              ${(catActual.subcategorias || []).map(s => `<span data-drop-sub="${escapeHTML(s)}" class="mover-sub-chip" style="border:1px dashed var(--hairline,#475569);border-radius:999px;padding:4px 10px;font-size:12px;color:var(--ink,#e5e7eb);background:var(--panel-2,#1e293b)">${escapeHTML(s)}</span>`).join('')}
            </div>`
         : '';
-    const grid = `<div class="catalog-grid" data-drag-scope="prod">
+    const grid = `<div class="vendor-prod-grid" data-drag-scope="prod">
         ${paginados.map(prod => {
             const estado = prod.estado || 'disponible';
-            const estadoBg = estado === 'disponible' ? 'background:#059669;color:#fff' : estado === 'agotado' ? 'background:#d97706;color:#fff' : 'background:#dc2626;color:#fff';
             const oculto = prod.oculto || false;
             const img = prod.imagen_url || prod.imagen || '';
-            const precio = prod.presentaciones && prod.presentaciones.length > 0 ? (prod.presentaciones[0].precio_base || 0) : 0;
-            const tieneMargenBajo = prod.presentaciones.some(p => {
-                const pr = p.precio_base || 0; const co = p.costo || 0;
-                return pr > 0 && co > 0 && ((pr - co) / pr) < MARGEN_MINIMO_PCT;
-            });
-            const tieneStockBajo = (prod.presentaciones || []).some(v => (v.stock || 0) <= STOCK_BAJO_UMBRAL);
-            const stockBadgeTop = tieneMargenBajo ? 48 : 28;
+            const presActivas = (prod.presentaciones || []).filter(p => p.activo !== false);
+            const precioMin = presActivas.length > 0 ? Math.min(...presActivas.map(p => p.precio_base || 0)) : 0;
             const catNombre = busquedaActiva
                 ? (productosData.categorias.find(c => c.id === prod.categoria)?.nombre || prod.categoria)
                 : '';
             const isSelected = _seleccionProductos.has(prod.id);
+            const estadoPill = estado === 'agotado'
+                ? '<span class="vpc-estado" style="background:#d97706">Agotado</span>'
+                : estado === 'discontinuado'
+                    ? '<span class="vpc-estado" style="background:#dc2626">Discontinuado</span>'
+                    : (oculto ? '<span class="vpc-estado" style="background:#475569">Oculto</span>' : '');
             const ctrls = edit ? _ctrlBarHTML(
                 _ctrlBtnHTML('prod-edit', { id: prod.id }, SVG_ICON_PENCIL, 'Editar', 'rgba(37,99,235,0.92)') +
                 _ctrlBtnHTML('prod-hide', { id: prod.id }, oculto ? SVG_ICON_EYE : SVG_ICON_EYE_OFF, oculto ? 'Mostrar' : 'Ocultar', 'rgba(100,116,139,0.92)') +
                 _ctrlBtnHTML('prod-delete', { id: prod.id }, SVG_ICON_TRASH, 'Eliminar', 'rgba(220,38,38,0.92)')
             ) : '';
-            return `<div ${edit ? 'draggable="true"' : ''} data-drag-type="prod" data-drag-id="${escapeHTML(prod.id)}" data-action="abrir-perfil" data-id="${prod.id}" class="catalog-card ${oculto ? 'oculto' : ''}${isSelected ? ' ring-2 ring-indigo-500' : ''}${edit ? ' is-editando' : ''}" ${img ? `data-bg="${img}"` : ''}>
-                <div class="card-checkbox-overlay" data-action="toggle-seleccion" data-id="${prod.id}" title="Seleccionar">
-                    <input type="checkbox" class="pointer-events-none w-4 h-4 accent-indigo-600" ${isSelected ? 'checked' : ''}>
+            return `<div ${edit ? 'draggable="true"' : ''} data-drag-type="prod" data-drag-id="${escapeHTML(prod.id)}" data-action="abrir-perfil" data-id="${prod.id}" class="vpc ${oculto ? 'oculto' : ''}${isSelected ? ' ring-2 ring-indigo-500' : ''}${edit ? ' is-editando' : ''}">
+                <div class="vpc-media">
+                    ${img
+                        ? `<img class="vpc-img lazy-img opacity-0" data-src="${escapeHTML(img)}" alt="${escapeHTML(prod.nombre)}">`
+                        : `<div class="vpc-noimg">${noImgSvg}</div>`}
+                    <div class="card-checkbox-overlay" data-action="toggle-seleccion" data-id="${prod.id}" title="Seleccionar">
+                        <input type="checkbox" class="pointer-events-none w-4 h-4 accent-indigo-600" ${isSelected ? 'checked' : ''}>
+                    </div>
+                    ${edit ? _dragHandleHTML() : ''}${ctrls}
+                    ${estadoPill}
                 </div>
-                ${edit ? _dragHandleHTML() : ''}${ctrls}
-                ${!img ? '<div class="catalog-card-noimg"><svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg></div>' : ''}
-                <span class="catalog-card-badge" style="${estadoBg}">${estado}</span>
-                ${tieneMargenBajo ? '<span class="catalog-card-badge" style="background:#f59e0b;color:#fff;top:28px;">⚠ Margen</span>' : ''}
-                ${tieneStockBajo ? `<span class="catalog-card-badge" style="background:#dc2626;color:#fff;top:${stockBadgeTop}px;">⚠ Stock</span>` : ''}
-                <div class="catalog-card-label">
-                    <div>${escapeHTML(prod.nombre)}</div>
-                    <div class="card-sub">${catNombre ? escapeHTML(catNombre) + ' · ' : ''}${precio > 0 ? formatearGuaranies(precio) : prod.presentaciones.length + ' pres.'}</div>
+                <div class="vpc-info">
+                    <div class="vpc-nombre">${escapeHTML(prod.nombre)}</div>
+                    ${precioMin > 0 ? `<div class="vpc-precio">${formatearGuaranies(precioMin)}</div>` : `<div class="vpc-sub">${prod.presentaciones.length} pres.</div>`}
+                    ${catNombre ? `<div class="vpc-sub">${escapeHTML(catNombre)}</div>` : ''}
                 </div>
             </div>`;
         }).join('')}
@@ -2381,12 +2370,12 @@ function limpiarSeleccionProductos() {
     // Actualizar checkboxes sin re-renderizar
     const grid = document.getElementById('productosGridContainer');
     grid?.querySelectorAll('.card-checkbox-overlay input[type="checkbox"]').forEach(cb => { cb.checked = false; });
-    grid?.querySelectorAll('.catalog-card.ring-2').forEach(c => { c.classList.remove('ring-2', 'ring-indigo-500'); });
+    grid?.querySelectorAll('.vpc.ring-2').forEach(c => { c.classList.remove('ring-2', 'ring-indigo-500'); });
 }
 
 function seleccionarTodosProductos() {
     const grid = document.getElementById('productosGridContainer');
-    const cards = [...(grid?.querySelectorAll('.catalog-card[data-action="abrir-perfil"]') || [])];
+    const cards = [...(grid?.querySelectorAll('.vpc[data-action="abrir-perfil"]') || [])];
     const todosSeleccionados = cards.every(c => _seleccionProductos.has(c.dataset.id));
     if (todosSeleccionados && cards.length > 0) {
         _seleccionProductos.clear();

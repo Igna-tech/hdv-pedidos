@@ -394,6 +394,7 @@ function _mapProductoRelacional(p) {
         oculto: p.oculto || false,
         tipo_impuesto: _normTipoImpuesto(p.tipo_impuesto),
         unidad_medida_set: p.unidad_medida_set || '77',
+        orden: p.orden ?? 0,
         presentaciones: (p.producto_variantes || []).map(v => ({
             variante_id: v.id,
             tamano: v.nombre_variante,
@@ -465,9 +466,10 @@ async function guardarCatalogo(dataCatalogo) {
         });
 
         if (cats.length > 0) {
-            const catRows = cats.map(c => ({
+            const catRows = cats.map((c, i) => ({
                 id: c.id, nombre: c.nombre || c.id,
-                subcategorias: c.subcategorias || [], estado: c.estado || 'activa'
+                subcategorias: c.subcategorias || [], estado: c.estado || 'activa',
+                orden: Number.isFinite(c.orden) ? c.orden : i
             }));
             const res = await SupabaseService.upsertCategorias(catRows);
             if (!res.success) throw new Error('Error categorias: ' + res.error?.message);
@@ -506,11 +508,12 @@ async function guardarCatalogo(dataCatalogo) {
         if (clisEliminar.length > 0) await SupabaseService.deleteClientes(clisEliminar);
 
         if (prods.length > 0) {
-            const prodRows = prods.map(p => ({
+            const prodRows = prods.map((p, i) => ({
                 id: p.id, nombre: p.nombre || '', categoria_id: p.categoria || null,
                 subcategoria: p.subcategoria || 'General', imagen_url: p.imagen_url || p.imagen || null,
                 estado: p.estado || 'disponible', oculto: p.oculto || false,
-                tipo_impuesto: _normTipoImpuesto(p.tipo_impuesto), unidad_medida_set: p.unidad_medida_set || '77'
+                tipo_impuesto: _normTipoImpuesto(p.tipo_impuesto), unidad_medida_set: p.unidad_medida_set || '77',
+                orden: Number.isFinite(p.orden) ? p.orden : i
             }));
             const res = await SupabaseService.upsertProductos(prodRows);
             if (!res.success) throw new Error('Error productos: ' + res.error?.message);
@@ -540,6 +543,158 @@ async function guardarCatalogo(dataCatalogo) {
         return true;
     } catch (error) {
         console.error('[Supabase] Error guardando catalogo:', error);
+        return false;
+    }
+}
+
+// ============================================
+// PERSISTENCIA ATOMICA POR ITEM (auto-guardado)
+// Publica cambios individuales sin depender del "Guardar y Sincronizar" global.
+// El vendedor los recibe por realtime.
+// ============================================
+
+async function _actualizarCacheCatalogoLocal(mutador) {
+    try {
+        await HDVStorage.atomicUpdate('hdv_catalogo_local', (cache) => {
+            const c = cache || { categorias: [], clientes: [], productos: [] };
+            if (!Array.isArray(c.categorias)) c.categorias = [];
+            if (!Array.isArray(c.productos)) c.productos = [];
+            if (!Array.isArray(c.clientes)) c.clientes = [];
+            return mutador(c) || c;
+        });
+    } catch (e) {
+        console.warn('[Supabase] cache local no actualizado:', e);
+    }
+}
+
+function _prodRowIndividual(p, i = 0) {
+    return {
+        id: p.id, nombre: p.nombre || '', categoria_id: p.categoria || null,
+        subcategoria: p.subcategoria || 'General', imagen_url: p.imagen_url || p.imagen || null,
+        estado: p.estado || 'disponible', oculto: p.oculto || false,
+        tipo_impuesto: _normTipoImpuesto(p.tipo_impuesto), unidad_medida_set: p.unidad_medida_set || '77',
+        orden: Number.isFinite(p.orden) ? p.orden : i
+    };
+}
+
+function _catRowIndividual(c, i = 0) {
+    return {
+        id: c.id, nombre: c.nombre || c.id,
+        subcategorias: c.subcategorias || [], estado: c.estado || 'activa',
+        orden: Number.isFinite(c.orden) ? c.orden : i
+    };
+}
+
+// Guarda UN producto (y su categoria si es nueva) + sus variantes, atomicamente.
+// opts.categoria: objeto categoria a asegurar primero (respeta FK productos.categoria_id).
+async function guardarProductoIndividual(prod, opts = {}) {
+    try {
+        if (opts.categoria) {
+            const rc = await SupabaseService.upsertCategorias([_catRowIndividual(opts.categoria)]);
+            if (!rc.success) throw new Error('categoria: ' + (rc.error?.message || ''));
+        }
+        const rp = await SupabaseService.upsertProductos([_prodRowIndividual(prod)]);
+        if (!rp.success) throw new Error('producto: ' + (rp.error?.message || ''));
+
+        const varRows = (prod.presentaciones || []).map(pres => ({
+            producto_id: prod.id, nombre_variante: pres.tamano || 'Unidad',
+            precio: pres.precio_base || 0, costo: pres.costo || 0,
+            stock: pres.stock || 0, activo: pres.activo !== undefined ? pres.activo : true
+        }));
+        const rv = await SupabaseService.reemplazarVariantes([prod.id], varRows);
+        if (!rv.success) throw new Error('variantes: ' + (rv.error?.message || ''));
+
+        await _actualizarCacheCatalogoLocal((cache) => {
+            if (opts.categoria && !cache.categorias.some(c => c.id === opts.categoria.id)) {
+                cache.categorias.push(opts.categoria);
+            }
+            const idx = cache.productos.findIndex(p => p.id === prod.id);
+            if (idx >= 0) cache.productos[idx] = prod; else cache.productos.push(prod);
+            return cache;
+        });
+        return true;
+    } catch (error) {
+        console.error('[Supabase] guardarProductoIndividual:', error);
+        return false;
+    }
+}
+
+// Guarda UNA categoria (crear/renombrar/estado/subcategorias/orden).
+async function guardarCategoriaIndividual(cat) {
+    try {
+        const r = await SupabaseService.upsertCategorias([_catRowIndividual(cat)]);
+        if (!r.success) throw new Error(r.error?.message || '');
+        await _actualizarCacheCatalogoLocal((cache) => {
+            const idx = cache.categorias.findIndex(c => c.id === cat.id);
+            if (idx >= 0) cache.categorias[idx] = cat; else cache.categorias.push(cat);
+            return cache;
+        });
+        return true;
+    } catch (error) {
+        console.error('[Supabase] guardarCategoriaIndividual:', error);
+        return false;
+    }
+}
+
+async function eliminarProductoRemoto(id) {
+    try {
+        const r = await SupabaseService.deleteProductos([id]); // variantes por CASCADE
+        if (!r.success) throw new Error(r.error?.message || '');
+        await _actualizarCacheCatalogoLocal((cache) => {
+            cache.productos = cache.productos.filter(p => p.id !== id);
+            return cache;
+        });
+        return true;
+    } catch (error) {
+        console.error('[Supabase] eliminarProductoRemoto:', error);
+        return false;
+    }
+}
+
+async function eliminarCategoriaRemota(id) {
+    try {
+        const r = await SupabaseService.deleteCategorias([id]);
+        if (!r.success) throw new Error(r.error?.message || '');
+        await _actualizarCacheCatalogoLocal((cache) => {
+            cache.categorias = cache.categorias.filter(c => c.id !== id);
+            return cache;
+        });
+        return true;
+    } catch (error) {
+        console.error('[Supabase] eliminarCategoriaRemota:', error);
+        return false;
+    }
+}
+
+// items: [{ id, orden }]
+async function persistirOrdenProductos(items) {
+    try {
+        const r = await SupabaseService.actualizarOrdenProductos(items);
+        if (!r.success) throw new Error(r.error?.message || '');
+        await _actualizarCacheCatalogoLocal((cache) => {
+            const m = new Map((items || []).map(i => [i.id, i.orden]));
+            cache.productos.forEach(p => { if (m.has(p.id)) p.orden = m.get(p.id); });
+            return cache;
+        });
+        return true;
+    } catch (error) {
+        console.error('[Supabase] persistirOrdenProductos:', error);
+        return false;
+    }
+}
+
+async function persistirOrdenCategorias(items) {
+    try {
+        const r = await SupabaseService.actualizarOrdenCategorias(items);
+        if (!r.success) throw new Error(r.error?.message || '');
+        await _actualizarCacheCatalogoLocal((cache) => {
+            const m = new Map((items || []).map(i => [i.id, i.orden]));
+            cache.categorias.forEach(c => { if (m.has(c.id)) c.orden = m.get(c.id); });
+            return cache;
+        });
+        return true;
+    } catch (error) {
+        console.error('[Supabase] persistirOrdenCategorias:', error);
         return false;
     }
 }

@@ -137,7 +137,9 @@ const SupabaseService = (() => {
         try {
             const { data, error } = await supabaseClient
                 .from('categorias')
-                .select('*');
+                .select('*')
+                .order('orden', { ascending: true, nullsFirst: false })
+                .order('nombre', { ascending: true });
             if (error) throw error;
             return { data: data || [], error: null };
         } catch (error) {
@@ -199,6 +201,8 @@ const SupabaseService = (() => {
                 const { data, error } = await supabaseClient
                     .from('productos')
                     .select(`*, ${variantesSelect}`)
+                    .order('orden', { ascending: true, nullsFirst: false })
+                    .order('nombre', { ascending: true })
                     .range(currentOffset, currentOffset + PAGE_SIZE - 1);
                 if (error) throw error;
 
@@ -375,6 +379,40 @@ const SupabaseService = (() => {
             console.error('[SupabaseService] fetchProductosIds:', error);
             _reportError('fetchProductosIds', error);
             return { data: [], error };
+        }
+    }
+
+    // Persistencia de orden (upsert parcial {id, orden}: PostgREST solo actualiza
+    // las columnas provistas en el path de conflicto; las filas ya existen al reordenar).
+    async function actualizarOrdenProductos(items) {
+        try {
+            const rows = (items || []).map(i => ({ id: i.id, orden: i.orden }));
+            if (rows.length === 0) return { success: true, error: null };
+            const { error } = await supabaseClient
+                .from('productos')
+                .upsert(rows, { onConflict: 'id' });
+            if (error) throw error;
+            return { success: true, error: null };
+        } catch (error) {
+            console.error('[SupabaseService] actualizarOrdenProductos:', error);
+            _reportError('actualizarOrdenProductos', error);
+            return { success: false, error };
+        }
+    }
+
+    async function actualizarOrdenCategorias(items) {
+        try {
+            const rows = (items || []).map(i => ({ id: i.id, orden: i.orden }));
+            if (rows.length === 0) return { success: true, error: null };
+            const { error } = await supabaseClient
+                .from('categorias')
+                .upsert(rows, { onConflict: 'id' });
+            if (error) throw error;
+            return { success: true, error: null };
+        } catch (error) {
+            console.error('[SupabaseService] actualizarOrdenCategorias:', error);
+            _reportError('actualizarOrdenCategorias', error);
+            return { success: false, error };
         }
     }
 
@@ -788,6 +826,8 @@ const SupabaseService = (() => {
         upsertProductos,
         deleteProductos,
         fetchProductosIds,
+        actualizarOrdenProductos,
+        actualizarOrdenCategorias,
 
         // Variantes
         deleteVariantesByProductoIds,

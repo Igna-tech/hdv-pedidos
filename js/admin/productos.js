@@ -18,6 +18,8 @@ let _importData = null;
 let _importType = null;
 let _seleccionProductos = new Set();
 let _previewImportData = null; // datos parseados pendientes de aplicar
+let _editandoCatalogo = false; // modo edición (drag & drop + controles inline por nivel)
+let _dragCtx = null;           // { tipo:'cat'|'sub'|'prod', id, index }
 
 // ============================================
 // STOCK
@@ -337,11 +339,27 @@ function productosNavegar(nivel) {
     mostrarProductosGestion();
 }
 
+// Botón Atrás: sube un nivel de la navegación del catálogo.
+function productosVolverAtras() {
+    if (prodNavSubId) {
+        // Estoy viendo productos de una subcategoría → vuelvo a las subcategorías
+        prodNavNivel = 'subcategorias';
+        prodNavSubId = null;
+    } else if (prodNavCatId) {
+        // Estoy dentro de una categoría → vuelvo a las categorías
+        prodNavNivel = 'categorias';
+        prodNavCatId = null;
+    }
+    actualizarBreadcrumbProductos();
+    mostrarProductosGestion();
+}
+
 function actualizarBreadcrumbProductos() {
     const cat = document.getElementById('prod-breadcrumb-cat');
     const sub = document.getElementById('prod-breadcrumb-sub');
     const sep1 = document.getElementById('prod-breadcrumb-sep1');
     const sep2 = document.getElementById('prod-breadcrumb-sep2');
+    const btnVolver = document.getElementById('btnVolverCatalogo');
     if (!cat) return;
     cat.classList.add('hidden'); sub.classList.add('hidden');
     sep1.classList.add('hidden'); sep2.classList.add('hidden');
@@ -354,69 +372,24 @@ function actualizarBreadcrumbProductos() {
         sub.textContent = prodNavSubId;
         sub.classList.remove('hidden'); sep2.classList.remove('hidden');
     }
+    // Botón Atrás visible al entrar en cualquier categoría/subcategoría
+    if (btnVolver) btnVolver.classList.toggle('hidden', !prodNavCatId);
 }
 
-// Score de calidad del catálogo: % de productos con imagen/costo/categoría/IVA.
-// Incentiva completar datos → impacta la Ganancia Neta real del dashboard.
-function _ccBar(label, pct) {
-    return `<div class="cc-bar"><span class="cc-bar-l">${escapeHTML(label)}</span><span class="cc-bar-track"><span class="cc-bar-fill" style="width:${pct}%"></span></span><span class="cc-bar-v">${pct}%</span></div>`;
-}
-function _renderCalidadCatalogo() {
-    const cont = document.getElementById('catalogoCalidad');
-    if (!cont) return;
-    const prods = (productosData.productos || []).filter(p => !p.oculto);
-    const total = prods.length;
-    if (total === 0) { cont.classList.add('hidden'); cont.innerHTML = ''; return; }
-    let conImg = 0, conCosto = 0, conCat = 0, conIva = 0;
-    prods.forEach(p => {
-        if (p.imagen_url || p.imagen) conImg++;
-        if ((p.presentaciones || []).some(pr => (pr.costo || 0) > 0)) conCosto++;
-        if (p.categoria) conCat++;
-        if (p.tipo_impuesto) conIva++;
-    });
-    const pct = (n) => Math.round(n / total * 100);
-    const pImg = pct(conImg), pCosto = pct(conCosto), pCat = pct(conCat), pIva = pct(conIva);
-    const score = Math.round((pImg + pCosto + pCat + pIva) / 4);
-    const color = score >= 80 ? 'var(--ok)' : score >= 50 ? 'var(--warn)' : 'var(--alert)';
-    cont.classList.remove('hidden');
-    cont.innerHTML = `
-      <div class="cc-score" style="--cc:${color}">
-        <div class="cc-ring" style="background:conic-gradient(var(--cc) ${score * 3.6}deg, var(--panel-3) 0)"><span>${score}</span></div>
-        <div class="cc-meta"><p class="cc-title">Calidad del catálogo</p><p class="cc-sub">${total} productos activos</p></div>
-        <div class="cc-bars">${_ccBar('Imagen', pImg)}${_ccBar('Costo', pCosto)}${_ccBar('Categoría', pCat)}${_ccBar('IVA', pIva)}</div>
-      </div>`;
+// ID de producto unificado: P### incremental robusto (catálogo vacío o IDs no-P###).
+function _siguienteIdProducto() {
+    const maxN = (productosData.productos || []).reduce((m, p) => {
+        const n = parseInt(String(p.id || '').replace(/\D/g, ''), 10) || 0;
+        return n > m ? n : m;
+    }, 0);
+    return `P${String(maxN + 1).padStart(3, '0')}`;
 }
 
-// Carga rápida (quick-add): crea un producto con 1 presentación y re-enfoca.
-function _poblarQuickAddCategorias() {
-    const sel = document.getElementById('qaCategoria');
-    if (!sel || sel.options.length > 0) return;
-    sel.innerHTML = (productosData.categorias || [])
-        .map(c => `<option value="${escapeHTML(c.id)}">${escapeHTML(c.nombre)}</option>`).join('');
-}
-function quickAddProducto() {
-    const nombreEl = document.getElementById('qaNombre');
-    const nombre = (nombreEl?.value || '').trim();
-    if (!nombre) { mostrarToast('Ingresá un nombre', 'error'); nombreEl?.focus(); return; }
-    const categoria = document.getElementById('qaCategoria')?.value || (productosData.categorias[0]?.id) || null;
-    const precio = parseInt(document.getElementById('qaPrecio')?.value, 10) || 0;
-    const stock = parseInt(document.getElementById('qaStock')?.value, 10) || 0;
-    const ultimoId = Math.max(...productosData.productos.map(p => parseInt(p.id.replace(/\D/g, '')) || 0), 0);
-    const nuevo = {
-        id: `P${String(ultimoId + 1).padStart(3, '0')}`,
-        nombre, categoria, subcategoria: 'General',
-        imagen_url: '', imagen: '', estado: 'disponible', oculto: false, tipo_impuesto: '10',
-        presentaciones: [{ tamano: 'Unidad', precio_base: precio, costo: 0, stock, activo: true }]
-    };
-    productosData.productos.push(nuevo);
-    if (typeof productosFiltrados !== 'undefined') productosFiltrados.push(nuevo);
-    registrarCambio();
-    mostrarProductosGestion();
-    if (nombreEl) nombreEl.value = '';
-    const pEl = document.getElementById('qaPrecio'); if (pEl) pEl.value = '';
-    const sEl = document.getElementById('qaStock'); if (sEl) sEl.value = '';
-    mostrarToast(`"${nombre}" agregado — recordá Guardar y Sincronizar`, 'success');
-    nombreEl?.focus();
+// Orden siguiente para un producto nuevo dentro de su categoría (va al final).
+function _siguienteOrdenProducto(catId) {
+    const enCat = (productosData.productos || []).filter(p => p.categoria === catId);
+    const maxO = enCat.reduce((m, p) => (Number.isFinite(p.orden) && p.orden > m ? p.orden : m), -1);
+    return maxO + 1;
 }
 
 async function mostrarProductosGestion() {
@@ -424,8 +397,6 @@ async function mostrarProductosGestion() {
     if (!container) return;
     _initProductosGridDelegation(container);
     poblarFiltroCategorias();
-    _poblarQuickAddCategorias();
-    _renderCalidadCatalogo();
 
     const busqueda = document.getElementById('buscarProducto')?.value.toLowerCase() || '';
     const catFiltro = document.getElementById('filtroCategoria')?.value || '';
@@ -444,6 +415,7 @@ async function mostrarProductosGestion() {
         prods = await aplicarOrdenProductos(prods, ordenFiltro);
         renderizarProductosGestionGrid(container, prods);
         actualizarPaginacionProductos(prods.length);
+        actualizarBreadcrumbProductos();
         return;
     }
 
@@ -473,7 +445,6 @@ async function mostrarProductosGestion() {
     }
 
     actualizarBreadcrumbProductos();
-    _actualizarAlertaStock();
 }
 
 // ============================================
@@ -494,7 +465,7 @@ const _productosActionMap = {
         if (overlay) {
             const cb = overlay.querySelector('input[type="checkbox"]');
             if (cb) cb.checked = _seleccionProductos.has(id);
-            const card = overlay.closest('.catalog-card');
+            const card = overlay.closest('.vpc');
             if (card) {
                 card.classList.toggle('ring-2', _seleccionProductos.has(id));
                 card.classList.toggle('ring-indigo-500', _seleccionProductos.has(id));
@@ -531,7 +502,16 @@ const _productosActionMap = {
     'pag-ultima': (id) => {
         paginaProductos = parseInt(id) || 1;
         mostrarProductosGestion();
-    }
+    },
+    // --- Modo edición: controles inline por nivel ---
+    'cat-rename':   (id, el) => _renombrarCategoriaGestion(el.dataset.cat),
+    'cat-toggle':   (id, el) => _toggleActivoCategoriaGestion(el.dataset.cat),
+    'cat-delete':   (id, el) => _eliminarCategoriaGestion(el.dataset.cat),
+    'sub-rename':   (id, el) => _renombrarSubcategoriaGestion(el.dataset.cat, el.dataset.sub),
+    'sub-delete':   (id, el) => _eliminarSubcategoriaGestion(el.dataset.cat, el.dataset.sub),
+    'prod-edit':    (id, el) => editarProducto(el.dataset.id),
+    'prod-hide':    (id, el) => _toggleOcultarProductoGestion(el.dataset.id),
+    'prod-delete':  (id, el) => _eliminarProductoGestion(el.dataset.id)
 };
 
 function _handleProductoAction(event) {
@@ -541,12 +521,16 @@ function _handleProductoAction(event) {
     const action = target.dataset.action;
     const id = target.dataset.id;
     const handler = _productosActionMap[action];
-    if (handler) handler(id);
+    if (handler) handler(id, target);
 }
 
 function _initProductosGridDelegation(container) {
     if (container && !container._delegated) {
         container.addEventListener('click', _handleProductoAction);
+        container.addEventListener('dragstart', _onCatalogoDragStart);
+        container.addEventListener('dragover', _onCatalogoDragOver);
+        container.addEventListener('drop', _onCatalogoDrop);
+        container.addEventListener('dragend', _onCatalogoDragEnd);
         container._delegated = true;
     }
 }
@@ -556,6 +540,292 @@ function _initPaginacionDelegation(pagEl) {
         pagEl.addEventListener('click', _handleProductoAction);
         pagEl._delegated = true;
     }
+}
+
+// ============================================
+// MODO EDICIÓN DEL CATÁLOGO (drag & drop + CRUD inline por nivel)
+// ============================================
+
+const SVG_ICON_PENCIL = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+const SVG_ICON_TRASH = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>';
+const SVG_ICON_EYE = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>';
+const SVG_ICON_EYE_OFF = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A11 11 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.5 13.5 0 0 0 2 12s3 7 10 7a9.7 9.7 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/></svg>';
+
+function _dragHandleHTML() {
+    return '<span class="catalogo-drag-handle" data-action="noop" title="Arrastrar para reordenar" style="position:absolute;bottom:6px;right:6px;z-index:6;cursor:grab;background:rgba(0,0,0,0.55);color:#fff;border-radius:6px;padding:3px;line-height:0"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.4"/><circle cx="9" cy="12" r="1.4"/><circle cx="9" cy="18" r="1.4"/><circle cx="15" cy="6" r="1.4"/><circle cx="15" cy="12" r="1.4"/><circle cx="15" cy="18" r="1.4"/></svg></span>';
+}
+function _ctrlBarHTML(inner) {
+    return `<div class="catalogo-ctrl-bar" style="position:absolute;top:6px;right:6px;z-index:7;display:flex;gap:4px">${inner}</div>`;
+}
+function _ctrlBtnHTML(action, data, svg, title, bg) {
+    const attrs = Object.entries(data || {}).map(([k, v]) => `data-${k}="${escapeHTML(String(v))}"`).join(' ');
+    return `<button type="button" data-action="${action}" ${attrs} title="${escapeHTML(title)}" style="width:26px;height:26px;display:flex;align-items:center;justify-content:center;border-radius:7px;background:${bg};color:#fff;border:none;cursor:pointer">${svg}</button>`;
+}
+
+function toggleEditarCatalogo() {
+    _editandoCatalogo = !_editandoCatalogo;
+    const lbl = document.getElementById('btnEditarCatalogoLabel');
+    if (lbl) lbl.textContent = _editandoCatalogo ? 'Listo' : 'Editar';
+    const btn = document.getElementById('btnEditarCatalogo');
+    if (btn) btn.setAttribute('variant', _editandoCatalogo ? 'success' : 'neutral');
+    if (!_editandoCatalogo) { _seleccionProductos.clear(); _actualizarBarraMasiva(); }
+    mostrarProductosGestion();
+}
+
+// ---- Drag & drop nativo (reordenar + mover producto a subcategoría) ----
+function _onCatalogoDragStart(e) {
+    if (!_editandoCatalogo) return;
+    const card = e.target.closest('[data-drag-type]');
+    if (!card) return;
+    const scope = card.parentElement?.getAttribute('data-drag-scope');
+    _dragCtx = { tipo: card.getAttribute('data-drag-type'), id: card.getAttribute('data-drag-id'), scope };
+    card.style.opacity = '0.4';
+    try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', _dragCtx.id || ''); } catch (_) {}
+}
+function _onCatalogoDragOver(e) {
+    if (!_editandoCatalogo || !_dragCtx) return;
+    const overCard = e.target.closest(`[data-drag-type="${_dragCtx.tipo}"]`);
+    const overRail = _dragCtx.tipo === 'prod' ? e.target.closest('[data-drop-sub]') : null;
+    if (overCard || overRail) { e.preventDefault(); try { e.dataTransfer.dropEffect = 'move'; } catch (_) {} }
+    if (overRail) overRail.style.background = 'var(--steel-soft, rgba(86,129,174,0.35))';
+}
+function _onCatalogoDrop(e) {
+    if (!_editandoCatalogo || !_dragCtx) return;
+    e.preventDefault();
+    const ctx = _dragCtx;
+    // 1) Producto soltado sobre una subcategoría → reasignar
+    const rail = ctx.tipo === 'prod' ? e.target.closest('[data-drop-sub]') : null;
+    if (rail) {
+        rail.style.background = '';
+        _moverProductoASubcategoria(ctx.id, rail.getAttribute('data-drop-sub'));
+        return;
+    }
+    // 2) Reordenar dentro del mismo nivel
+    const overCard = e.target.closest(`[data-drag-type="${ctx.tipo}"]`);
+    if (!overCard) return;
+    const destId = overCard.getAttribute('data-drag-id');
+    if (destId === ctx.id) return;
+    if (ctx.tipo === 'cat') _reordenarCategorias(ctx.id, destId);
+    else if (ctx.tipo === 'sub') _reordenarSubcategorias(ctx.id, destId);
+    else if (ctx.tipo === 'prod') _reordenarProductos(ctx.id, destId);
+}
+function _onCatalogoDragEnd(e) {
+    const card = e.target.closest('[data-drag-type]');
+    if (card) card.style.opacity = '';
+    document.querySelectorAll('[data-drop-sub]').forEach(el => { el.style.background = ''; });
+    _dragCtx = null;
+}
+
+async function _reordenarCategorias(dragId, destId) {
+    const arr = productosData.categorias;
+    const from = arr.findIndex(c => c.id === dragId);
+    const to = arr.findIndex(c => c.id === destId);
+    if (from < 0 || to < 0) return;
+    const [m] = arr.splice(from, 1);
+    arr.splice(to, 0, m);
+    arr.forEach((c, i) => { c.orden = i; });
+    mostrarProductosGestion();
+    const ok = await persistirOrdenCategorias(arr.map(c => ({ id: c.id, orden: c.orden })));
+    if (ok) mostrarToast('Orden de categorías guardado', 'success');
+    else { registrarCambio(); mostrarToast('Orden local — sincronizá para publicarlo', 'warning'); }
+}
+
+async function _reordenarSubcategorias(dragSub, destSub) {
+    const cat = productosData.categorias.find(c => c.id === prodNavCatId);
+    if (!cat || !Array.isArray(cat.subcategorias)) return;
+    const from = cat.subcategorias.indexOf(dragSub);
+    const to = cat.subcategorias.indexOf(destSub);
+    if (from < 0 || to < 0) return;
+    const [m] = cat.subcategorias.splice(from, 1);
+    cat.subcategorias.splice(to, 0, m);
+    mostrarProductosGestion();
+    const ok = await guardarCategoriaIndividual(cat);
+    if (ok) mostrarToast('Orden de subcategorías guardado', 'success');
+    else { registrarCambio(); mostrarToast('Orden local — sincronizá para publicarlo', 'warning'); }
+}
+
+async function _reordenarProductos(dragId, destId) {
+    // Reordena dentro del subconjunto visible y reasigna orden secuencial.
+    const arr = productosData.productos;
+    const from = arr.findIndex(p => p.id === dragId);
+    const to = arr.findIndex(p => p.id === destId);
+    if (from < 0 || to < 0) return;
+    const [m] = arr.splice(from, 1);
+    arr.splice(to, 0, m);
+    // Reasignar orden por categoría (secuencial) para los afectados de esa categoría
+    const catId = m.categoria;
+    let i = 0;
+    const cambios = [];
+    arr.forEach(p => { if (p.categoria === catId) { p.orden = i++; cambios.push({ id: p.id, orden: p.orden }); } });
+    productosFiltrados = [...arr];
+    mostrarProductosGestion();
+    const ok = await persistirOrdenProductos(cambios);
+    if (ok) mostrarToast('Orden de productos guardado', 'success');
+    else { registrarCambio(); mostrarToast('Orden local — sincronizá para publicarlo', 'warning'); }
+}
+
+async function _moverProductoASubcategoria(prodId, sub) {
+    const prod = productosData.productos.find(p => p.id === prodId);
+    if (!prod) return;
+    if (prod.subcategoria === sub) return;
+    prod.subcategoria = sub;
+    productosFiltrados = [...productosData.productos];
+    mostrarProductosGestion();
+    const ok = await guardarProductoIndividual(prod);
+    mostrarToast(ok ? `"${prod.nombre}" movido a ${sub}` : 'Movido local — sincronizá para publicarlo', ok ? 'success' : 'warning');
+}
+
+// ---- CRUD inline por nivel (auto-guardado) ----
+async function _renombrarCategoriaGestion(catId) {
+    const cat = productosData.categorias.find(c => c.id === catId);
+    if (!cat) return;
+    const r = await mostrarInputModal({
+        titulo: 'Renombrar categoría', icono: 'pencil',
+        campos: [{ key: 'nombre', label: 'Nombre', tipo: 'text', valor: cat.nombre, requerido: true }],
+        textoConfirmar: 'Guardar'
+    });
+    if (!r || !(r.nombre || '').trim() || r.nombre.trim() === cat.nombre) return;
+    cat.nombre = r.nombre.trim();
+    poblarFiltroCategorias();
+    mostrarProductosGestion();
+    const ok = await guardarCategoriaIndividual(cat);
+    mostrarToast(ok ? 'Categoría renombrada' : 'Guardado local — sincronizá', ok ? 'success' : 'warning');
+}
+
+async function _toggleActivoCategoriaGestion(catId) {
+    const cat = productosData.categorias.find(c => c.id === catId);
+    if (!cat) return;
+    const activa = !cat.estado || cat.estado === 'activo';
+    if (activa) {
+        const n = productosData.productos.filter(p => p.categoria === catId).length;
+        if (n > 0 && !await mostrarConfirmModal(`¿Desactivar esta categoría? ${n} producto(s) dejarán de verse en la app del vendedor.`, { textoConfirmar: 'Desactivar' })) return;
+    }
+    cat.estado = activa ? 'inactivo' : 'activo';
+    mostrarProductosGestion();
+    const ok = await guardarCategoriaIndividual(cat);
+    mostrarToast(ok ? `Categoría ${cat.estado === 'activo' ? 'activada' : 'desactivada'}` : 'Guardado local — sincronizá', ok ? 'success' : 'warning');
+}
+
+async function _eliminarCategoriaGestion(catId) {
+    const prods = productosData.productos.filter(p => p.categoria === catId);
+    if (prods.length > 0) { mostrarToast(`No se puede eliminar: ${prods.length} producto(s) usan esta categoría`, 'error'); return; }
+    if (!await mostrarConfirmModal('¿Eliminar esta categoría?', { destructivo: true, textoConfirmar: 'Eliminar' })) return;
+    productosData.categorias = productosData.categorias.filter(c => c.id !== catId);
+    poblarFiltroCategorias();
+    mostrarProductosGestion();
+    const ok = await eliminarCategoriaRemota(catId);
+    mostrarToast(ok ? 'Categoría eliminada' : 'Eliminada local — sincronizá', ok ? 'success' : 'warning');
+}
+
+async function nuevaCategoriaInline() {
+    const cat = await _crearCategoriaInlineDesdeModal();
+    if (!cat) return;
+    poblarFiltroCategorias();
+    mostrarProductosGestion();
+    const ok = await guardarCategoriaIndividual(cat);
+    mostrarToast(ok ? `Categoría "${cat.nombre}" creada` : 'Creada local — sincronizá', ok ? 'success' : 'warning');
+}
+
+async function _renombrarSubcategoriaGestion(catId, sub) {
+    const cat = productosData.categorias.find(c => c.id === catId);
+    if (!cat) return;
+    const r = await mostrarInputModal({
+        titulo: 'Renombrar subcategoría', icono: 'pencil',
+        campos: [{ key: 'nombre', label: 'Nombre', tipo: 'text', valor: sub, requerido: true }],
+        textoConfirmar: 'Guardar'
+    });
+    const nuevo = (r?.nombre || '').trim();
+    if (!nuevo || nuevo === sub) return;
+    cat.subcategorias = (cat.subcategorias || []).map(s => s === sub ? nuevo : s);
+    // Reasignar productos que usaban la subcategoría anterior
+    const afectados = productosData.productos.filter(p => p.categoria === catId && p.subcategoria === sub);
+    afectados.forEach(p => { p.subcategoria = nuevo; });
+    mostrarProductosGestion();
+    let ok = await guardarCategoriaIndividual(cat);
+    for (const p of afectados) { const r2 = await guardarProductoIndividual(p); ok = ok && r2; }
+    mostrarToast(ok ? `Subcategoría renombrada (${afectados.length} producto/s)` : 'Guardado local — sincronizá', ok ? 'success' : 'warning');
+}
+
+async function _eliminarSubcategoriaGestion(catId, sub) {
+    const cat = productosData.categorias.find(c => c.id === catId);
+    if (!cat) return;
+    const afectados = productosData.productos.filter(p => p.categoria === catId && p.subcategoria === sub);
+    const msg = afectados.length > 0
+        ? `¿Eliminar la subcategoría "${sub}"? Sus ${afectados.length} producto(s) pasarán a "General".`
+        : `¿Eliminar la subcategoría "${sub}"?`;
+    if (!await mostrarConfirmModal(msg, { destructivo: true, textoConfirmar: 'Eliminar' })) return;
+    cat.subcategorias = (cat.subcategorias || []).filter(s => s !== sub);
+    afectados.forEach(p => { p.subcategoria = 'General'; });
+    mostrarProductosGestion();
+    let ok = await guardarCategoriaIndividual(cat);
+    for (const p of afectados) { const r2 = await guardarProductoIndividual(p); ok = ok && r2; }
+    mostrarToast(ok ? 'Subcategoría eliminada' : 'Eliminada local — sincronizá', ok ? 'success' : 'warning');
+}
+
+async function nuevaSubcategoriaInline() {
+    const cat = productosData.categorias.find(c => c.id === prodNavCatId);
+    if (!cat) return;
+    const r = await mostrarInputModal({
+        titulo: 'Nueva subcategoría', icono: 'tag',
+        campos: [{ key: 'nombre', label: 'Nombre de la subcategoría', tipo: 'text', requerido: true }],
+        textoConfirmar: 'Crear'
+    });
+    const nombre = (r?.nombre || '').trim();
+    if (!nombre) return;
+    if (!Array.isArray(cat.subcategorias)) cat.subcategorias = [];
+    if (cat.subcategorias.includes(nombre)) { mostrarToast('Ya existe esa subcategoría', 'error'); return; }
+    cat.subcategorias.push(nombre);
+    mostrarProductosGestion();
+    const ok = await guardarCategoriaIndividual(cat);
+    mostrarToast(ok ? `Subcategoría "${nombre}" creada` : 'Creada local — sincronizá', ok ? 'success' : 'warning');
+}
+
+async function _toggleOcultarProductoGestion(id) {
+    const prod = productosData.productos.find(p => p.id === id);
+    if (!prod) return;
+    prod.oculto = !prod.oculto;
+    mostrarProductosGestion();
+    const ok = await guardarProductoIndividual(prod);
+    mostrarToast(ok ? (prod.oculto ? 'Producto ocultado' : 'Producto visible') : 'Guardado local — sincronizá', ok ? 'success' : 'warning');
+}
+
+async function _eliminarProductoGestion(id) {
+    const prod = productosData.productos.find(p => p.id === id);
+    if (!prod) return;
+    if (!await mostrarConfirmModal(`¿Eliminar "${prod.nombre}"?`, { destructivo: true, textoConfirmar: 'Eliminar' })) return;
+    productosData.productos = productosData.productos.filter(p => p.id !== id);
+    productosFiltrados = productosFiltrados.filter(p => p.id !== id);
+    mostrarProductosGestion();
+    const ok = await eliminarProductoRemoto(id);
+    mostrarToast(ok ? 'Producto eliminado' : 'Eliminado local — sincronizá', ok ? 'success' : 'warning');
+}
+
+// Acción masiva: mover productos seleccionados a una subcategoría.
+async function moverProductosSeleccionados() {
+    const ids = [..._seleccionProductos];
+    if (ids.length === 0) { mostrarToast('No hay productos seleccionados', 'error'); return; }
+    // Subcategorías candidatas: de la categoría del primer seleccionado (o de su categoría actual)
+    const primero = productosData.productos.find(p => p.id === ids[0]);
+    const cat = productosData.categorias.find(c => c.id === (primero?.categoria));
+    const subs = (cat?.subcategorias || []);
+    const opciones = subs.map(s => ({ value: s, label: s }));
+    opciones.push({ value: 'General', label: 'General' });
+    const r = await mostrarInputModal({
+        titulo: `Mover ${ids.length} producto(s) a subcategoría`,
+        campos: [{ key: 'sub', id: 'sub', label: 'Subcategoría destino', tipo: 'select', opciones, requerido: true }],
+        textoConfirmar: 'Mover'
+    });
+    const sub = r?.sub;
+    if (!sub) return;
+    const afectados = ids.map(id => productosData.productos.find(p => p.id === id)).filter(Boolean);
+    afectados.forEach(p => { p.subcategoria = sub; });
+    _seleccionProductos.clear();
+    _actualizarBarraMasiva();
+    productosFiltrados = [...productosData.productos];
+    mostrarProductosGestion();
+    let ok = true;
+    for (const p of afectados) { const r2 = await guardarProductoIndividual(p); ok = ok && r2; }
+    mostrarToast(ok ? `${afectados.length} producto(s) movido(s) a ${sub}` : 'Movidos local — sincronizá', ok ? 'success' : 'warning');
 }
 
 async function aplicarOrdenProductos(prods, orden) {
@@ -578,49 +848,65 @@ async function aplicarOrdenProductos(prods, orden) {
 
 function renderizarCategoriasGestion(container) {
     const cats = productosData.categorias || [];
-    container.innerHTML = `<div class="catalog-grid">
-        ${cats.map(cat => {
-            const count = productosData.productos.filter(p => p.categoria === cat.id).length;
-            const prods = productosData.productos.filter(p => p.categoria === cat.id && (p.imagen_url || p.imagen));
-            const img = prods.length > 0 ? (prods[0].imagen_url || prods[0].imagen) : '';
-            const inactiva = cat.estado && cat.estado !== 'activo';
-            return `<div data-action="nav-categoria" data-id="${cat.id}"
-                class="catalog-card${inactiva ? ' opacity-50 grayscale' : ''}" ${img ? `data-bg="${img}"` : ''}>
-                ${!img ? '<div class="catalog-card-noimg"><i data-lucide="folder-open" class="w-10 h-10 text-gray-400"></i></div>' : ''}
-                ${inactiva ? '<span class="catalog-card-badge" style="background:#ef4444;color:#fff;top:8px;left:8px;right:auto;">INACTIVA</span>' : ''}
-                <div class="catalog-card-label">
-                    <div>${escapeHTML(cat.nombre)}</div>
-                    <div class="card-sub">${count} productos</div>
-                </div>
-            </div>`;
-        }).join('')}
-    </div>`;
+    const edit = _editandoCatalogo;
+    const tiles = cats.map(cat => {
+        const count = productosData.productos.filter(p => p.categoria === cat.id).length;
+        const prods = productosData.productos.filter(p => p.categoria === cat.id && (p.imagen_url || p.imagen));
+        const img = prods.length > 0 ? (prods[0].imagen_url || prods[0].imagen) : '';
+        const inactiva = cat.estado && cat.estado !== 'activo';
+        const ctrls = edit ? _ctrlBarHTML(
+            _ctrlBtnHTML('cat-rename', { cat: cat.id }, SVG_ICON_PENCIL, 'Renombrar', 'rgba(37,99,235,0.92)') +
+            _ctrlBtnHTML('cat-toggle', { cat: cat.id }, inactiva ? SVG_ICON_EYE : SVG_ICON_EYE_OFF, inactiva ? 'Activar' : 'Desactivar', 'rgba(100,116,139,0.92)') +
+            _ctrlBtnHTML('cat-delete', { cat: cat.id }, SVG_ICON_TRASH, 'Eliminar', 'rgba(220,38,38,0.92)')
+        ) : '';
+        return `<div ${edit ? 'draggable="true"' : ''} data-drag-type="cat" data-drag-id="${escapeHTML(cat.id)}" data-action="nav-categoria" data-id="${escapeHTML(cat.id)}"
+            class="vendor-cat-card${inactiva ? ' opacity-60 grayscale' : ''}${edit ? ' is-editando' : ''}" ${img ? `data-bg="${img}"` : ''}>
+            ${edit ? _dragHandleHTML() : ''}${ctrls}
+            ${!img ? '<div class="vendor-cat-card-noimg"><svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><rect width="7" height="5" x="7" y="7" rx="1"/><rect width="7" height="5" x="10" y="12" rx="1"/></svg></div>' : ''}
+            <div class="vendor-cat-card-label">
+                <div>${escapeHTML(cat.nombre)}${inactiva ? ' (inactiva)' : ''}</div>
+                <div class="card-sub">${count} producto${count !== 1 ? 's' : ''}</div>
+            </div>
+        </div>`;
+    }).join('');
+    const nuevaTile = edit ? `<div data-action="nuevaCategoriaInline" class="vendor-cat-card vendor-cat-card--loaded" style="cursor:pointer">
+        <div class="vendor-cat-card-noimg"><i data-lucide="plus" class="w-10 h-10 text-gray-300"></i></div>
+        <div class="vendor-cat-card-label"><div>+ Nueva categoría</div></div></div>` : '';
+    container.innerHTML = `<div class="vendor-catalog-grid" data-drag-scope="cat">${tiles}${nuevaTile}</div>`;
     lucide.createIcons();
     initLazyLoadCards(container);
 }
 
 function renderizarSubcategoriasGestion(container, subs) {
-    container.innerHTML = `<div class="catalog-grid">
-        <div data-action="nav-subcategoria" data-id=""
-            class="catalog-card catalog-card--loaded" style="border:2px dashed rgba(255,255,255,0.3)">
-            <div class="catalog-card-noimg" style="background:linear-gradient(135deg,#4b5563,#374151)"><i data-lucide="list" class="w-10 h-10 text-gray-400"></i></div>
-            <div class="catalog-card-label"><div>Ver todos</div></div>
-        </div>
-        ${subs.map(sub => {
-            const prods = productosData.productos.filter(p => p.categoria === prodNavCatId && p.subcategoria === sub);
-            const count = prods.length;
-            const imgProd = prods.find(p => p.imagen_url || p.imagen);
-            const img = imgProd ? (imgProd.imagen_url || imgProd.imagen) : '';
-            return `<div data-action="nav-subcategoria" data-id="${escapeHTML(sub)}"
-                class="catalog-card" ${img ? `data-bg="${img}"` : ''}>
-                ${!img ? '<div class="catalog-card-noimg"><i data-lucide="folder" class="w-10 h-10 text-gray-400"></i></div>' : ''}
-                <div class="catalog-card-label">
-                    <div>${escapeHTML(sub)}</div>
-                    <div class="card-sub">${count} productos</div>
-                </div>
-            </div>`;
-        }).join('')}
+    const edit = _editandoCatalogo;
+    const verTodos = `<div data-action="nav-subcategoria" data-id=""
+        class="vendor-cat-card vendor-cat-card--loaded" style="cursor:pointer">
+        <div class="vendor-cat-card-noimg"><i data-lucide="list" class="w-10 h-10 text-gray-400"></i></div>
+        <div class="vendor-cat-card-label"><div>Ver todos</div></div>
     </div>`;
+    const tiles = subs.map(sub => {
+        const prods = productosData.productos.filter(p => p.categoria === prodNavCatId && p.subcategoria === sub);
+        const count = prods.length;
+        const imgProd = prods.find(p => p.imagen_url || p.imagen);
+        const img = imgProd ? (imgProd.imagen_url || imgProd.imagen) : '';
+        const ctrls = edit ? _ctrlBarHTML(
+            _ctrlBtnHTML('sub-rename', { cat: prodNavCatId, sub }, SVG_ICON_PENCIL, 'Renombrar', 'rgba(37,99,235,0.92)') +
+            _ctrlBtnHTML('sub-delete', { cat: prodNavCatId, sub }, SVG_ICON_TRASH, 'Eliminar', 'rgba(220,38,38,0.92)')
+        ) : '';
+        return `<div ${edit ? 'draggable="true"' : ''} data-drag-type="sub" data-drag-id="${escapeHTML(sub)}" data-action="nav-subcategoria" data-id="${escapeHTML(sub)}"
+            class="vendor-cat-card${edit ? ' is-editando' : ''}" ${img ? `data-bg="${img}"` : ''}>
+            ${edit ? _dragHandleHTML() : ''}${ctrls}
+            ${!img ? '<div class="vendor-cat-card-noimg"><i data-lucide="folder" class="w-10 h-10 text-gray-400"></i></div>' : ''}
+            <div class="vendor-cat-card-label">
+                <div>${escapeHTML(sub)}</div>
+                <div class="card-sub">${count} producto${count !== 1 ? 's' : ''}</div>
+            </div>
+        </div>`;
+    }).join('');
+    const nuevaTile = edit ? `<div data-action="nuevaSubcategoriaInline" class="vendor-cat-card vendor-cat-card--loaded" style="cursor:pointer">
+        <div class="vendor-cat-card-noimg"><i data-lucide="plus" class="w-10 h-10 text-gray-300"></i></div>
+        <div class="vendor-cat-card-label"><div>+ Nueva subcategoría</div></div></div>` : '';
+    container.innerHTML = `<div class="vendor-catalog-grid" data-drag-scope="sub">${verTodos}${tiles}${nuevaTile}</div>`;
     lucide.createIcons();
     initLazyLoadCards(container);
 }
@@ -635,38 +921,57 @@ function renderizarProductosGestionGrid(container, prods) {
     const paginados = prods.slice(inicio, inicio + productosPorPagina);
 
     const busquedaActiva = (document.getElementById('buscarProducto')?.value || '').trim();
-    container.innerHTML = `<div class="catalog-grid">
+    const edit = _editandoCatalogo;
+    const noImgSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>';
+    // Rail de subcategorías (drop targets) — solo en edición y si la categoría tiene subcats.
+    const catActual = productosData.categorias.find(c => c.id === prodNavCatId);
+    const subsRail = (edit && catActual && (catActual.subcategorias || []).length > 0)
+        ? `<div class="mover-sub-rail" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:10px">
+             <span class="text-xs text-gray-400 mr-1">Arrastrá productos a:</span>
+             ${(catActual.subcategorias || []).map(s => `<span data-drop-sub="${escapeHTML(s)}" class="mover-sub-chip" style="border:1px dashed var(--hairline,#475569);border-radius:999px;padding:4px 10px;font-size:12px;color:var(--ink,#e5e7eb);background:var(--panel-2,#1e293b)">${escapeHTML(s)}</span>`).join('')}
+           </div>`
+        : '';
+    const grid = `<div class="vendor-prod-grid" data-drag-scope="prod">
         ${paginados.map(prod => {
             const estado = prod.estado || 'disponible';
-            const estadoBg = estado === 'disponible' ? 'background:#059669;color:#fff' : estado === 'agotado' ? 'background:#d97706;color:#fff' : 'background:#dc2626;color:#fff';
             const oculto = prod.oculto || false;
             const img = prod.imagen_url || prod.imagen || '';
-            const precio = prod.presentaciones && prod.presentaciones.length > 0 ? (prod.presentaciones[0].precio_base || 0) : 0;
-            const tieneMargenBajo = prod.presentaciones.some(p => {
-                const pr = p.precio_base || 0; const co = p.costo || 0;
-                return pr > 0 && co > 0 && ((pr - co) / pr) < MARGEN_MINIMO_PCT;
-            });
-            const tieneStockBajo = (prod.presentaciones || []).some(v => (v.stock || 0) <= STOCK_BAJO_UMBRAL);
-            const stockBadgeTop = tieneMargenBajo ? 48 : 28;
+            const presActivas = (prod.presentaciones || []).filter(p => p.activo !== false);
+            const precioMin = presActivas.length > 0 ? Math.min(...presActivas.map(p => p.precio_base || 0)) : 0;
             const catNombre = busquedaActiva
                 ? (productosData.categorias.find(c => c.id === prod.categoria)?.nombre || prod.categoria)
                 : '';
             const isSelected = _seleccionProductos.has(prod.id);
-            return `<div data-action="abrir-perfil" data-id="${prod.id}" class="catalog-card ${oculto ? 'oculto' : ''}${isSelected ? ' ring-2 ring-indigo-500' : ''}" ${img ? `data-bg="${img}"` : ''}>
-                <div class="card-checkbox-overlay" data-action="toggle-seleccion" data-id="${prod.id}" title="Seleccionar">
-                    <input type="checkbox" class="pointer-events-none w-4 h-4 accent-indigo-600" ${isSelected ? 'checked' : ''}>
+            const estadoPill = estado === 'agotado'
+                ? '<span class="vpc-estado" style="background:#d97706">Agotado</span>'
+                : estado === 'discontinuado'
+                    ? '<span class="vpc-estado" style="background:#dc2626">Discontinuado</span>'
+                    : (oculto ? '<span class="vpc-estado" style="background:#475569">Oculto</span>' : '');
+            const ctrls = edit ? _ctrlBarHTML(
+                _ctrlBtnHTML('prod-edit', { id: prod.id }, SVG_ICON_PENCIL, 'Editar', 'rgba(37,99,235,0.92)') +
+                _ctrlBtnHTML('prod-hide', { id: prod.id }, oculto ? SVG_ICON_EYE : SVG_ICON_EYE_OFF, oculto ? 'Mostrar' : 'Ocultar', 'rgba(100,116,139,0.92)') +
+                _ctrlBtnHTML('prod-delete', { id: prod.id }, SVG_ICON_TRASH, 'Eliminar', 'rgba(220,38,38,0.92)')
+            ) : '';
+            return `<div ${edit ? 'draggable="true"' : ''} data-drag-type="prod" data-drag-id="${escapeHTML(prod.id)}" data-action="abrir-perfil" data-id="${prod.id}" class="vpc ${oculto ? 'oculto' : ''}${isSelected ? ' ring-2 ring-indigo-500' : ''}${edit ? ' is-editando' : ''}">
+                <div class="vpc-media">
+                    ${img
+                        ? `<img class="vpc-img lazy-img opacity-0" data-src="${escapeHTML(img)}" alt="${escapeHTML(prod.nombre)}">`
+                        : `<div class="vpc-noimg">${noImgSvg}</div>`}
+                    <div class="card-checkbox-overlay" data-action="toggle-seleccion" data-id="${prod.id}" title="Seleccionar">
+                        <input type="checkbox" class="pointer-events-none w-4 h-4 accent-indigo-600" ${isSelected ? 'checked' : ''}>
+                    </div>
+                    ${edit ? _dragHandleHTML() : ''}${ctrls}
+                    ${estadoPill}
                 </div>
-                ${!img ? '<div class="catalog-card-noimg"><svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg></div>' : ''}
-                <span class="catalog-card-badge" style="${estadoBg}">${estado}</span>
-                ${tieneMargenBajo ? '<span class="catalog-card-badge" style="background:#f59e0b;color:#fff;top:28px;">⚠ Margen</span>' : ''}
-                ${tieneStockBajo ? `<span class="catalog-card-badge" style="background:#dc2626;color:#fff;top:${stockBadgeTop}px;">⚠ Stock</span>` : ''}
-                <div class="catalog-card-label">
-                    <div>${escapeHTML(prod.nombre)}</div>
-                    <div class="card-sub">${catNombre ? escapeHTML(catNombre) + ' · ' : ''}${precio > 0 ? formatearGuaranies(precio) : prod.presentaciones.length + ' pres.'}</div>
+                <div class="vpc-info">
+                    <div class="vpc-nombre">${escapeHTML(prod.nombre)}</div>
+                    ${precioMin > 0 ? `<div class="vpc-precio">${formatearGuaranies(precioMin)}</div>` : `<div class="vpc-sub">${prod.presentaciones.length} pres.</div>`}
+                    ${catNombre ? `<div class="vpc-sub">${escapeHTML(catNombre)}</div>` : ''}
                 </div>
             </div>`;
         }).join('')}
     </div>`;
+    container.innerHTML = subsRail + grid;
     lucide.createIcons();
     initLazyLoadCards(container);
 }
@@ -1005,13 +1310,14 @@ function abrirModalProducto(productoId) {
     const presInput = document.getElementById('nuevoProductoPresentaciones');
     const presInfo = document.getElementById('modalProductoPresInfo');
 
-    // Poblar categorias
+    // Poblar categorias (+ opción crear al vuelo)
     const select = document.getElementById('nuevoProductoCategoria');
     if (select) {
         select.innerHTML = '';
         productosData.categorias.forEach(c => {
             select.innerHTML += `<sl-option value="${escapeHTML(c.id)}">${escapeHTML(c.nombre)}</sl-option>`;
         });
+        select.innerHTML += `<sl-option value="__nueva__">+ Nueva categoría…</sl-option>`;
     }
 
     // Reset imagen
@@ -1087,6 +1393,8 @@ function abrirModalProducto(productoId) {
         actualizarSubcategoriasModal();
     }
     document.getElementById('modalProducto')?.show();
+    _actualizarVendibilidad();
+    if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 function editarProducto(id) { abrirModalProducto(id); }
@@ -1163,10 +1471,11 @@ function _parsearPresentaciones(precio, costo, stockSimple) {
         : [{ tamano: 'Unidad', precio_base: precio, costo, stock: stockSimple }];
 }
 
+// Aplica en memoria y devuelve el producto (para auto-guardado individual).
 function _aplicarCambiosProducto(id, datos, presentaciones, imagenUrl) {
     if (id) {
         const prod = productosData.productos.find(p => p.id === id);
-        if (!prod) return;
+        if (!prod) return null;
         prod.nombre = datos.nombre;
         prod.imagen_url = imagenUrl || undefined;
         prod.imagen = imagenUrl || undefined;
@@ -1176,24 +1485,152 @@ function _aplicarCambiosProducto(id, datos, presentaciones, imagenUrl) {
         prod.tipo_impuesto = datos.tipoImpuesto;
         prod.unidad_medida_set = datos.unidadMedida;
         prod.presentaciones = presentaciones;
-    } else {
-        const ultimoId = productosData.productos.length > 0 ?
-            Math.max(...productosData.productos.map(p => parseInt(p.id.replace('P', '')) || 0)) : 0;
-        const nuevoId = `P${String(ultimoId + 1).padStart(3, '0')}`;
-        const nuevo = {
-            id: nuevoId, nombre: datos.nombre,
-            categoria: datos.categoria || 'cuidado_personal',
-            subcategoria: datos.subcategoria || 'General',
-            presentaciones, estado: datos.estado,
-            tipo_impuesto: datos.tipoImpuesto,
-            unidad_medida_set: datos.unidadMedida
-        };
-        if (imagenUrl) { nuevo.imagen = imagenUrl; nuevo.imagen_url = imagenUrl; }
-        productosData.productos.push(nuevo);
+        return prod;
     }
+    const nuevoId = _siguienteIdProducto();
+    const catId = datos.categoria || (productosData.categorias[0]?.id) || null;
+    const nuevo = {
+        id: nuevoId, nombre: datos.nombre,
+        categoria: catId,
+        subcategoria: datos.subcategoria || 'General',
+        presentaciones, estado: datos.estado,
+        tipo_impuesto: datos.tipoImpuesto,
+        unidad_medida_set: datos.unidadMedida,
+        orden: _siguienteOrdenProducto(catId)
+    };
+    if (imagenUrl) { nuevo.imagen = imagenUrl; nuevo.imagen_url = imagenUrl; }
+    productosData.productos.push(nuevo);
+    return nuevo;
 }
 
-async function guardarProductoModal() {
+// ============================================
+// VENDIBILIDAD (checklist en vivo) + MARGEN + CATEGORIA INLINE
+// ============================================
+
+// Presentaciones actuales del modal (mismo criterio que _parsearPresentaciones
+// pero SIEMPRE devuelve array — para el checklist en vivo).
+function _presentacionesActuales() {
+    if (document.getElementById('toggleVariantes')?.checked) {
+        return recogerVariantes();
+    }
+    const precio = parseInt(document.getElementById('nuevoProductoPrecio')?.value) || 0;
+    const costo = parseInt(document.getElementById('nuevoProductoCosto')?.value) || 0;
+    const stock = parseInt(document.getElementById('nuevoProductoStock')?.value) || 0;
+    const presStr = (document.getElementById('nuevoProductoPresentaciones')?.value || '').trim();
+    return presStr
+        ? presStr.split(',').map(p => ({ tamano: p.trim(), precio_base: precio, costo, stock, activo: true }))
+        : [{ tamano: 'Unidad', precio_base: precio, costo, stock, activo: true }];
+}
+
+// Valida requisitos estructurales de vendibilidad. Devuelve motivo (string) o null si OK.
+function _validarVendibilidad(datos, presentaciones) {
+    if (!datos.nombre) return 'Ingresá el nombre del producto';
+    if (!datos.categoria || datos.categoria === '__nueva__') return 'Elegí o creá una categoría';
+    if (!presentaciones || presentaciones.length === 0) return 'Agregá al menos una variante';
+    const activas = presentaciones.filter(p => p.activo !== false && (p.tamano || '').trim() !== '');
+    if (activas.length === 0) return 'Necesitás al menos una variante activa';
+    if (!activas.some(p => (p.precio_base || 0) > 0)) return 'Poné un precio mayor a 0';
+    return null;
+}
+
+function _actualizarMargenSimple() {
+    const el = document.getElementById('modalMargenSimple');
+    if (!el) return;
+    if (document.getElementById('toggleVariantes')?.checked) { el.classList.add('hidden'); return; }
+    const precio = parseInt(document.getElementById('nuevoProductoPrecio')?.value) || 0;
+    const costo = parseInt(document.getElementById('nuevoProductoCosto')?.value) || 0;
+    if (precio <= 0 || costo <= 0) { el.classList.add('hidden'); return; }
+    const margen = Math.round(((precio - costo) / precio) * 100);
+    const bajo = margen < (MARGEN_MINIMO_PCT * 100);
+    el.className = `text-[11px] mb-3 font-semibold ${bajo ? 'text-amber-600' : 'text-green-600'}`;
+    el.textContent = `Margen: ${margen}%${bajo ? ' — margen bajo' : ''}`;
+    el.classList.remove('hidden');
+}
+
+// Recalcula el checklist en vivo + margen + habilita/deshabilita Guardar.
+function _actualizarVendibilidad() {
+    const ul = document.getElementById('vendibilidadChecklist');
+    if (!ul) return;
+    const nombre = (document.getElementById('nuevoProductoNombre')?.value || '').trim();
+    const catVal = document.getElementById('nuevoProductoCategoria')?.value || '';
+    const catOk = !!catVal && catVal !== '__nueva__';
+    const estado = document.getElementById('nuevoProductoEstado')?.value || 'disponible';
+    const pres = _presentacionesActuales();
+    const activas = pres.filter(p => p.activo !== false && (p.tamano || '').trim() !== '');
+    const tieneActiva = activas.length > 0;
+    const tienePrecio = activas.some(p => (p.precio_base || 0) > 0);
+
+    const items = [
+        { label: 'Nombre', ok: nombre.length > 0 },
+        { label: 'Categoría definida', ok: catOk },
+        { label: 'Al menos una variante activa', ok: tieneActiva },
+        { label: 'Precio mayor a 0', ok: tienePrecio },
+        estado === 'discontinuado'
+            ? { label: 'Está discontinuado — NO se mostrará', ok: false, warn: true }
+            : { label: estado === 'agotado' ? 'Visible (agotado, igual se muestra)' : 'Visible en el catálogo', ok: true }
+    ];
+    ul.innerHTML = items.map(it => {
+        const color = it.ok ? 'text-green-600' : (it.warn ? 'text-amber-600' : 'text-red-500');
+        const icon = it.ok ? '✓' : (it.warn ? '!' : '✗');
+        return `<li class="flex items-center gap-1.5 ${color}"><span class="font-bold w-3 text-center">${icon}</span> ${escapeHTML(it.label)}</li>`;
+    }).join('');
+
+    _actualizarMargenSimple();
+
+    const bloqueado = !(nombre.length > 0 && catOk && tieneActiva && tienePrecio);
+    ['btnGuardarProducto', 'btnGuardarProductoYOtro'].forEach(id => {
+        const b = document.getElementById(id); if (b) b.disabled = bloqueado;
+    });
+}
+
+// Crea una categoría al vuelo desde el modal de producto.
+async function _crearCategoriaInlineDesdeModal() {
+    const r = await mostrarInputModal({
+        titulo: 'Nueva categoría', icono: 'folder-plus',
+        campos: [{ key: 'nombre', label: 'Nombre de la categoría', tipo: 'text', requerido: true }],
+        textoConfirmar: 'Crear'
+    });
+    if (!r || !(r.nombre || '').trim()) return null;
+    const nombre = r.nombre.trim();
+    const id = nombre.toLowerCase().replace(/\s+/g, '_').replace(/[^\w]/g, '');
+    if (!id) return null;
+    let cat = productosData.categorias.find(c => c.id === id);
+    if (!cat) {
+        cat = { id, nombre, subcategorias: [], estado: 'activo', orden: productosData.categorias.length };
+        productosData.categorias.push(cat);
+        poblarFiltroCategorias();
+    }
+    return cat;
+}
+
+function _poblarSelectCategoriasModal(sel, valorSeleccionado) {
+    if (!sel) return;
+    sel.innerHTML = productosData.categorias
+        .map(c => `<sl-option value="${escapeHTML(c.id)}">${escapeHTML(c.nombre)}</sl-option>`).join('')
+        + `<sl-option value="__nueva__">+ Nueva categoría…</sl-option>`;
+    if (valorSeleccionado) sel.value = valorSeleccionado;
+}
+
+async function _onCategoriaModalChange() {
+    const sel = document.getElementById('nuevoProductoCategoria');
+    if (sel && sel.value === '__nueva__') {
+        const cat = await _crearCategoriaInlineDesdeModal();
+        _poblarSelectCategoriasModal(sel, cat ? cat.id : (productosData.categorias[0]?.id || ''));
+    }
+    actualizarSubcategoriasModal();
+    _actualizarVendibilidad();
+}
+
+function _resetModalProductoParaCrear() {
+    abrirModalProducto(); // reusa el reset a modo creación
+    setTimeout(() => {
+        const n = document.getElementById('nuevoProductoNombre');
+        if (n && typeof n.focus === 'function') n.focus();
+    }, 60);
+}
+
+async function guardarProductoModal(opts = {}) {
+    const cargarOtro = opts && opts.cargarOtro === true;
     const datos = _leerFormProducto();
 
     if (datos.subcategoria === '__otra__') {
@@ -1207,28 +1644,44 @@ async function guardarProductoModal() {
         datos.subcategoria = modal.nombre;
     }
 
-    if (!datos.nombre) { mostrarToast('Ingresa el nombre del producto', 'error'); return; }
+    // Gate de vendibilidad (bloqueo si quedaría invisible/roto en la app del vendedor)
+    const presentaciones = _parsearPresentaciones(datos.precio, datos.costo, datos.stockSimple);
+    const motivo = _validarVendibilidad(datos, presentaciones);
+    if (motivo) { mostrarToast(motivo, 'error'); return; }
 
-    await withButtonLock('btnGuardarProducto', async () => {
+    const btnId = cargarOtro ? 'btnGuardarProductoYOtro' : 'btnGuardarProducto';
+    await withButtonLock(btnId, async () => {
         let imagenUrl = datos.imagen;
         if (archivoImagenProducto) {
-            imagenUrl = await subirImagenProducto(archivoImagenProducto);
+            try {
+                imagenUrl = await subirImagenProducto(archivoImagenProducto);
+            } catch (e) {
+                console.error('[Admin] Error subiendo imagen:', e);
+                const seguir = await mostrarConfirmModal('No se pudo subir la imagen. ¿Guardar el producto sin imagen?', { textoConfirmar: 'Guardar sin imagen' });
+                if (!seguir) return;
+                imagenUrl = datos.imagen || '';
+            }
             archivoImagenProducto = null;
         }
 
-        const presentaciones = _parsearPresentaciones(datos.precio, datos.costo, datos.stockSimple);
-        if (presentaciones === null) {
-            mostrarToast('Agrega al menos una variante', 'error');
-            return;
-        }
-
-        _aplicarCambiosProducto(datos.id, datos, presentaciones, imagenUrl);
+        const prod = _aplicarCambiosProducto(datos.id, datos, presentaciones, imagenUrl);
+        if (!prod) { mostrarToast('No se pudo guardar el producto', 'error'); return; }
 
         productosFiltrados = [...productosData.productos];
-        registrarCambio();
+
+        // Auto-guardado: publica el producto (y su categoría) al vendedor al instante.
+        const cat = productosData.categorias.find(c => c.id === prod.categoria);
+        const ok = await guardarProductoIndividual(prod, cat ? { categoria: cat } : {});
+        if (ok) {
+            mostrarToast('Guardado y publicado a la app del vendedor', 'success');
+        } else {
+            registrarCambio(); // fallback: quedará para "Guardar y Sincronizar"
+            mostrarToast('Guardado local — sincronizá para publicarlo', 'warning');
+        }
+
         mostrarProductosGestion();
-        cerrarModalProducto();
-        mostrarToast('Producto guardado correctamente', 'success');
+        if (cargarOtro) _resetModalProductoParaCrear();
+        else cerrarModalProducto();
     }, 'Guardando...')();
 }
 
@@ -1916,12 +2369,12 @@ function limpiarSeleccionProductos() {
     // Actualizar checkboxes sin re-renderizar
     const grid = document.getElementById('productosGridContainer');
     grid?.querySelectorAll('.card-checkbox-overlay input[type="checkbox"]').forEach(cb => { cb.checked = false; });
-    grid?.querySelectorAll('.catalog-card.ring-2').forEach(c => { c.classList.remove('ring-2', 'ring-indigo-500'); });
+    grid?.querySelectorAll('.vpc.ring-2').forEach(c => { c.classList.remove('ring-2', 'ring-indigo-500'); });
 }
 
 function seleccionarTodosProductos() {
     const grid = document.getElementById('productosGridContainer');
-    const cards = [...(grid?.querySelectorAll('.catalog-card[data-action="abrir-perfil"]') || [])];
+    const cards = [...(grid?.querySelectorAll('.vpc[data-action="abrir-perfil"]') || [])];
     const todosSeleccionados = cards.every(c => _seleccionProductos.has(c.dataset.id));
     if (todosSeleccionados && cards.length > 0) {
         _seleccionProductos.clear();
@@ -2467,6 +2920,18 @@ const filtrarProductosDebounced = debounce(filtrarProductos, 300);
     document.getElementById('filtroOrdenProductos')?.addEventListener('sl-change', () => filtrarProductos());
     document.getElementById('mostrarOcultosProductos')?.addEventListener('sl-change', () => filtrarProductos());
     document.getElementById('filtroStockBajo')?.addEventListener('sl-change', () => filtrarProductos());
-    document.getElementById('toggleVariantes')?.addEventListener('sl-change', () => toggleModoVariantes());
-    document.getElementById('nuevoProductoCategoria')?.addEventListener('sl-change', () => actualizarSubcategoriasModal());
+    document.getElementById('toggleVariantes')?.addEventListener('sl-change', () => { toggleModoVariantes(); _actualizarVendibilidad(); });
+    document.getElementById('nuevoProductoCategoria')?.addEventListener('sl-change', () => _onCategoriaModalChange());
+
+    // Checklist de vendibilidad en vivo (modal de producto)
+    ['nuevoProductoNombre', 'nuevoProductoPrecio', 'nuevoProductoCosto', 'nuevoProductoStock', 'nuevoProductoPresentaciones']
+        .forEach(id => document.getElementById(id)?.addEventListener('sl-input', () => _actualizarVendibilidad()));
+    document.getElementById('nuevoProductoEstado')?.addEventListener('sl-change', () => _actualizarVendibilidad());
+    document.getElementById('nuevoProductoSubcategoria')?.addEventListener('sl-change', () => _actualizarVendibilidad());
+    // Variantes: inputs nativos dentro de #listaVariantes
+    const listaVar = document.getElementById('listaVariantes');
+    if (listaVar) {
+        listaVar.addEventListener('input', () => _actualizarVendibilidad());
+        listaVar.addEventListener('change', () => _actualizarVendibilidad());
+    }
 })();

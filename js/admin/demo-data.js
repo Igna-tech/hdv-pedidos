@@ -20,6 +20,15 @@
     const KEY_FLAG = 'hdv_demo_activo';
     const KEY_BUNDLE = 'hdv_demo_bundle';
 
+    // Señal TEMPRANA (apenas corre este script, antes del primer render del dashboard):
+    // si el demo quedó activo y hay bundle, el dashboard debe ESPERAR la rehidratación
+    // en vez de pintarse con datos reales/vacíos (evita el parpadeo al iniciar sesión).
+    try {
+        if (localStorage.getItem(KEY_FLAG) === '1' && localStorage.getItem(KEY_BUNDLE)) {
+            window._demoPendiente = true;
+        }
+    } catch (_) {}
+
     const _rint = (a, b) => Math.floor(Math.random() * (b - a + 1)) + a;
     const _pick = arr => arr[Math.floor(Math.random() * arr.length)];
     const _uuid = () => 'DEMO-' + (crypto?.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2) + Date.now());
@@ -180,6 +189,7 @@
         if (typeof todosLosPedidos !== 'undefined') {
             todosLosPedidos = (window._demoBackupPedidos || []).concat(bundle.pedidos || []);
         }
+        window._demoPendiente = false;   // pedidos demo ya en memoria: liberar el render aunque IndexedDB falle
 
         // Metas y cobros demo en IndexedDB (junto a los reales, marcados _demo)
         const metasPrev = (await HDVStorage.getItem('hdv_metas')) || [];

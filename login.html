@@ -441,7 +441,7 @@
                 </div>
                 <p class="eyebrow mono" style="margin-top:1.1rem">Seguridad HDV</p>
                 <h2 class="card-title">Verificá que sos vos</h2>
-                <p class="subtitle">Estás por entrar al sistema. Por tu seguridad, ingresá el código de 6 dígitos que muestra tu app de autenticación (Google Authenticator, Authy…).</p>
+                <p class="subtitle">Ingresá el código de 6 dígitos en tu app de autenticación.</p>
 
                 <sl-alert id="mfa-alert" closable style="display:none;margin-top:1rem;">
                     <sl-icon slot="icon" name="exclamation-octagon"></sl-icon>
@@ -452,12 +452,9 @@
                     <label for="mfa-code">Código de 6 dígitos</label>
                     <sl-input type="text" id="mfa-code" maxlength="6" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code" placeholder="000000" size="large" class="mfa-code-input"></sl-input>
                 </div>
-                <div style="margin-top:1.25rem;display:flex;flex-direction:column;gap:0.6rem">
-                    <sl-button id="btn-mfa-verify" size="large" class="w-full btn-enter">
-                        <svg slot="prefix" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.6-2A11.95 11.95 0 0112 2.94 11.95 11.95 0 013.4 6 12 12 0 0012 21.6 12 12 0 0020.6 6z"/></svg>
-                        Verificar e ingresar
-                    </sl-button>
-                    <sl-button id="btn-mfa-cancel" variant="text" size="medium" class="w-full">Usar otra cuenta</sl-button>
+                <div style="margin-top:1.25rem;display:flex;flex-direction:column;align-items:center;gap:0.6rem">
+                    <sl-button id="btn-mfa-verify" size="large" class="btn-enter">Verificar</sl-button>
+                    <sl-button id="btn-mfa-cancel" variant="text" size="medium">Usar otra cuenta</sl-button>
                 </div>
             </div>
 

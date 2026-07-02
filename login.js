@@ -546,17 +546,41 @@ function _initSoporte() {
     if (b) b.href = url;
 }
 
-// --- Recordar correo en este dispositivo ---
+// --- Recordar este dispositivo (correo + estado del check, persistente) ---
 function _initRecordar() {
     const chk = document.getElementById('remember-device');
-    try {
-        const saved = localStorage.getItem('hdv_remember_email');
-        if (saved && emailInput) { emailInput.value = saved; if (chk) chk.checked = true; if (passwordInput) setTimeout(() => passwordInput.focus(), 50); }
-    } catch (e) {}
+    const KEY_FLAG = 'hdv_remember_device';
+    const KEY_EMAIL = 'hdv_remember_email';
+
+    const aplicarRecordado = () => {
+        try {
+            const recordado = localStorage.getItem(KEY_FLAG) === '1';
+            const email = localStorage.getItem(KEY_EMAIL) || '';
+            if (chk) chk.checked = recordado;
+            if (recordado && email && emailInput) {
+                emailInput.value = email;
+                if (passwordInput) setTimeout(() => passwordInput.focus(), 60);
+            }
+        } catch (e) {}
+    };
+
+    // sl-input puede no estar "upgradeado" cuando corre esto (Shoelace carga async):
+    // esperar a su definición para que el valor prefijado no se pierda.
+    if (window.customElements && customElements.whenDefined) {
+        customElements.whenDefined('sl-input').then(aplicarRecordado).catch(() => {});
+    }
+    aplicarRecordado();
+
+    // Guardar/limpiar al enviar según el estado del check.
     loginForm.addEventListener('submit', () => {
         try {
-            if (chk?.checked) localStorage.setItem('hdv_remember_email', (emailInput.value || '').trim().toLowerCase());
-            else localStorage.removeItem('hdv_remember_email');
+            if (chk?.checked) {
+                localStorage.setItem(KEY_FLAG, '1');
+                localStorage.setItem(KEY_EMAIL, (emailInput.value || '').trim().toLowerCase());
+            } else {
+                localStorage.removeItem(KEY_FLAG);
+                localStorage.removeItem(KEY_EMAIL);
+            }
         } catch (e) {}
     });
 }

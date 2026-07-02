@@ -112,6 +112,9 @@
         /* Logo claro (PNG transparente) prominente en splash y card */
         .brand-logo { height: 60px; width: auto; max-width: 240px; object-fit: contain; object-position: left center; display: none; }
         .brand-logo--splash { height: 64px; max-width: 260px; object-position: center; }
+        /* Logo protagonista dentro de la tarjeta de acceso */
+        .brand-logo--card { height: 116px; max-width: 100%; margin: 0.2rem 0 0.4rem; }
+        @media (min-width: 768px) { .brand-logo--card { height: 132px; } }
         .logo-tile .mono { font-weight: 700; font-size: 1rem; color: var(--ink); letter-spacing: 0.02em; }
 
         .eyebrow { font-size: 0.78rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--faint); }
@@ -147,6 +150,9 @@
             .btn-enter::part(base):hover { background: var(--steel); opacity: 0.9; }
         }
         .btn-enter::part(base):active { transform: scale(0.97); }
+        /* Etiqueta perfectamente centrada dentro del botón */
+        .btn-enter::part(base) { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; }
+        .btn-enter::part(label) { flex: 0 1 auto; text-align: center; padding: 0; }
         sl-button.w-full { display: block; } sl-button.w-full::part(base) { width: 100%; }
 
         .row { display: flex; align-items: center; justify-content: space-between; margin-top: 1rem; }
@@ -170,6 +176,42 @@
         @keyframes screenFade { from { opacity: 0; } to { opacity: 1; } }
 
         .mfa-code-input::part(input) { text-align: center; font-size: 1.5rem; letter-spacing: 0.5em; font-family: 'Geist Mono', monospace; }
+
+        /* ===== Candado animado (pantalla MFA) — el arco baja y "cierra" ===== */
+        .lock-badge { position: relative; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; }
+        .lock-badge svg { width: 40px; height: 40px; overflow: visible; position: relative; z-index: 1; }
+        /* aro que late detrás del candado */
+        .lock-badge::before {
+            content: ''; position: absolute; inset: -2px; border-radius: 14px;
+            border: 1px solid var(--hairline);
+            box-shadow: 0 0 0 0 rgba(212,212,216,0.22);
+            animation: lockRing 2.6s var(--ease-io) 1s infinite;
+        }
+        .lock-body { fill: none; stroke: var(--ink); stroke-width: 2; }
+        .lock-keyhole { fill: var(--ink); opacity: 0; animation: lockKey 300ms var(--ease-out) 900ms forwards; }
+        /* el arco arranca levantado (abierto) y baja hasta asentarse con rebote */
+        .lock-shackle {
+            fill: none; stroke: var(--ink); stroke-width: 2; stroke-linecap: round;
+            transform-box: fill-box; transform-origin: 50% 100%;
+            animation: lockClose 820ms var(--ease-io) 250ms both;
+        }
+        .lock-body { animation: lockPop 320ms var(--ease-out) 780ms both; transform-box: fill-box; transform-origin: 50% 60%; }
+        @keyframes lockClose {
+            0%   { transform: translateY(-7px); opacity: 0.55; }
+            65%  { transform: translateY(1.5px); opacity: 1; }
+            82%  { transform: translateY(-1px); }
+            100% { transform: translateY(0); }
+        }
+        @keyframes lockPop {
+            0%   { transform: scale(1); }
+            45%  { transform: scale(1.08); }
+            100% { transform: scale(1); }
+        }
+        @keyframes lockKey { to { opacity: 0.9; } }
+        @keyframes lockRing {
+            0%   { box-shadow: 0 0 0 0 rgba(212,212,216,0.22); }
+            70%,100% { box-shadow: 0 0 0 10px rgba(212,212,216,0); }
+        }
 
         /* Splash / boot */
         #loading-screen {
@@ -290,6 +332,8 @@
             #greeting-overlay.is-active::before { animation: none; opacity: 0.4; transform: none; }
             .greet-word, .greet-name, .greet-sub { animation: none; opacity: 1; transform: none; filter: none; }
             .greet-rule { animation: none; opacity: 0.8; width: clamp(80px, 26vw, 200px); }
+            .lock-shackle, .lock-body, .lock-keyhole { animation: none !important; opacity: 1; transform: none; }
+            .lock-badge::before { animation: none !important; }
             *, *::before, *::after { transition-duration: 0.01ms !important; }
         }
     </style>
@@ -337,9 +381,8 @@
             <!-- Login -->
             <div id="login-container" class="module" style="display:none;">
                 <div class="reveal" style="display:flex;flex-direction:column;align-items:flex-start;gap:0.45rem">
-                    <img id="cardLogo" alt="HDV Distribuciones" class="brand-logo">
-                    <span id="cardLogoMono" class="mono" style="font-size:1.5rem;font-weight:700;color:var(--ink)">HDV</span>
-                    <p class="meta">Sistema de gestión · Distribuciones</p>
+                    <img id="cardLogo" alt="HDV Distribuciones" class="brand-logo brand-logo--card">
+                    <span id="cardLogoMono" class="mono" style="font-size:2.6rem;font-weight:700;color:var(--ink)">HDV</span>
                 </div>
 
                 <div class="reveal d1" style="margin-top:1.6rem">
@@ -388,10 +431,17 @@
 
             <!-- MFA verify -->
             <div id="mfa-container" class="module" style="display:none;">
-                <div class="logo-tile"><svg width="22" height="22" fill="none" stroke="var(--ink)" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg></div>
-                <p class="eyebrow mono" style="margin-top:1.1rem">Verificación en dos pasos</p>
-                <h2 class="card-title">Código de seguridad</h2>
-                <p class="subtitle">Ingresá el código de tu app de autenticación</p>
+                <div class="lock-badge" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none">
+                        <path class="lock-shackle" d="M8 11V8a4 4 0 0 1 8 0v3"/>
+                        <rect class="lock-body" x="5" y="11" width="14" height="10" rx="2.5"/>
+                        <circle class="lock-keyhole" cx="12" cy="15.4" r="1.4"/>
+                        <rect class="lock-keyhole" x="11.35" y="15.6" width="1.3" height="3" rx="0.65"/>
+                    </svg>
+                </div>
+                <p class="eyebrow mono" style="margin-top:1.1rem">Seguridad HDV</p>
+                <h2 class="card-title">Verificá que sos vos</h2>
+                <p class="subtitle">Estás por entrar al sistema. Por tu seguridad, ingresá el código de 6 dígitos que muestra tu app de autenticación (Google Authenticator, Authy…).</p>
 
                 <sl-alert id="mfa-alert" closable style="display:none;margin-top:1rem;">
                     <sl-icon slot="icon" name="exclamation-octagon"></sl-icon>
@@ -399,12 +449,15 @@
                 </sl-alert>
 
                 <div class="field">
-                    <label for="mfa-code">Código TOTP · 6 dígitos</label>
+                    <label for="mfa-code">Código de 6 dígitos</label>
                     <sl-input type="text" id="mfa-code" maxlength="6" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code" placeholder="000000" size="large" class="mfa-code-input"></sl-input>
                 </div>
                 <div style="margin-top:1.25rem;display:flex;flex-direction:column;gap:0.6rem">
-                    <sl-button id="btn-mfa-verify" size="large" class="w-full btn-enter">Verificar</sl-button>
-                    <sl-button id="btn-mfa-cancel" variant="text" size="medium" class="w-full">Cancelar e iniciar con otra cuenta</sl-button>
+                    <sl-button id="btn-mfa-verify" size="large" class="w-full btn-enter">
+                        <svg slot="prefix" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.6-2A11.95 11.95 0 0112 2.94 11.95 11.95 0 013.4 6 12 12 0 0012 21.6 12 12 0 0020.6 6z"/></svg>
+                        Verificar e ingresar
+                    </sl-button>
+                    <sl-button id="btn-mfa-cancel" variant="text" size="medium" class="w-full">Usar otra cuenta</sl-button>
                 </div>
             </div>
 

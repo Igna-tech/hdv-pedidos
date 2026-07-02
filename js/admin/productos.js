@@ -445,7 +445,6 @@ async function mostrarProductosGestion() {
     }
 
     actualizarBreadcrumbProductos();
-    _actualizarAlertaStock();
 }
 
 // ============================================

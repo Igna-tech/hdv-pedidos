@@ -403,7 +403,7 @@
                 <sl-icon-button id="hamburgerBtn" name="list" data-action="toggleSidebar" label="Menu" class="hidden" style="font-size:1.25rem; color:#6b7280;"></sl-icon-button>
                 <!-- Logo empresa (grande, en el header) -->
                 <span class="flex items-center" aria-label="HDV Distribuciones">
-                    <img id="adminHeaderLogo" src="" alt="HDV Distribuciones" class="h-12 w-auto max-w-[240px] object-contain object-left hidden">
+                    <img id="adminHeaderLogo" src="" alt="HDV Distribuciones" class="h-14 w-auto max-w-[360px] object-contain object-left hidden">
                     <svg id="adminHeaderLogoSvg" width="36" height="36" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
                         <rect width="100" height="100" rx="16" fill="#111827"/>
                         <rect x="4" y="4" width="92" height="92" rx="12" fill="none" stroke="#DC2626" stroke-width="2.5"/>
@@ -1221,61 +1221,61 @@
 
             <!-- PRODUCTOS -->
             <section id="seccion-productos" class="tab-content space-y-4">
-                <div class="saas-card p-4 flex flex-wrap gap-3 items-center justify-between">
-                    <div class="flex items-center gap-2 text-sm text-gray-500">
-                        <sl-button data-action="productosVolverAtras" id="btnVolverCatalogo" variant="neutral" size="small" outline class="hidden" style="font-weight:700;">
-                            <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i> Atrás
-                        </sl-button>
-                        <sl-button data-action="productosNavegar" data-arg="inicio" id="prod-breadcrumb-inicio" variant="text" size="small" style="font-weight:700; --sl-color-primary-600:#1f2937; --sl-color-primary-700:#111827;">Catalogo</sl-button>
-                        <span id="prod-breadcrumb-sep1" class="hidden">/</span>
-                        <sl-button data-action="productosNavegar" data-arg="categoria" id="prod-breadcrumb-cat" variant="text" size="small" class="hidden" style="font-weight:700; color:#374151; --sl-color-primary-600:#1f2937; --sl-color-primary-700:#111827;"></sl-button>
-                        <span id="prod-breadcrumb-sep2" class="hidden">/</span>
-                        <span id="prod-breadcrumb-sub" class="hidden font-bold text-gray-900"></span>
+                <div class="saas-card p-4 space-y-3.5">
+                    <!-- Fila 1: navegación + acciones principales -->
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <div class="flex items-center gap-2 text-sm text-gray-500 min-w-0">
+                            <sl-button data-action="productosVolverAtras" id="btnVolverCatalogo" variant="neutral" size="small" outline class="hidden" style="font-weight:700;">
+                                <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i> Atrás
+                            </sl-button>
+                            <sl-button data-action="productosNavegar" data-arg="inicio" id="prod-breadcrumb-inicio" variant="text" size="small" style="font-weight:700; --sl-color-primary-600:#1f2937; --sl-color-primary-700:#111827;">Catálogo</sl-button>
+                            <span id="prod-breadcrumb-sep1" class="hidden">/</span>
+                            <sl-button data-action="productosNavegar" data-arg="categoria" id="prod-breadcrumb-cat" variant="text" size="small" class="hidden" style="font-weight:700; color:#374151; --sl-color-primary-600:#1f2937; --sl-color-primary-700:#111827;"></sl-button>
+                            <span id="prod-breadcrumb-sep2" class="hidden">/</span>
+                            <span id="prod-breadcrumb-sub" class="hidden font-bold text-gray-900"></span>
+                        </div>
+                        <div class="flex items-center gap-2 shrink-0">
+                            <sl-button data-action="toggleEditarCatalogo" id="btnEditarCatalogo" variant="neutral" size="small" outline><i data-lucide="pencil" class="w-3.5 h-3.5"></i> <span id="btnEditarCatalogoLabel">Editar</span></sl-button>
+                            <sl-button data-action="abrirModalCategorias" variant="neutral" size="small" outline><i data-lucide="folder" class="w-3.5 h-3.5"></i> Categorías</sl-button>
+                            <sl-button data-action="abrirModalProducto" variant="primary" size="small"><i data-lucide="package-plus" class="w-4 h-4"></i> Cargar producto</sl-button>
+                        </div>
                     </div>
-                    <div class="flex gap-2 flex-wrap items-center">
-                        <sl-input type="text" id="buscarProducto" placeholder="Buscar producto..." size="small" style="width:12rem"></sl-input>
-                        <sl-select id="filtroCategoria" size="small" hoist placeholder="Todas las categorias">
-                            <sl-option value="">Todas las categorias</sl-option>
+                    <!-- Divisor -->
+                    <div class="border-t border-gray-100"></div>
+                    <!-- Fila 2: búsqueda + filtros + herramientas -->
+                    <div class="flex flex-wrap items-center gap-2">
+                        <sl-input type="text" id="buscarProducto" placeholder="Buscar producto..." size="small" clearable class="grow min-w-[12rem] max-w-xs">
+                            <i data-lucide="search" slot="prefix" class="w-3.5 h-3.5 text-gray-400"></i>
+                        </sl-input>
+                        <sl-select id="filtroCategoria" size="small" hoist placeholder="Categoría" class="w-40">
+                            <sl-option value="">Todas las categorías</sl-option>
                         </sl-select>
-                        <sl-select id="filtroSubcategoriaProducto" size="small" hoist placeholder="Todas las subcats" disabled>
+                        <sl-select id="filtroSubcategoriaProducto" size="small" hoist placeholder="Subcategoría" disabled class="w-40">
                             <sl-option value="">Todas las subcats</sl-option>
                         </sl-select>
-                        <sl-select id="filtroEstadoProducto" size="small" hoist placeholder="Todos los estados">
+                        <sl-select id="filtroEstadoProducto" size="small" hoist placeholder="Estado" class="w-36">
                             <sl-option value="">Todos los estados</sl-option>
                             <sl-option value="disponible">Disponible</sl-option>
                             <sl-option value="agotado">Agotado</sl-option>
                             <sl-option value="discontinuado">Discontinuado</sl-option>
                         </sl-select>
-                        <sl-select id="filtroOrdenProductos" size="small" hoist placeholder="Sin orden">
+                        <sl-select id="filtroOrdenProductos" size="small" hoist placeholder="Orden" class="w-36">
                             <sl-option value="">Sin orden</sl-option>
                             <sl-option value="az">A-Z</sl-option>
                             <sl-option value="za">Z-A</sl-option>
                             <sl-option value="mas-vendidos">Más vendidos</sl-option>
                             <sl-option value="menos-vendidos">Menos vendidos</sl-option>
                         </sl-select>
-                        <sl-switch id="mostrarOcultosProductos">Ocultos</sl-switch>
-                        <sl-switch id="filtroStockBajo">Stock bajo</sl-switch>
-                        <sl-button data-action="seleccionar-todo-productos" variant="neutral" size="small" outline><i data-lucide="check-square" class="w-3.5 h-3.5"></i></sl-button>
-                        <sl-button data-action="exportarProductosCSV" variant="neutral" size="small" outline><i data-lucide="download" class="w-3.5 h-3.5"></i> CSV</sl-button>
-                        <sl-button data-action="verMargenesCatalogo" variant="neutral" size="small" outline title="Vista de márgenes por categoría"><i data-lucide="trending-up" class="w-3.5 h-3.5"></i> Márgenes</sl-button>
-                        <sl-button data-action="abrirEstadisticasCatalogo" variant="neutral" size="small" outline title="Estadísticas del catálogo"><i data-lucide="bar-chart-2" class="w-3.5 h-3.5"></i> Stats</sl-button>
-                        <sl-button data-action="toggleEditarCatalogo" id="btnEditarCatalogo" variant="neutral" size="small" outline><i data-lucide="pencil" class="w-3.5 h-3.5"></i> <span id="btnEditarCatalogoLabel">Editar</span></sl-button>
-                        <sl-button data-action="abrirModalCategorias" variant="primary" size="small">Categorias</sl-button>
-                        <sl-button data-action="abrirModalProducto" variant="neutral" size="small">+ Nuevo</sl-button>
+                        <sl-switch id="mostrarOcultosProductos" size="small">Ocultos</sl-switch>
+                        <sl-switch id="filtroStockBajo" size="small">Stock bajo</sl-switch>
+                        <!-- Herramientas alineadas a la derecha -->
+                        <div class="flex items-center gap-1.5 ml-auto">
+                            <sl-button data-action="seleccionar-todo-productos" variant="neutral" size="small" outline title="Seleccionar todo"><i data-lucide="check-square" class="w-3.5 h-3.5"></i></sl-button>
+                            <sl-button data-action="exportarProductosCSV" variant="neutral" size="small" outline title="Exportar CSV"><i data-lucide="download" class="w-3.5 h-3.5"></i></sl-button>
+                            <sl-button data-action="verMargenesCatalogo" variant="neutral" size="small" outline title="Márgenes por categoría"><i data-lucide="trending-up" class="w-3.5 h-3.5"></i></sl-button>
+                            <sl-button data-action="abrirEstadisticasCatalogo" variant="neutral" size="small" outline title="Estadísticas del catálogo"><i data-lucide="bar-chart-2" class="w-3.5 h-3.5"></i></sl-button>
+                        </div>
                     </div>
-                </div>
-                <!-- Launcher de carga guiada -->
-                <div class="saas-card p-3 flex flex-wrap items-center gap-3" id="quickAddRow">
-                    <sl-button data-action="abrirModalProducto" variant="primary" size="small"><i data-lucide="package-plus" class="w-4 h-4"></i> Cargar producto</sl-button>
-                    <span class="text-[11px] text-gray-400">Un solo formulario: nombre, imagen, precio, costo, stock y variantes — se publica al instante en la app del vendedor.</span>
-                </div>
-                <!-- Banner de stock crítico (auto-visible cuando hay productos críticos) -->
-                <div id="alertaStockCritico" class="hidden bg-red-50 border border-red-200 rounded-xl px-4 py-2.5 flex items-center justify-between gap-3">
-                    <div class="flex items-center gap-2 text-sm text-red-700">
-                        <i data-lucide="alert-triangle" class="w-4 h-4 shrink-0"></i>
-                        <span id="alertaStockCriticoTexto"></span>
-                    </div>
-                    <sl-button data-action="activarFiltroStockBajo" variant="danger" size="small" outline>Ver productos</sl-button>
                 </div>
                 <div id="productosGridContainer"></div>
                 <div id="paginacionProductos" class="flex items-center justify-between text-sm text-gray-500"></div>
